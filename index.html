@@ -2441,6 +2441,44 @@ const PERMS = {
 
 const ALL_PERMS = ['Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'];
 
+
+// ============================================================
+// PERSISTANCE — localStorage
+// ============================================================
+const STORAGE_KEY = 'konoha_police_state';
+
+function saveState() {
+  try {
+    const toSave = {
+      users:        state.users,
+      plaintes:     state.plaintes,
+      candidatures: state.candidatures,
+      messages:     state.messages,
+      journal:      state.journal,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch(e) { console.warn('saveState error', e); }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved.users)        state.users        = saved.users;
+    if (saved.plaintes)     state.plaintes     = saved.plaintes;
+    if (saved.candidatures) state.candidatures = saved.candidatures;
+    if (saved.messages)     state.messages     = saved.messages;
+    if (saved.journal)      state.journal      = saved.journal;
+  } catch(e) { console.warn('loadState error', e); }
+}
+
+function resetState() {
+  if (!confirm('Réinitialiser toutes les données du site ? Cette action est irréversible.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
 // ---- ÉTAT GLOBAL ----
 const state = {
   currentUser: null,
@@ -2494,7 +2532,8 @@ function showPage(id) {
   // Hide main nav on dashboard (has its own topbar), show everywhere else
   const mainNav = document.getElementById('main-nav');
   if (mainNav) mainNav.style.display = (id === 'dashboard') ? 'none' : 'flex';
-  updateNav();
+  loadState();
+updateNav();
   if (id === 'dashboard') {
     if (!state.currentUser) { showPage('login'); return; }
     renderDashboard('overview');
@@ -2609,6 +2648,7 @@ function doRegister() {
     connu: 'non',
     inscription: new Date().toLocaleDateString('fr-FR')
   };
+  saveState();
   ok.style.display = 'block';
   setTimeout(() => showPage('login'), 1800);
 }
@@ -2638,6 +2678,7 @@ function submitPlainte() {
   document.getElementById('pl-desc').value = '';
   document.getElementById('pl-date').value = '';
 
+  saveState();
   const ok = document.getElementById('plainte-ok');
   ok.style.display = 'block';
   setTimeout(() => { ok.style.display = 'none'; }, 4000);
@@ -2666,6 +2707,7 @@ function submitPostuler() {
   document.getElementById('post-section').value = '';
   document.getElementById('post-orphelin').value = '';
 
+  saveState();
   const ok = document.getElementById('post-ok');
   ok.style.display = 'block';
   setTimeout(() => { ok.style.display = 'none'; }, 4000);
@@ -3000,6 +3042,7 @@ function actPlainte(id, status) {
   }
 
   const openBodyId = 'plainte-body-' + id;
+  saveState();
   renderPlaintesContent(state.currentUser.grade);
   renderOverview(state.currentUser.grade);
   setTimeout(() => {
@@ -3045,6 +3088,7 @@ function actCandid(id, status) {
   }
 
   const openCBodyId = 'candid-body-' + id;
+  saveState();
   renderCandidContent(state.currentUser.grade);
   setTimeout(() => {
     const body = document.getElementById(openCBodyId);
@@ -3067,6 +3111,7 @@ function changeGrade(username, newGrade) {
     if (pill) { pill.textContent = newGrade; pill.className = 'grade-pill ' + GRADE_CLASS[newGrade]; }
     renderOverview(newGrade);
   }
+  saveState();
   renderMembresContent(state.currentUser.grade);
 }
 
@@ -3100,6 +3145,7 @@ function addAgent() {
   state.users[u] = { password: p, grade: g };
   document.getElementById('ajout-ok').style.display = 'block';
   updateAgentStat();
+  saveState();
   document.getElementById('aj-user').value = '';
   document.getElementById('aj-pass').value = '';
   renderOverview(state.currentUser.grade);
@@ -3309,6 +3355,7 @@ function saveCitizenProfile() {
   state.users[u.username].casier  = casier;
   state.users[u.username].section = section;
   u.grade = grade;
+  saveState();
   updateNav();
   const ok = document.getElementById('profile-ok');
   if (ok) { ok.style.display = 'block'; setTimeout(() => ok.style.display = 'none', 3000); }
@@ -3513,6 +3560,7 @@ function sendMsg(threadId, fromKey, senderName) {
     text: text,
     time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})
   });
+  saveState();
   const u = state.currentUser;
   const isAgent = state.users[u.username]?.isAgent;
 
@@ -3601,12 +3649,14 @@ function publishJournal() {
   const u=state.currentUser;
   if (!state.journal) state.journal=[];
   state.journal.push({id:Date.now(),titre,contenu,type:type||'annonce',auteur:u.fullname||u.username,grade:u.grade,date:new Date().toLocaleDateString('fr-FR')});
+  saveState();
   renderJournal(true);
 }
 
 function deleteJournal(id) {
   if (!confirm('Supprimer cet article ?')) return;
   state.journal=state.journal.filter(a=>a.id!==id);
+  saveState();
   renderJournal(true);
 }
 </script></body></html>
