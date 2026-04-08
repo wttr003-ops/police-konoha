@@ -2765,7 +2765,8 @@ function doLogin() {
     const overrides = JSON.parse(localStorage.getItem('konoha_grades') || '{}');
     if (overrides[user]) realGrade = overrides[user];
   } catch(e) {}
-  state.currentUser = { username: user, grade: realGrade };
+  state.currentUser = { username: user, grade: realGrade, fullname: found.fullname || user };
+  localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   showPage('dashboard');
 }
 
@@ -2799,6 +2800,7 @@ function doAgentLogin() {
     if (overrides[key]) finalGrade = overrides[key];
   } catch(e) {}
   state.currentUser = { username: key, grade: finalGrade, fullname: userData.fullname, matricule: userData.matricule };
+  localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   showPage('dashboard');
 }
 
@@ -2843,6 +2845,7 @@ async function doRegister() {
 
 function logout() {
   state.currentUser = null;
+  localStorage.removeItem('konoha_session');
   showPage('home');
 }
 
@@ -3374,7 +3377,23 @@ function noAccess(required) {
 }
 
 // ---- INIT ----
-updateNav();
+// Restaurer la session depuis localStorage
+try {
+  const savedSession = localStorage.getItem('konoha_session');
+  if (savedSession) { state.currentUser = JSON.parse(savedSession); }
+} catch(e) {}
+
+// Sync depuis Supabase + mettre a jour le grade
+syncFromSupabase().then(() => {
+  if (state.currentUser && state.users[state.currentUser.username]) {
+    const freshGrade = state.users[state.currentUser.username].grade;
+    if (freshGrade) {
+      state.currentUser.grade = freshGrade;
+      localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+    }
+  }
+  updateNav();
+});
 
 function sectionLabel(s) {
   const map = { aucune: 'Aucune', medical: 'Médicale', diplomate: 'Diplomate', renseignement: 'Renseignement', strategie: 'Stratégie' };
