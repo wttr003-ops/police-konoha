@@ -2162,6 +2162,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <option value="medical">Section Médicale</option>
           <option value="diplomate">Section Diplomate</option>
           <option value="renseignement">Section Renseignement</option>
+          <option value="strategie">Section Stratégie</option>
         </select>
       </div>
       <div class="form-group"><label>Mot de passe *</label><input type="password" id="reg-pass" placeholder="Minimum 6 caractères" /></div>
@@ -2247,6 +2248,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <option value="medical">Section Médicale</option>
           <option value="diplomate">Section Diplomate</option>
           <option value="renseignement">Section Renseignement</option>
+          <option value="strategie">Section Stratégie</option>
         </select>
       </div>
       <div class="form-group">
@@ -2408,7 +2410,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
    ============================================================ */
 
 // ---- CONSTANTES ----
-const GRADES = ['Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Stagiaire'];
+const GRADES = ['Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Stagiaire', 'Recrue'];
 
 const GRADE_RANK = {
   'Directeur': 0,
@@ -2417,6 +2419,7 @@ const GRADE_RANK = {
   'Sergent': 3,
   'Officier': 4,
   'Stagiaire': 5,
+  'Recrue': 6,
   'Citoyen': 9
 };
 
@@ -2427,6 +2430,7 @@ const GRADE_CLASS = {
   'Sergent':          'gp-b',
   'Officier':         'gp-c',
   'Stagiaire':        'gp-d',
+  'Recrue':           'gp-d',
   'Citoyen':          'gp-d'
 };
 
@@ -2458,6 +2462,28 @@ function saveState() {
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch(e) { console.warn('saveState error', e); }
+}
+
+function saveGradeOverride(username, grade) {
+  try {
+    const key = 'konoha_grades';
+    const overrides = JSON.parse(localStorage.getItem(key) || '{}');
+    overrides[username] = grade;
+    localStorage.setItem(key, JSON.stringify(overrides));
+  } catch(e) {}
+}
+
+function loadGradeOverrides() {
+  try {
+    const key = 'konoha_grades';
+    const overrides = JSON.parse(localStorage.getItem(key) || '{}');
+    // Apply overrides to all users
+    Object.entries(overrides).forEach(([username, grade]) => {
+      if (state.users[username]) {
+        state.users[username].grade = grade;
+      }
+    });
+  } catch(e) {}
 }
 
 function loadState() {
@@ -2533,6 +2559,7 @@ function showPage(id) {
   const mainNav = document.getElementById('main-nav');
   if (mainNav) mainNav.style.display = (id === 'dashboard') ? 'none' : 'flex';
   loadState();
+loadGradeOverrides();
 updateNav();
   if (id === 'dashboard') {
     if (!state.currentUser) { showPage('login'); return; }
@@ -2590,7 +2617,13 @@ function doLogin() {
     err.textContent = 'Pseudo ou mot de passe incorrect.';
     return;
   }
-  state.currentUser = { username: user, grade: found.grade };
+  // Check for grade override
+  let realGrade = found.grade;
+  try {
+    const overrides = JSON.parse(localStorage.getItem('konoha_grades') || '{}');
+    if (overrides[user]) realGrade = overrides[user];
+  } catch(e) {}
+  state.currentUser = { username: user, grade: realGrade };
   showPage('dashboard');
 }
 
@@ -2617,7 +2650,13 @@ function doAgentLogin() {
   }
 
   const [key, userData] = found;
-  state.currentUser = { username: key, grade: userData.grade, fullname: userData.fullname, matricule: userData.matricule };
+  // Check for grade override (promotion/demotion applied by director)
+  let finalGrade = userData.grade;
+  try {
+    const overrides = JSON.parse(localStorage.getItem('konoha_grades') || '{}');
+    if (overrides[key]) finalGrade = overrides[key];
+  } catch(e) {}
+  state.currentUser = { username: key, grade: finalGrade, fullname: userData.fullname, matricule: userData.matricule };
   showPage('dashboard');
 }
 
@@ -2885,7 +2924,7 @@ function renderCandidContent(g) {
       ? '<span class="status-badge s-ok">Casier vierge</span>'
       : '<span class="status-badge s-no">Casier chargé</span>';
     const orphelinLabel = c.orphelin === 'oui' ? 'Oui' : 'Non';
-    const sectionLabel2 = { aucune: 'Aucune', medical: 'Médicale', diplomate: 'Diplomate', renseignement: 'Renseignement' }[c.section] || c.section || '—';
+    const sectionLabel2 = { aucune: 'Aucune', medical: 'Médicale', diplomate: 'Diplomate', renseignement: 'Renseignement', strategie: 'Stratégie' }[c.section] || c.section || '—';
 
     html += `
     <div class="detail-card" id="candid-card-${c.id}">
@@ -3104,6 +3143,7 @@ function actCandid(id, status) {
 
 function changeGrade(username, newGrade) {
   state.users[username].grade = newGrade;
+  saveGradeOverride(username, newGrade);
   if (state.currentUser && state.currentUser.username === username) {
     state.currentUser.grade = newGrade;
     updateNav();
@@ -3173,7 +3213,7 @@ function noAccess(required) {
 updateNav();
 
 function sectionLabel(s) {
-  const map = { aucune: 'Aucune', medical: 'Médicale', diplomate: 'Diplomate', renseignement: 'Renseignement' };
+  const map = { aucune: 'Aucune', medical: 'Médicale', diplomate: 'Diplomate', renseignement: 'Renseignement', strategie: 'Stratégie' };
   return map[s] || s || '—';
 }
 
@@ -3391,7 +3431,7 @@ function renderCitizenOverview() {
   if (!u) return;
   const data = state.users[u.username] || {};
   const autoConnu = isConnuFDO(u.username, data.fullname);
-  const sLabels = {aucune:'Independant',medical:'Medicale',diplomate:'Diplomate',renseignement:'Renseignement'};
+  const sLabels = {aucune:'Independant',medical:'Medicale',diplomate:'Diplomate',renseignement:'Renseignement',strategie:'Strategie'};
   const el = document.getElementById('dash-citizen-overview');
   if (!el) return;
   el.innerHTML = `
