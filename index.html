@@ -2494,6 +2494,72 @@ async function sbPost(table, body)       { return sbFetch(table, 'POST', body); 
 async function sbPatch(table, query, body) { return sbFetch(table, 'PATCH', body, query); }
 async function sbDelete(table, query)    { return sbFetch(table, 'DELETE', null, query); }
 
+
+// ============================================================
+// SUPABASE REALTIME — Mise à jour en temps réel
+// ============================================================
+let realtimeChannel = null;
+
+function startRealtime() {
+  if (realtimeChannel) return; // Already started
+
+  // Poll every 5 seconds for new messages, plaintes, candidatures
+  realtimeChannel = setInterval(async () => {
+    if (!state.currentUser) return;
+
+    const u = state.currentUser;
+    const userData = state.users[u.username];
+    const isCitizen = userData && !userData.isAgent;
+
+    // Sync messages for active threads
+    const oldMsgCount = Object.values(state.messages).reduce((a,b) => a + b.length, 0);
+    const oldPlaintesCount = state.plaintes.length;
+    const oldCandidCount = state.candidatures.length;
+
+    await syncFromSupabase();
+
+    const newMsgCount = Object.values(state.messages).reduce((a,b) => a + b.length, 0);
+    const newPlaintesCount = state.plaintes.length;
+    const newCandidCount = state.candidatures.length;
+
+    // If new messages arrived, refresh current view
+    if (newMsgCount !== oldMsgCount || newPlaintesCount !== oldPlaintesCount || newCandidCount !== oldCandidCount) {
+      const activeDashTab = document.querySelector('.dash-tab.active');
+      if (!activeDashTab) return;
+
+      if (isCitizen) {
+        const id = activeDashTab.id;
+        if (id === 'dash-citizen-plaintes')  renderCitizenPlaintes();
+        if (id === 'dash-citizen-candid')    renderCitizenCandid();
+        if (id === 'dash-citizen-journal')   renderJournal(false);
+      } else {
+        const g = u.grade;
+        const id = activeDashTab.id;
+        if (id === 'dash-plaintes')      renderPlaintesContent(g);
+        if (id === 'dash-candidatures')  renderCandidContent(g);
+        if (id === 'dash-annuaire')      renderAnnuaireContent(g);
+      }
+
+      // Update grade if changed
+      if (state.users[u.username]) {
+        const freshGrade = state.users[u.username].grade;
+        if (freshGrade && freshGrade !== u.grade) {
+          state.currentUser.grade = freshGrade;
+          localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+          updateNav();
+        }
+      }
+    }
+  }, 5000); // Toutes les 5 secondes
+}
+
+function stopRealtime() {
+  if (realtimeChannel) {
+    clearInterval(realtimeChannel);
+    realtimeChannel = null;
+  }
+}
+
 // ============================================================
 // SYNC STATE FROM SUPABASE
 // ============================================================
@@ -2767,6 +2833,7 @@ function doLogin() {
   } catch(e) {}
   state.currentUser = { username: user, grade: realGrade, fullname: found.fullname || user };
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+  startRealtime();
   showPage('dashboard');
 }
 
@@ -2801,6 +2868,7 @@ function doAgentLogin() {
   } catch(e) {}
   state.currentUser = { username: key, grade: finalGrade, fullname: userData.fullname, matricule: userData.matricule };
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+  startRealtime();
   showPage('dashboard');
 }
 
@@ -2844,6 +2912,7 @@ async function doRegister() {
 }
 
 function logout() {
+  stopRealtime();
   state.currentUser = null;
   localStorage.removeItem('konoha_session');
   showPage('home');
