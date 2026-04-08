@@ -2108,7 +2108,12 @@ span.footer-logo svg { width: 40px; height: 40px; }
       </div>
       <div class="form-group">
         <label>Mot de passe</label>
-        <input type="password" id="login-pass" placeholder="••••••••" />
+        <div style="position:relative">
+          <input type="password" id="login-pass" placeholder="••••••••" style="padding-right:42px" />
+          <button type="button" onclick="togglePwd('login-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
       <button class="btn-primary btn-full" onclick="doLogin()">Se connecter</button>
       <p class="auth-link">Pas de compte ? <a onclick="showPage('register')">S'inscrire</a></p>
@@ -2124,7 +2129,12 @@ span.footer-logo svg { width: 40px; height: 40px; }
         </div>
         <div class="form-group">
           <label>Matricule</label>
-          <input type="text" id="agent-matricule" placeholder="KNH-XXX-0000" />
+          <div style="position:relative">
+          <input type="password" id="agent-matricule" placeholder="KNH-XXX-0000" style="padding-right:42px" />
+          <button type="button" onclick="togglePwd('agent-matricule',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
         </div>
         <div class="form-msg error" id="agent-login-err"></div>
         <button class="btn-outline btn-full" onclick="doAgentLogin()">Accès agent →</button>
@@ -2165,8 +2175,18 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <option value="strategie">Section Stratégie</option>
         </select>
       </div>
-      <div class="form-group"><label>Mot de passe *</label><input type="password" id="reg-pass" placeholder="Minimum 6 caractères" /></div>
-      <div class="form-group"><label>Confirmer le mot de passe *</label><input type="password" id="reg-pass2" placeholder="••••••••" /></div>
+      <div class="form-group"><label>Mot de passe *</label><div style="position:relative">
+          <input type="password" id="reg-pass" placeholder="Minimum 6 caractères" style="padding-right:42px" />
+          <button type="button" onclick="togglePwd('reg-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div></div>
+      <div class="form-group"><label>Confirmer le mot de passe *</label><div style="position:relative">
+          <input type="password" id="reg-pass2" placeholder="••••••••" style="padding-right:42px" />
+          <button type="button" onclick="togglePwd('reg-pass2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div></div>
       <button class="btn-primary btn-full" onclick="doRegister()">Valider mon recensement</button>
       <p class="auth-link">Déjà recensé ? <a onclick="showPage('login')">Se connecter</a></p>
       <p class="auth-link"><a onclick="showPage('home')">← Retour au site</a></p>
@@ -2349,6 +2369,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           Ajouter un agent
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('logs',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Logs comptes
+        </button>
       </nav>
 </nav></div>
       <!-- SIDEBAR CITOYEN -->
@@ -2425,6 +2449,12 @@ span.footer-logo svg { width: 40px; height: 40px; }
         <div id="journal-agent-content"></div>
       </div>
 
+      <!-- LOGS COMPTES -->
+      <div class="dash-tab" id="dash-logs">
+        <h2 class="dash-section-title">Logs — Comptes & Accès</h2>
+        <div id="logs-content"></div>
+      </div>
+
       <!-- TABS CITOYEN -->
       <div class="dash-tab" id="dash-citizen-overview"></div>
       <div class="dash-tab" id="dash-citizen-plaintes"></div>
@@ -2483,9 +2513,16 @@ async function syncFromSupabase() {
     const candids = await sbGet('candidatures', '?order=id.asc');
     if (Array.isArray(candids)) {
       state.candidatures = candids.map(c => ({
-        id: c.id, pseudo: c.pseudo, niveau: c.niveau, motiv: c.motiv,
-        casier: c.casier, section: c.section, orphelin: c.orphelin,
-        status: c.status, author: c.author, authorDisplay: c.author_display
+        id: c.id,
+        pseudo: c.pseudo || c.author_display || '',
+        niveau: c.niveau || '',
+        motiv: c.motiv || c.Motif || c.motivation || '',
+        casier: c.casier || c.Casier || 'non',
+        section: c.section || c.Section || 'aucune',
+        orphelin: c.orphelin || c.Orphelin || 'non',
+        status: c.status || c.Statut || 'wait',
+        author: c.author || c.Auteur || '',
+        authorDisplay: c.author_display || c.pseudo || ''
       }));
     }
 
@@ -2949,6 +2986,7 @@ function switchDashTab(name, btn) {
   if (name === 'annuaire')      renderAnnuaireContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'journal')       renderJournal(true);
+  if (name === 'logs')          renderLogsContent(g);
 }
 
 function renderOverview(g) {
@@ -3832,5 +3870,62 @@ async function deleteJournal(id) {
   await sbDelete('journal', `?id=eq.${id}`);
   await syncFromSupabase();
   renderJournal(true);
+}
+
+// ============================================================
+// LOGS DES COMPTES (Directeur & Directeur Adjoint uniquement)
+// ============================================================
+function renderLogsContent(g) {
+  const el = document.getElementById('logs-content');
+  if (!el) return;
+  if (gradeRank(g) > 1) {
+    el.innerHTML = noAccess('Directeur ou Directeur Adjoint uniquement');
+    return;
+  }
+
+  let html = '<div class="dash-block">';
+  html += `<div style="padding:0.75rem 1rem;background:rgba(192,57,43,0.1);border-bottom:1px solid var(--border);font-size:12px;color:#e88;display:flex;align-items:center;gap:0.5rem">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    Informations confidentielles — Accès réservé à la Direction
+  </div>`;
+
+  const entries = Object.entries(state.users).sort((a,b) => {
+    const ra = GRADE_RANK[a[1].grade] ?? 10;
+    const rb = GRADE_RANK[b[1].grade] ?? 10;
+    return ra - rb;
+  });
+
+  entries.forEach(([username, data]) => {
+    const displayName = data.fullname || username.replace(/_/g,' ');
+    const init = displayName.slice(0,2).toUpperCase();
+    const isAgent = data.isAgent;
+    html += `<div class="membre-row" style="flex-wrap:wrap;gap:8px">
+      <div class="avatar ${isAgent ? '' : ''}" style="${isAgent ? '' : 'background:rgba(100,116,139,0.2);border-color:#94a3b8;color:#94a3b8'}">${init}</div>
+      <div style="flex:1;min-width:150px">
+        <div class="membre-name">${displayName}</div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">${isAgent ? 'Agent' : 'Citoyen'}</div>
+      </div>
+      <span class="grade-pill ${GRADE_CLASS[data.grade] || 'gp-d'}">${data.grade || 'Citoyen'}</span>
+      <div style="background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:12px;font-family:monospace;color:var(--lgold);display:flex;align-items:center;gap:6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        ${data.matricule || data.password || '—'}
+      </div>
+    </div>`;
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ---- TOGGLE PASSWORD VISIBILITY ----
+function togglePwd(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  btn.innerHTML = isHidden
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  btn.style.color = isHidden ? 'var(--accent)' : 'var(--muted)';
 }
 </script></body></html>
