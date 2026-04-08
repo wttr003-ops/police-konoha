@@ -2898,10 +2898,48 @@ async function submitPostuler() {
   if (!ps || !nv || !mo || !ca || !se || !or) { alert('Veuillez remplir tous les champs obligatoires (*).'); return; }
   if (ca === 'oui') { alert('Désolé, un casier judiciaire in-game disqualifie automatiquement la candidature.'); return; }
 
-  const newCId = state.candidatures.length + 1;
   const currentAuthorC = state.currentUser ? state.currentUser.username : ps;
-  state.candidatures.push({ id: newCId, pseudo: ps, niveau: nv, motiv: mo, casier: ca, section: se, orphelin: or, status: 'wait', author: currentAuthorC, authorDisplay: ps });
-  state.messages['candid_' + newCId] = [{ from:'system', role:'system', text:'Votre candidature a bien ete enregistree. Elle sera etudiee par un sergent ou un superieur. Vous serez contacte ici.', time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) }];
+  const msgTime = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+  try {
+    // 1. Sauvegarder la candidature dans Supabase
+    const res = await sbPost('candidatures', {
+      pseudo: ps,
+      niveau: nv,
+      motiv: mo,
+      casier: ca,
+      section: se,
+      orphelin: or,
+      status: 'wait',
+      author: currentAuthorC,
+      author_display: ps
+    });
+
+    // 2. Resynchroniser pour avoir l'ID réel
+    await syncFromSupabase();
+
+    // 3. Trouver l'ID de la candidature qui vient d'être créée
+    const newCandid = state.candidatures.find(c => c.author === currentAuthorC && c.pseudo === ps && c.status === 'wait');
+    const newCId = newCandid ? newCandid.id : Date.now();
+
+    // 4. Sauvegarder le message système dans Supabase
+    await sbPost('messages', {
+      thread_id: 'candid_' + newCId,
+      from_user: 'system',
+      sender_name: 'Systeme',
+      role: 'system',
+      text: 'Votre candidature a bien ete enregistree. Elle sera etudiee par un sergent ou un superieur.',
+      time: msgTime
+    });
+
+    // 5. Resync final
+    await syncFromSupabase();
+
+  } catch(e) {
+    console.error('Erreur candidature:', e);
+    alert('Erreur lors de l\'envoi. Vérifiez votre connexion.');
+    return;
+  }
 
   document.getElementById('post-pseudo').value = '';
   document.getElementById('post-niveau').value = '';
@@ -2910,7 +2948,6 @@ async function submitPostuler() {
   document.getElementById('post-section').value = '';
   document.getElementById('post-orphelin').value = '';
 
-  saveState();
   const ok = document.getElementById('post-ok');
   ok.style.display = 'block';
   setTimeout(() => { ok.style.display = 'none'; }, 4000);
