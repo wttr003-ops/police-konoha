@@ -2176,6 +2176,21 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
 <!-- ==================== PAGE: PLAINTE ==================== -->
 <div id="page-plainte" class="page">
+  <!-- Auth wall -->
+  <div id="plainte-auth-wall" style="display:none;min-height:100vh;background:#080d1c;display:flex;align-items:center;justify-content:center;padding:2rem">
+    <div style="background:#0d1530;border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:2.5rem;max-width:480px;width:100%;text-align:center">
+      <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="1.5" style="margin-bottom:1.25rem"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <h2 style="font-family:Georgia,serif;font-size:22px;color:white;margin-bottom:0.75rem">Accès restreint</h2>
+      <p style="font-size:14px;color:#8892a4;line-height:1.7;margin-bottom:1.5rem">Pour déposer une plainte auprès de la Police de Konoha, vous devez obligatoirement être inscrit et connecté sur notre portail.<br><br>Cordialement,<br><strong style="color:#e8eaf6">La Police de Konoha — 木ノ葉軍警察署</strong></p>
+      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+        <button onclick="showPage('register')" style="background:#3b82f6;color:white;border:none;padding:10px 22px;border-radius:4px;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Créer mon compte</button>
+        <button onclick="showPage('login')" style="background:transparent;color:#e8eaf6;border:1px solid rgba(59,130,246,0.35);padding:10px 22px;border-radius:4px;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Se connecter</button>
+      </div>
+      <div style="margin-top:1rem"><span onclick="showPage('home')" style="font-size:12px;color:#3b82f6;cursor:pointer;text-decoration:underline">← Retour au site</span></div>
+    </div>
+  </div>
+  <!-- Actual form (shown only when logged in) -->
+  <div id="plainte-form-content">
   <div class="subpage-nav">
     <span style="width:36px;height:36px;object-fit:contain" style="width:36px;height:36px;object-fit:contain;display:inline-block;cursor:pointer"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><polygon points="100,5 115,85 195,100 115,115 100,195 85,115 5,100 85,85" fill="#111111"/><circle cx="28" cy="28" r="9" fill="#111111"/><circle cx="172" cy="28" r="9" fill="#111111"/><circle cx="28" cy="172" r="9" fill="#111111"/><circle cx="172" cy="172" r="9" fill="#111111"/><circle cx="100" cy="92" r="34" fill="#111111"/><path d="M66,92 A34,34 0 0,1 134,92 Z" fill="#cc0000"/><line x1="66" y1="92" x2="134" y2="92" stroke="#111111" stroke-width="4"/><ellipse cx="100" cy="105" rx="20" ry="13" fill="white"/><rect x="95" y="116" width="10" height="22" rx="4" fill="white"/></svg></span>
     <span class="subpage-nav-title">Déposer une plainte</span>
@@ -2206,10 +2221,26 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <button class="btn-primary btn-lg" onclick="submitPlainte()">Soumettre la plainte</button>
     </div>
   </div>
+  </div><!-- end plainte-form-content -->
 </div>
 
 <!-- ==================== PAGE: POSTULER ==================== -->
 <div id="page-postuler" class="page">
+  <!-- Auth wall -->
+  <div id="postuler-auth-wall" style="display:none;min-height:100vh;background:#080d1c;display:flex;align-items:center;justify-content:center;padding:2rem">
+    <div style="background:#0d1530;border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:2.5rem;max-width:480px;width:100%;text-align:center">
+      <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="1.5" style="margin-bottom:1.25rem"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <h2 style="font-family:Georgia,serif;font-size:22px;color:white;margin-bottom:0.75rem">Accès restreint</h2>
+      <p style="font-size:14px;color:#8892a4;line-height:1.7;margin-bottom:1.5rem">Pour soumettre une candidature à la Police de Konoha, vous devez obligatoirement être inscrit et connecté sur notre portail.<br><br>Cordialement,<br><strong style="color:#e8eaf6">La Police de Konoha — 木ノ葉軍警察署</strong></p>
+      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+        <button onclick="showPage('register')" style="background:#3b82f6;color:white;border:none;padding:10px 22px;border-radius:4px;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Créer mon compte</button>
+        <button onclick="showPage('login')" style="background:transparent;color:#e8eaf6;border:1px solid rgba(59,130,246,0.35);padding:10px 22px;border-radius:4px;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Se connecter</button>
+      </div>
+      <div style="margin-top:1rem"><span onclick="showPage('home')" style="font-size:12px;color:#3b82f6;cursor:pointer;text-decoration:underline">← Retour au site</span></div>
+    </div>
+  </div>
+  <!-- Actual form (shown only when logged in) -->
+  <div id="postuler-form-content">
   <div class="subpage-nav">
     <span style="width:36px;height:36px;object-fit:contain;cursor:pointer" style="width:36px;height:36px;object-fit:contain;cursor:pointer;display:inline-block;cursor:pointer"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><polygon points="100,5 115,85 195,100 115,115 100,195 85,115 5,100 85,85" fill="#111111"/><circle cx="28" cy="28" r="9" fill="#111111"/><circle cx="172" cy="28" r="9" fill="#111111"/><circle cx="28" cy="172" r="9" fill="#111111"/><circle cx="172" cy="172" r="9" fill="#111111"/><circle cx="100" cy="92" r="34" fill="#111111"/><path d="M66,92 A34,34 0 0,1 134,92 Z" fill="#cc0000"/><line x1="66" y1="92" x2="134" y2="92" stroke="#111111" stroke-width="4"/><ellipse cx="100" cy="105" rx="20" ry="13" fill="white"/><rect x="95" y="116" width="10" height="22" rx="4" fill="white"/></svg></span>
     <span class="subpage-nav-title">Candidature officielle</span>
@@ -2262,6 +2293,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <button class="btn-primary btn-lg" onclick="submitPostuler()">Envoyer ma candidature</button>
     </div>
   </div>
+  </div><!-- end postuler-form-content -->
 </div>
 
 <!-- ==================== PAGE: DASHBOARD ==================== -->
@@ -2404,7 +2436,111 @@ span.footer-logo svg { width: 40px; height: 40px; }
 </div>
 
 <script src="app.js"></script>
-<script>/* ============================================================
+<script>// ============================================================
+// SUPABASE — Base de données en ligne
+// ============================================================
+const SB_URL = 'https://tbzmqoxnsniknpqgcqrh.supabase.co';
+const SB_KEY = 'sb_publishable_J2fBcXUp69RYHow8HgUXGA_PD0gED-h';
+
+async function sbFetch(table, method='GET', body=null, query='') {
+  const url = `${SB_URL}/rest/v1/${table}${query}`;
+  const opts = {
+    method,
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : 'return=minimal'
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (method === 'GET') return await res.json();
+  return res.ok;
+}
+
+async function sbGet(table, query='')    { return sbFetch(table, 'GET', null, query); }
+async function sbPost(table, body)       { return sbFetch(table, 'POST', body); }
+async function sbPatch(table, query, body) { return sbFetch(table, 'PATCH', body, query); }
+async function sbDelete(table, query)    { return sbFetch(table, 'DELETE', null, query); }
+
+// ============================================================
+// SYNC STATE FROM SUPABASE
+// ============================================================
+async function syncFromSupabase() {
+  try {
+    // Load plaintes
+    const plaintes = await sbGet('plaintes', '?order=id.asc');
+    if (Array.isArray(plaintes)) {
+      state.plaintes = plaintes.map(p => ({
+        id: p.id, pseudo: p.pseudo, suspect: p.suspect,
+        type: p.type, desc: p.description, date: p.date_heure || 'NC',
+        status: p.status, author: p.author, authorDisplay: p.author_display
+      }));
+    }
+
+    // Load candidatures
+    const candids = await sbGet('candidatures', '?order=id.asc');
+    if (Array.isArray(candids)) {
+      state.candidatures = candids.map(c => ({
+        id: c.id, pseudo: c.pseudo, niveau: c.niveau, motiv: c.motiv,
+        casier: c.casier, section: c.section, orphelin: c.orphelin,
+        status: c.status, author: c.author, authorDisplay: c.author_display
+      }));
+    }
+
+    // Load messages
+    const msgs = await sbGet('messages', '?order=created_at.asc');
+    if (Array.isArray(msgs)) {
+      state.messages = {};
+      msgs.forEach(m => {
+        if (!state.messages[m.thread_id]) state.messages[m.thread_id] = [];
+        state.messages[m.thread_id].push({
+          from: m.from_user, senderName: m.sender_name,
+          grade: m.grade, role: m.role, text: m.text, time: m.time
+        });
+      });
+    }
+
+    // Load journal
+    const journal = await sbGet('journal', '?order=id.asc');
+    if (Array.isArray(journal) && journal.length > 0) {
+      state.journal = journal.map(a => ({
+        id: a.id, titre: a.titre, contenu: a.contenu,
+        type: a.type, auteur: a.auteur, grade: a.grade, date: a.date
+      }));
+    }
+
+    // Load users from supabase
+    const users = await sbGet('users', '');
+    if (Array.isArray(users)) {
+      users.forEach(u => {
+        state.users[u.username] = {
+          password: u.password,
+          grade: u.grade || 'Citoyen',
+          fullname: u.fullname || u.username,
+          section: u.section || 'aucune',
+          isAgent: u.is_agent || false,
+          matricule: u.matricule || '',
+          casier: u.casier || 'non',
+          connu: u.connu || 'non',
+          inscription: u.inscription || ''
+        };
+      });
+    }
+
+    // Load grade overrides
+    const overrides = await sbGet('grade_overrides', '');
+    if (Array.isArray(overrides)) {
+      overrides.forEach(o => {
+        if (state.users[o.username]) state.users[o.username].grade = o.grade;
+      });
+    }
+
+  } catch(e) { console.warn('syncFromSupabase error', e); }
+}
+
+/* ============================================================
    POLICE DE KONOHA — NINJA ROAD FiveM
    app.js — Logique complète
    ============================================================ */
@@ -2447,63 +2583,22 @@ const ALL_PERMS = ['Voir les plaintes', 'Voir les candidatures', 'Gérer les mem
 
 
 // ============================================================
-// PERSISTANCE — localStorage
+// PERSISTANCE — Supabase (remplace localStorage)
 // ============================================================
-const STORAGE_KEY = 'konoha_police_state';
-
-function saveState() {
-  try {
-    const toSave = {
-      users:        state.users,
-      plaintes:     state.plaintes,
-      candidatures: state.candidatures,
-      messages:     state.messages,
-      journal:      state.journal,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  } catch(e) { console.warn('saveState error', e); }
-}
+function saveState() { /* handled by Supabase directly */ }
+function loadState()  { /* handled by syncFromSupabase */ }
+function resetState() { if(!confirm('Réinitialiser ?')) return; location.reload(); }
 
 function saveGradeOverride(username, grade) {
-  try {
-    const key = 'konoha_grades';
-    const overrides = JSON.parse(localStorage.getItem(key) || '{}');
-    overrides[username] = grade;
-    localStorage.setItem(key, JSON.stringify(overrides));
-  } catch(e) {}
-}
-
-function loadGradeOverrides() {
-  try {
-    const key = 'konoha_grades';
-    const overrides = JSON.parse(localStorage.getItem(key) || '{}');
-    // Apply overrides to all users
-    Object.entries(overrides).forEach(([username, grade]) => {
-      if (state.users[username]) {
-        state.users[username].grade = grade;
-      }
+  sbPatch('grade_overrides', `?username=eq.${username}`, { grade, updated_at: new Date().toISOString() })
+    .then(ok => {
+      if (!ok) sbPost('grade_overrides', { username, grade });
     });
-  } catch(e) {}
+  // Also update users table
+  sbPatch('users', `?username=eq.${username}`, { grade });
 }
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    if (saved.users)        state.users        = saved.users;
-    if (saved.plaintes)     state.plaintes     = saved.plaintes;
-    if (saved.candidatures) state.candidatures = saved.candidatures;
-    if (saved.messages)     state.messages     = saved.messages;
-    if (saved.journal)      state.journal      = saved.journal;
-  } catch(e) { console.warn('loadState error', e); }
-}
-
-function resetState() {
-  if (!confirm('Réinitialiser toutes les données du site ? Cette action est irréversible.')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
-}
+function loadGradeOverrides() { /* handled by syncFromSupabase */ }
 
 // ---- ÉTAT GLOBAL ----
 const state = {
@@ -2555,15 +2650,25 @@ function showPage(id) {
   const target = document.getElementById('page-' + id);
   if (target) target.classList.add('active');
   window.scrollTo(0, 0);
-  // Hide main nav on dashboard (has its own topbar), show everywhere else
   const mainNav = document.getElementById('main-nav');
   if (mainNav) mainNav.style.display = (id === 'dashboard') ? 'none' : 'flex';
   loadState();
-loadGradeOverrides();
-updateNav();
+  loadGradeOverrides();
+  updateNav();
+
+  // Auth wall pour plainte et postuler
+  if (id === 'plainte' || id === 'postuler') {
+    const wall    = document.getElementById(id + '-auth-wall');
+    const content = document.getElementById(id + '-form-content');
+    const isLogged = !!state.currentUser;
+    if (wall)    wall.style.display    = isLogged ? 'none' : 'flex';
+    if (content) content.style.display = isLogged ? 'block' : 'none';
+    return;
+  }
+
   if (id === 'dashboard') {
     if (!state.currentUser) { showPage('login'); return; }
-    renderDashboard('overview');
+    syncFromSupabase().then(() => renderDashboard('overview'));
   }
 }
 
@@ -2660,7 +2765,7 @@ function doAgentLogin() {
   showPage('dashboard');
 }
 
-function doRegister() {
+async function doRegister() {
   const user  = document.getElementById('reg-user').value.trim();
   const pass  = document.getElementById('reg-pass').value;
   const pass2 = document.getElementById('reg-pass2').value;
@@ -2677,7 +2782,7 @@ function doRegister() {
   if (pass !== pass2)  { err.textContent = 'Les mots de passe ne correspondent pas.'; return; }
   if (state.users[user]) { err.textContent = 'Ce nom est déjà enregistré dans les registres.'; return; }
 
-  state.users[user] = {
+  const newUser = {
     password: pass,
     grade: grade || 'Citoyen',
     section: section,
@@ -2687,7 +2792,14 @@ function doRegister() {
     connu: 'non',
     inscription: new Date().toLocaleDateString('fr-FR')
   };
-  saveState();
+  state.users[user] = newUser;
+  // Save to Supabase
+  await sbPost('users', {
+    username: user, password: pass,
+    grade: grade || 'Citoyen', section, fullname: user,
+    is_agent: false, casier: 'non', connu: 'non',
+    inscription: new Date().toLocaleDateString('fr-FR')
+  });
   ok.style.display = 'block';
   setTimeout(() => showPage('login'), 1800);
 }
@@ -2698,7 +2810,7 @@ function logout() {
 }
 
 // ---- FORMULAIRES PUBLICS ----
-function submitPlainte() {
+async function submitPlainte() {
   const ps = document.getElementById('pl-pseudo').value.trim();
   const su = document.getElementById('pl-suspect').value.trim();
   const ty = document.getElementById('pl-type').value;
@@ -2706,10 +2818,22 @@ function submitPlainte() {
   const da = document.getElementById('pl-date').value.trim();
   if (!ps || !su || !ty || !de) { alert('Veuillez remplir tous les champs obligatoires (*)'); return; }
 
-  const newPId = state.plaintes.length + 1;
   const currentAuthor = state.currentUser ? state.currentUser.username : ps;
-  state.plaintes.push({ id: newPId, pseudo: ps, suspect: su, type: ty, desc: de, date: da || 'Non precisee', status: 'wait', author: currentAuthor, authorDisplay: ps });
-  state.messages['plainte_' + newPId] = [{ from:'system', role:'system', text:'Votre plainte a bien ete enregistree. Un officier de la Police de Konoha vous contactera dans les plus brefs delais.', time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) }];
+  // Save to Supabase
+  const newPlainte = await sbPost('plaintes', {
+    pseudo: ps, suspect: su, type: ty, description: de,
+    date_heure: da || 'Non precisee', status: 'wait',
+    author: currentAuthor, author_display: ps
+  });
+  await syncFromSupabase();
+  const newPId = state.plaintes[state.plaintes.length - 1]?.id || state.plaintes.length;
+  // Init message thread in Supabase
+  await sbPost('messages', {
+    thread_id: 'plainte_' + newPId, from_user: 'system', sender_name: 'Systeme',
+    role: 'system', text: 'Votre plainte a bien ete enregistree. Un officier vous contactera.',
+    time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+  });
+  await syncFromSupabase();
 
   document.getElementById('pl-pseudo').value = '';
   document.getElementById('pl-suspect').value = '';
@@ -2723,7 +2847,7 @@ function submitPlainte() {
   setTimeout(() => { ok.style.display = 'none'; }, 4000);
 }
 
-function submitPostuler() {
+async function submitPostuler() {
   const ps = document.getElementById('post-pseudo').value.trim();
   const nv = document.getElementById('post-niveau').value;
   const mo = document.getElementById('post-motiv').value.trim();
@@ -3049,12 +3173,13 @@ function renderAjoutContent(g) {
 }
 
 // ---- ACTIONS DASHBOARD ----
-function actPlainte(id, status) {
+async function actPlainte(id, status) {
   const p = state.plaintes.find(x => x.id === id);
   if (!p) return;
   p.status = status;
+  // Update in Supabase
+  await sbPatch('plaintes', `?id=eq.${id}`, { status });
 
-  // Auto-message to complainant
   const u = state.currentUser;
   const agentName = u.fullname || u.username;
   const threadId = 'plainte_' + id;
@@ -3096,10 +3221,11 @@ function actPlainte(id, status) {
   }, 30);
 }
 
-function actCandid(id, status) {
+async function actCandid(id, status) {
   const c = state.candidatures.find(x => x.id === id);
   if (!c) return;
   c.status = status;
+  await sbPatch('candidatures', `?id=eq.${id}`, { status });
 
   const u = state.currentUser;
   const agentName = u.fullname || u.username;
@@ -3385,7 +3511,7 @@ function renderCitizenProfile() {
   `;
 }
 
-function saveCitizenProfile() {
+async function saveCitizenProfile() {
   const u = state.currentUser;
   if (!u || !state.users[u.username]) return;
   const grade  = document.getElementById('citizen-grade').value;
@@ -3395,7 +3521,7 @@ function saveCitizenProfile() {
   state.users[u.username].casier  = casier;
   state.users[u.username].section = section;
   u.grade = grade;
-  saveState();
+  await sbPatch('users', `?username=eq.${u.username}`, { grade, casier, section });
   updateNav();
   const ok = document.getElementById('profile-ok');
   if (ok) { ok.style.display = 'block'; setTimeout(() => ok.style.display = 'none', 3000); }
@@ -3592,15 +3718,19 @@ function sendMsg(threadId, fromKey, senderName) {
   input.value = '';
   if (!state.messages[threadId]) state.messages[threadId] = [];
   const userData = state.users[fromKey] || {};
+  const msgTime = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
   state.messages[threadId].push({
-    from: fromKey,
-    senderName: senderName,
+    from: fromKey, senderName: senderName,
     grade: userData.grade || '',
     role: userData.isAgent ? 'agent' : 'citizen',
-    text: text,
-    time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})
+    text: text, time: msgTime
   });
-  saveState();
+  // Save to Supabase
+  sbPost('messages', {
+    thread_id: threadId, from_user: fromKey, sender_name: senderName,
+    grade: userData.grade || '', role: userData.isAgent ? 'agent' : 'citizen',
+    text: text, time: msgTime
+  });
   const u = state.currentUser;
   const isAgent = state.users[u.username]?.isAgent;
 
@@ -3681,22 +3811,26 @@ function renderJournal(isAgentView) {
   el.innerHTML = html;
 }
 
-function publishJournal() {
+async function publishJournal() {
   const titre=document.getElementById('journal-titre')?.value.trim();
   const contenu=document.getElementById('journal-contenu')?.value.trim();
   const type=document.getElementById('journal-type')?.value;
   if (!titre||!contenu){alert('Remplissez le titre et le contenu.');return;}
   const u=state.currentUser;
   if (!state.journal) state.journal=[];
-  state.journal.push({id:Date.now(),titre,contenu,type:type||'annonce',auteur:u.fullname||u.username,grade:u.grade,date:new Date().toLocaleDateString('fr-FR')});
-  saveState();
+  await sbPost('journal', {
+    titre, contenu, type: type||'annonce',
+    auteur: u.fullname||u.username, grade: u.grade,
+    date: new Date().toLocaleDateString('fr-FR')
+  });
+  await syncFromSupabase();
   renderJournal(true);
 }
 
-function deleteJournal(id) {
+async function deleteJournal(id) {
   if (!confirm('Supprimer cet article ?')) return;
-  state.journal=state.journal.filter(a=>a.id!==id);
-  saveState();
+  await sbDelete('journal', `?id=eq.${id}`);
+  await syncFromSupabase();
   renderJournal(true);
 }
 </script></body></html>
