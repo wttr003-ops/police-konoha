@@ -3690,7 +3690,7 @@ function renderCitizenProfile() {
       <div class="form-group">
         <label>Ma section actuelle</label>
         <select id="citizen-section" style="background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 12px;color:var(--text);font-size:13px;width:100%">
-          <option value="aucune" ${data.section==='aucune'||!data.section?'selected':''}>Aucune — citoyen indépendant</option>
+          <option value="aucune" ${data.section==='aucune'||!data.section?'selected':''}>Indépendant</option>
           <option value="medical" ${data.section==='medical'?'selected':''}>Section Médicale</option>
           <option value="diplomate" ${data.section==='diplomate'?'selected':''}>Section Diplomate</option>
           <option value="renseignement" ${data.section==='renseignement'?'selected':''}>Section Renseignement</option>
@@ -3802,6 +3802,7 @@ function renderCitizenOverview() {
             <option value="medical" ${data.section==='medical'?'selected':''}>Medicale</option>
             <option value="diplomate" ${data.section==='diplomate'?'selected':''}>Diplomate</option>
             <option value="renseignement" ${data.section==='renseignement'?'selected':''}>Renseignement</option>
+            <option value="strategie" ${data.section==='strategie'?'selected':''}>Stratégie</option>
           </select></div>
       </div>
       <div class="form-group" style="margin-bottom:0.75rem"><label>Casier judiciaire</label>
