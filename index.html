@@ -4240,8 +4240,8 @@ function renderRecherchees() {
     if (list.length === 0) {
       html += '<p style="color:var(--muted);font-size:14px;text-align:center;padding:1rem 0">Aucun avis de recherche actif.</p>';
     } else {
-      const dangerColors = { faible:'#10b981', moyen:'#f0c040', eleve:'#fb923c', extreme:'#e74c3c' };
-      const dangerLabels = { faible:'Faible', moyen:'Moyen', eleve:'Élevé', extreme:'⚠ EXTRÊME' };
+      const dangerColors = { faible:'#10b981', moyen:'#f0c040', eleve:'#fb923c', extreme:'#e74c3c', palier2:'#fb923c', palier3:'#e74c3c' };
+      const dangerLabels = { faible:'Faible', moyen:'Moyen', eleve:'Élevé', extreme:'⚠ EXTRÊME', palier2:'Palier 2', palier3:'⚠ Palier 3' };
       html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">';
       list.forEach((r, i) => {
         const dColor = dangerColors[r.danger] || dangerColors.eleve;
@@ -4322,15 +4322,42 @@ async function renderCasierContent(g) {
 
     <!-- Formulaire ajout -->
     <div id="cas-panel-add" class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
-      <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Nouvelle fiche casier judiciaire</div>
+      <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.5rem">Nouvelle fiche casier judiciaire</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:1rem;padding:6px 10px;background:rgba(192,57,43,0.05);border-radius:4px;border-left:3px solid var(--red)">
+        ⚠ Seules les infractions de Palier 2 et Palier 3 génèrent un casier. Les infractions de Palier 1 ne sont pas inscrites au casier judiciaire.
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
         <div class="form-group">
           <label class="form-label">Nom et Prénom *</label>
           <input type="text" id="cas-nom" class="form-input" placeholder="Ex: Orochimaru"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Grade / Rang</label>
-          <input type="text" id="cas-grade" class="form-input" placeholder="Ex: Jonin"/>
+          <label class="form-label">Grade / Rang *</label>
+          <select id="cas-grade" class="form-input">
+            <option value="">-- Sélectionner --</option>
+            <optgroup label="Rangs Ninja">
+              <option>Genin</option>
+              <option>Genin confirmé</option>
+              <option>Chunin</option>
+              <option>Tokubetsu-Chunin</option>
+              <option>Kakunin</option>
+              <option>Tokubetsu-Jonin</option>
+              <option>Jonin</option>
+            </optgroup>
+            <optgroup label="Grades Police">
+              <option>Stagiaire</option>
+              <option>Recrue</option>
+              <option>Officier</option>
+              <option>Sergent</option>
+              <option>Lieutenant</option>
+              <option>Directeur Adjoint</option>
+              <option>Directeur</option>
+            </optgroup>
+            <optgroup label="Autres">
+              <option>Citoyen</option>
+              <option>Inconnu</option>
+            </optgroup>
+          </select>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
@@ -4338,38 +4365,46 @@ async function renderCasierContent(g) {
           <label class="form-label">Type d'infraction *</label>
           <select id="cas-type" class="form-input">
             <option value="">-- Sélectionner --</option>
-            <optgroup label="Infractions légères">
-              <option>Trouble à l'ordre public</option>
-              <option>Résistance aux forces de l'ordre</option>
-              <option>Voie de fait / Agression simple</option>
-              <option>Vol simple</option>
-              <option>Insulte à agent</option>
+            <optgroup label="⚠ Palier 2 — Infractions graves">
+              <option>Vol ou arnaque</option>
+              <option>Refus d'obtempérer</option>
+              <option>Harcèlement physique ou psychologique</option>
+              <option>Dégradation de bien public</option>
+              <option>Entrave à une intervention de Police</option>
+              <option>Incident entre deux ninjas</option>
+              <option>Insubordination à la hiérarchie mineure</option>
+              <option>Insubordination envers un Haut fonctionnaire de Konoha</option>
+              <option>Menace mineure</option>
+              <option>Jeu d'argent sans autorisation dans le village</option>
+              <option>Intrusion dans la cours intérieure du palais</option>
+              <option>Incitation à commettre une infraction</option>
+              <option>Consommation ou détention de drogues dans le village</option>
             </optgroup>
-            <optgroup label="Infractions graves">
-              <option>Agression avec arme</option>
-              <option>Vol avec violence</option>
-              <option>Trafic de substances interdites</option>
-              <option>Utilisation de jutsu interdit</option>
-              <option>Tentative de meurtre</option>
-              <option>Meurtre</option>
-            </optgroup>
-            <optgroup label="Infractions très graves">
+            <optgroup label="🚨 Palier 3 — Infractions très graves">
+              <option>Menace majeure envers la hiérarchie ou agent de police</option>
+              <option>Agression envers un Haut fonctionnaire de Konoha</option>
+              <option>Usurpation de grade ou d'identité</option>
+              <option>Tentative d'homicide</option>
+              <option>Tentative de désertion</option>
+              <option>Homicide</option>
+              <option>Fréquentation de traîtres ou ninjas ennemis de Konoha</option>
+              <option>Kidnapping / Séquestration / Torture</option>
+              <option>Evasion des cellules (Police ou Palais)</option>
+              <option>Actes terroristes (Incendie ou explosion)</option>
               <option>Trahison envers Konoha</option>
               <option>Crime de guerre</option>
               <option>Terrorisme / Attentat</option>
               <option>Appartenance à une organisation criminelle</option>
               <option>Crime contre l'État</option>
             </optgroup>
-            <option>Autre (préciser dans motif)</option>
+            <option>Autre infraction Palier 2/3 (préciser dans motif)</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Niveau de dangerosité</label>
+          <label class="form-label">Palier de l'infraction</label>
           <select id="cas-danger" class="form-input">
-            <option value="faible">Faible</option>
-            <option value="moyen" selected>Moyen</option>
-            <option value="eleve">Élevé</option>
-            <option value="extreme">Extrême</option>
+            <option value="palier2">Palier 2 — Grave</option>
+            <option value="palier3">Palier 3 — Très grave</option>
           </select>
         </div>
       </div>
@@ -4385,6 +4420,7 @@ async function renderCasierContent(g) {
             <option value="avertissement">Avertissement officiel</option>
             <option value="interdiction">Interdiction de section</option>
             <option value="prison">Emprisonnement (RP)</option>
+            <option value="cellule">Cellule du Palais</option>
             <option value="bannissement">Bannissement du village</option>
             <option value="en_cours">En cours d'instruction</option>
           </select>
@@ -4404,8 +4440,8 @@ async function renderCasierContent(g) {
   if (casiers.length === 0) {
     html += '<div class="dash-block" style="padding:2rem;text-align:center"><p style="color:var(--muted)">Aucune fiche de casier judiciaire enregistrée.</p></div>';
   } else {
-    const dangerColors = { faible:'#10b981', moyen:'#f0c040', eleve:'#fb923c', extreme:'#e74c3c' };
-    const dangerLabels = { faible:'Faible', moyen:'Moyen', eleve:'Élevé', extreme:'⚠ EXTRÊME' };
+    const dangerColors = { faible:'#10b981', moyen:'#f0c040', eleve:'#fb923c', extreme:'#e74c3c', palier2:'#fb923c', palier3:'#e74c3c' };
+    const dangerLabels = { faible:'Faible', moyen:'Moyen', eleve:'Élevé', extreme:'⚠ EXTRÊME', palier2:'Palier 2', palier3:'⚠ Palier 3' };
     const sanctionLabels = { amende:'Amende', avertissement:'Avertissement', interdiction:'Interdiction', prison:'Prison (RP)', bannissement:'Banni', en_cours:'En instruction' };
     html += '<div class="dash-block">';
     casiers.slice().reverse().forEach((c, i) => {
