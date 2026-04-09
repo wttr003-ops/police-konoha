@@ -3473,25 +3473,57 @@ function changeGrade(username, newGrade) {
   renderMembresContent(state.currentUser.grade);
 }
 
-function deleteAgent(username) {
+async function deleteAgent(username) {
   const data = state.users[username];
   if (!data) return;
   const displayName = data.fullname || username.replace(/_/g, ' ');
+  const u = state.currentUser;
 
-  if (!confirm('Supprimer définitivement le compte de ' + displayName + ' ?\n\nCette action est irréversible. Le compte, le matricule et tous les accès seront effacés.')) return;
+  const motif = prompt('Motif de suppression de "' + displayName + '" :\n(Démission, renvoi, décès RP...)\n\nCe motif sera enregistré dans les logs.');
+  if (!motif || !motif.trim()) return;
+  if (!confirm('⚠ SUPPRESSION DÉFINITIVE\n\nCompte : ' + displayName + '\nMotif : ' + motif + '\n\nCette action est irréversible. Confirmer ?')) return;
 
-  // Suppression complète du compte
-  delete state.users[username];
-  updateAgentStat();
+  try {
+    // 1. Supprimer de Supabase
+    await sbDelete('users', '?username=eq.' + encodeURIComponent(username));
+    await sbDelete('grade_overrides', '?username=eq.' + encodeURIComponent(username));
 
-  // Si l'agent supprimé est connecté, déconnexion forcée
-  if (state.currentUser && state.currentUser.username === username) {
-    logout();
-    return;
+    // 2. Ajouter à la liste noire Supabase
+    try {
+      await sbPost('deleted_users', {
+        username,
+        fullname: displayName,
+        motif,
+        deleted_by: u.fullname || u.username,
+        deleted_at: new Date().toISOString()
+      });
+    } catch(e) {}
+
+    // 3. Sauvegarder dans localStorage blacklist
+    const blacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
+    if (!blacklist.includes(username)) { blacklist.push(username); localStorage.setItem('konoha_deleted', JSON.stringify(blacklist)); }
+
+    // 4. Supprimer de l'état local
+    delete state.users[username];
+
+    // 5. Resync
+    await syncFromSupabase();
+
+    alert('✓ Compte de "' + displayName + '" supprimé définitivement.\nMotif enregistré.');
+
+    // 6. Si l'agent supprimé est connecté, déconnexion forcée
+    if (state.currentUser && state.currentUser.username === username) {
+      logout();
+      return;
+    }
+
+    updateAgentStat();
+    renderMembresContent(u.grade);
+    renderOverview(u.grade);
+  } catch(e) {
+    console.error(e);
+    alert('Erreur lors de la suppression. Réessayez.');
   }
-
-  renderMembresContent(state.currentUser.grade);
-  renderOverview(state.currentUser.grade);
 }
 
 function addAgent() {
