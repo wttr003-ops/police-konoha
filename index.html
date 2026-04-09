@@ -3020,6 +3020,24 @@ async function submitPostuler() {
   if (!ps || !nv || !mo || !ca || !se || !or) { alert('Veuillez remplir tous les champs obligatoires (*).'); return; }
   if (ca === 'oui') { alert('Désolé, un casier judiciaire in-game disqualifie automatiquement la candidature.'); return; }
 
+  // Vérifier dans la base de données casier judiciaire
+  function normStr2(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[-_]/g,' ').trim(); }
+  const casiersList = await loadCasiers();
+  const nomNorm2 = normStr2(ps);
+  const motsNom2 = nomNorm2.split(' ').filter(m=>m.length>1);
+  const ficheC = casiersList.find(c => {
+    const cn = normStr2(c.nom);
+    const mc = cn.split(' ').filter(m=>m.length>1);
+    if (cn === nomNorm2) return true;
+    if (motsNom2.length >= 2 && motsNom2.every(m => mc.includes(m))) return true;
+    if (mc.length >= 2 && mc.every(m => motsNom2.includes(m))) return true;
+    return false;
+  });
+  if (ficheC) {
+    alert('⚠ Candidature refusée automatiquement\n\nBonjour ' + ps + ',\n\nVotre candidature à la Police de Konoha est automatiquement refusée.\n\nVous faites l\'objet d\'une fiche au casier judiciaire de Konoha pour les faits suivants :\n\n• Infraction : ' + (ficheC.type||'—') + '\n• Motif : ' + (ficheC.motif||'—') + '\n\nToute personne fichée au casier judiciaire ne peut rejoindre les sections officielles de Konoha.\n\nCordialement,\nLa Direction de la Police de Konoha');
+    return;
+  }
+
   const currentAuthorC = state.currentUser ? state.currentUser.username : ps;
   const msgTime = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
@@ -4498,8 +4516,18 @@ async function renderCasierContent(g) {
 async function loadCasiers() {
   try {
     const res = await sbGet('casiers', '?order=id.asc');
-    if (Array.isArray(res)) return res;
-  } catch(e) {}
+    if (Array.isArray(res)) {
+      // Parse suivis JSON string
+      res.forEach(c => {
+        if (c.suivis && typeof c.suivis === 'string') {
+          try { c.suivis = JSON.parse(c.suivis); } catch(e) { c.suivis = []; }
+        }
+        if (!c.suivis) c.suivis = [];
+      });
+      localStorage.setItem('konoha_casiers', JSON.stringify(res));
+      return res;
+    }
+  } catch(e) { console.warn('loadCasiers error:', e); }
   return JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
 }
 
