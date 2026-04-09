@@ -2402,6 +2402,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           Ajouter un agent
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('rapports',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+          Rapports de mission
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('casier',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Casier judiciaire
@@ -2484,6 +2488,11 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <!-- JOURNAL AGENT -->
       <div class="dash-tab" id="dash-journal">
         <div id="journal-agent-content"></div>
+      </div>
+
+      <!-- RAPPORTS DE MISSION -->
+      <div class="dash-tab" id="dash-rapports">
+        <div id="rapports-content"></div>
       </div>
 
       <!-- CASIER JUDICIAIRE -->
@@ -3141,6 +3150,7 @@ function switchDashTab(name, btn) {
   if (name === 'journal')       renderJournal(true);
   if (name === 'logs')          renderLogsContent(g);
   if (name === 'casier')        renderCasierContent(g);
+  if (name === 'rapports')      renderRapportsContent(g);
 }
 
 function renderOverview(g) {
@@ -3350,114 +3360,70 @@ function renderMembresContent(g) {
 
 function renderAjoutContent(g) {
   const el = document.getElementById('ajout-content');
+  if (!el) return;
   if (!canAll(g)) { el.innerHTML = noAccess('Lieutenant ou supérieur'); return; }
-
-  const gradeOpts = GRADES.map(gr => `<option value="${gr}">${gr}</option>`).join('');
   el.innerHTML = `
-    <div class="dash-block" style="padding:1.5rem;max-width:500px">
-      <div class="form-msg success" id="ajout-ok" style="display:none;margin-bottom:1rem">Agent ajouté avec succès.</div>
-      <div class="form-group"><label>Pseudo in-game *</label><input type="text" id="aj-user" placeholder="Nom_Prenom" /></div>
-      <div class="form-group"><label>Mot de passe temporaire *</label><input type="password" id="aj-pass" placeholder="MotDePasse" /></div>
-      <div class="form-group"><label>Grade assigné *</label><select id="aj-grade">${gradeOpts}</select></div>
-      <button class="btn-primary" onclick="addAgent()">Ajouter l'agent</button>
-    </div>
-  `;
+    <h2 class="dash-section-title">Ajouter un agent</h2>
+    <div class="dash-block" style="padding:1.5rem;max-width:520px">
+      <div class="form-msg success" id="ajout-ok" style="display:none">✓ Agent ajouté avec succès !</div>
+      <div class="form-group">
+        <label class="form-label">Nom et Prénom *</label>
+        <input type="text" id="aj-user" class="form-input" placeholder="Ex: Naruto Uzumaki"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Grade *</label>
+        <select id="aj-grade" class="form-input" onchange="updateMatPrefix()">
+          ${GRADES.map(gr => `<option value="${gr}">${gr}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Matricule &amp; Mot de passe *</label>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <div style="position:relative;flex:1">
+            <input type="password" id="aj-mat" class="form-input" placeholder="KNH-STG-0000" style="padding-right:42px;font-family:monospace"/>
+            <button type="button" onclick="togglePwdAjout()" title="Voir/masquer" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
+              <svg id="eye-icon-aj" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button type="button" onclick="generateMatricule()" title="Générer automatiquement" style="background:var(--accent);color:#fff;border:none;border-radius:5px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">
+            🎲 Générer
+          </button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Le matricule sert aussi de mot de passe de connexion.</div>
+      </div>
+      <button class="btn-primary" onclick="addAgent()">➕ Ajouter l'agent</button>
+    </div>`;
 }
 
-// ---- ACTIONS DASHBOARD ----
-async function actPlainte(id, status) {
-  const p = state.plaintes.find(x => x.id === id);
-  if (!p) return;
-  p.status = status;
-  // Update in Supabase
-  await sbPatch('plaintes', `?id=eq.${id}`, { status });
-
-  const u = state.currentUser;
-  const agentName = u.fullname || u.username;
-  const threadId = 'plainte_' + id;
-  if (!state.messages[threadId]) state.messages[threadId] = [];
-
-  if (status === 'ok') {
-    state.messages[threadId].push({
-      from: u.username,
-      senderName: agentName,
-      grade: u.grade,
-      role: 'agent',
-      text: 'Bonjour, votre plainte #' + id + ' a ete prise en charge et traitee par ' + agentName + ' (' + u.grade + ')' + '. Si vous avez des questions ou des precisions a apporter, n hesitez pas a repondre ici.',
-      time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-    });
-  } else if (status === 'no') {
-    state.messages[threadId].push({
-      from: u.username,
-      senderName: agentName,
-      grade: u.grade,
-      role: 'agent',
-      text: 'Bonjour, apres examen de votre plainte #' + id + ', celle-ci a ete rejetee par ' + agentName + ' (' + u.grade + ')' + '. Si vous souhaitez contester cette decision ou fournir des elements supplementaires, vous pouvez repondre dans ce fil.',
-      time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-    });
-  }
-
-  const openBodyId = 'plainte-body-' + id;
-  saveState();
-  renderPlaintesContent(state.currentUser.grade);
-  renderOverview(state.currentUser.grade);
-  setTimeout(() => {
-    const body = document.getElementById(openBodyId);
-    if (body) {
-      body.style.display = 'block';
-      const icon = body.previousElementSibling?.querySelector('.detail-toggle-icon');
-      if (icon) icon.style.transform = 'rotate(180deg)';
-      const msgList = body.querySelector('[id^="msglist-plainte_"]');
-      if (msgList) msgList.scrollTop = msgList.scrollHeight;
-    }
-  }, 30);
+function togglePwdAjout() {
+  const input = document.getElementById('aj-mat');
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
 }
 
-async function actCandid(id, status) {
-  const c = state.candidatures.find(x => x.id === id);
-  if (!c) return;
-  c.status = status;
-  await sbPatch('candidatures', `?id=eq.${id}`, { status });
-
-  const u = state.currentUser;
-  const agentName = u.fullname || u.username;
-  const threadId = 'candid_' + id;
-  if (!state.messages[threadId]) state.messages[threadId] = [];
-
-  if (status === 'ok') {
-    state.messages[threadId].push({
-      from: u.username,
-      senderName: agentName,
-      grade: u.grade,
-      role: 'agent',
-      text: 'Bonjour, votre candidature #' + id + ' a ete acceptee par ' + agentName + ' (' + u.grade + ')' + '. Bienvenue dans la Police de Konoha ! Un superieur vous contactera prochainement pour la suite de votre integration. N hesitez pas a poser vos questions ici.',
-      time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-    });
-  } else if (status === 'no') {
-    state.messages[threadId].push({
-      from: u.username,
-      senderName: agentName,
-      grade: u.grade,
-      role: 'agent',
-      text: 'Bonjour, votre candidature #' + id + ' a ete refusee par ' + agentName + ' (' + u.grade + ')' + '. Nous vous remercions de l interet porte a la Police de Konoha. Vous pouvez repostuler ulterieurement ou nous contacter ici pour plus d informations.',
-      time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-    });
-  }
-
-  const openCBodyId = 'candid-body-' + id;
-  saveState();
-  renderCandidContent(state.currentUser.grade);
-  setTimeout(() => {
-    const body = document.getElementById(openCBodyId);
-    if (body) {
-      body.style.display = 'block';
-      const icon = body.previousElementSibling?.querySelector('.detail-toggle-icon');
-      if (icon) icon.style.transform = 'rotate(180deg)';
-      const msgList = body.querySelector('[id^="msglist-candid_"]');
-      if (msgList) msgList.scrollTop = msgList.scrollHeight;
-    }
-  }, 30);
+function updateMatPrefix() {
+  const matEl = document.getElementById('aj-mat');
+  if (!matEl || !matEl.value) return;
+  // Only update prefix if field already has a value
+  generateMatricule();
 }
+
+function generateMatricule() {
+  const gradeEl = document.getElementById('aj-grade');
+  const matEl   = document.getElementById('aj-mat');
+  if (!gradeEl || !matEl) return;
+  const grade = gradeEl.value;
+  const prefixes = {
+    'Directeur':'DIR','Directeur Adjoint':'ADJ','Lieutenant':'LT',
+    'Sergent':'SGT','Officier':'OFF','Stagiaire':'STG','Recrue':'REC',
+    'Tokubetsu-Chunin':'TCH','Kakunin':'KAK','Tokubetsu-Jonin':'TJ'
+  };
+  const prefix = prefixes[grade] || 'STG';
+  const num = Math.floor(1000 + Math.random() * 9000);
+  matEl.value = 'KNH-' + prefix + '-' + num;
+  matEl.type = 'text';
+}
+
 
 function changeGrade(username, newGrade) {
   state.users[username].grade = newGrade;
@@ -4605,5 +4571,263 @@ function toggleCasier(idx) {
 async function hasCasierJudiciaire(nom) {
   const casiers = await loadCasiers();
   return casiers.some(c => c.nom?.toLowerCase() === nom?.toLowerCase());
+}
+
+// ============================================================
+// RAPPORTS DE MISSION
+// ============================================================
+async function renderRapportsContent(g) {
+  const el = document.getElementById('rapports-content');
+  if (!el) return;
+  if (gradeRank(g) > 4) { el.innerHTML = noAccess('Recrue ou supérieur'); return; }
+
+  const u = state.currentUser;
+  const isHighRank = gradeRank(g) <= 2;
+
+  let rapports = [];
+  try {
+    const res = await sbGet('rapports', '?order=created_at.desc');
+    if (Array.isArray(res)) rapports = res;
+  } catch(e) {
+    rapports = JSON.parse(localStorage.getItem('konoha_rapports') || '[]');
+  }
+
+  let html = `<h2 class="dash-section-title">📋 Rapports de Mission</h2>
+    <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem">
+      <button id="rap-tab-form" onclick="switchRapTab('form')" style="padding:8px 20px;border-radius:20px;border:none;cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:var(--accent);color:white">
+        ➕ Soumettre un rapport
+      </button>
+      <button id="rap-tab-list" onclick="switchRapTab('list')" style="padding:8px 20px;border-radius:20px;border:1.5px solid var(--border);cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:var(--panel);color:var(--text)">
+        📁 Dossiers agents (${rapports.length})
+      </button>
+    </div>
+
+    <div id="rap-panel-form" class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Nouveau rapport de mission</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Nom et Prénom *</label>
+          <input type="text" id="rap-nom" class="form-input" value="${u.fullname||u.username}"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grade Police *</label>
+          <select id="rap-grade-police" class="form-input">
+            ${GRADES.map(gr=>`<option value="${gr}" ${g===gr?'selected':''}>${gr}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Grade Ninja *</label>
+          <select id="rap-grade-ninja" class="form-input">
+            <option>Citoyen</option>
+            <option>Génin Simple</option>
+            <option>Génin Confirmé</option>
+            <option>Tokubetsu-Chunin</option>
+            <option>Chunin</option>
+            <option>Kakunin</option>
+            <option>Tokubetsu-Jonin</option>
+            <option>Jonin</option>
+            <option>Commandant-Jonin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type de mission *</label>
+          <select id="rap-type" class="form-input">
+            <option value="">-- Sélectionner --</option>
+            <option>Patrouille de routine</option>
+            <option>Intervention d'urgence</option>
+            <option>Arrestation</option>
+            <option>Contrôle d'identité</option>
+            <option>Escorte officielle</option>
+            <option>Opération spéciale</option>
+            <option>Enquête criminelle</option>
+            <option>Maintien de l'ordre</option>
+            <option>Mission de renseignement</option>
+            <option>Autre</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label">Description complète de la mission *</label>
+        <textarea id="rap-desc" class="form-input" rows="5" placeholder="Décrivez de A à Z : déroulement, personnes impliquées, actions menées, résultat..."></textarea>
+      </div>
+      <button class="btn-primary" onclick="submitRapport()">📋 Soumettre le rapport</button>
+      <div id="rap-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.2);border-radius:6px;font-size:13px">✓ Rapport soumis avec succès !</div>
+    </div>
+
+    <div id="rap-panel-list" style="display:none">`;
+
+  if (rapports.length === 0) {
+    html += '<div class="dash-block" style="padding:1.5rem;text-align:center"><p style="color:var(--muted)">Aucun rapport enregistré.</p></div>';
+  } else {
+    const byAgent = {};
+    rapports.forEach(r => {
+      const key = r.nom || r.author || 'Inconnu';
+      if (!byAgent[key]) byAgent[key] = [];
+      byAgent[key].push(r);
+    });
+
+    const agentNames = isHighRank ? Object.keys(byAgent) : [u.fullname||u.username];
+
+    agentNames.forEach(agentName => {
+      const agentRaps = byAgent[agentName];
+      if (!agentRaps || agentRaps.length === 0) return;
+      agentRaps.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+      const safeId = agentName.replace(/[^a-zA-Z0-9]/g,'_');
+
+      html += `<div class="dash-block" style="margin-bottom:1rem">
+        <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleAgentRap('${safeId}')">
+          <div style="font-weight:700;font-size:14px">📁 ${agentName}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--muted)">${agentRaps.length} rapport(s)</span>
+            <span id="agrap-icon-${safeId}">▼</span>
+          </div>
+        </div>
+        <div id="agrap-body-${safeId}" style="display:none">`;
+
+      agentRaps.forEach((r, i) => {
+        html += `<div class="detail-card">
+          <div class="detail-card-header" onclick="toggleRapport('${safeId}-${i}')">
+            <div>
+              <div class="detail-title">${r.type_mission||r.type||'Mission'}</div>
+              <div class="detail-meta">
+                <span style="font-size:11px;color:var(--muted)">${r.date||'—'}</span>
+                <span style="font-size:11px;background:rgba(59,130,246,0.1);color:var(--accent);padding:1px 7px;border-radius:8px">${r.grade_police||'—'}</span>
+                <span style="font-size:11px;color:var(--muted)">${r.grade_ninja||''}</span>
+              </div>
+            </div>
+            <span class="detail-toggle-icon" id="rap-icon-${safeId}-${i}">▼</span>
+          </div>
+          <div class="detail-card-body" id="rap-body-${safeId}-${i}" style="display:none">
+            <div class="detail-grid">
+              <div class="detail-field"><span class="detail-field-label">Agent</span><span class="detail-field-val">${r.nom||'—'}</span></div>
+              <div class="detail-field"><span class="detail-field-label">Grade Police</span><span class="detail-field-val">${r.grade_police||'—'}</span></div>
+              <div class="detail-field"><span class="detail-field-label">Grade Ninja</span><span class="detail-field-val">${r.grade_ninja||'—'}</span></div>
+              <div class="detail-field"><span class="detail-field-label">Type de mission</span><span class="detail-field-val">${r.type_mission||r.type||'—'}</span></div>
+            </div>
+            <div class="detail-section">
+              <div class="detail-section-label">Description complète de la mission</div>
+              <div class="detail-section-text">${r.description||r.desc||'—'}</div>
+            </div>
+            <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">
+              📅 Soumis le <strong>${r.date||'—'}</strong> — Réf. RAP-${String(i+1).padStart(4,'0')}
+            </div>
+            ${isHighRank && r.id ? `<button onclick="deleteRapport(${r.id})" style="margin-top:0.5rem;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer">🗑 Supprimer</button>` : ''}
+          </div>
+        </div>`;
+      });
+      html += '</div></div>';
+    });
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function switchRapTab(tab) {
+  const fp = document.getElementById('rap-panel-form');
+  const lp = document.getElementById('rap-panel-list');
+  const fb = document.getElementById('rap-tab-form');
+  const lb = document.getElementById('rap-tab-list');
+  if (!fp||!lp) return;
+  if (tab==='form') {
+    fp.style.display='block'; lp.style.display='none';
+    if(fb){fb.style.background='var(--accent)';fb.style.color='white';fb.style.border='none';}
+    if(lb){lb.style.background='var(--panel)';lb.style.color='var(--text)';lb.style.border='1.5px solid var(--border)';}
+  } else {
+    fp.style.display='none'; lp.style.display='block';
+    if(lb){lb.style.background='var(--accent)';lb.style.color='white';lb.style.border='none';}
+    if(fb){fb.style.background='var(--panel)';fb.style.color='var(--text)';fb.style.border='1.5px solid var(--border)';}
+  }
+}
+
+function toggleAgentRap(safeId) {
+  const body = document.getElementById('agrap-body-'+safeId);
+  const icon = document.getElementById('agrap-icon-'+safeId);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (icon) icon.textContent = open ? '▼' : '▲';
+}
+
+function toggleRapport(id) {
+  const body = document.getElementById('rap-body-'+id);
+  const icon = document.getElementById('rap-icon-'+id);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+
+async function submitRapport() {
+  const nom       = document.getElementById('rap-nom')?.value.trim();
+  const gradePol  = document.getElementById('rap-grade-police')?.value;
+  const gradeNinj = document.getElementById('rap-grade-ninja')?.value;
+  const type      = document.getElementById('rap-type')?.value;
+  const desc      = document.getElementById('rap-desc')?.value.trim();
+
+  if (!nom||!gradePol||!gradeNinj||!type||!desc) { alert('Tous les champs sont obligatoires.'); return; }
+
+  const entry = {
+    nom,
+    grade_police: gradePol,
+    grade_ninja: gradeNinj,
+    type_mission: type,
+    description: desc,
+    author: state.currentUser?.username,
+    date: new Date().toLocaleDateString('fr-FR')
+  };
+
+  try {
+    await sbPost('rapports', entry);
+  } catch(e) {}
+
+  // Local backup
+  const list = JSON.parse(localStorage.getItem('konoha_rapports') || '[]');
+  list.unshift(entry);
+  localStorage.setItem('konoha_rapports', JSON.stringify(list));
+
+  document.getElementById('rap-desc').value = '';
+  document.getElementById('rap-type').value = '';
+
+  const ok = document.getElementById('rap-ok');
+  ok.style.display = 'block';
+  setTimeout(() => ok.style.display='none', 3000);
+
+  renderRapportsContent(state.currentUser.grade);
+}
+
+async function deleteRapport(id) {
+  if (!confirm('Supprimer ce rapport définitivement ?')) return;
+  try {
+    await sbDelete('rapports', '?id=eq.' + id);
+  } catch(e) {}
+  renderRapportsContent(state.currentUser.grade);
+}
+
+function toggleRapport(id) {
+  const body = document.getElementById('rap-body-' + id);
+  const icon = document.getElementById('rap-icon-' + id);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function generateMatricule() {
+  const gradeEl = document.getElementById('aj-grade');
+  const matEl   = document.getElementById('aj-mat');
+  if (!gradeEl || !matEl) return;
+  const grade = gradeEl.value;
+  const prefixes = {
+    'Directeur':'DIR','Directeur Adjoint':'ADJ','Lieutenant':'LT',
+    'Sergent':'SGT','Officier':'OFF','Stagiaire':'STG','Recrue':'REC'
+  };
+  const prefix = prefixes[grade] || 'STG';
+  const num = Math.floor(1000 + Math.random() * 9000);
+  matEl.value = 'KNH-' + prefix + '-' + num;
+  matEl.type = 'text';
 }
 </script></body></html>
