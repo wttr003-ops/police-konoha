@@ -4479,7 +4479,13 @@ async function renderCasierContent(g) {
             <div class="detail-section-text">${c.motif||'—'}</div>
           </div>
           <div style="margin-top:0.75rem;font-size:11px;color:var(--muted)">Fiche créée le ${c.date||'—'} — Réf. CJ-${String(realIdx+1).padStart(4,'0')}</div>
-          ${gradeRank(g) <= 2 ? `<button onclick="deleteCasier(${realIdx})" style="margin-top:0.75rem;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:sans-serif;font-weight:600">🗑 Supprimer cette fiche</button>` : ''}
+          <div style="margin-top:0.75rem;display:flex;gap:8px;flex-wrap:wrap">
+            <button onclick="addSuiviCasier(${realIdx})" style="background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.2);padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:sans-serif;font-weight:600">➕ Ajouter un suivi / amende</button>
+            ${gradeRank(g) <= 2 ? `<button onclick="deleteCasier(${realIdx})" style="background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:sans-serif;font-weight:600">🗑 Supprimer</button>` : ''}
+          </div>
+          <div id="cas-suivi-${realIdx}">
+            ${c.suivis && c.suivis.length ? c.suivis.map(s=>`<div style="margin-top:6px;padding:6px 10px;background:var(--mid);border-radius:4px;border-left:3px solid var(--accent);font-size:12px"><div style="font-weight:600">${s.type} ${s.montant?'— '+s.montant:''}</div><div style="color:var(--muted)">${s.desc}</div><div style="color:var(--muted);font-size:10px">${s.date} — ${s.agent}</div></div>`).join('') : ''}
+          </div>
         </div>
       </div>`;
     });
@@ -4536,8 +4542,108 @@ async function saveCasier() {
 async function deleteCasier(idx) {
   if (!confirm('Supprimer cette fiche de casier judiciaire ?')) return;
   const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+  const casier = list[idx];
+  if (casier?.id) {
+    try { await sbDelete('casiers', '?id=eq.'+casier.id); } catch(e) {}
+  }
   list.splice(idx, 1);
   localStorage.setItem('konoha_casiers', JSON.stringify(list));
+  renderCasierContent(state.currentUser.grade);
+}
+
+async function addSuiviCasier(idx) {
+  const casiers = await loadCasiers();
+  const casier = casiers[idx];
+  if (!casier) return;
+
+  // Show suivi form inline
+  const formId = 'suivi-form-'+idx;
+  const existing = document.getElementById(formId);
+  if (existing) { existing.style.display = existing.style.display==='none'?'block':'none'; return; }
+
+  const container = document.getElementById('cas-suivi-'+idx);
+  if (!container) return;
+
+  container.innerHTML = `
+    <div id="${formId}" style="margin-top:0.75rem;padding:0.75rem;background:var(--mid);border-radius:6px;border:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Ajouter un suivi</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.5rem">
+        <div>
+          <label style="font-size:11px;color:var(--muted)">Type de suivi</label>
+          <select id="suivi-type-${idx}" class="form-input" style="font-size:12px;padding:6px">
+            <option value="nouveau_fait">Nouveau fait reproché</option>
+            <option value="amende_payee">Amende payée</option>
+            <option value="amende_impayee">Amende impayée</option>
+            <option value="liberation">Libération / Fin de peine</option>
+            <option value="recidive">Récidive constatée</option>
+            <option value="note">Note de l'agent</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted)">Montant (si amende)</label>
+          <input type="text" id="suivi-montant-${idx}" class="form-input" style="font-size:12px;padding:6px" placeholder="Ex: 3200 Ryos"/>
+        </div>
+      </div>
+      <div style="margin-bottom:0.5rem">
+        <label style="font-size:11px;color:var(--muted)">Description</label>
+        <textarea id="suivi-desc-${idx}" class="form-input" rows="2" style="font-size:12px;padding:6px" placeholder="Décrivez les nouveaux faits ou le statut de l'amende..."></textarea>
+      </div>
+      <button onclick="saveSuiviCasier(${idx})" class="btn-primary" style="font-size:12px;padding:5px 14px">💾 Enregistrer le suivi</button>
+    </div>
+    <div id="suivi-list-${idx}" style="margin-top:0.5rem"></div>
+  `;
+
+  // Show existing suivis
+  renderSuiviList(idx, casier.suivis || []);
+}
+
+function renderSuiviList(idx, suivis) {
+  const el = document.getElementById('suivi-list-'+idx);
+  if (!el || !suivis.length) return;
+  const typeLabels = {
+    nouveau_fait:'Nouveau fait', amende_payee:'✅ Amende payée',
+    amende_impayee:'❌ Amende impayée', liberation:'🔓 Libération',
+    recidive:'⚠ Récidive', note:'📝 Note'
+  };
+  el.innerHTML = suivis.map(s => `
+    <div style="margin-top:6px;padding:6px 10px;background:var(--panel);border-radius:4px;border-left:3px solid var(--accent);font-size:12px">
+      <div style="font-weight:600;color:var(--text)">${typeLabels[s.type]||s.type} ${s.montant?'— '+s.montant:''}</div>
+      <div style="color:var(--muted);margin-top:2px">${s.desc||'—'}</div>
+      <div style="color:var(--muted);font-size:10px;margin-top:2px">${s.date} — par ${s.agent}</div>
+    </div>`).join('');
+}
+
+async function saveSuiviCasier(idx) {
+  const type    = document.getElementById('suivi-type-'+idx)?.value;
+  const montant = document.getElementById('suivi-montant-'+idx)?.value.trim();
+  const desc    = document.getElementById('suivi-desc-'+idx)?.value.trim();
+  if (!desc) { alert('Description obligatoire.'); return; }
+
+  const suivi = { type, montant, desc, agent: state.currentUser?.fullname||state.currentUser?.username, date: new Date().toLocaleDateString('fr-FR') };
+
+  // Save to Supabase
+  const casiers = await loadCasiers();
+  const casier = casiers[idx];
+  if (casier?.id) {
+    try {
+      const suivis = casier.suivis ? [...casier.suivis, suivi] : [suivi];
+      await fetch(`${SB_URL}/rest/v1/casiers?id=eq.${casier.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ suivis: JSON.stringify(suivis) })
+      });
+    } catch(e) {}
+  }
+
+  // Local backup
+  const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+  if (list[idx]) {
+    if (!list[idx].suivis) list[idx].suivis = [];
+    list[idx].suivis.push(suivi);
+    localStorage.setItem('konoha_casiers', JSON.stringify(list));
+  }
+
+  alert('✓ Suivi enregistré !');
   renderCasierContent(state.currentUser.grade);
 }
 
@@ -4648,6 +4754,15 @@ async function renderRapportsContent(g) {
           </select>
         </div>
       </div>
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label class="form-label">Agents en patrouille / présents <span style="color:var(--muted);font-size:10px">(optionnel — sélection multiple)</span></label>
+        <div id="rap-agents-list" style="background:var(--mid);border:1px solid var(--border);border-radius:5px;padding:10px;max-height:140px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px">
+          ${Object.entries(state.users).filter(([,u])=>u.isAgent).map(([un,u])=>`
+            <label style="display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--panel);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:12px">
+              <input type="checkbox" value="${u.fullname||un}" style="cursor:pointer"/> ${u.fullname||un}
+            </label>`).join('')}
+        </div>
+      </div>
       <div class="form-group" style="margin-bottom:1rem">
         <label class="form-label">Description complète de la mission *</label>
         <textarea id="rap-desc" class="form-input" rows="5" placeholder="Décrivez de A à Z : déroulement, personnes impliquées, actions menées, résultat..."></textarea>
@@ -4705,6 +4820,7 @@ async function renderRapportsContent(g) {
               <div class="detail-field"><span class="detail-field-label">Grade Police</span><span class="detail-field-val">${r.grade_police||'—'}</span></div>
               <div class="detail-field"><span class="detail-field-label">Grade Ninja</span><span class="detail-field-val">${r.grade_ninja||'—'}</span></div>
               <div class="detail-field"><span class="detail-field-label">Type de mission</span><span class="detail-field-val">${r.type_mission||r.type||'—'}</span></div>
+              ${r.agents_presents ? `<div class="detail-field" style="grid-column:1/-1"><span class="detail-field-label">Agents présents</span><span class="detail-field-val">${r.agents_presents}</span></div>` : ''}
             </div>
             <div class="detail-section">
               <div class="detail-section-label">Description complète de la mission</div>
