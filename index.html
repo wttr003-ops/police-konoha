@@ -1596,6 +1596,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   <ul class="nav-links" id="nav-links">
     <li><a onclick="showPage('home')">Accueil</a></li>
     <li><a onclick="showSection('histoire')">Histoire</a></li>
+    <li><a onclick="showSection('recherchees')" style="color:var(--red2)">⚠ Recherchés</a></li>
     <li><a onclick="showSection('volonte')">Volonté du Feu</a></li>
     <li><a onclick="showSection('penal')">Code Pénal</a></li>
     <li><a onclick="showSection('deontologie')">Déontologie</a></li>
@@ -1769,14 +1770,39 @@ span.footer-logo svg { width: 40px; height: 40px; }
     </div>
   </section>
 
+  <!-- PERSONNES RECHERCHÉES -->
+  <section class="section section-dark" id="recherchees">
+    <div class="section-inner">
+      <p class="section-tag">Avis de recherche officiel</p>
+      <h2 class="section-title">Personnes <span>Recherchées</span></h2>
+      <div id="recherchees-list">
+        <p style="color:var(--muted);font-size:14px;text-align:center;padding:2rem 0">Aucun avis de recherche actif pour le moment.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- MISSIONS -->
   <section class="section" id="missions">
     <div class="section-inner">
       <p class="section-tag">Nos missions</p>
       <h2 class="section-title">Missions & <span>Responsabilités</span></h2>
-      <div class="alert-bar">
-        <span class="alert-dot"></span>
-        Alerte active — Patrouilles renforcées dans le secteur est de Konoha
+      <div id="alert-bar-container">
+        <div class="alert-bar" id="alert-bar-display" style="cursor:pointer" onclick="toggleAlertEdit()">
+          <span class="alert-dot" id="alert-dot"></span>
+          <span id="alert-text">Alerte active — Patrouilles renforcées dans le secteur de Konoha</span>
+          <span id="alert-edit-hint" style="margin-left:auto;font-size:10px;opacity:0.6;display:none">✏️ Modifier</span>
+        </div>
+        <div id="alert-edit-panel" style="display:none;background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:1rem">
+          <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.75rem;font-weight:700">Modifier l'alerte</div>
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+            <button onclick="setAlert(1)" class="alert-level-btn" id="alert-btn-1" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;font-family:sans-serif">🟢 Niveau 1 — Calme</button>
+            <button onclick="setAlert(2)" class="alert-level-btn" id="alert-btn-2" style="background:rgba(212,160,23,0.15);color:var(--lgold);border:1px solid rgba(212,160,23,0.3);padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;font-family:sans-serif">🟡 Niveau 2 — Vigilance</button>
+            <button onclick="setAlert(3)" class="alert-level-btn" id="alert-btn-3" style="background:rgba(192,57,43,0.15);color:var(--red2);border:1px solid rgba(192,57,43,0.3);padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;font-family:sans-serif">🔴 Niveau 3 — Alerte maximale</button>
+          </div>
+          <input type="text" id="alert-custom-text" placeholder="Message personnalisé de l'alerte..." style="width:100%;background:var(--dark);border:1px solid var(--border);border-radius:4px;padding:7px 10px;color:var(--text);font-size:13px;font-family:sans-serif;margin-bottom:0.5rem" />
+          <button onclick="applyAlert()" style="background:var(--accent);color:white;border:none;padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer;font-family:sans-serif;font-weight:600">Appliquer</button>
+          <button onclick="toggleAlertEdit()" style="background:transparent;color:var(--muted);border:1px solid var(--border);padding:6px 12px;border-radius:4px;font-size:12px;cursor:pointer;font-family:sans-serif;margin-left:0.5rem">Fermer</button>
+        </div>
       </div>
       <div class="missions-grid">
         <div class="mission-card">
@@ -2162,6 +2188,9 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <option value="Genin">Genin</option>
           <option value="Genin confirmé">Genin confirmé</option>
           <option value="Chunin">Chunin</option>
+          <option value="Tokubetsu-Chunin">Tokubetsu-Chunin</option>
+          <option value="Kakunin">Kakunin</option>
+          <option value="Tokubetsu-Jonin">Tokubetsu-Jonin</option>
           <option value="Jonin">Jonin</option>
         </select>
       </div>
@@ -2279,6 +2308,9 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <option>Genin</option>
           <option>Genin confirmé</option>
           <option>Chunin</option>
+          <option>Tokubetsu-Chunin</option>
+          <option>Kakunin</option>
+          <option>Tokubetsu-Jonin</option>
           <option>Jonin</option>
         </select>
       </div>
@@ -2470,7 +2502,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
 // SUPABASE — Base de données en ligne
 // ============================================================
 const SB_URL = 'https://tbzmqoxnsniknpqgcqrh.supabase.co';
-const SB_KEY = 'sb_publishable_J2fBcXUp69RYHow8HgUXGA_PD0gED-h';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiem1xb3huc25pa25wcWdjcXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2ODUwMTQsImV4cCI6MjA5MTI2MTAxNH0.3wi7vBAruxmVjSUzNoetmpFeGt_SiVRgxm0rXus8vQQ';
 
 async function sbFetch(table, method='GET', body=null, query='') {
   const url = `${SB_URL}/rest/v1/${table}${query}`;
@@ -2785,6 +2817,8 @@ function showSection(id) {
 
 function updateNav() {
   updateAgentStat();
+  loadAlertState();
+  renderRecherchees();
   const u = state.currentUser;
   const authEl  = document.getElementById('nav-auth');
   const userEl  = document.getElementById('nav-user');
@@ -3745,6 +3779,9 @@ function renderCitizenOverview() {
             <option value="Genin" ${data.grade==='Genin'?'selected':''}>Genin</option>
             <option value="Genin confirme" ${data.grade==='Genin confirme'?'selected':''}>Genin confirme</option>
             <option value="Chunin" ${data.grade==='Chunin'?'selected':''}>Chunin</option>
+            <option value="Tokubetsu-Chunin" ${data.grade==='Tokubetsu-Chunin'?'selected':''}>Tokubetsu-Chunin</option>
+            <option value="Kakunin" ${data.grade==='Kakunin'?'selected':''}>Kakunin</option>
+            <option value="Tokubetsu-Jonin" ${data.grade==='Tokubetsu-Jonin'?'selected':''}>Tokubetsu-Jonin</option>
             <option value="Jonin" ${data.grade==='Jonin'?'selected':''}>Jonin</option>
           </select></div>
         <div class="form-group" style="margin:0"><label>Ma section</label>
@@ -4053,4 +4090,198 @@ function togglePwd(inputId, btn) {
     : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   btn.style.color = isHidden ? 'var(--accent)' : 'var(--muted)';
 }
+
+// ============================================================
+// ALERTE DYNAMIQUE
+// ============================================================
+const ALERT_LEVELS = {
+  1: { text: 'Situation calme — Patrouilles normales en cours', color: '#10b981', dotColor: '#10b981' },
+  2: { text: 'Vigilance accrue — Patrouilles renforcées dans le secteur de Konoha', color: '#f0c040', dotColor: '#f0c040' },
+  3: { text: 'Alerte maximale — Intervention immédiate requise sur tout le territoire', color: '#e74c3c', dotColor: '#c0392b' },
+};
+
+function loadAlertState() {
+  try {
+    const saved = localStorage.getItem('konoha_alert');
+    if (saved) {
+      const a = JSON.parse(saved);
+      applyAlertDisplay(a.level || 2, a.text || ALERT_LEVELS[2].text);
+    }
+  } catch(e) {}
+}
+
+function canEditAlert() {
+  const u = state.currentUser;
+  if (!u) return false;
+  return gradeRank(u.grade) <= 4; // Officier et supérieur
+}
+
+function toggleAlertEdit() {
+  const panel = document.getElementById('alert-edit-panel');
+  const hint  = document.getElementById('alert-edit-hint');
+  if (!panel) return;
+  if (!canEditAlert()) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (hint) hint.style.display = canEditAlert() ? 'inline' : 'none';
+}
+
+function setAlert(level) {
+  const input = document.getElementById('alert-custom-text');
+  if (input) input.value = ALERT_LEVELS[level].text;
+}
+
+function applyAlert() {
+  const input = document.getElementById('alert-custom-text');
+  const text  = input ? input.value.trim() : '';
+  if (!text) return;
+
+  // Detect level from content
+  let level = 2;
+  if (text.toLowerCase().includes('calme') || text.toLowerCase().includes('normal')) level = 1;
+  if (text.toLowerCase().includes('maximal') || text.toLowerCase().includes('immédiate') || text.toLowerCase().includes('maximale')) level = 3;
+
+  applyAlertDisplay(level, text);
+  localStorage.setItem('konoha_alert', JSON.stringify({ level, text }));
+  // Also save to Supabase journal as announcement
+  const u = state.currentUser;
+  if (u) {
+    sbPost('journal', {
+      titre: 'Mise à jour alerte — Niveau ' + level,
+      contenu: text,
+      type: 'alerte',
+      auteur: u.fullname || u.username,
+      grade: u.grade,
+      date: new Date().toLocaleDateString('fr-FR')
+    });
+  }
+  const panel = document.getElementById('alert-edit-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+function applyAlertDisplay(level, text) {
+  const bar  = document.getElementById('alert-bar-display');
+  const dot  = document.getElementById('alert-dot');
+  const txt  = document.getElementById('alert-text');
+  const hint = document.getElementById('alert-edit-hint');
+  if (!bar || !txt) return;
+
+  const colors = { 1:'rgba(16,185,129,0.12)', 2:'rgba(192,57,43,0.12)', 3:'rgba(192,57,43,0.25)' };
+  const borders = { 1:'#10b981', 2:'var(--red)', 3:'#ff2222' };
+  const textColors = { 1:'#10b981', 2:'#e88', 3:'#ff6b6b' };
+
+  bar.style.background = colors[level] || colors[2];
+  bar.style.borderLeftColor = borders[level] || borders[2];
+  bar.style.color = textColors[level] || textColors[2];
+  if (dot) dot.style.background = borders[level] || borders[2];
+  txt.textContent = text;
+  if (hint && canEditAlert()) hint.style.display = 'inline';
+}
+
+// ============================================================
+// PERSONNES RECHERCHÉES
+// ============================================================
+function canManageRecherchees() {
+  const u = state.currentUser;
+  if (!u) return false;
+  return gradeRank(u.grade) <= 4; // Officier et supérieur
+}
+
+function renderRecherchees() {
+  const el = document.getElementById('recherchees-list');
+  if (!el) return;
+
+  try {
+    const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
+    if (list.length === 0 && !canManageRecherchees()) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:14px;text-align:center;padding:2rem 0">Aucun avis de recherche actif pour le moment.</p>';
+      return;
+    }
+
+    let html = '';
+
+    if (canManageRecherchees()) {
+      html += `<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:1.5rem">
+        <div style="font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;font-weight:700">Ajouter un avis de recherche</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+          <div><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Nom et Prénom *</label>
+            <input type="text" id="rech-nom" placeholder="Ex: Orochimaru" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--text);font-size:13px;font-family:sans-serif" /></div>
+          <div><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Grade</label>
+            <input type="text" id="rech-grade" placeholder="Ex: Jonin" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--text);font-size:13px;font-family:sans-serif" /></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+          <div><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Section</label>
+            <input type="text" id="rech-section" placeholder="Ex: Renseignement" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--text);font-size:13px;font-family:sans-serif" /></div>
+          <div><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Dangerosité</label>
+            <select id="rech-danger" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--text);font-size:13px;font-family:sans-serif">
+              <option value="faible">Faible</option>
+              <option value="moyen">Moyen</option>
+              <option value="eleve" selected>Élevé</option>
+              <option value="extreme">Extrême</option>
+            </select></div>
+        </div>
+        <div style="margin-bottom:0.75rem"><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Motif de recherche *</label>
+          <textarea id="rech-motif" rows="2" placeholder="Ex: Suspicion de trahison, utilisation de jutsu interdits..." style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--text);font-size:13px;font-family:sans-serif;resize:vertical"></textarea></div>
+        <div style="margin-bottom:0.75rem"><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Photo (URL ou laisser vide)</label>
+          <input type="text" id="rech-photo" placeholder="https://... ou laisser vide" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--text);font-size:13px;font-family:sans-serif" /></div>
+        <button onclick="addRecherchee()" style="background:var(--red);color:white;border:none;padding:8px 20px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:sans-serif;letter-spacing:0.5px">Publier l'avis de recherche</button>
+      </div>`;
+    }
+
+    if (list.length === 0) {
+      html += '<p style="color:var(--muted);font-size:14px;text-align:center;padding:1rem 0">Aucun avis de recherche actif.</p>';
+    } else {
+      const dangerColors = { faible:'#10b981', moyen:'#f0c040', eleve:'#fb923c', extreme:'#e74c3c' };
+      const dangerLabels = { faible:'Faible', moyen:'Moyen', eleve:'Élevé', extreme:'⚠ EXTRÊME' };
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">';
+      list.forEach((r, i) => {
+        const dColor = dangerColors[r.danger] || dangerColors.eleve;
+        html += `<div style="background:var(--panel);border:1px solid rgba(192,57,43,0.4);border-radius:8px;overflow:hidden;position:relative">
+          <div style="background:rgba(192,57,43,0.15);padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:10px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1.5px">⚠ RECHERCHÉ</span>
+            <span style="font-size:10px;font-weight:700;color:${dColor};background:${dColor}22;border:1px solid ${dColor}44;padding:1px 8px;border-radius:3px;text-transform:uppercase">${dangerLabels[r.danger]||r.danger}</span>
+          </div>
+          ${r.photo ? `<img src="${r.photo}" alt="${r.nom}" style="width:100%;height:160px;object-fit:cover;object-position:top" onerror="this.style.display='none'">` : '<div style="width:100%;height:100px;background:var(--mid);display:flex;align-items:center;justify-content:center"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>'}
+          <div style="padding:1rem">
+            <div style="font-size:16px;font-weight:700;color:white;font-family:Georgia,serif;margin-bottom:0.4rem">${r.nom}</div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem">
+              ${r.grade ? `<span style="font-size:10px;color:var(--accent);background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);padding:2px 8px;border-radius:3px">${r.grade}</span>` : ''}
+              ${r.section ? `<span style="font-size:10px;color:var(--muted);background:var(--mid);border:1px solid var(--border);padding:2px 8px;border-radius:3px">${r.section}</span>` : ''}
+            </div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Motif</div>
+            <div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:0.75rem">${r.motif}</div>
+            <div style="font-size:10px;color:var(--muted)">Publié le ${r.date} par ${r.auteur}</div>
+            ${canManageRecherchees() ? `<button onclick="removeRecherchee(${i})" style="margin-top:0.75rem;background:rgba(192,57,43,0.15);color:var(--red2);border:1px solid rgba(192,57,43,0.3);padding:4px 12px;border-radius:3px;font-size:11px;cursor:pointer;font-family:sans-serif">Retirer l'avis</button>` : ''}
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+function addRecherchee() {
+  const nom    = document.getElementById('rech-nom')?.value.trim();
+  const grade  = document.getElementById('rech-grade')?.value.trim();
+  const section= document.getElementById('rech-section')?.value.trim();
+  const motif  = document.getElementById('rech-motif')?.value.trim();
+  const danger = document.getElementById('rech-danger')?.value;
+  const photo  = document.getElementById('rech-photo')?.value.trim();
+  if (!nom || !motif) { alert('Nom et motif obligatoires.'); return; }
+  const u = state.currentUser;
+  const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
+  list.push({ nom, grade, section, motif, danger, photo, auteur: u?.fullname || u?.username || 'Inconnu', date: new Date().toLocaleDateString('fr-FR') });
+  localStorage.setItem('konoha_recherchees', JSON.stringify(list));
+  renderRecherchees();
+}
+
+function removeRecherchee(index) {
+  if (!confirm('Retirer cet avis de recherche ?')) return;
+  const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
+  list.splice(index, 1);
+  localStorage.setItem('konoha_recherchees', JSON.stringify(list));
+  renderRecherchees();
+}
+
 </script></body></html>
