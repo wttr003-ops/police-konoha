@@ -2401,6 +2401,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           Ajouter un agent
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('casier',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Casier judiciaire
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('logs',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           Logs comptes
@@ -2479,6 +2483,11 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <!-- JOURNAL AGENT -->
       <div class="dash-tab" id="dash-journal">
         <div id="journal-agent-content"></div>
+      </div>
+
+      <!-- CASIER JUDICIAIRE -->
+      <div class="dash-tab" id="dash-casier">
+        <div id="casier-content"></div>
       </div>
 
       <!-- LOGS COMPTES -->
@@ -3130,6 +3139,7 @@ function switchDashTab(name, btn) {
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'journal')       renderJournal(true);
   if (name === 'logs')          renderLogsContent(g);
+  if (name === 'casier')        renderCasierContent(g);
 }
 
 function renderOverview(g) {
@@ -4284,4 +4294,244 @@ function removeRecherchee(index) {
   renderRecherchees();
 }
 
+
+// ============================================================
+// CASIER JUDICIAIRE
+// ============================================================
+async function renderCasierContent(g) {
+  const el = document.getElementById('casier-content');
+  if (!el) return;
+  if (gradeRank(g) > 3) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
+
+  const casiers = await loadCasiers();
+  const u = state.currentUser;
+
+  let html = `<h2 class="dash-section-title">📋 Casier Judiciaire</h2>
+    <div style="background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1.5rem;font-size:12px;color:var(--red2)">
+      ⚠ Les personnes fichées au casier judiciaire ne peuvent pas rejoindre les sections officielles de Konoha.
+    </div>
+
+    <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem">
+      <button id="cas-tab-add" onclick="switchCasTab('add')" style="padding:8px 20px;border-radius:20px;border:none;cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:linear-gradient(135deg,var(--red),#8B0000);color:white">
+        ➕ Ajouter une fiche
+      </button>
+      <button id="cas-tab-list" onclick="switchCasTab('list')" style="padding:8px 20px;border-radius:20px;border:1.5px solid var(--border);cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:var(--panel);color:var(--text)">
+        📋 Fiches enregistrées (${casiers.length})
+      </button>
+    </div>
+
+    <!-- Formulaire ajout -->
+    <div id="cas-panel-add" class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+      <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Nouvelle fiche casier judiciaire</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Nom et Prénom *</label>
+          <input type="text" id="cas-nom" class="form-input" placeholder="Ex: Orochimaru"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grade / Rang</label>
+          <input type="text" id="cas-grade" class="form-input" placeholder="Ex: Jonin"/>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Type d'infraction *</label>
+          <select id="cas-type" class="form-input">
+            <option value="">-- Sélectionner --</option>
+            <optgroup label="Infractions légères">
+              <option>Trouble à l'ordre public</option>
+              <option>Résistance aux forces de l'ordre</option>
+              <option>Voie de fait / Agression simple</option>
+              <option>Vol simple</option>
+              <option>Insulte à agent</option>
+            </optgroup>
+            <optgroup label="Infractions graves">
+              <option>Agression avec arme</option>
+              <option>Vol avec violence</option>
+              <option>Trafic de substances interdites</option>
+              <option>Utilisation de jutsu interdit</option>
+              <option>Tentative de meurtre</option>
+              <option>Meurtre</option>
+            </optgroup>
+            <optgroup label="Infractions très graves">
+              <option>Trahison envers Konoha</option>
+              <option>Crime de guerre</option>
+              <option>Terrorisme / Attentat</option>
+              <option>Appartenance à une organisation criminelle</option>
+              <option>Crime contre l'État</option>
+            </optgroup>
+            <option>Autre (préciser dans motif)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Niveau de dangerosité</label>
+          <select id="cas-danger" class="form-input">
+            <option value="faible">Faible</option>
+            <option value="moyen" selected>Moyen</option>
+            <option value="eleve">Élevé</option>
+            <option value="extreme">Extrême</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label class="form-label">Motif détaillé *</label>
+        <textarea id="cas-motif" class="form-input" rows="3" placeholder="Décrivez précisément les faits reprochés, les circonstances, les preuves..."></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label class="form-label">Sanction appliquée</label>
+          <select id="cas-sanction" class="form-input">
+            <option value="amende">Amende</option>
+            <option value="avertissement">Avertissement officiel</option>
+            <option value="interdiction">Interdiction de section</option>
+            <option value="prison">Emprisonnement (RP)</option>
+            <option value="bannissement">Bannissement du village</option>
+            <option value="en_cours">En cours d'instruction</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Agent rédacteur</label>
+          <input type="text" id="cas-agent" class="form-input" value="${u.fullname||u.username}" readonly style="opacity:0.7"/>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="saveCasier()">📋 Enregistrer la fiche</button>
+      <div id="cas-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.2);border-radius:6px;font-size:13px">✓ Fiche casier enregistrée avec succès !</div>
+    </div>
+
+    <!-- Liste des fiches -->
+    <div id="cas-panel-list" style="display:none">`;
+
+  if (casiers.length === 0) {
+    html += '<div class="dash-block" style="padding:2rem;text-align:center"><p style="color:var(--muted)">Aucune fiche de casier judiciaire enregistrée.</p></div>';
+  } else {
+    const dangerColors = { faible:'#10b981', moyen:'#f0c040', eleve:'#fb923c', extreme:'#e74c3c' };
+    const dangerLabels = { faible:'Faible', moyen:'Moyen', eleve:'Élevé', extreme:'⚠ EXTRÊME' };
+    const sanctionLabels = { amende:'Amende', avertissement:'Avertissement', interdiction:'Interdiction', prison:'Prison (RP)', bannissement:'Banni', en_cours:'En instruction' };
+    html += '<div class="dash-block">';
+    casiers.slice().reverse().forEach((c, i) => {
+      const realIdx = casiers.length - 1 - i;
+      const dc = dangerColors[c.danger] || dangerColors.moyen;
+      const dl = dangerLabels[c.danger] || c.danger;
+      html += `<div class="detail-card">
+        <div class="detail-card-header" onclick="toggleCasier(${realIdx})">
+          <div>
+            <div class="detail-title">${c.nom}</div>
+            <div class="detail-meta">
+              <span style="font-size:11px;background:rgba(192,57,43,0.1);color:var(--red2);padding:2px 8px;border-radius:10px">${c.type||'—'}</span>
+              <span style="font-size:11px;color:${dc};font-weight:600">● ${dl}</span>
+              <span style="font-size:11px;color:var(--muted)">${c.date||'—'}</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;padding:3px 10px;border-radius:20px;font-weight:700;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2)">${sanctionLabels[c.sanction]||c.sanction||'—'}</span>
+            <span class="detail-toggle-icon" id="cas-icon-${realIdx}">▼</span>
+          </div>
+        </div>
+        <div class="detail-card-body" id="cas-body-${realIdx}" style="display:none">
+          <div class="detail-grid">
+            <div class="detail-field"><span class="detail-field-label">Nom</span><span class="detail-field-val">${c.nom||'—'}</span></div>
+            <div class="detail-field"><span class="detail-field-label">Grade</span><span class="detail-field-val">${c.grade||'—'}</span></div>
+            <div class="detail-field"><span class="detail-field-label">Infraction</span><span class="detail-field-val" style="color:var(--red2)">${c.type||'—'}</span></div>
+            <div class="detail-field"><span class="detail-field-label">Dangerosité</span><span class="detail-field-val" style="color:${dc};font-weight:700">${dl}</span></div>
+            <div class="detail-field"><span class="detail-field-label">Sanction</span><span class="detail-field-val">${sanctionLabels[c.sanction]||c.sanction||'—'}</span></div>
+            <div class="detail-field"><span class="detail-field-label">Agent rédacteur</span><span class="detail-field-val">${c.agent||'—'}</span></div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-label">Motif détaillé</div>
+            <div class="detail-section-text">${c.motif||'—'}</div>
+          </div>
+          <div style="margin-top:0.75rem;font-size:11px;color:var(--muted)">Fiche créée le ${c.date||'—'} — Réf. CJ-${String(realIdx+1).padStart(4,'0')}</div>
+          ${gradeRank(g) <= 2 ? `<button onclick="deleteCasier(${realIdx})" style="margin-top:0.75rem;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:sans-serif;font-weight:600">🗑 Supprimer cette fiche</button>` : ''}
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function loadCasiers() {
+  try {
+    const res = await sbGet('casiers', '?order=id.asc');
+    if (Array.isArray(res)) return res;
+  } catch(e) {}
+  return JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+}
+
+async function saveCasier() {
+  const nom     = document.getElementById('cas-nom')?.value.trim();
+  const grade   = document.getElementById('cas-grade')?.value.trim();
+  const type    = document.getElementById('cas-type')?.value;
+  const danger  = document.getElementById('cas-danger')?.value;
+  const motif   = document.getElementById('cas-motif')?.value.trim();
+  const sanction= document.getElementById('cas-sanction')?.value;
+  const agent   = document.getElementById('cas-agent')?.value;
+
+  if (!nom||!type||!motif) { alert('Nom, type infraction et motif sont obligatoires.'); return; }
+
+  const entry = { nom, grade, type, danger, motif, sanction, agent, date: new Date().toLocaleDateString('fr-FR') };
+
+  // Save to Supabase
+  try {
+    await sbPost('casiers', entry);
+  } catch(e) {}
+
+  // Also local backup
+  const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+  list.push(entry);
+  localStorage.setItem('konoha_casiers', JSON.stringify(list));
+
+  document.getElementById('cas-nom').value='';
+  document.getElementById('cas-grade').value='';
+  document.getElementById('cas-type').value='';
+  document.getElementById('cas-motif').value='';
+
+  const ok = document.getElementById('cas-ok');
+  ok.style.display='block';
+  setTimeout(()=>ok.style.display='none', 3000);
+
+  // Refresh list
+  renderCasierContent(state.currentUser.grade);
+}
+
+async function deleteCasier(idx) {
+  if (!confirm('Supprimer cette fiche de casier judiciaire ?')) return;
+  const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+  list.splice(idx, 1);
+  localStorage.setItem('konoha_casiers', JSON.stringify(list));
+  renderCasierContent(state.currentUser.grade);
+}
+
+function switchCasTab(tab) {
+  const ap = document.getElementById('cas-panel-add');
+  const lp = document.getElementById('cas-panel-list');
+  const ab = document.getElementById('cas-tab-add');
+  const lb = document.getElementById('cas-tab-list');
+  if (!ap||!lp) return;
+  if (tab === 'add') {
+    ap.style.display='block'; lp.style.display='none';
+    if(ab){ab.style.background='linear-gradient(135deg,var(--red),#8B0000)';ab.style.color='white';ab.style.border='none';}
+    if(lb){lb.style.background='var(--panel)';lb.style.color='var(--text)';lb.style.border='1.5px solid var(--border)';}
+  } else {
+    ap.style.display='none'; lp.style.display='block';
+    if(lb){lb.style.background='linear-gradient(135deg,var(--red),#8B0000)';lb.style.color='white';lb.style.border='none';}
+    if(ab){ab.style.background='var(--panel)';ab.style.color='var(--text)';ab.style.border='1.5px solid var(--border)';}
+  }
+}
+
+function toggleCasier(idx) {
+  const body = document.getElementById('cas-body-'+idx);
+  const icon = document.getElementById('cas-icon-'+idx);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+// Check casier before candidature (shared with hospital)
+async function hasCasierJudiciaire(nom) {
+  const casiers = await loadCasiers();
+  return casiers.some(c => c.nom?.toLowerCase() === nom?.toLowerCase());
+}
 </script></body></html>
