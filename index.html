@@ -2794,9 +2794,22 @@ async function syncFromSupabase() {
     }
 
     // Load users from supabase
+    // Load blacklist from Supabase first
+    let sbBlacklist = [];
+    try {
+      const deleted = await sbGet('deleted_users', '');
+      if (Array.isArray(deleted)) sbBlacklist = deleted.map(d => d.username);
+    } catch(e) {}
+    // Merge with localStorage blacklist
+    const localBlacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
+    const blacklist = [...new Set([...sbBlacklist, ...localBlacklist])];
+    if (blacklist.length > 0) localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
+
     const users = await sbGet('users', '');
     if (Array.isArray(users)) {
       users.forEach(u => {
+        // Skip deleted users
+        if (blacklist.includes(u.username)) return;
         state.users[u.username] = {
           password: u.password,
           grade: u.grade || 'Citoyen',
