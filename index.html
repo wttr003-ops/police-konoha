@@ -2477,7 +2477,6 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
       <!-- AJOUT -->
       <div class="dash-tab" id="dash-ajout">
-        <h2 class="dash-section-title">Ajouter un agent</h2>
         <div id="ajout-content"></div>
       </div>
 
@@ -3641,23 +3640,43 @@ async function deleteAgent(username) {
   }
 }
 
-function addAgent() {
-  const u = document.getElementById('aj-user').value.trim();
-  const p = document.getElementById('aj-pass').value.trim();
-  const g = document.getElementById('aj-grade').value;
-  if (!u || !p) { alert('Remplissez le pseudo et le mot de passe.'); return; }
-  if (state.users[u]) { alert('Ce pseudo est déjà enregistré.'); return; }
-  state.users[u] = { password: p, grade: g };
-  document.getElementById('ajout-ok').style.display = 'block';
+async function addAgent() {
+  const nom   = document.getElementById('aj-nom')?.value.trim() || document.getElementById('aj-user')?.value.trim();
+  const grade = document.getElementById('aj-grade')?.value;
+  const mat   = document.getElementById('aj-mat')?.value.trim();
+  const pass  = document.getElementById('aj-pass')?.value.trim();
+
+  if (!nom)  { alert('Le nom et prénom sont obligatoires.'); return; }
+  if (!pass) { alert('Le mot de passe est obligatoire — clique sur Générer ou saisis un matricule.'); return; }
+  if (!grade){ alert('Le grade est obligatoire.'); return; }
+
+  const username = nom.replace(/\s+/g, '_');
+  if (state.users[username]) { alert('Cet agent existe déjà.'); return; }
+
+  const inscription = new Date().toLocaleDateString('fr-FR');
+  const newAgent = { password: pass, grade, fullname: nom, isAgent: true, matricule: mat||pass, inscription };
+
+  // Save to Supabase
+  try {
+    await sbPost('users', {
+      username, password: pass, grade, fullname: nom,
+      is_agent: true, matricule: mat||pass, inscription
+    });
+  } catch(e) { console.warn('addAgent error:', e); }
+
+  // Save locally
+  state.users[username] = newAgent;
+
+  // Reset form
+  ['aj-nom','aj-mat','aj-pass'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+
+  const ok = document.getElementById('ajout-ok');
+  if (ok) { ok.style.display='block'; setTimeout(()=>ok.style.display='none', 3000); }
+
   updateAgentStat();
-  saveState();
-  document.getElementById('aj-user').value = '';
-  document.getElementById('aj-pass').value = '';
-  renderOverview(state.currentUser.grade);
-  setTimeout(() => {
-    const ok = document.getElementById('ajout-ok');
-    if (ok) ok.style.display = 'none';
-  }, 3000);
+  await syncFromSupabase();
+  renderAjoutContent(state.currentUser.grade);
+  renderMembresContent(state.currentUser.grade);
 }
 
 // ---- HELPERS ----
