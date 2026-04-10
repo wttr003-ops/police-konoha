@@ -3556,6 +3556,8 @@ syncFromSupabase().then(() => {
     }
   }
   updateNav();
+  // Init Kaede after everything is loaded
+  setTimeout(initKaede, 800);
 });
 
 function sectionLabel(s) {
