@@ -2644,17 +2644,39 @@ function startRealtime() {
 
       // Also check messages directly from Supabase for this user
       try {
-        const myMsgs = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(u.username) + '&role=eq.agent&order=id.desc');
-        if (Array.isArray(myMsgs) && myMsgs.length > 0) {
+        // Get citizen's plaintes and candidatures IDs
+        const myPlaintes = state.plaintes.filter(p => p.author === u.username || p.author_display === (u.fullname||u.username));
+        const myCandids = state.candidatures.filter(c => c.author === u.username || c.author_display === (u.fullname||u.username));
+
+        // Build thread IDs to check
+        const threadIds = [
+          ...myPlaintes.map(p => 'plainte_' + p.id),
+          ...myCandids.map(c => 'candid_' + c.id)
+        ];
+
+        if (threadIds.length > 0) {
           const lastSeen = parseInt(localStorage.getItem('citizen_last_msg_' + u.username) || '0');
-          const newAgentMsgs = myMsgs.filter(m => m.id > lastSeen);
-          if (newAgentMsgs.length > 0) {
-            totalNewMsgs = newAgentMsgs.length;
-            localStorage.setItem('citizen_last_msg_' + u.username, myMsgs[0].id);
+          let newMsgFound = 0;
+
+          for (const tid of threadIds) {
+            const msgs = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(tid) + '&role=eq.agent&order=id.desc');
+            if (Array.isArray(msgs) && msgs.length > 0) {
+              const newOnes = msgs.filter(m => (m.id||0) > lastSeen);
+              newMsgFound += newOnes.length;
+            }
+          }
+
+          if (newMsgFound > 0) {
+            // Update lastSeen to max id
+            totalNewMsgs = newMsgFound;
+            const allMsgs = await sbGet('messages', '?role=eq.agent&order=id.desc&limit=1');
+            if (Array.isArray(allMsgs) && allMsgs[0]) {
+              localStorage.setItem('citizen_last_msg_' + u.username, allMsgs[0].id);
+            }
             setMsgDot(true);
           }
         }
-      } catch(e) {}
+      } catch(e) { console.warn('msg check error', e); }
 
       if (totalNewMsgs > 0) {
         // Show Kaede badge
@@ -5412,14 +5434,24 @@ function showKaedePopup(type, data) {
       Souhaitez-vous consulter votre missive maintenant ?`;
     body.style.borderLeftColor = 'var(--accent)';
     btns.innerHTML = `
-      <button onclick="closeKaedePopup(); showPage('login');" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">📜 Consulter ma missive</button>
-      <button onclick="closeKaedePopup()" style="padding:10px 16px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">Plus tard</button>`;
+      <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+        <div style="display:flex;gap:8px">
+          <button onclick="closeKaedePopup(); showPage('dashboard');" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">📜 Consulter ma missive</button>
+          <button onclick="closeKaedePopup()" style="padding:10px 16px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">Plus tard</button>
+        </div>
+        <button onclick="closeKaedePopup()" style="width:100%;padding:7px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;opacity:0.6">— Fermer cette lettre —</button>
+      </div>`;
   } else if (type === 'welcome') {
     body.innerHTML = `Bonjour, je suis <strong>Kaede Mizunara</strong>, secrétaire de la Police de Konoha. Je serai là pour vous guider si vous avez besoin.<br><br>
       Nous remarquons que vous n'avez pas encore de dossier citoyen enregistré. Nous vous invitons à en créer un — cela nous permet de vous identifier facilement pour vos plaintes, candidatures ou convocations.`;
     btns.innerHTML = `
-      <button onclick="closeKaedePopup(); showPage('register');" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Créer mon dossier</button>
-      <button onclick="closeKaedePopup()" style="padding:10px 16px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">Plus tard</button>`;
+      <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+        <div style="display:flex;gap:8px">
+          <button onclick="closeKaedePopup(); showPage('register');" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Créer mon dossier</button>
+          <button onclick="closeKaedePopup()" style="padding:10px 16px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">Plus tard</button>
+        </div>
+        <button onclick="closeKaedePopup()" style="width:100%;padding:7px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;opacity:0.6">— Fermer cette lettre —</button>
+      </div>`;
     localStorage.setItem('kaede_welcomed', '1');
   } else if (type === 'newaccount') {
     body.innerHTML = `<strong>Bienvenue parmi les citoyens de Konoha ! 👋</strong><br><br>
@@ -5428,7 +5460,11 @@ function showKaedePopup(type, data) {
       ✓ Candidater pour rejoindre la Police<br>
       ✓ Suivre vos dossiers depuis votre espace`;
     body.style.borderLeftColor = '#27ae60';
-    btns.innerHTML = `<button onclick="closeKaedePopup()" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Accéder à mon espace →</button>`;
+    btns.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+        <button onclick="closeKaedePopup()" style="width:100%;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Accéder à mon espace →</button>
+        <button onclick="closeKaedePopup()" style="width:100%;padding:7px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;opacity:0.6">— Fermer cette lettre —</button>
+      </div>`;
   }
 
   popup.style.display = 'flex';
