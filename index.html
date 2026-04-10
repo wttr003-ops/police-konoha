@@ -2588,33 +2588,65 @@ function startRealtime() {
     }
 
     // Notification Kaede si nouveau message reçu pour citoyen
-    if (isCitizen && newMsgCount > oldMsgCount) {
-      const diff = newMsgCount - oldMsgCount;
-      // Show notification badge
-      const kaedeBtn = document.getElementById('kaede-btn');
-      if (kaedeBtn) {
-        let badge = document.getElementById('kaede-badge');
-        if (!badge) {
-          badge = document.createElement('div');
-          badge.id = 'kaede-badge';
-          badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#e74c3c;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:sans-serif';
-          kaedeBtn.style.position = 'relative';
-          kaedeBtn.appendChild(badge);
+    if (isCitizen) {
+      // Check messages specifically for this citizen's threads
+      let totalNewMsgs = 0;
+      if (newMsgCount > oldMsgCount) {
+        totalNewMsgs = newMsgCount - oldMsgCount;
+      }
+
+      // Also check messages directly from Supabase for this user
+      try {
+        const myMsgs = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(u.username) + '&role=eq.agent&order=id.desc');
+        if (Array.isArray(myMsgs) && myMsgs.length > 0) {
+          const lastSeen = parseInt(localStorage.getItem('citizen_last_msg_' + u.username) || '0');
+          const newAgentMsgs = myMsgs.filter(m => m.id > lastSeen);
+          if (newAgentMsgs.length > 0) {
+            totalNewMsgs = newAgentMsgs.length;
+            localStorage.setItem('citizen_last_msg_' + u.username, myMsgs[0].id);
+          }
         }
-        badge.textContent = diff;
-        // Show bubble notification
+      } catch(e) {}
+
+      if (totalNewMsgs > 0) {
+        // Show Kaede badge
+        const kaedeBtn = document.getElementById('kaede-btn');
+        if (kaedeBtn) {
+          let badge = document.getElementById('kaede-badge');
+          if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'kaede-badge';
+            badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#e74c3c;color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:sans-serif';
+            kaedeBtn.style.position = 'relative';
+            kaedeBtn.appendChild(badge);
+          }
+          badge.textContent = totalNewMsgs;
+        }
+        // Show Kaede bubble
         const bubble = document.getElementById('kaede-bubble');
-        if (bubble) {
+        if (bubble && bubble.style.display === 'none') {
           bubble.textContent = 'Nouvelle missive reçue ! 📜';
           bubble.style.display = 'block';
           bubble.style.background = '#e74c3c';
           bubble.style.color = 'white';
           bubble.style.border = 'none';
           setTimeout(() => {
-            bubble.style.display = 'none';
-            bubble.style.background = '';
-            bubble.style.color = '';
-          }, 5000);
+            if (bubble) {
+              bubble.style.display = 'none';
+              bubble.style.background = '';
+              bubble.style.color = '';
+              bubble.textContent = 'Besoin d\'aide ? Je suis là 👋';
+            }
+          }, 6000);
+        }
+        // Show Kaede popup if not already shown recently
+        const lastNotif = parseInt(localStorage.getItem('kaede_last_notif') || '0');
+        if (Date.now() - lastNotif > 30000) { // max once every 30s
+          localStorage.setItem('kaede_last_notif', Date.now());
+          showKaedePopup('missive', {
+            titre: 'Vous avez reçu ' + totalNewMsgs + ' nouvelle(s) missive(s)',
+            desc: 'Un agent de la Police de Konoha vous a envoyé un message confidentiel.'
+          });
         }
       }
     }
