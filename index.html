@@ -2794,22 +2794,21 @@ async function syncFromSupabase() {
     }
 
     // Load users from supabase
-    // Load blacklist from Supabase first
-    let sbBlacklist = [];
+    // Charger la blacklist depuis Supabase
+    let blacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
     try {
-      const deleted = await sbGet('deleted_users', '');
-      if (Array.isArray(deleted)) sbBlacklist = deleted.map(d => d.username);
+      const deleted = await sbGet('deleted_users', '?select=username');
+      if (Array.isArray(deleted) && deleted.length > 0) {
+        const sbBl = deleted.map(d => d.username);
+        blacklist = [...new Set([...blacklist, ...sbBl])];
+        localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
+      }
     } catch(e) {}
-    // Merge with localStorage blacklist
-    const localBlacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
-    const blacklist = [...new Set([...sbBlacklist, ...localBlacklist])];
-    if (blacklist.length > 0) localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
 
     const users = await sbGet('users', '');
     if (Array.isArray(users)) {
       users.forEach(u => {
-        // Skip deleted users
-        if (blacklist.includes(u.username)) return;
+        if (blacklist.includes(u.username)) return; // JAMAIS recharger un supprimé
         state.users[u.username] = {
           password: u.password,
           grade: u.grade || 'Citoyen',
@@ -3634,52 +3633,55 @@ async function deleteAgent(username) {
   const displayName = data.fullname || username.replace(/_/g, ' ');
   const u = state.currentUser;
 
-  const motif = prompt('Motif de suppression de "' + displayName + '" :\n(Démission, renvoi, décès RP...)\n\nCe motif sera enregistré dans les logs.');
+  const motif = prompt('Motif de suppression de "' + displayName + '" :\n(Démission, renvoi, décès RP...)');
   if (!motif || !motif.trim()) return;
-  if (!confirm('⚠ SUPPRESSION DÉFINITIVE\n\nCompte : ' + displayName + '\nMotif : ' + motif + '\n\nCette action est irréversible. Confirmer ?')) return;
+  if (!confirm('SUPPRESSION DÉFINITIVE\n\n' + displayName + '\nMotif : ' + motif + '\n\nConfirmer ?')) return;
 
+  // ÉTAPE 1 — Supprimer physiquement de Supabase
   try {
-    // 1. Supprimer de Supabase
     await sbDelete('users', '?username=eq.' + encodeURIComponent(username));
+  } catch(e) { console.warn('delete users error:', e); }
+  try {
     await sbDelete('grade_overrides', '?username=eq.' + encodeURIComponent(username));
+  } catch(e) {}
 
-    // 2. Ajouter à la liste noire Supabase
-    try {
-      await sbPost('deleted_users', {
-        username,
-        fullname: displayName,
-        motif,
-        deleted_by: u.fullname || u.username,
-        deleted_at: new Date().toISOString()
-      });
-    } catch(e) {}
+  // ÉTAPE 2 — Enregistrer dans deleted_users si la table existe
+  try {
+    await sbPost('deleted_users', {
+      username,
+      fullname: displayName,
+      motif: motif.trim(),
+      deleted_by: u.fullname || u.username,
+      deleted_at: new Date().toISOString()
+    });
+  } catch(e) { console.warn('deleted_users table missing, using localStorage only'); }
 
-    // 3. Sauvegarder dans localStorage blacklist
-    const blacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
-    if (!blacklist.includes(username)) { blacklist.push(username); localStorage.setItem('konoha_deleted', JSON.stringify(blacklist)); }
+  // ÉTAPE 3 — Blacklist localStorage (fonctionne MÊME sans Supabase)
+  const bl = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
+  if (!bl.includes(username)) bl.push(username);
+  localStorage.setItem('konoha_deleted', JSON.stringify(bl));
 
-    // 4. Supprimer de l'état local
-    delete state.users[username];
+  // ÉTAPE 4 — Supprimer de l'état local
+  delete state.users[username];
 
-    // 5. Resync
-    await syncFromSupabase();
-
-    alert('✓ Compte de "' + displayName + '" supprimé définitivement.\nMotif enregistré.');
-
-    // 6. Si l'agent supprimé est connecté, déconnexion forcée
-    if (state.currentUser && state.currentUser.username === username) {
-      logout();
-      return;
+  // ÉTAPE 5 — Vérifier que c'est bien parti de Supabase
+  try {
+    const check = await sbGet('users', '?username=eq.' + encodeURIComponent(username));
+    if (Array.isArray(check) && check.length > 0) {
+      // Encore là ! Réessayer la suppression
+      await sbDelete('users', '?username=eq.' + encodeURIComponent(username));
     }
+  } catch(e) {}
 
-    updateAgentStat();
-    renderMembresContent(u.grade);
-    renderOverview(u.grade);
-  } catch(e) {
-    console.error(e);
-    alert('Erreur lors de la suppression. Réessayez.');
-  }
+  alert('✓ Compte de "' + displayName + '" supprimé définitivement.');
+
+  if (state.currentUser?.username === username) { logout(); return; }
+
+  renderMembresContent(u.grade);
+  renderLogsContent(u.grade);
+  updateAgentStat();
 }
+
 
 async function addAgent() {
   const nom   = document.getElementById('aj-nom')?.value.trim() || document.getElementById('aj-user')?.value.trim();
