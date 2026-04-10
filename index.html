@@ -1606,7 +1606,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   </div>
   <div class="nav-user" id="nav-user" style="display:none">
     <div class="avatar" id="nav-avatar">—</div>
-    <span id="nav-username-display"></span>
+    <span style="display:flex;align-items:center;gap:6px"><span id="nav-username-display"></span><span id="nav-msg-dot" title="Statut messages" style="width:10px;height:10px;border-radius:50%;background:#888;flex-shrink:0;transition:background 0.3s"></span></span>
     <span class="grade-pill" id="nav-grade-pill"></span>
     <button class="btn-outline" id="nav-dash-btn" onclick="showPage('dashboard')">Espace agent</button>
     <button class="btn-danger" onclick="logout()">Déco.</button>
@@ -2569,21 +2569,68 @@ function startRealtime() {
     const newPlaintesCount = state.plaintes.length;
     const newCandidCount = state.candidatures.length;
 
-    // Toujours rafraîchir la vue active — temps réel
+    // Ne re-render QUE si aucun dossier n'est ouvert
     const activeDashTab = document.querySelector('.dash-tab.active');
     if (activeDashTab) {
+      const hasOpenItem = state.openPlainte !== null || state.openCandid !== null;
+
       if (isCitizen) {
         const id = activeDashTab.id;
-        if (id === 'dash-citizen-plaintes')  renderCitizenPlaintes();
-        if (id === 'dash-citizen-candid')    renderCitizenCandid();
+        // Pour le citoyen, ne pas re-render si dossier ouvert
+        if (!hasOpenItem) {
+          if (id === 'dash-citizen-plaintes')  { renderCitizenPlaintes(); setMsgDot(false); }
+          if (id === 'dash-citizen-candid')    renderCitizenCandid();
+        }
         if (id === 'dash-citizen-journal')   renderJournal(false);
       } else {
         const g = u.grade;
         const id = activeDashTab.id;
-        if (id === 'dash-plaintes')      { renderPlaintesContent(g); setTimeout(restoreOpenItems, 100); }
-        if (id === 'dash-candidatures')  { renderCandidContent(g); setTimeout(restoreOpenItems, 100); }
-        if (id === 'dash-journal')       renderJournal(true);
-        if (id === 'dash-annuaire')      renderAnnuaireContent(g);
+        // Pour l'agent, ne pas re-render plaintes/candid si dossier ouvert
+        if (!hasOpenItem) {
+          if (id === 'dash-plaintes')     renderPlaintesContent(g);
+          if (id === 'dash-candidatures') renderCandidContent(g);
+        } else {
+          // Juste mettre à jour le thread de messages sans re-render la liste
+          if (state.openPlainte !== null) {
+            const slotId = 'thread-slot-plainte-' + state.openPlainte;
+            const slot = document.getElementById(slotId);
+            if (slot && slot.innerHTML) {
+              const msgList = document.getElementById('msglist-plainte_' + state.openPlainte);
+              if (msgList) {
+                const wasAtBottom = msgList.scrollHeight - msgList.scrollTop <= msgList.clientHeight + 10;
+                const msgs = state.messages['plainte_' + state.openPlainte] || [];
+                const items = msgList.querySelectorAll('.msg-bubble');
+                if (msgs.length !== items.length) {
+                  // Only re-inject thread, not full list
+                  const pItem = state.plaintes.find(x => x.id === state.openPlainte);
+                  const label = pItem ? 'Plainte #' + pItem.id : '';
+                  slot.innerHTML = buildThread('plainte_' + state.openPlainte, u.username, u.fullname||u.username, label);
+                  if (wasAtBottom) setTimeout(() => { if(msgList) msgList.scrollTop = msgList.scrollHeight; }, 50);
+                }
+              }
+            }
+          }
+          if (state.openCandid !== null) {
+            const slotId = 'thread-slot-candid-' + state.openCandid;
+            const slot = document.getElementById(slotId);
+            if (slot && slot.innerHTML) {
+              const msgList = document.getElementById('msglist-candid_' + state.openCandid);
+              if (msgList) {
+                const wasAtBottom = msgList.scrollHeight - msgList.scrollTop <= msgList.clientHeight + 10;
+                const msgs = state.messages['candid_' + state.openCandid] || [];
+                const items = msgList.querySelectorAll('.msg-bubble');
+                if (msgs.length !== items.length) {
+                  const cItem = state.candidatures.find(x => x.id === state.openCandid);
+                  const label = cItem ? 'Candidature #' + cItem.id : '';
+                  slot.innerHTML = buildThread('candid_' + state.openCandid, u.username, u.fullname||u.username, label);
+                  if (wasAtBottom) setTimeout(() => { if(msgList) msgList.scrollTop = msgList.scrollHeight; }, 50);
+                }
+              }
+            }
+          }
+        }
+        if (id === 'dash-journal')    renderJournal(true);
+        if (id === 'dash-annuaire')   renderAnnuaireContent(g);
       }
     }
 
@@ -2604,6 +2651,7 @@ function startRealtime() {
           if (newAgentMsgs.length > 0) {
             totalNewMsgs = newAgentMsgs.length;
             localStorage.setItem('citizen_last_msg_' + u.username, myMsgs[0].id);
+            setMsgDot(true);
           }
         }
       } catch(e) {}
@@ -2915,6 +2963,8 @@ function updateNav() {
     const pill = document.getElementById('nav-grade-pill');
     pill.textContent = u.grade;
     pill.className = 'grade-pill ' + GRADE_CLASS[u.grade];
+    // Init dot grey on login
+    setMsgDot(false);
   } else {
     authEl.style.display = 'flex';
     userEl.style.display = 'none';
@@ -5508,5 +5558,13 @@ async function actCandid(id, status) {
   await syncFromSupabase();
   renderCandidContent(state.currentUser.grade);
   alert('✓ Candidature ' + (status === 'ok' ? 'acceptée' : 'refusée') + ' avec succès.');
+}
+
+// Message indicator dot in nav
+function setMsgDot(hasNew) {
+  const dot = document.getElementById('nav-msg-dot');
+  if (!dot) return;
+  dot.style.background = hasNew ? '#e74c3c' : '#888';
+  dot.title = hasNew ? 'Nouveau message !' : 'Aucun nouveau message';
 }
 </script></body></html>
