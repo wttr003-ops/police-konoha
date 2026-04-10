@@ -3544,9 +3544,19 @@ function renderAjoutContent(g) {
 }
 
 function togglePwdAjout() {
-  const input = document.getElementById('aj-mat');
+  const input = document.getElementById('aj-pass');
   if (!input) return;
   input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function generatePwdAgent() {
+  const input = document.getElementById('aj-pass');
+  if (!input) return;
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let pwd = '';
+  for (let i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  input.value = pwd;
+  input.type = 'text';
 }
 
 function updateMatPrefix() {
@@ -3559,17 +3569,18 @@ function updateMatPrefix() {
 function generateMatricule() {
   const gradeEl = document.getElementById('aj-grade');
   const matEl   = document.getElementById('aj-mat');
-  if (!gradeEl || !matEl) return;
-  const grade = gradeEl.value;
+  if (!matEl) return;
+  const grade = gradeEl ? gradeEl.value : '';
   const prefixes = {
     'Directeur':'DIR','Directeur Adjoint':'ADJ','Lieutenant':'LT',
     'Sergent':'SGT','Officier':'OFF','Stagiaire':'STG','Recrue':'REC',
     'Tokubetsu-Chunin':'TCH','Kakunin':'KAK','Tokubetsu-Jonin':'TJ'
   };
-  const prefix = prefixes[grade] || 'STG';
-  const num = Math.floor(1000 + Math.random() * 9000);
+  const prefix = prefixes[grade] || 'KNH';
+  const digits = Math.floor(Math.random() * 9) + 2;
+  let num = '';
+  for (let i = 0; i < digits; i++) num += Math.floor(Math.random() * 10);
   matEl.value = 'KNH-' + prefix + '-' + num;
-  matEl.type = 'text';
 }
 
 
@@ -4309,7 +4320,12 @@ function renderLogsContent(g) {
       <span class="grade-pill ${GRADE_CLASS[data.grade] || 'gp-d'}">${data.grade || 'Citoyen'}</span>
       <div style="background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:12px;font-family:monospace;color:var(--lgold);display:flex;align-items:center;gap:6px">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-        ${data.matricule || data.password || '—'}
+        ${data.matricule || '—'}
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">
+            🔑 <span style="font-family:monospace;letter-spacing:2px;background:var(--mid);padding:2px 8px;border-radius:4px">${data.password || '—'}</span>
+          </div>
+        </div>
       </div>
     </div>`;
   });
