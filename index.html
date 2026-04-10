@@ -2580,8 +2580,8 @@ function startRealtime() {
       } else {
         const g = u.grade;
         const id = activeDashTab.id;
-        if (id === 'dash-plaintes')      renderPlaintesContent(g);
-        if (id === 'dash-candidatures')  renderCandidContent(g);
+        if (id === 'dash-plaintes')      { renderPlaintesContent(g); setTimeout(restoreOpenItems, 100); }
+        if (id === 'dash-candidatures')  { renderCandidContent(g); setTimeout(restoreOpenItems, 100); }
         if (id === 'dash-journal')       renderJournal(true);
         if (id === 'dash-annuaire')      renderAnnuaireContent(g);
       }
@@ -3602,6 +3602,16 @@ function toggleDetail(id) {
   if (!body) return;
   const isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
+
+  // Save open state so polling doesn't close it
+  const match = id.match(/^(plainte|candid)-body-(\d+)$/);
+  if (match) {
+    const type = match[1];
+    const itemId = parseInt(match[2]);
+    if (type === 'plainte') state.openPlainte = isOpen ? null : itemId;
+    if (type === 'candid')  state.openCandid  = isOpen ? null : itemId;
+  }
+
   // Rotate arrow icon
   const header = body.previousElementSibling;
   if (header) {
@@ -3612,8 +3622,6 @@ function toggleDetail(id) {
   if (!isOpen && state.currentUser) {
     const u = state.currentUser;
     const agentName = u.fullname || u.username;
-    // Detect if this is a plainte or candid card
-    const match = id.match(/^(plainte|candid)-body-(\d+)$/);
     if (match) {
       const type = match[1];
       const itemId = parseInt(match[2]);
@@ -3629,10 +3637,60 @@ function toggleDetail(id) {
           label = c ? 'Candidature #' + c.id + ' — ' + c.niveau : 'Candidature #' + itemId;
         }
         slot.innerHTML = buildThread(type + '_' + itemId, u.username, agentName, label);
-        // Scroll thread to bottom
         setTimeout(() => {
           const msgList = document.getElementById('msglist-' + type + '_' + itemId);
           if (msgList) msgList.scrollTop = msgList.scrollHeight;
+        }, 50);
+      }
+    }
+  }
+}
+
+// Restore open state after re-render
+function restoreOpenItems() {
+  if (state.openPlainte !== null) {
+    const body = document.getElementById('plainte-body-' + state.openPlainte);
+    if (body && body.style.display === 'none') {
+      body.style.display = 'block';
+      const header = body.previousElementSibling;
+      if (header) {
+        const icon = header.querySelector('.detail-toggle-icon');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+      }
+      // Re-inject thread
+      const u = state.currentUser;
+      const slotId = 'thread-slot-plainte-' + state.openPlainte;
+      const slot = document.getElementById(slotId);
+      if (slot && u) {
+        const p = state.plaintes.find(x => x.id === state.openPlainte);
+        const label = p ? 'Plainte #' + p.id + ' — ' + p.type : 'Plainte #' + state.openPlainte;
+        slot.innerHTML = buildThread('plainte_' + state.openPlainte, u.username, u.fullname||u.username, label);
+        setTimeout(() => {
+          const ml = document.getElementById('msglist-plainte_' + state.openPlainte);
+          if (ml) ml.scrollTop = ml.scrollHeight;
+        }, 50);
+      }
+    }
+  }
+  if (state.openCandid !== null) {
+    const body = document.getElementById('candid-body-' + state.openCandid);
+    if (body && body.style.display === 'none') {
+      body.style.display = 'block';
+      const header = body.previousElementSibling;
+      if (header) {
+        const icon = header.querySelector('.detail-toggle-icon');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+      }
+      const u = state.currentUser;
+      const slotId = 'thread-slot-candid-' + state.openCandid;
+      const slot = document.getElementById(slotId);
+      if (slot && u) {
+        const c = state.candidatures.find(x => x.id === state.openCandid);
+        const label = c ? 'Candidature #' + c.id + ' — ' + c.niveau : 'Candidature #' + state.openCandid;
+        slot.innerHTML = buildThread('candid_' + state.openCandid, u.username, u.fullname||u.username, label);
+        setTimeout(() => {
+          const ml = document.getElementById('msglist-candid_' + state.openCandid);
+          if (ml) ml.scrollTop = ml.scrollHeight;
         }, 50);
       }
     }
