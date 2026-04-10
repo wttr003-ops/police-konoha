@@ -5143,8 +5143,8 @@ function initKaede() {
   container.id = 'kaede-container';
   container.innerHTML = `
     <!-- POPUP ACCUEIL -->
-    <div id="kaede-popup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center">
-      <div style="background:var(--mid);border:1px solid var(--border);border-radius:12px;padding:2rem;max-width:480px;width:90%;position:relative">
+    <div id="kaede-popup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center" onclick="handleKaedeOverlayClick(event)">
+      <div style="background:var(--mid);border:1px solid var(--border);border-radius:12px;padding:2rem;max-width:480px;width:90%;position:relative;z-index:100000" onclick="event.stopPropagation()">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
           <div style="width:60px;height:60px;border-radius:50%;background:var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px">👩‍💼</div>
           <div>
@@ -5152,6 +5152,7 @@ function initKaede() {
             <div style="font-size:12px;color:var(--muted)">Secrétaire — Police de Konoha</div>
           </div>
         </div>
+        <button onclick="closeKaedePopup()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:0">✕</button>
         <div id="kaede-popup-body" style="background:var(--panel);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:14px;color:var(--text);line-height:1.7;border-left:3px solid var(--accent)"></div>
         <div id="kaede-popup-btns" style="display:flex;gap:10px"></div>
       </div>
@@ -5212,7 +5213,7 @@ function initKaede() {
 
   // Show welcome popup
   if (!welcomed && !hasAccount) {
-    setTimeout(() => showKaedePopup('welcome'), 1000);
+    setTimeout(() => showKaedePopup('welcome'), 1500);
   } else if (newAccount) {
     localStorage.removeItem('kaede_new_account');
     setTimeout(() => showKaedePopup('newaccount'), 500);
@@ -5291,11 +5292,17 @@ function showKaedePopup(type, data) {
   }
 
   popup.style.display = 'flex';
+  popup.style.alignItems = 'center';
+  popup.style.justifyContent = 'center';
 }
 
 function closeKaedePopup() {
   const popup = document.getElementById('kaede-popup');
   if (popup) popup.style.display = 'none';
+}
+
+function handleKaedeOverlayClick(e) {
+  if (e.target.id === 'kaede-popup') closeKaedePopup();
 }
 
 function toggleKaedeHelp() {
