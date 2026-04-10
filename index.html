@@ -3324,7 +3324,11 @@ function renderPlaintesContent(g) {
   const el = document.getElementById('plaintes-content');
   if (!canPlaintes(g)) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
 
-  if (state.plaintes.length === 0) {
+  // Sort newest first
+  const plaintes = [...state.plaintes].sort((a,b) => (b.id||0) - (a.id||0));
+  const canDelete = gradeRank(g) <= 1; // Directeur + Directeur Adjoint
+
+  if (plaintes.length === 0) {
     el.innerHTML = '<p style="color:var(--muted);font-size:13px">Aucune plainte enregistrée.</p>';
     return;
   }
@@ -3332,7 +3336,7 @@ function renderPlaintesContent(g) {
   const canAct = canAll(g);
   let html = '<div class="dash-block">';
 
-  state.plaintes.forEach(p => {
+    plaintes.forEach(p => {
     const sc = p.status === 'wait' ? 's-wait' : p.status === 'ok' ? 's-ok' : 's-no';
     const sl = p.status === 'wait' ? 'En attente' : p.status === 'ok' ? 'Traité' : 'Rejeté';
     const typeColor = p.type === 'Homicide' || p.type === 'Abus de pouvoir d\'un agent' ? 'var(--red2)' : 'var(--lgold)';
@@ -3371,6 +3375,7 @@ function renderPlaintesContent(g) {
           <button class="btn-sm btn-sm-red"   onclick="actPlainte(${p.id},'no')">✗ Rejeter la plainte</button>
         </div>` : ''}
         <div id="thread-slot-plainte-${p.id}"></div>
+        ${canDelete ? `<button onclick="deletePlainte(${p.id})" style="margin-top:8px;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer;font-family:sans-serif">🗑 Supprimer</button>` : ''}
       </div>
     </div>`;
   });
@@ -3378,12 +3383,15 @@ function renderPlaintesContent(g) {
   html += '</div>';
   el.innerHTML = html;
 }
-
 function renderCandidContent(g) {
   const el = document.getElementById('candid-content');
   if (!canRecruit(g)) { el.innerHTML = noAccess('Sergent ou supérieur'); return; }
 
-  if (state.candidatures.length === 0) {
+  // Sort newest first
+  const candidatures = [...state.candidatures].sort((a,b) => (b.id||0) - (a.id||0));
+  const canDelete = gradeRank(g) <= 1;
+
+  if (candidatures.length === 0) {
     el.innerHTML = '<p style="color:var(--muted);font-size:13px">Aucune candidature reçue.</p>';
     return;
   }
@@ -3391,7 +3399,7 @@ function renderCandidContent(g) {
   const canAct = canAll(g);
   let html = '<div class="dash-block">';
 
-  state.candidatures.forEach(c => {
+    candidatures.forEach(c => {
     const sc  = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
     const sl  = c.status === 'wait' ? 'En attente' : c.status === 'ok' ? 'Accepté' : 'Refusé';
     const casierBadge = c.casier === 'non'
@@ -3435,6 +3443,7 @@ function renderCandidContent(g) {
           <button class="btn-sm btn-sm-red"   onclick="actCandid(${c.id},'no')">✗ Refuser la candidature</button>
         </div>` : ''}
         <div id="thread-slot-candid-${c.id}"></div>
+        ${canDelete ? `<button onclick="deleteCandid(${c.id})" style="margin-top:8px;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer;font-family:sans-serif">🗑 Supprimer</button>` : ''}
       </div>
     </div>`;
   });
@@ -5645,5 +5654,19 @@ function setMsgDot(hasNew) {
   if (!dot) return;
   dot.style.background = hasNew ? '#e74c3c' : '#888';
   dot.title = hasNew ? 'Nouveau message !' : 'Aucun nouveau message';
+}
+
+async function deletePlainte(id) {
+  if (!confirm('Supprimer cette plainte définitivement ?')) return;
+  try { await sbDelete('plaintes', '?id=eq.' + id); } catch(e) {}
+  state.plaintes = state.plaintes.filter(p => p.id !== id);
+  renderPlaintesContent(state.currentUser.grade);
+}
+
+async function deleteCandid(id) {
+  if (!confirm('Supprimer cette candidature définitivement ?')) return;
+  try { await sbDelete('candidatures', '?id=eq.' + id); } catch(e) {}
+  state.candidatures = state.candidatures.filter(c => c.id !== id);
+  renderCandidContent(state.currentUser.grade);
 }
 </script></body></html>
