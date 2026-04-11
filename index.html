@@ -2418,6 +2418,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
           Rapports de mission
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('amendes',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Amendes
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('casier',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Casier judiciaire
@@ -2528,6 +2532,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
       </div>
 
       <!-- CASIER JUDICIAIRE -->
+      <div class="dash-tab" id="dash-amendes"></div>
       <div class="dash-tab" id="dash-casier">
         <div id="casier-content"></div>
       </div>
@@ -3264,6 +3269,7 @@ function switchDashTab(name, btn) {
 
   if (name === 'journal')       renderJournal(true);
   if (name === 'logs')          renderLogsContent(g);
+  if (name === 'amendes')       renderAmendesContent(g);
   if (name === 'casier')        renderCasierContent(g);
   if (name === 'rapports')      renderRapportsContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
@@ -7175,4 +7181,323 @@ async function forceFinService(presenceId, username, fullname, grade) {
   alert('✓ Service de ' + fullname + ' clôturé.\nSalaire final : ' + salaire + ' Ryos');
   renderPresencesContent(state.currentUser.grade);
 }
+
+// ============================================================
+// SYSTÈME D'AMENDES
+// ============================================================
+
+const INFRACTIONS_AMENDES = [
+  { palier:'palier1', label:'Incivilité / Trouble de l\'ordre public',         montant:500  },
+  { palier:'palier1', label:'Stationnement interdit',                           montant:300  },
+  { palier:'palier1', label:'Outrage verbal envers un agent',                   montant:800  },
+  { palier:'palier1', label:'Refus d\'obtempérer (mineur)',                    montant:1000 },
+  { palier:'palier1', label:'Non-respect d\'une décision officielle',          montant:700  },
+  { palier:'palier2', label:'Vol ou arnaque',                                   montant:2000 },
+  { palier:'palier2', label:'Refus d\'obtempérer',                             montant:1500 },
+  { palier:'palier2', label:'Harcèlement physique ou psychologique',            montant:2500 },
+  { palier:'palier2', label:'Dégradation de bien public',                       montant:2000 },
+  { palier:'palier2', label:'Entrave à une intervention de Police',             montant:1800 },
+  { palier:'palier2', label:'Incident entre deux ninjas',                       montant:1500 },
+  { palier:'palier2', label:'Insubordination à la hiérarchie',                  montant:1200 },
+  { palier:'palier2', label:'Menace mineure',                                   montant:1500 },
+  { palier:'palier2', label:'Jeu d\'argent sans autorisation',                 montant:1000 },
+  { palier:'palier2', label:'Intrusion cours intérieure du palais',             montant:2000 },
+  { palier:'palier2', label:'Consommation/détention de drogues',                montant:3000 },
+  { palier:'palier3', label:'Menace majeure envers un agent/hiérarchie',        montant:5000 },
+  { palier:'palier3', label:'Agression envers un haut fonctionnaire',           montant:8000 },
+  { palier:'palier3', label:'Usurpation de grade ou d\'identité',              montant:6000 },
+  { palier:'palier3', label:'Tentative d\'homicide',                           montant:10000},
+  { palier:'palier3', label:'Tentative de désertion',                           montant:7000 },
+  { palier:'palier3', label:'Homicide',                                         montant:15000},
+  { palier:'palier3', label:'Fréquentation de traîtres/ninjas ennemis',         montant:8000 },
+  { palier:'palier3', label:'Kidnapping / Séquestration / Torture',             montant:12000},
+  { palier:'palier3', label:'Evasion des cellules',                             montant:6000 },
+  { palier:'palier3', label:'Actes terroristes',                                montant:20000},
+  { palier:'palier3', label:'Trahison envers Konoha',                          montant:25000},
+  { palier:'palier3', label:'Crime de guerre',                                  montant:20000},
+  { palier:'palier3', label:'Appartenance à une organisation criminelle',       montant:15000},
+];
+
+const PALIER_COLORS = { palier1:'#27ae60', palier2:'#f0c040', palier3:'#e74c3c' };
+const PALIER_LABELS = { palier1:'Palier 1', palier2:'Palier 2', palier3:'Palier 3' };
+
+async function renderAmendesContent(g) {
+  const el = document.getElementById('dash-amendes');
+  if (!el) return;
+  const u = state.currentUser;
+  const canEdit = gradeRank(g) <= 4;
+  const isDir = gradeRank(g) <= 1;
+
+  let amendes = [];
+  try {
+    const res = await sbGet('amendes', '?order=created_at.desc');
+    if (Array.isArray(res)) amendes = res;
+  } catch(e) {}
+
+  // Week start (Monday)
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+  weekStart.setHours(0,0,0,0);
+
+  // Group by person — ALL amendes (historique complet)
+  const byPerson = {};
+  amendes.forEach(a => {
+    const key = a.username || a.fullname;
+    if (!byPerson[key]) byPerson[key] = {
+      fullname: a.fullname, username: a.username,
+      all: [], current: [], paid: []
+    };
+    byPerson[key].all.push(a);
+    if (a.status === 'impayee') byPerson[key].current.push(a);
+    else byPerson[key].paid.push(a);
+  });
+
+  // Global stats
+  const totalImpayees = amendes.filter(a=>a.status==='impayee').reduce((s,a)=>s+(a.montant||0),0);
+  const nbImpayees = amendes.filter(a=>a.status==='impayee').length;
+  const weekAmendes = amendes.filter(a => new Date(a.created_at) >= weekStart);
+  const weekTotal = weekAmendes.reduce((s,a)=>s+(a.montant||0),0);
+
+  let html = '<h2 class="dash-section-title">💰 Amendes</h2>';
+
+  // === FORMULAIRE ===
+  if (canEdit) {
+    html += `<div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Émettre une amende</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Nom du contrevenant *</label>
+          <input type="text" id="am-nom" class="form-input" placeholder="Ex: Naruto Uzumaki"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Infraction *</label>
+          <select id="am-infraction" class="form-input" onchange="updateMontantAuto()">
+            <option value="">-- Sélectionner --</option>
+            <optgroup label="⚠ Palier 1 — Infractions mineures">
+              ${INFRACTIONS_AMENDES.filter(i=>i.palier==='palier1').map(i=>`<option value="${i.label}|${i.montant}|palier1">${i.label} — ${i.montant.toLocaleString()} Ryos</option>`).join('')}
+            </optgroup>
+            <optgroup label="🚨 Palier 2 — Infractions graves">
+              ${INFRACTIONS_AMENDES.filter(i=>i.palier==='palier2').map(i=>`<option value="${i.label}|${i.montant}|palier2">${i.label} — ${i.montant.toLocaleString()} Ryos</option>`).join('')}
+            </optgroup>
+            <optgroup label="💀 Palier 3 — Infractions très graves">
+              ${INFRACTIONS_AMENDES.filter(i=>i.palier==='palier3').map(i=>`<option value="${i.label}|${i.montant}|palier3">${i.label} — ${i.montant.toLocaleString()} Ryos</option>`).join('')}
+            </optgroup>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group">
+          <label class="form-label">Montant (Ryos) *</label>
+          <input type="number" id="am-montant" class="form-input" placeholder="Ex: 2000" min="1"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Note / Détails</label>
+          <input type="text" id="am-note" class="form-input" placeholder="Ex: Incident place du village..."/>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="emettrAmende()">💰 Émettre l'amende</button>
+      <div id="am-ok" style="display:none;margin-top:0.5rem;padding:8px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border-radius:6px;font-size:13px">✓ Amende émise !</div>
+    </div>`;
+  }
+
+  // === STATS ===
+  html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem">
+    <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted)">Total amendes</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text)">${amendes.length}</div>
+    </div>
+    <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted)">Impayées</div>
+      <div style="font-size:18px;font-weight:700;color:#e74c3c">${nbImpayees}</div>
+    </div>
+    <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted)">Montant dû</div>
+      <div style="font-size:16px;font-weight:700;color:#e74c3c">${totalImpayees.toLocaleString()} Ryos</div>
+    </div>
+    <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted)">Cette semaine</div>
+      <div style="font-size:16px;font-weight:700;color:#f0c040">${weekTotal.toLocaleString()} Ryos</div>
+    </div>
+  </div>`;
+
+  // === DOSSIERS PAR PERSONNE ===
+  html += '<div class="dash-block">';
+
+  if (Object.keys(byPerson).length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px;padding:1rem">Aucune amende enregistrée.</p>';
+  } else {
+    Object.entries(byPerson)
+      .sort((a,b) => b[1].current.reduce((s,x)=>s+(x.montant||0),0) - a[1].current.reduce((s,x)=>s+(x.montant||0),0))
+      .forEach(([key, person]) => {
+        const totalDu = person.current.reduce((s,a)=>s+(a.montant||0),0);
+        const totalHistorique = person.all.reduce((s,a)=>s+(a.montant||0),0);
+        const totalPaye = person.paid.reduce((s,a)=>s+(a.montant||0),0);
+        // This week for this person
+        const personWeek = person.all.filter(a=>new Date(a.created_at)>=weekStart).reduce((s,a)=>s+(a.montant||0),0);
+        const safeId = key.replace(/[^a-zA-Z0-9]/g,'_');
+
+        html += `<div style="border-bottom:0.5px solid var(--border)">
+          <div onclick="toggleAmendeDossier('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 1rem;cursor:pointer">
+            <div class="avatar" style="font-size:12px">${person.fullname.slice(0,2).toUpperCase()}</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:700;color:var(--text)">${person.fullname}</div>
+              <div style="font-size:11px;color:var(--muted)">${person.all.length} amende(s) au total • ${person.current.length} impayée(s)</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+              ${totalDu > 0
+                ? `<span style="font-size:14px;font-weight:700;color:#e74c3c">${totalDu.toLocaleString()} Ryos dus</span>`
+                : `<span style="font-size:12px;color:#27ae60;font-weight:600">✓ Soldé</span>`}
+              <span style="font-size:10px;color:var(--muted)">Total historique : ${totalHistorique.toLocaleString()} Ryos</span>
+            </div>
+            <span id="am-icon-${safeId}" style="color:var(--muted);margin-left:6px">▼</span>
+          </div>
+
+          <div id="am-body-${safeId}" style="display:none;padding:0 1rem 12px">
+
+            <!-- Mini stats du dossier -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:10px;background:var(--mid);border-radius:8px">
+              <div style="text-align:center">
+                <div style="font-size:10px;color:var(--muted)">Cette semaine</div>
+                <div style="font-size:15px;font-weight:700;color:#f0c040">${personWeek.toLocaleString()} Ryos</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:10px;color:var(--muted)">Total payé</div>
+                <div style="font-size:15px;font-weight:700;color:#27ae60">${totalPaye.toLocaleString()} Ryos</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:10px;color:var(--muted)">Total cumulé</div>
+                <div style="font-size:15px;font-weight:700;color:var(--text)">${totalHistorique.toLocaleString()} Ryos</div>
+              </div>
+            </div>
+
+            <!-- Liste amendes — IMPAYÉES EN HAUT -->
+            ${person.current.length > 0 ? `<div style="font-size:10px;font-weight:700;color:#e74c3c;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚠ Impayées</div>` : ''}
+            ${person.current.map(a => {
+              const pc = PALIER_COLORS[a.palier||'palier1'];
+              const pl = PALIER_LABELS[a.palier||'palier1'];
+              return `<div style="display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:4px;background:rgba(192,57,43,0.05);border:1px solid rgba(192,57,43,0.15);border-radius:6px;font-size:12px">
+                <span style="font-size:10px;padding:2px 6px;border-radius:6px;background:${pc}22;color:${pc};font-weight:700;flex-shrink:0">${pl}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:600;color:var(--text)">${a.infraction}</div>
+                  ${a.note?`<div style="color:var(--muted);font-size:11px">${a.note}</div>`:''}
+                  <div style="color:var(--muted);font-size:10px">${a.date||'—'} • par ${a.agent_name||'—'}</div>
+                </div>
+                <div style="font-weight:700;color:#e74c3c;flex-shrink:0">${(a.montant||0).toLocaleString()} Ryos</div>
+                ${canEdit?`<button onclick="payerAmende(${a.id},'${safeId}')" style="background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;flex-shrink:0">✓ Payée</button>`:''}
+                ${isDir?`<button onclick="supprimerAmende(${a.id},'${safeId}')" style="background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0">🗑</button>`:''}
+              </div>`;
+            }).join('')}
+
+            <!-- Bouton reset si impayées -->
+            ${canEdit && person.current.length > 0 ? `
+            <button onclick="resetAmendes('${person.fullname}')" style="width:100%;margin:8px 0;padding:8px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:6px;font-size:12px;cursor:pointer;font-weight:700">
+              ✓ Marquer tout payé — Reset (${totalDu.toLocaleString()} Ryos récupérés)
+            </button>` : ''}
+
+            <!-- Historique payées -->
+            ${person.paid.length > 0 ? `
+            <div style="font-size:10px;font-weight:700;color:#27ae60;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">✓ Historique payées (${person.paid.length})</div>
+            ${person.paid.map(a => {
+              const pc = PALIER_COLORS[a.palier||'palier1'];
+              const pl = PALIER_LABELS[a.palier||'palier1'];
+              return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:3px;background:rgba(39,174,96,0.04);border:1px solid rgba(39,174,96,0.1);border-radius:6px;font-size:11px;opacity:0.8">
+                <span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${pc}22;color:${pc};font-weight:700;flex-shrink:0">${pl}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="color:var(--text)">${a.infraction}</div>
+                  <div style="color:var(--muted);font-size:10px">${a.date||'—'} • par ${a.agent_name||'—'}</div>
+                </div>
+                <div style="color:#27ae60;font-weight:600;flex-shrink:0">✓ ${(a.montant||0).toLocaleString()} Ryos</div>
+                ${isDir?`<button onclick="supprimerAmende(${a.id},'${safeId}')" style="background:none;color:var(--muted);border:none;cursor:pointer;font-size:11px;flex-shrink:0">🗑</button>`:''}
+              </div>`;
+            }).join('')}` : ''}
+          </div>
+        </div>`;
+    });
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function toggleAmendeDossier(safeId) {
+  const body = document.getElementById('am-body-' + safeId);
+  const icon = document.getElementById('am-icon-' + safeId);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (icon) icon.textContent = open ? '▼' : '▲';
+}
+
+function updateMontantAuto() {
+  const sel = document.getElementById('am-infraction');
+  const montantEl = document.getElementById('am-montant');
+  if (!sel || !montantEl) return;
+  const parts = sel.value.split('|');
+  if (parts.length >= 2) montantEl.value = parts[1];
+}
+
+async function emettrAmende() {
+  const nom      = document.getElementById('am-nom')?.value.trim();
+  const infSel   = document.getElementById('am-infraction')?.value;
+  const montant  = parseInt(document.getElementById('am-montant')?.value);
+  const note     = document.getElementById('am-note')?.value.trim();
+  if (!nom || !infSel || !montant) { alert('Nom, infraction et montant sont obligatoires.'); return; }
+  const parts = infSel.split('|');
+  const infraction = parts[0], palier = parts[2] || 'palier1';
+  const u = state.currentUser;
+  const matchUser = Object.entries(state.users).find(([k,v]) =>
+    (v.fullname||k.replace(/_/g,' ')).toLowerCase() === nom.toLowerCase()
+  );
+  try {
+    await sbPost('amendes', {
+      username: matchUser ? matchUser[0] : null,
+      fullname: nom, infraction, palier, montant,
+      note: note||null, agent: u.username,
+      agent_name: state.users[u.username]?.fullname||u.username,
+      status: 'impayee',
+      date: new Date().toLocaleDateString('fr-FR')
+    });
+  } catch(e) { console.warn(e); }
+  if (matchUser) {
+    try { await sbPatch('users','?username=eq.'+encodeURIComponent(matchUser[0]),{casier:'oui'}); state.users[matchUser[0]].casier='oui'; } catch(e) {}
+  }
+  ['am-nom','am-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('am-infraction').value='';
+  document.getElementById('am-montant').value='';
+  const ok=document.getElementById('am-ok');
+  if(ok){ok.style.display='block';setTimeout(()=>ok.style.display='none',3000);}
+  renderAmendesContent(state.currentUser.grade);
+}
+
+async function payerAmende(id, safeId) {
+  if (!confirm('Confirmer le paiement de cette amende ?')) return;
+  try {
+    await fetch(SB_URL+'/rest/v1/amendes?id=eq.'+id,{
+      method:'PATCH',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({status:'payee'})
+    });
+  } catch(e){console.warn(e);}
+  renderAmendesContent(state.currentUser.grade);
+}
+
+async function supprimerAmende(id) {
+  if (!confirm('Supprimer cette amende définitivement ?')) return;
+  try { await sbDelete('amendes','?id=eq.'+id); } catch(e){}
+  renderAmendesContent(state.currentUser.grade);
+}
+
+async function resetAmendes(fullname) {
+  if (!confirm('Marquer TOUTES les amendes impayées de '+fullname+' comme payées ?\n\nL\'historique sera conservé.')) return;
+  try {
+    await fetch(SB_URL+'/rest/v1/amendes?fullname=eq.'+encodeURIComponent(fullname)+'&status=eq.impayee',{
+      method:'PATCH',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({status:'payee'})
+    });
+  } catch(e){console.warn(e);}
+  renderAmendesContent(state.currentUser.grade);
+}
+
 </script></body></html>
