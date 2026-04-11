@@ -2150,9 +2150,9 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <input type="text" id="agent-fullname" placeholder="Ex: Hazuro Uchiha" />
         </div>
         <div class="form-group">
-          <label>Matricule</label>
+          <label>Mot de passe</label>
           <div style="position:relative">
-          <input type="password" id="agent-matricule" placeholder="KNH-XXX-0000" style="padding-right:42px" />
+          <input type="password" id="agent-matricule" placeholder="••••••••" style="padding-right:42px" />
           <button type="button" onclick="togglePwd('agent-matricule',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
@@ -2394,6 +2394,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           Membres
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('citoyens',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Citoyens recensés
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('ajout',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           Ajouter un agent
@@ -2429,6 +2433,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
         <button class="dash-nav-btn" onclick="switchCitizenTab('overview',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           Mon profil
+        </button>
+        <button class="dash-nav-btn" onclick="switchCitizenTab('contact',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.29 6.29l1.08-1.08a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+          Contacter un agent
         </button>
       </nav></div>
     </aside>
@@ -2474,6 +2482,9 @@ span.footer-logo svg { width: 40px; height: 40px; }
         <h2 class="dash-section-title">Gestion des membres</h2>
         <div id="membres-content"></div>
       </div>
+      <div class="dash-tab" id="dash-citoyens">
+        <div id="citoyens-content"></div>
+      </div>
 
       <!-- AJOUT -->
       <div class="dash-tab" id="dash-ajout">
@@ -2505,6 +2516,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <div class="dash-tab" id="dash-citizen-overview"></div>
       <div class="dash-tab" id="dash-citizen-plaintes"></div>
       <div class="dash-tab" id="dash-citizen-candid"></div>
+      <div class="dash-tab" id="dash-citizen-contact"></div>
       <div class="dash-tab" id="dash-citizen-journal"></div>
 
     </main>
@@ -2794,21 +2806,26 @@ async function syncFromSupabase() {
     }
 
     // Load users from supabase
-    // Charger la blacklist depuis Supabase
+    // Blacklist — toujours charger en premier
     let blacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
     try {
-      const deleted = await sbGet('deleted_users', '?select=username');
-      if (Array.isArray(deleted) && deleted.length > 0) {
-        const sbBl = deleted.map(d => d.username);
-        blacklist = [...new Set([...blacklist, ...sbBl])];
-        localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
+      const res = await fetch(SB_URL + '/rest/v1/deleted_users?select=username', {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+      if (res.ok) {
+        const deleted = await res.json();
+        if (Array.isArray(deleted)) {
+          const sbBl = deleted.map(d => d.username);
+          blacklist = [...new Set([...blacklist, ...sbBl])];
+          localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
+        }
       }
     } catch(e) {}
 
     const users = await sbGet('users', '');
     if (Array.isArray(users)) {
       users.forEach(u => {
-        if (blacklist.includes(u.username)) return; // JAMAIS recharger un supprimé
+        if (blacklist.includes(u.username)) return; // BLOQUÉ — ne revient jamais
         state.users[u.username] = {
           password: u.password,
           grade: u.grade || 'Citoyen',
@@ -3036,21 +3053,21 @@ function doLogin() {
 // ---- AGENT LOGIN (nom complet + matricule) ----
 function doAgentLogin() {
   const fullname = document.getElementById('agent-fullname').value.trim();
-  const matricule = document.getElementById('agent-matricule').value.trim().toUpperCase();
+  const password = document.getElementById('agent-matricule').value.trim();
   const err = document.getElementById('agent-login-err');
   err.textContent = '';
 
-  if (!fullname || !matricule) { err.textContent = 'Remplissez le nom et le matricule.'; return; }
+  if (!fullname || !password) { err.textContent = 'Remplissez le nom et le mot de passe.'; return; }
 
-  // Find agent by fullname (case-insensitive) and matching matricule
+  // Find agent by fullname (case-insensitive) and matching PASSWORD
   const found = Object.entries(state.users).find(([key, u]) =>
     u.isAgent &&
     u.fullname && u.fullname.toLowerCase() === fullname.toLowerCase() &&
-    u.matricule && u.matricule.toUpperCase() === matricule
+    u.password === password
   );
 
   if (!found) {
-    err.textContent = 'Nom ou matricule incorrect.';
+    err.textContent = 'Nom ou mot de passe incorrect.';
     return;
   }
 
@@ -3237,9 +3254,12 @@ async function submitPostuler() {
 
 // ---- HELPERS PERMISSIONS ----
 function gradeRank(g) { return GRADE_RANK[g] ?? 99; }
-function canAll(g)      { return gradeRank(g) <= 2; }
-function canRecruit(g)  { return gradeRank(g) <= 3; }
-function canPlaintes(g) { return gradeRank(g) <= 4; }
+function canAll(g)      { return gradeRank(g) <= 2; }  // Dir, Adj, Lt — ajouter agent
+function canRecruit(g)  { return gradeRank(g) <= 3; }  // Dir, Adj, Lt, Sgt
+function canPlaintes(g) { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
+function canCasier(g)   { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
+function canRapports(g) { return gradeRank(g) <= 6; }  // Tous les grades agents
+function canLogs(g)     { return gradeRank(g) <= 1; }  // Dir, Adj uniquement
 
 // ---- DASHBOARD ----
 function renderDashboard(tab) {
@@ -3466,472 +3486,81 @@ function renderCandidContent(g) {
 
 function renderMembresContent(g) {
   const el = document.getElementById('membres-content');
+  if (!el) return;
   if (!canAll(g)) { el.innerHTML = noAccess('Lieutenant ou supérieur'); return; }
 
-  const gradeAll = [...GRADES, 'Citoyen'];
+  const currentUser = state.currentUser;
+  const mySection = state.users[currentUser.username]?.section || 'aucune';
+  const isDirection = gradeRank(g) <= 1; // Dir et Adj voient tout le monde
+
   let html = '<div class="dash-block">';
-  let count = 0;
 
-  // Sort: agents first, then citizens
-  const entries = Object.entries(state.users).sort((a,b) => {
-    const ra = GRADE_RANK[a[1].grade] ?? 10;
-    const rb = GRADE_RANK[b[1].grade] ?? 10;
-    return ra - rb;
-  });
+  // Filter: agents only, same section (unless direction)
+  const agents = Object.entries(state.users)
+    .filter(([key, u]) => {
+      if (!u.isAgent) return false; // Pas les citoyens
+      if (isDirection) return true; // Direction voit tous les agents
+      const uSection = u.section || 'aucune';
+      return uSection === mySection || mySection === 'aucune';
+    })
+    .sort((a,b) => (GRADE_RANK[a[1].grade]??10) - (GRADE_RANK[b[1].grade]??10));
 
-  entries.forEach(([name, data]) => {
-    count++;
-    const displayName = data.fullname || name.replace(/_/g, ' ');
-    const init = displayName.slice(0, 2).toUpperCase();
-    const gradeDisplay = data.grade || 'Citoyen';
-    const gradeClass = GRADE_CLASS[gradeDisplay] || 'gp-d';
+  if (agents.length === 0) {
+    html += '<p style="color:var(--muted);padding:1rem;font-size:13px">Aucun membre dans votre section.</p>';
+  } else {
+    agents.forEach(([key, u]) => {
+      const displayName = u.fullname || key.replace(/_/g,' ');
+      const init = displayName.slice(0,2).toUpperCase();
+      html += `<div class="membre-row">
+        <div class="avatar">${init}</div>
+        <div style="flex:1;min-width:0">
+          <div class="membre-name">${displayName}</div>
+          <div style="font-size:10px;color:var(--muted);letter-spacing:1px">${u.matricule||'—'}</div>
+        </div>
+        <span class="grade-pill ${GRADE_CLASS[u.grade]||'gp-d'}">${u.grade}</span>
+      </div>`;
+    });
+  }
 
-    // Only agents (isAgent) can have their grade changed
-    let gradeEl = '';
-    if (data.isAgent) {
-      let sel = `<select class="grade-sel" onchange="changeGrade('${name}', this.value)">`;
-      GRADES.forEach(gr => {
-        sel += `<option value="${gr}"${gradeDisplay === gr ? ' selected' : ''}>${gr}</option>`;
-      });
-      sel += '</select>';
-      gradeEl = sel;
-    } else {
-      gradeEl = `<span class="grade-pill gp-d" style="background:rgba(100,116,139,0.15);color:#94a3b8">Citoyen</span>`;
-    }
-
-    const typeLabel = data.isAgent
-      ? `<span style="font-size:10px;color:var(--accent);letter-spacing:1px;text-transform:uppercase">Agent</span>`
-      : `<span style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Civil</span>`;
-
-    // Prevent self-deletion
-    const isSelf = state.currentUser && state.currentUser.username === name;
-    const deleteBtn = (data.isAgent && !isSelf)
-      ? `<button class="btn-sm btn-sm-red" onclick="deleteAgent('${name}')" title="Supprimer définitivement ce compte">✕ Supprimer</button>`
-      : (isSelf ? `<span style="font-size:10px;color:var(--muted)">(vous)</span>` : '');
-
-    html += `<div class="membre-row" id="membre-row-${name}">
-      <div class="avatar">${init}</div>
-      <div>
-        <div class="membre-name">${displayName}</div>
-        ${typeLabel}
-      </div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
-        ${gradeEl}
-        ${deleteBtn}
-      </div>
-    </div>`;
-  });
-
-  if (count === 0) html += '<p style="padding:1rem;color:var(--muted);font-size:13px">Aucun membre enregistré.</p>';
   html += '</div>';
   el.innerHTML = html;
 }
 
-function renderAjoutContent(g) {
-  const el = document.getElementById('ajout-content');
+function renderCitoyensContent(g) {
+  const el = document.getElementById('citoyens-content');
   if (!el) return;
   if (!canAll(g)) { el.innerHTML = noAccess('Lieutenant ou supérieur'); return; }
-  el.innerHTML = `
-    <h2 class="dash-section-title">Ajouter un agent</h2>
-    <div class="dash-block" style="padding:1.5rem;max-width:520px">
-      <div class="form-msg success" id="ajout-ok" style="display:none">✓ Agent ajouté avec succès !</div>
 
-      <div class="form-group">
-        <label class="form-label">Nom et Prénom *</label>
-        <input type="text" id="aj-nom" class="form-input" placeholder="Ex: Naruto Uzumaki"/>
-      </div>
+  const citoyens = Object.entries(state.users)
+    .filter(([key, u]) => !u.isAgent)
+    .sort((a,b) => a[0].localeCompare(b[0]));
 
-      <div class="form-group">
-        <label class="form-label">Grade *</label>
-        <select id="aj-grade" class="form-input">
-          ${GRADES.map(gr => `<option value="${gr}">${gr}</option>`).join('')}
-        </select>
-      </div>
+  let html = `<h2 class="dash-section-title">Citoyens recensés</h2>
+    <div class="dash-block">`;
 
-      <div class="form-group">
-        <label class="form-label">Matricule <span style="font-size:10px;color:var(--muted)">(visible dans la liste des membres)</span></label>
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <input type="text" id="aj-mat" class="form-input" placeholder="Ex: KNH-STG-0000" style="flex:1;font-family:monospace"/>
-          <button type="button" onclick="generateMatricule()" style="background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:9px 14px;cursor:pointer;font-size:13px;white-space:nowrap;color:var(--text)">
-            🎲 Générer
-          </button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Mot de passe * <span style="font-size:10px;color:var(--muted)">(confidentiel — direction uniquement)</span></label>
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <div style="position:relative;flex:1">
-            <input type="password" id="aj-pass" class="form-input" placeholder="Mot de passe secret" style="padding-right:42px;font-family:monospace"/>
-            <button type="button" onclick="togglePwdAjout()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-          <button type="button" onclick="generatePwdAgent()" style="background:var(--accent);color:white;border:none;border-radius:5px;padding:9px 14px;cursor:pointer;font-size:13px;white-space:nowrap">
-            🔑 Générer
-          </button>
-        </div>
-      </div>
-
-      <button class="btn-primary" onclick="addAgent()">➕ Ajouter l'agent</button>
-    </div>`;
-}
-
-
-function generatePwdAgent() {
-  const input = document.getElementById('aj-pass');
-  if (!input) return;
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let pwd = '';
-  for (let i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
-  input.value = pwd;
-  input.type = 'text';
-}
-
-function updateMatPrefix() {
-  const matEl = document.getElementById('aj-mat');
-  if (!matEl || !matEl.value) return;
-  // Only update prefix if field already has a value
-  generateMatricule();
-}
-
-function generateMatricule() {
-  const gradeEl = document.getElementById('aj-grade');
-  const matEl   = document.getElementById('aj-mat');
-  if (!matEl) return;
-  const grade = gradeEl ? gradeEl.value : '';
-  const prefixes = {
-    'Directeur':'DIR','Directeur Adjoint':'ADJ','Lieutenant':'LT',
-    'Sergent':'SGT','Officier':'OFF','Stagiaire':'STG','Recrue':'REC',
-    'Tokubetsu-Chunin':'TCH','Kakunin':'KAK','Tokubetsu-Jonin':'TJ'
-  };
-  const prefix = prefixes[grade] || 'KNH';
-  const digits = Math.floor(Math.random() * 9) + 2;
-  let num = '';
-  for (let i = 0; i < digits; i++) num += Math.floor(Math.random() * 10);
-  matEl.value = 'KNH-' + prefix + '-' + num;
-}
-
-
-function changeGrade(username, newGrade) {
-  state.users[username].grade = newGrade;
-  saveGradeOverride(username, newGrade);
-  if (state.currentUser && state.currentUser.username === username) {
-    state.currentUser.grade = newGrade;
-    updateNav();
-    const pill = document.getElementById('dash-grade-pill');
-    if (pill) { pill.textContent = newGrade; pill.className = 'grade-pill ' + GRADE_CLASS[newGrade]; }
-    renderOverview(newGrade);
-  }
-  saveState();
-  renderMembresContent(state.currentUser.grade);
-}
-
-async function deleteAgent(username) {
-  const data = state.users[username];
-  if (!data) return;
-  const displayName = data.fullname || username.replace(/_/g, ' ');
-  const u = state.currentUser;
-
-  const motif = prompt('Motif de suppression de "' + displayName + '" :\n(Démission, renvoi, décès RP...)');
-  if (!motif || !motif.trim()) return;
-  if (!confirm('SUPPRESSION DÉFINITIVE\n\n' + displayName + '\nMotif : ' + motif + '\n\nConfirmer ?')) return;
-
-  // ÉTAPE 1 — Supprimer physiquement de Supabase
-  try {
-    await sbDelete('users', '?username=eq.' + encodeURIComponent(username));
-  } catch(e) { console.warn('delete users error:', e); }
-  try {
-    await sbDelete('grade_overrides', '?username=eq.' + encodeURIComponent(username));
-  } catch(e) {}
-
-  // ÉTAPE 2 — Enregistrer dans deleted_users si la table existe
-  try {
-    await sbPost('deleted_users', {
-      username,
-      fullname: displayName,
-      motif: motif.trim(),
-      deleted_by: u.fullname || u.username,
-      deleted_at: new Date().toISOString()
-    });
-  } catch(e) { console.warn('deleted_users table missing, using localStorage only'); }
-
-  // ÉTAPE 3 — Blacklist localStorage (fonctionne MÊME sans Supabase)
-  const bl = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
-  if (!bl.includes(username)) bl.push(username);
-  localStorage.setItem('konoha_deleted', JSON.stringify(bl));
-
-  // ÉTAPE 4 — Supprimer de l'état local
-  delete state.users[username];
-
-  // ÉTAPE 5 — Vérifier que c'est bien parti de Supabase
-  try {
-    const check = await sbGet('users', '?username=eq.' + encodeURIComponent(username));
-    if (Array.isArray(check) && check.length > 0) {
-      // Encore là ! Réessayer la suppression
-      await sbDelete('users', '?username=eq.' + encodeURIComponent(username));
-    }
-  } catch(e) {}
-
-  alert('✓ Compte de "' + displayName + '" supprimé définitivement.');
-
-  if (state.currentUser?.username === username) { logout(); return; }
-
-  renderMembresContent(u.grade);
-  renderLogsContent(u.grade);
-  updateAgentStat();
-}
-
-
-async function addAgent() {
-  const nom   = document.getElementById('aj-nom')?.value.trim() || document.getElementById('aj-user')?.value.trim();
-  const grade = document.getElementById('aj-grade')?.value;
-  const mat   = document.getElementById('aj-mat')?.value.trim();
-  const pass  = document.getElementById('aj-pass')?.value.trim();
-
-  if (!nom)  { alert('Le nom et prénom sont obligatoires.'); return; }
-  if (!pass) { alert('Le mot de passe est obligatoire — clique sur Générer ou saisis un matricule.'); return; }
-  if (!grade){ alert('Le grade est obligatoire.'); return; }
-
-  const username = nom.replace(/\s+/g, '_');
-  if (state.users[username]) { alert('Cet agent existe déjà.'); return; }
-
-  const inscription = new Date().toLocaleDateString('fr-FR');
-  const newAgent = { password: pass, grade, fullname: nom, isAgent: true, matricule: mat||pass, inscription };
-
-  // Save to Supabase
-  try {
-    await sbPost('users', {
-      username, password: pass, grade, fullname: nom,
-      is_agent: true, matricule: mat||pass, inscription
-    });
-  } catch(e) { console.warn('addAgent error:', e); }
-
-  // Save locally
-  state.users[username] = newAgent;
-
-  // Reset form
-  ['aj-nom','aj-mat','aj-pass'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-
-  const ok = document.getElementById('ajout-ok');
-  if (ok) { ok.style.display='block'; setTimeout(()=>ok.style.display='none', 3000); }
-
-  updateAgentStat();
-  await syncFromSupabase();
-  renderAjoutContent(state.currentUser.grade);
-  renderMembresContent(state.currentUser.grade);
-}
-
-// ---- HELPERS ----
-function noAccess(required) {
-  return `<div class="no-access">
-    <div class="no-access-icon">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-        <path d="M7 11V7a5 5 0 0110 0v4"/>
-      </svg>
-    </div>
-    <h3>Accès refusé</h3>
-    <p>Grade requis : <strong>${required}</strong></p>
-  </div>`;
-}
-
-// ---- INIT ----
-// Restaurer la session depuis localStorage
-try {
-  const savedSession = localStorage.getItem('konoha_session');
-  if (savedSession) { state.currentUser = JSON.parse(savedSession); }
-} catch(e) {}
-
-// Sync depuis Supabase + mettre a jour le grade
-syncFromSupabase().then(() => {
-  if (state.currentUser && state.users[state.currentUser.username]) {
-    const freshGrade = state.users[state.currentUser.username].grade;
-    if (freshGrade) {
-      state.currentUser.grade = freshGrade;
-      localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
-    }
-  }
-  updateNav();
-  // Init Kaede after everything is loaded
-  setTimeout(initKaede, 800);
-});
-
-function sectionLabel(s) {
-  const map = { aucune: 'Aucune', medical: 'Médicale', diplomate: 'Diplomate', renseignement: 'Renseignement', strategie: 'Stratégie' };
-  return map[s] || s || '—';
-}
-
-// ---- TOGGLE DETAIL CARDS ----
-function toggleDetail(id) {
-  const body = document.getElementById(id);
-  if (!body) return;
-  const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : 'block';
-
-  // Save open state so polling doesn't close it
-  const match = id.match(/^(plainte|candid)-body-(\d+)$/);
-  if (match) {
-    const type = match[1];
-    const itemId = parseInt(match[2]);
-    if (type === 'plainte') state.openPlainte = isOpen ? null : itemId;
-    if (type === 'candid')  state.openCandid  = isOpen ? null : itemId;
-  }
-
-  // Rotate arrow icon
-  const header = body.previousElementSibling;
-  if (header) {
-    const icon = header.querySelector('.detail-toggle-icon');
-    if (icon) icon.style.transform = isOpen ? '' : 'rotate(180deg)';
-  }
-  // When opening: inject discussion thread into the slot
-  if (!isOpen && state.currentUser) {
-    const u = state.currentUser;
-    const agentName = u.fullname || u.username;
-    if (match) {
-      const type = match[1];
-      const itemId = parseInt(match[2]);
-      const slotId = 'thread-slot-' + type + '-' + itemId;
-      const slot = document.getElementById(slotId);
-      if (slot) {
-        let label = '';
-        if (type === 'plainte') {
-          const p = state.plaintes.find(x => x.id === itemId);
-          label = p ? 'Plainte #' + p.id + ' — ' + p.type : 'Plainte #' + itemId;
-        } else {
-          const c = state.candidatures.find(x => x.id === itemId);
-          label = c ? 'Candidature #' + c.id + ' — ' + c.niveau : 'Candidature #' + itemId;
-        }
-        slot.innerHTML = buildThread(type + '_' + itemId, u.username, agentName, label);
-        setTimeout(() => {
-          const msgList = document.getElementById('msglist-' + type + '_' + itemId);
-          if (msgList) msgList.scrollTop = msgList.scrollHeight;
-        }, 50);
-      }
-    }
-  }
-}
-
-// Restore open state after re-render
-function restoreOpenItems() {
-  if (state.openPlainte !== null) {
-    const body = document.getElementById('plainte-body-' + state.openPlainte);
-    if (body && body.style.display === 'none') {
-      body.style.display = 'block';
-      const header = body.previousElementSibling;
-      if (header) {
-        const icon = header.querySelector('.detail-toggle-icon');
-        if (icon) icon.style.transform = 'rotate(180deg)';
-      }
-      // Re-inject thread
-      const u = state.currentUser;
-      const slotId = 'thread-slot-plainte-' + state.openPlainte;
-      const slot = document.getElementById(slotId);
-      if (slot && u) {
-        const p = state.plaintes.find(x => x.id === state.openPlainte);
-        const label = p ? 'Plainte #' + p.id + ' — ' + p.type : 'Plainte #' + state.openPlainte;
-        slot.innerHTML = buildThread('plainte_' + state.openPlainte, u.username, u.fullname||u.username, label);
-        setTimeout(() => {
-          const ml = document.getElementById('msglist-plainte_' + state.openPlainte);
-          if (ml) ml.scrollTop = ml.scrollHeight;
-        }, 50);
-      }
-    }
-  }
-  if (state.openCandid !== null) {
-    const body = document.getElementById('candid-body-' + state.openCandid);
-    if (body && body.style.display === 'none') {
-      body.style.display = 'block';
-      const header = body.previousElementSibling;
-      if (header) {
-        const icon = header.querySelector('.detail-toggle-icon');
-        if (icon) icon.style.transform = 'rotate(180deg)';
-      }
-      const u = state.currentUser;
-      const slotId = 'thread-slot-candid-' + state.openCandid;
-      const slot = document.getElementById(slotId);
-      if (slot && u) {
-        const c = state.candidatures.find(x => x.id === state.openCandid);
-        const label = c ? 'Candidature #' + c.id + ' — ' + c.niveau : 'Candidature #' + state.openCandid;
-        slot.innerHTML = buildThread('candid_' + state.openCandid, u.username, u.fullname||u.username, label);
-        setTimeout(() => {
-          const ml = document.getElementById('msglist-candid_' + state.openCandid);
-          if (ml) ml.scrollTop = ml.scrollHeight;
-        }, 50);
-      }
-    }
-  }
-}
-
-// ---- ANNUAIRE ----
-function isConnuFDO(username, fullname) {
-  // Check if this person appears in any plainte as suspect
-  const name = (fullname || username.replace(/_/g,' ')).toLowerCase();
-  return state.plaintes.some(p => p.suspect && p.suspect.toLowerCase().includes(name.split(' ')[0].toLowerCase()));
-}
-
-function renderAnnuaireContent(g) {
-  const el = document.getElementById('annuaire-content');
-
-  // All agents can see the annuaire
-  const citizens = Object.entries(state.users).filter(([k, u]) => !u.isAgent);
-  const agents   = Object.entries(state.users).filter(([k, u]) =>  u.isAgent);
-
-  let html = '';
-
-  // Section citoyens
-  html += `<div class="dash-info-box" style="margin-bottom:1rem">
-    <h3 style="margin-bottom:0.75rem">Citoyens inscrits <span style="font-size:12px;color:var(--muted);font-weight:400">(${citizens.length})</span></h3>`;
-
-  if (citizens.length === 0) {
-    html += '<p style="color:var(--muted);font-size:13px">Aucun citoyen inscrit.</p>';
+  if (citoyens.length === 0) {
+    html += '<p style="color:var(--muted);padding:1rem;font-size:13px">Aucun citoyen recensé pour le moment.</p>';
   } else {
-    citizens.forEach(([key, u]) => {
+    html += `<div style="padding:6px 1rem;background:var(--panel);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)">${citoyens.length} citoyen(s) recensé(s)</div>`;
+    citoyens.forEach(([key, u]) => {
       const displayName = u.fullname || key.replace(/_/g,' ');
       const init = displayName.slice(0,2).toUpperCase();
-      const autoConnu = isConnuFDO(key, displayName);
-      const connu = u.connu === 'oui' || autoConnu;
-      const casier = u.casier === 'oui';
-      const date = u.inscription || '—';
-
-      const sectionLabels = { aucune:'Indépendant', medical:'Médicale', diplomate:'Diplomate', renseignement:'Renseignement' };
-      const sectionTxt = sectionLabels[u.section] || 'Indépendant';
       html += `<div class="membre-row">
         <div class="avatar" style="background:rgba(100,116,139,0.2);border-color:#94a3b8;color:#94a3b8">${init}</div>
         <div style="flex:1;min-width:0">
           <div class="membre-name">${displayName}</div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Inscrit le ${date} &nbsp;·&nbsp; Section : ${sectionTxt}</div>
+          <div style="font-size:10px;color:var(--muted)">Inscrit le ${u.inscription||'—'}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span class="grade-pill gp-d" style="background:rgba(100,116,139,0.15);color:#94a3b8">${u.grade || 'Citoyen'}</span>
-          <span class="status-badge ${casier ? 's-no' : 's-ok'}" title="Casier judiciaire">${casier ? '⚠ Casier' : '✓ Vierge'}</span>
-          <span class="status-badge ${connu ? 's-no' : 's-ok'}" title="Connu des forces de l'ordre">${connu ? '⚠ Connu FDO' : '✓ Inconnu FDO'}</span>
-        </div>
+        <span class="grade-pill gp-d">${u.grade||'Citoyen'}</span>
+        ${u.casier === 'oui' ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:#e74c3c;padding:2px 8px;border-radius:10px">⚖ Casier</span>' : ''}
       </div>`;
     });
   }
-  html += '</div>';
-
-  // Section agents (visible to all agents)
-  html += `<div class="dash-info-box">
-    <h3 style="margin-bottom:0.75rem">Agents de police <span style="font-size:12px;color:var(--muted);font-weight:400">(${agents.length})</span></h3>`;
-
-  agents.forEach(([key, u]) => {
-    const displayName = u.fullname || key.replace(/_/g,' ');
-    const init = displayName.slice(0,2).toUpperCase();
-    html += `<div class="membre-row">
-      <div class="avatar">${init}</div>
-      <div style="flex:1;min-width:0">
-        <div class="membre-name">${displayName}</div>
-        <div style="font-size:10px;color:var(--muted);letter-spacing:1px">Matricule : ${u.matricule || '—'}</div>
-      </div>
-      <span class="grade-pill ${({"Directeur":"gp-s","Directeur Adjoint":"gp-s","Lieutenant":"gp-a","Sergent":"gp-b","Officier":"gp-c","Stagiaire":"gp-d"})[u.grade]||'gp-d'}">${u.grade}</span>
-    </div>`;
-  });
 
   html += '</div>';
   el.innerHTML = html;
 }
+
 
 function renderCitizenProfile() {
   const u = state.currentUser;
@@ -4028,6 +3657,7 @@ function switchCitizenTab(name, btn) {
   if (name === 'plaintes')  renderCitizenPlaintes();
   if (name === 'candid')    renderCitizenCandid();
   if (name === 'journal')   renderJournal(false);
+  if (name === 'contact')    renderContactAgent();
 }
 
 function renderCitizenOverview() {
@@ -4322,7 +3952,7 @@ async function deleteJournal(id) {
 function renderLogsContent(g) {
   const el = document.getElementById('logs-content');
   if (!el) return;
-  if (gradeRank(g) > 1) {
+  if (!canLogs(g)) {
     el.innerHTML = noAccess('Directeur ou Directeur Adjoint uniquement');
     return;
   }
@@ -4576,7 +4206,7 @@ function removeRecherchee(index) {
 async function renderCasierContent(g) {
   const el = document.getElementById('casier-content');
   if (!el) return;
-  if (gradeRank(g) > 3) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
+  if (!canCasier(g)) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
 
   const casiers = await loadCasiers();
   const u = state.currentUser;
@@ -4933,6 +4563,27 @@ async function saveCasier() {
   const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
   list.push(entry);
   localStorage.setItem('konoha_casiers', JSON.stringify(list));
+
+  // Auto-update casier flag on the user in Supabase regardless of what they declared
+  try {
+    // Match by fullname (case-insensitive)
+    const nomLower = nom.toLowerCase().replace(/\s+/g,' ').trim();
+    const matchedUser = Object.entries(state.users).find(([k,u]) => {
+      const fn = (u.fullname||k.replace(/_/g,' ')).toLowerCase().replace(/\s+/g,' ').trim();
+      return fn === nomLower || fn.split(' ').reverse().join(' ') === nomLower;
+    });
+    if (matchedUser) {
+      const [uKey, uData] = matchedUser;
+      // Update in Supabase
+      await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(uKey), {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ casier: 'oui' })
+      });
+      // Update local state
+      state.users[uKey].casier = 'oui';
+    }
+  } catch(e) { console.warn('casier update error:', e); }
 
   document.getElementById('cas-nom').value='';
   document.getElementById('cas-grade').value='';
@@ -5681,5 +5332,266 @@ async function deleteCandid(id) {
   try { await sbDelete('candidatures', '?id=eq.' + id); } catch(e) {}
   state.candidatures = state.candidatures.filter(c => c.id !== id);
   renderCandidContent(state.currentUser.grade);
+}
+
+// ============================================================
+// CONTACTER UN AGENT (citoyen → agent)
+// ============================================================
+function renderContactAgent() {
+  const el = document.getElementById('dash-citizen-contact');
+  if (!el) return;
+  const u = state.currentUser;
+  const data = state.users[u.username] || {};
+
+  // Get all agents (Recrue → Directeur)
+  const agents = Object.entries(state.users)
+    .filter(([k,v]) => v.isAgent && gradeRank(v.grade) <= 6)
+    .sort((a,b) => (GRADE_RANK[a[1].grade]??10) - (GRADE_RANK[b[1].grade]??10));
+
+  // Check if user has casier
+  const hasCasier = data.casier === 'oui';
+
+  let html = `<h2 class="dash-section-title">Contacter un agent</h2>`;
+
+  // Show casier warning if applicable
+  if (hasCasier) {
+    html += `<div style="background:rgba(192,57,43,0.1);border:1px solid rgba(192,57,43,0.3);border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:13px;color:var(--red2)">
+      ⚖️ <strong>Casier judiciaire actif</strong> — Votre dossier indique un casier judiciaire. Vous ne pouvez pas le modifier vous-même. Contactez un agent des forces de l'ordre pour toute demande de révision.
+    </div>`;
+  }
+
+  html += `<div class="dash-block" style="padding:1.5rem;max-width:540px">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:1rem">Sélectionnez un agent et envoyez-lui un message privé. Il le recevra directement dans son espace.</div>
+    <div class="form-group">
+      <label class="form-label">Choisir un agent *</label>
+      <select id="contact-agent-select" class="form-input">
+        <option value="">-- Sélectionner un agent --</option>
+        ${agents.map(([k,v]) => `<option value="${k}">${v.fullname||k.replace(/_/g,' ')} — ${v.grade}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Objet *</label>
+      <input type="text" id="contact-objet" class="form-input" placeholder="Ex: Demande de révision de casier judiciaire"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Message *</label>
+      <textarea id="contact-msg" class="form-input" rows="4" placeholder="Décrivez votre demande..."></textarea>
+    </div>
+    <button class="btn-primary" onclick="sendContactAgent()">📨 Envoyer la demande</button>
+    <div id="contact-ok" class="form-msg success" style="display:none;margin-top:0.5rem">✓ Message envoyé ! L'agent a été notifié.</div>
+  </div>
+
+  <div class="dash-block" style="margin-top:1rem">
+    <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;padding:0.75rem 1rem;border-bottom:1px solid var(--border)">Mes demandes envoyées</div>
+    <div id="contact-sent-list">Chargement...</div>
+  </div>`;
+
+  el.innerHTML = html;
+  loadContactSent();
+}
+
+async function sendContactAgent() {
+  const agentKey = document.getElementById('contact-agent-select')?.value;
+  const objet    = document.getElementById('contact-objet')?.value.trim();
+  const msg      = document.getElementById('contact-msg')?.value.trim();
+
+  if (!agentKey || !objet || !msg) { alert('Tous les champs sont obligatoires.'); return; }
+
+  const u = state.currentUser;
+  const agentData = state.users[agentKey];
+  const senderName = state.users[u.username]?.fullname || u.username;
+  const threadId = 'contact_' + u.username + '_' + Date.now();
+
+  // Save message to Supabase
+  try {
+    await sbPost('messages', {
+      thread_id: threadId,
+      from_user: u.username,
+      sender_name: senderName,
+      grade: state.users[u.username]?.grade || 'Citoyen',
+      role: 'citizen',
+      text: '[DEMANDE] ' + objet + '\n\n' + msg,
+      time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}),
+      to_agent: agentKey
+    });
+  } catch(e) { console.warn(e); }
+
+  // Save locally
+  const sent = JSON.parse(localStorage.getItem('konoha_contact_sent_' + u.username) || '[]');
+  sent.unshift({ threadId, agentKey, agentName: agentData?.fullname||agentKey, objet, msg, date: new Date().toLocaleDateString('fr-FR') });
+  localStorage.setItem('konoha_contact_sent_' + u.username, JSON.stringify(sent));
+
+  // Notify agent via localStorage flag
+  const agentNotifs = JSON.parse(localStorage.getItem('konoha_agent_notifs_' + agentKey) || '[]');
+  agentNotifs.unshift({ from: senderName, objet, threadId, date: new Date().toLocaleDateString('fr-FR'), read: false });
+  localStorage.setItem('konoha_agent_notifs_' + agentKey, JSON.stringify(agentNotifs));
+
+  const ok = document.getElementById('contact-ok');
+  if (ok) { ok.style.display='block'; setTimeout(()=>ok.style.display='none',3000); }
+  document.getElementById('contact-objet').value = '';
+  document.getElementById('contact-msg').value = '';
+  document.getElementById('contact-agent-select').value = '';
+  loadContactSent();
+}
+
+async function loadContactSent() {
+  const el = document.getElementById('contact-sent-list');
+  if (!el) return;
+  const u = state.currentUser;
+  const sent = JSON.parse(localStorage.getItem('konoha_contact_sent_' + u.username) || '[]');
+
+  if (sent.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:1rem">Aucune demande envoyée.</p>';
+    return;
+  }
+
+  el.innerHTML = sent.map(s => `
+    <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);font-size:13px">
+      <div style="font-weight:600;color:var(--text)">${s.objet}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">À : ${s.agentName} — ${s.date}</div>
+    </div>`).join('');
+}
+
+// Check agent notifications
+function checkAgentNotifs() {
+  const u = state.currentUser;
+  if (!u || !state.users[u.username]?.isAgent) return;
+  const notifs = JSON.parse(localStorage.getItem('konoha_agent_notifs_' + u.username) || '[]');
+  const unread = notifs.filter(n => !n.read).length;
+  if (unread > 0) {
+    const dot = document.getElementById('nav-msg-dot');
+    if (dot) { dot.style.background = '#e74c3c'; dot.title = unread + ' nouvelle(s) demande(s) citoyen'; }
+  }
+}
+
+// ============================================================
+// GESTION AGENTS
+// ============================================================
+async function deleteAgent(username) {
+  const data = state.users[username];
+  if (!data) return;
+  const displayName = data.fullname || username.replace(/_/g, ' ');
+  const u = state.currentUser;
+
+  const motif = prompt('Motif de suppression de "' + displayName + '" :\n(Démission, renvoi, décès RP...)');
+  if (!motif || !motif.trim()) return;
+  if (!confirm('SUPPRESSION DÉFINITIVE\n\n' + displayName + '\nMotif : ' + motif + '\n\nConfirmer ?')) return;
+
+  const headers = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(username), { method: 'DELETE', headers });
+    console.log('DELETE status:', r.status);
+  } catch(e) { console.error(e); }
+
+  try {
+    await fetch(SB_URL + '/rest/v1/deleted_users', {
+      method: 'POST',
+      headers: { ...headers, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ username, fullname: displayName, motif: motif.trim(), deleted_by: u.fullname||u.username })
+    });
+  } catch(e) {}
+
+  const bl = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
+  if (!bl.includes(username)) bl.push(username);
+  localStorage.setItem('konoha_deleted', JSON.stringify(bl));
+
+  delete state.users[username];
+  alert('✓ "' + displayName + '" supprimé définitivement.');
+  if (state.currentUser?.username === username) { logout(); return; }
+  renderMembresContent(u.grade);
+  renderLogsContent(u.grade);
+  updateAgentStat();
+}
+
+async function addAgent() {
+  const nom   = document.getElementById('aj-nom')?.value.trim();
+  const grade = document.getElementById('aj-grade')?.value;
+  const mat   = document.getElementById('aj-mat')?.value.trim();
+  const pass  = document.getElementById('aj-pass')?.value.trim();
+
+  if (!nom)  { alert('Le nom et prénom sont obligatoires.'); return; }
+  if (!pass) { alert('Le mot de passe est obligatoire.'); return; }
+  if (!grade){ alert('Le grade est obligatoire.'); return; }
+
+  const username = nom.replace(/\s+/g, '_');
+  if (state.users[username]) { alert('Cet agent existe déjà.'); return; }
+
+  const inscription = new Date().toLocaleDateString('fr-FR');
+  const newAgent = { password: pass, grade, fullname: nom, isAgent: true, matricule: mat||'', inscription };
+
+  try {
+    await sbPost('users', { username, password: pass, grade, fullname: nom, is_agent: true, matricule: mat||'', inscription });
+  } catch(e) { console.warn(e); }
+
+  state.users[username] = newAgent;
+  ['aj-nom','aj-mat','aj-pass'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+
+  const ok = document.getElementById('ajout-ok');
+  if (ok) { ok.style.display='block'; setTimeout(()=>ok.style.display='none',3000); }
+
+  updateAgentStat();
+  await syncFromSupabase();
+  renderAjoutContent(state.currentUser.grade);
+  renderMembresContent(state.currentUser.grade);
+}
+
+function generatePwdAgent() {
+  const input = document.getElementById('aj-pass');
+  if (!input) return;
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let pwd = '';
+  for (let i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  input.value = pwd;
+  input.type = 'text';
+}
+
+function togglePwdAjout() {
+  const input = document.getElementById('aj-pass');
+  if (!input) return;
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+// Restore open plainte/candid after re-render
+function restoreOpenItems() {
+  if (state.openPlainte !== null) {
+    const body = document.getElementById('plainte-body-' + state.openPlainte);
+    if (body && body.style.display === 'none') {
+      body.style.display = 'block';
+      const icon = body.previousElementSibling?.querySelector('.detail-toggle-icon');
+      if (icon) icon.style.transform = 'rotate(180deg)';
+      const u = state.currentUser;
+      const slot = document.getElementById('thread-slot-plainte-' + state.openPlainte);
+      if (slot && u) {
+        const p = state.plaintes.find(x => x.id === state.openPlainte);
+        const label = p ? 'Plainte #' + p.id : '';
+        slot.innerHTML = buildThread('plainte_' + state.openPlainte, u.username, u.fullname||u.username, label);
+        setTimeout(() => { const ml = document.getElementById('msglist-plainte_' + state.openPlainte); if(ml) ml.scrollTop = ml.scrollHeight; }, 50);
+      }
+    }
+  }
+  if (state.openCandid !== null) {
+    const body = document.getElementById('candid-body-' + state.openCandid);
+    if (body && body.style.display === 'none') {
+      body.style.display = 'block';
+      const icon = body.previousElementSibling?.querySelector('.detail-toggle-icon');
+      if (icon) icon.style.transform = 'rotate(180deg)';
+      const u = state.currentUser;
+      const slot = document.getElementById('thread-slot-candid-' + state.openCandid);
+      if (slot && u) {
+        const c = state.candidatures.find(x => x.id === state.openCandid);
+        const label = c ? 'Candidature #' + c.id : '';
+        slot.innerHTML = buildThread('candid_' + state.openCandid, u.username, u.fullname||u.username, label);
+        setTimeout(() => { const ml = document.getElementById('msglist-candid_' + state.openCandid); if(ml) ml.scrollTop = ml.scrollHeight; }, 50);
+      }
+    }
+  }
+}
+
+// Auto-init on page load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(initKaede, 800));
+} else {
+  setTimeout(initKaede, 800);
 }
 </script></body></html>
