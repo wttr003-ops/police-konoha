@@ -6394,16 +6394,95 @@ function startConvPolling(threadId, side, senderName, fromUser) {
     if (!currentOpenThread) return;
     try {
       const res = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(currentOpenThread) + '&order=created_at.asc');
-      if (Array.isArray(res) && res.length !== lastMsgCount) {
-        lastMsgCount = res.length;
+      if (!Array.isArray(res) || res.length === lastMsgCount) return;
+
+      // Only add NEW messages - don't reload everything
+      const newMsgs = res.slice(lastMsgCount);
+      lastMsgCount = res.length;
+
+      const convEl = currentOpenSide === 'agent'
+        ? document.getElementById('conv-messages')
+        : document.querySelector('#dash-citizen-mes-messages [style*="max-height:400px"]');
+
+      if (!convEl) return;
+
+      const u = state.currentUser;
+      const wasAtBottom = convEl.scrollHeight - convEl.scrollTop <= convEl.clientHeight + 40;
+
+      newMsgs.forEach(m => {
+        const div = document.createElement('div');
+        const time = m.time || (m.created_at ? new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '');
+        const text = (m.text||'').replace(/^\[DEMANDE\] /,'');
+
         if (currentOpenSide === 'agent') {
-          openAgentConversation(currentOpenThread, senderName, fromUser);
+          // Agent view
+          const isFromAgent = m.role === 'agent';
+          const agentInit = (u.fullname||u.username).slice(0,2).toUpperCase();
+          const citInit = (senderName||'?').slice(0,2).toUpperCase();
+
+          if (m.role === 'citizen_casier_request') {
+            const parts = (m.text||'').replace('[DEMANDE_CASIER] ','').split('|');
+            const reqUser = parts[0]||fromUser;
+            const reqGenre = parts[1]||'homme';
+            div.innerHTML = `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:4px">
+              <div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">\${citInit}</div>
+              <div style="background:rgba(212,149,0,0.08);border:1px solid rgba(212,149,0,0.3);border-radius:10px;padding:12px;max-width:280px">
+                <div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:6px">⚖️ Demande de vérification de casier</div>
+                <div style="font-size:12px;color:var(--muted);margin-bottom:10px">\${senderName} souhaite consulter son casier judiciaire.</div>
+                <div style="display:flex;gap:6px">
+                  <button onclick="respondCasierRequest('\${currentOpenThread}','\${reqUser}','\${reqGenre}','accord')" style="flex:1;padding:6px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">✓ Autoriser</button>
+                  <button onclick="respondCasierRequest('\${currentOpenThread}','\${reqUser}','\${reqGenre}','refus')" style="flex:1;padding:6px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">✗ Refuser</button>
+                </div>
+                <div style="font-size:10px;color:var(--muted);margin-top:6px">\${senderName} · \${time}</div>
+              </div>
+            </div>`;
+          } else if (isFromAgent) {
+            div.innerHTML = `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end;margin-bottom:4px">
+              <div>
+                <div style="background:#1a2a4a;color:#e8f4ff;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:280px;line-height:1.5">\${text}</div>
+                <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">\${m.sender_name||'Vous'} · \${time}</div>
+              </div>
+              <div style="width:32px;height:32px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">\${agentInit}</div>
+            </div>`;
+          } else {
+            div.innerHTML = `<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:4px">
+              <div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">\${citInit}</div>
+              <div>
+                <div style="background:var(--panel);border:0.5px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;max-width:280px;line-height:1.5;color:var(--text)">\${text}</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:3px">\${senderName} · \${time}</div>
+              </div>
+            </div>`;
+          }
         } else {
-          openCitizenConversation(currentOpenThread);
+          // Citizen view
+          const isMine = m.from_user === u.username || m.role === 'citizen';
+          const myInit = (state.users[u.username]?.fullname||u.username).slice(0,2).toUpperCase();
+          if (isMine) {
+            div.innerHTML = `<div style="display:flex;justify-content:flex-end;gap:6px;align-items:flex-end;margin-bottom:4px">
+              <div>
+                <div style="background:#0f2d52;color:#e8f4ff;padding:9px 13px;border-radius:14px 14px 3px 14px;font-size:12px;max-width:220px;line-height:1.5">\${text}</div>
+                <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:2px">Vous · \${time}</div>
+              </div>
+              <div style="width:28px;height:28px;border-radius:50%;background:#0f2d52;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#e8f4ff;flex-shrink:0">\${myInit}</div>
+            </div>`;
+          } else {
+            div.innerHTML = `<div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:4px">
+              <div style="width:28px;height:28px;border-radius:50%;background:rgba(15,45,82,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👮</div>
+              <div>
+                <div style="background:var(--panel);border:0.5px solid var(--border);padding:9px 13px;border-radius:14px 14px 14px 3px;font-size:12px;max-width:220px;line-height:1.5;color:var(--text);white-space:pre-wrap">\${text}</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:2px">\${m.sender_name||'Agent'} · \${time}</div>
+              </div>
+            </div>`;
+          }
         }
-      }
+        convEl.appendChild(div);
+      });
+
+      // Scroll to bottom only if was already at bottom
+      if (wasAtBottom) convEl.scrollTop = convEl.scrollHeight;
+
     } catch(e) {}
-  }, 2000); // Every 2 seconds
+  }, 2000);
 }
 
 function stopConvPolling() {
