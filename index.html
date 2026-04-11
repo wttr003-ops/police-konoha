@@ -3476,6 +3476,7 @@ async function renderCitoyensContent(g) {
     }
   } catch(e) {}
 
+  const canDelCitizen = gradeRank(g) <= 1; // Directeur + Directeur Adjoint uniquement
   const citoyens = Object.entries(state.users)
     .filter(([key, u]) => !u.isAgent)
     .sort((a,b) => a[0].localeCompare(b[0]));
@@ -3502,6 +3503,7 @@ async function renderCitoyensContent(g) {
         </div>
         ${u.casier === 'oui' ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:#e74c3c;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0">⚖ Casier</span>' : ''}
         <span style="font-size:11px;background:rgba(100,116,139,0.1);color:#64748b;padding:3px 10px;border-radius:10px;white-space:nowrap;flex-shrink:0;border:1px solid rgba(100,116,139,0.2)">Citoyen</span>
+        ${canDelCitizen ? `<button onclick="deleteCitizen('${key}','${displayName}')" title="Supprimer" style="background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);padding:4px 8px;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0">🗑</button>` : ''}
       </div>`;
     });
   }
@@ -6608,5 +6610,60 @@ function galOpenPhoto(idx) {
     + '<div style="color:rgba(255,255,255,0.6);font-size:12px">' + (p.authorName||'') + ' · ' + (p.date||'') + '</div>';
   box.addEventListener('click', e => { if (e.target === box) box.remove(); });
   document.body.appendChild(box);
+}
+
+async function deleteCitizen(username, displayName) {
+  // Show same popup as deleteAgent
+  const existing = document.getElementById('delete-confirm-popup');
+  if (existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.id = 'delete-confirm-popup';
+  popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML = `
+    <div style="background:var(--mid);border:1px solid var(--border);border-radius:12px;padding:2rem;max-width:420px;width:90%;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:1rem">⚠️</div>
+      <h3 style="margin:0 0 0.5rem;color:var(--text);font-size:18px">Supprimer ce citoyen ?</h3>
+      <p style="color:var(--muted);font-size:14px;margin:0 0 1.5rem">
+        <strong style="color:var(--text)">${displayName}</strong> sera supprimé définitivement du site.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button onclick="confirmDeleteCitizen('${username}','${displayName}')" style="flex:1;max-width:190px;padding:10px;background:#c0392b;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+          🗑 Supprimer définitivement
+        </button>
+        <button onclick="document.getElementById('delete-confirm-popup').remove()" style="flex:1;max-width:120px;padding:10px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">
+          Annuler
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(popup);
+  popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+}
+
+async function confirmDeleteCitizen(username, displayName) {
+  document.getElementById('delete-confirm-popup')?.remove();
+  const u = state.currentUser;
+  const headers = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+
+  // Delete from Supabase
+  try {
+    await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(username), { method: 'DELETE', headers });
+  } catch(e) { console.warn(e); }
+
+  // Add to blacklist
+  try {
+    await fetch(SB_URL + '/rest/v1/deleted_users', {
+      method: 'POST',
+      headers: { ...headers, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ username, fullname: displayName, motif: 'Suppression par direction', deleted_by: u?.fullname||u?.username||'Direction' })
+    });
+  } catch(e) {}
+
+  const bl = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
+  if (!bl.includes(username)) bl.push(username);
+  localStorage.setItem('konoha_deleted', JSON.stringify(bl));
+
+  delete state.users[username];
+  renderCitoyensContent(state.currentUser.grade);
 }
 </script></body></html>
