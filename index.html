@@ -2442,6 +2442,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.29 6.29l1.08-1.08a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
           Contacter un agent
         </button>
+        <button class="dash-nav-btn" onclick="switchCitizenTab('mes-messages',this)" id="citizen-messages-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Mes messages
+        </button>
       </nav></div>
     </aside>
 
@@ -2523,6 +2527,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <div class="dash-tab" id="dash-citizen-plaintes"></div>
       <div class="dash-tab" id="dash-citizen-candid"></div>
       <div class="dash-tab" id="dash-citizen-contact"></div>
+      <div class="dash-tab" id="dash-citizen-mes-messages"></div>
       <div class="dash-tab" id="dash-citizen-journal"></div>
 
     </main>
@@ -3665,7 +3670,8 @@ function switchCitizenTab(name, btn) {
   if (name === 'plaintes')  renderCitizenPlaintes();
   if (name === 'candid')    renderCitizenCandid();
   if (name === 'journal')   renderJournal(false);
-  if (name === 'contact')   renderContactAgent();
+  if (name === 'contact')     renderContactAgent();
+  if (name === 'mes-messages') renderCitizenMessages();
 }
 
 function renderCitizenOverview() {
@@ -3713,10 +3719,10 @@ function renderCitizenOverview() {
           </select></div>
       </div>
       <div class="form-group" style="margin-bottom:0.75rem"><label>Casier judiciaire</label>
-        <select id="citizen-casier" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 12px;color:var(--text);font-size:13px">
-          <option value="non" ${data.casier!=='oui'?'selected':''}>Non - casier vierge</option>
-          <option value="oui" ${data.casier==='oui'?'selected':''}>Oui</option>
-        </select></div>
+        <div style="padding:8px 12px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:13px;color:${data.casier==='oui'?'var(--red2)':'var(--green)'}">
+          ${data.casier==='oui'?'⚠️ Casier actif — contactez un agent pour révision':'✓ Casier vierge'}
+        </div>
+      </div>
       <div class="form-msg success" id="profile-ok" style="display:none;margin-bottom:0.75rem">Profil mis a jour.</div>
       <button class="btn-primary" onclick="saveCitizenProfile()">Enregistrer</button>
     </div>`;
@@ -6026,5 +6032,166 @@ async function sendAgentReply(threadId, toUser, toName) {
 
   // Refresh conversation
   openAgentConversation(threadId, toName, toUser);
+}
+
+// ============================================================
+// MESSAGES CITOYEN — voir les réponses des agents
+// ============================================================
+async function renderCitizenMessages() {
+  const el = document.getElementById('dash-citizen-mes-messages');
+  if (!el) return;
+  const u = state.currentUser;
+
+  let myThreads = [];
+  try {
+    const res = await sbGet('messages', '?order=created_at.desc');
+    if (Array.isArray(res)) {
+      // Find threads initiated by this citizen
+      const threadIds = new Set();
+      res.forEach(m => {
+        if (m.from_user === u.username || m.thread_id?.includes(u.username)) {
+          threadIds.add(m.thread_id);
+        }
+      });
+      // Group by thread
+      threadIds.forEach(tid => {
+        const msgs = res.filter(m => m.thread_id === tid);
+        if (msgs.length > 0) myThreads.push({ tid, msgs });
+      });
+    }
+  } catch(e) { console.warn(e); }
+
+  let html = `<h2 class="dash-section-title">Mes messages avec les agents</h2>`;
+
+  if (myThreads.length === 0) {
+    html += `<div class="dash-block" style="padding:2rem;text-align:center">
+      <p style="color:var(--muted);font-size:13px">Aucun échange pour le moment.<br>Utilisez "Contacter un agent" pour envoyer un message.</p>
+    </div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<div class="dash-block">';
+  myThreads.forEach(({ tid, msgs }) => {
+    const firstMsg = msgs[msgs.length-1];
+    const agentReply = msgs.find(m => m.role === 'agent');
+    const lastMsg = msgs[0];
+    const status = agentReply ? 'answered' : 'pending';
+    const preview = (lastMsg.text||'').replace(/^\[DEMANDE\] /,'').substring(0,50) + '...';
+
+    html += `<div onclick="openCitizenConversation('${tid}')"
+      style="display:flex;align-items:center;gap:12px;padding:12px 1rem;cursor:pointer;border-bottom:0.5px solid var(--border)">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👮</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Police de Konoha</div>
+        <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
+      </div>
+      <div style="flex-shrink:0">
+        <span style="font-size:11px;padding:3px 8px;border-radius:10px;${status==='answered'?'background:rgba(39,174,96,0.15);color:#27ae60':'background:rgba(255,165,0,0.15);color:#e67e22'}">
+          ${status==='answered'?'✓ Répondu':'⏳ En attente'}
+        </span>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function openCitizenConversation(threadId) {
+  const el = document.getElementById('dash-citizen-mes-messages');
+  if (!el) return;
+  const u = state.currentUser;
+
+  let msgs = [];
+  try {
+    const res = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(threadId) + '&order=created_at.asc');
+    if (Array.isArray(res)) msgs = res;
+  } catch(e) {}
+
+  const myInit = (state.users[u.username]?.fullname||u.username).slice(0,2).toUpperCase();
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:10px;padding:0 0 1rem;border-bottom:0.5px solid var(--border);margin-bottom:1rem">
+      <button onclick="renderCitizenMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
+      <div style="width:38px;height:38px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👮</div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">Police de Konoha</div>
+        <div style="font-size:11px;color:var(--muted)">Agent officiel</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:1rem;max-height:400px;overflow-y:auto;padding:4px 0">`;
+
+  msgs.forEach(m => {
+    const isMine = m.from_user === u.username || m.role === 'citizen';
+    const text = (m.text||'').replace(/^\[DEMANDE\] /,'');
+    const time = m.time || '';
+
+    if (isMine) {
+      html += `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end">
+        <div>
+          <div style="background:#1a2a4a;color:#e8f4ff;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:260px;line-height:1.5">${text}</div>
+          <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">Vous · ${time}</div>
+        </div>
+        <div style="width:30px;height:30px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">${myInit}</div>
+      </div>`;
+    } else {
+      html += `<div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="width:30px;height:30px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👮</div>
+        <div>
+          <div style="background:var(--panel);border:0.5px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;max-width:260px;line-height:1.5;color:var(--text)">${text}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">${m.sender_name||'Agent'} · ${time}</div>
+        </div>
+      </div>`;
+    }
+  });
+
+  html += `</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="citizen-reply-input" placeholder="Répondre..."
+        style="flex:1;padding:10px 16px;border:0.5px solid var(--border);border-radius:20px;font-size:13px;background:var(--panel);color:var(--text)"
+        onkeydown="if(event.key==='Enter') sendCitizenReply('${threadId}')"/>
+      <button onclick="sendCitizenReply('${threadId}')"
+        style="width:40px;height:40px;border-radius:50%;background:#1a2a4a;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8f4ff" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>`;
+
+  el.innerHTML = html;
+  // Scroll bottom
+  setTimeout(() => {
+    const conv = el.querySelector('[style*="max-height:400px"]');
+    if (conv) conv.scrollTop = conv.scrollHeight;
+  }, 50);
+}
+
+async function sendCitizenReply(threadId) {
+  const input = document.getElementById('citizen-reply-input');
+  if (!input || !input.value.trim()) return;
+  const text = input.value.trim();
+  input.value = '';
+  const u = state.currentUser;
+  const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+  // Find to_agent from original thread
+  let toAgent = '';
+  try {
+    const res = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(threadId) + '&limit=1');
+    if (Array.isArray(res) && res[0]) toAgent = res[0].to_agent || '';
+  } catch(e) {}
+
+  try {
+    await sbPost('messages', {
+      thread_id: threadId,
+      from_user: u.username,
+      sender_name: state.users[u.username]?.fullname || u.username,
+      grade: state.users[u.username]?.grade || 'Citoyen',
+      role: 'citizen',
+      text: text,
+      time: time,
+      to_agent: toAgent
+    });
+  } catch(e) { console.warn(e); }
+
+  openCitizenConversation(threadId);
 }
 </script></body></html>
