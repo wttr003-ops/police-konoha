@@ -2925,37 +2925,13 @@ function loadGradeOverrides() { /* handled by syncFromSupabase */ }
 // ---- ÉTAT GLOBAL ----
 const state = {
   currentUser: null,
-  users: {
-    // Agents officiels Police de Konoha — Ninja Road
-    'Hazuro_Uchiha':      { password: 'KNH-DIR-6022', grade: 'Directeur',         fullname: 'Hazuro Uchiha',      matricule: 'KNH-DIR-6022', isAgent: true },
-    'Kai_Uchiha':         { password: 'KNH-ADJ-7680', grade: 'Directeur Adjoint', fullname: 'Kai Uchiha',         matricule: 'KNH-ADJ-7680', isAgent: true },
-    'Kibo_Ao':            { password: 'KNH-SGT-4025', grade: 'Sergent',            fullname: 'Kibo Ao',            matricule: 'KNH-SGT-4025', isAgent: true },
-    'Enma_Uchiha':        { password: 'KNH-SGT-0165', grade: 'Sergent',            fullname: 'Enma Uchiha',        matricule: 'KNH-SGT-0165', isAgent: true },
-    'Arakawa_Akihiro':    { password: 'KNH-SGT-2580', grade: 'Sergent',            fullname: 'Arakawa Akihiro',    matricule: 'KNH-SGT-2580', isAgent: true },
-    'Kaede_Uchiha':       { password: 'KNH-OFF-8631', grade: 'Officier',           fullname: 'Kaede Uchiha',       matricule: 'KNH-OFF-8631', isAgent: true },
-    'Shin_Uchiha':        { password: 'KNH-OFF-9300', grade: 'Officier',           fullname: 'Shin Uchiha',        matricule: 'KNH-OFF-9300', isAgent: true },
-    'Yume_Uchiha':        { password: 'KNH-OFF-8687', grade: 'Officier',           fullname: 'Yume Uchiha',        matricule: 'KNH-OFF-8687', isAgent: true },
-    'Kazuto_Eichiro':     { password: 'KNH-OFF-5935', grade: 'Officier',           fullname: 'Kazuto Eichiro',     matricule: 'KNH-OFF-5935', isAgent: true },
-    'Ren_Uchiha':         { password: 'KNH-OFF-8685', grade: 'Officier',           fullname: 'Ren Uchiha',         matricule: 'KNH-OFF-8685', isAgent: true },
-    'Issei_Morinaga':     { password: 'KNH-STG-7022', grade: 'Stagiaire',          fullname: 'Issei Morinaga',     matricule: 'KNH-STG-7022', isAgent: true },
-    'Tsurizao_Nagasawa':  { password: 'KNH-STG-0212', grade: 'Stagiaire',          fullname: 'Tsurizao Nagasawa',  matricule: 'KNH-STG-0212', isAgent: true },
-    'Hayate_Kitsu':       { password: 'KNH-STG-6332', grade: 'Stagiaire',          fullname: 'Hayate Kitsu',       matricule: 'KNH-STG-6332', isAgent: true },
-    'Izumi_Ryokuko':      { password: 'KNH-STG-2966', grade: 'Stagiaire',          fullname: 'Izumi Ryokuko',      matricule: 'KNH-STG-2966', isAgent: true },
-    'Daiki_Shintaro':     { password: 'KNH-STG-1713', grade: 'Stagiaire',          fullname: 'Daiki Shintaro',     matricule: 'KNH-STG-1713', isAgent: true },
-  },
+  users: {},
+  plaintes: [],
+  candidatures: [],
   messages: {},
-  journal: [
-    { id:1, titre:'Bienvenue sur le portail de Konoha', contenu:'La Police Militaire de Konoha lance son portail officiel. Tous les citoyens peuvent desormais deposer leurs plaintes et candidatures en ligne.', auteur:'Hazuro Uchiha', grade:'Directeur', date:'08/04/2025', type:'annonce' },
-    { id:2, titre:'Rappel — Impots du mois d Avril', contenu:'Les impots du mois d Avril sont a regler avant le 15. Tout retard sera sanctionne conformement aux lois du village. Rendez-vous au bureau des finances du Palais.', auteur:'Hazuro Uchiha', grade:'Directeur', date:'07/04/2025', type:'impot' },
-  ],
-  plaintes: [
-    { id: 1, pseudo: 'Naruto_Uzumaki',  suspect: 'Inconnu',        type: 'Agression physique', desc: 'Attaqué sans raison dans le secteur 3, vers 21h.', date: '06/04/2025 — 21h00', status: 'wait' },
-    { id: 2, pseudo: 'Sakura_Haruno',   suspect: 'Orochimaru_X',   type: 'Homicide',           desc: 'Témoin d\'un meurtre près des portes est du village.', date: '05/04/2025 — 23h15', status: 'wait' }
-  ],
-  candidatures: [
-    { id: 1, pseudo: 'Rock_Lee',        niveau: 'Genin',          motiv: 'Protéger le village et aider les civils.', casier: 'non', section: 'aucune', orphelin: 'non', status: 'wait' },
-    { id: 2, pseudo: 'Tenten_Shinobi',  niveau: 'Genin confirmé', motiv: 'La justice avant tout.',                  casier: 'non', section: 'medical', orphelin: 'oui', status: 'wait' }
-  ]
+  journal: [],
+  openPlainte: null,
+  openCandid: null
 };
 
 
