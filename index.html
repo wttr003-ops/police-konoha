@@ -2410,6 +2410,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Casier judiciaire
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('messages-agent',this)" id="nav-messages-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Messages citoyens
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('logs',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           Logs comptes
@@ -2507,6 +2511,8 @@ span.footer-logo svg { width: 40px; height: 40px; }
       </div>
 
       <!-- LOGS COMPTES -->
+      <div class="dash-tab" id="dash-messages-agent"></div>
+
       <div class="dash-tab" id="dash-logs">
         <h2 class="dash-section-title">Logs — Comptes & Accès</h2>
         <div id="logs-content"></div>
@@ -3320,6 +3326,7 @@ function switchDashTab(name, btn) {
   if (name === 'rapports')      renderRapportsContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'citoyens')      renderCitoyensContent(g);
+  if (name === 'messages-agent') renderAgentMessages();
 }
 
 function renderOverview(g) {
@@ -3658,7 +3665,7 @@ function switchCitizenTab(name, btn) {
   if (name === 'plaintes')  renderCitizenPlaintes();
   if (name === 'candid')    renderCitizenCandid();
   if (name === 'journal')   renderJournal(false);
-  if (name === 'contact')    renderContactAgent();
+  if (name === 'contact')   renderContactAgent();
 }
 
 function renderCitizenOverview() {
@@ -5835,5 +5842,178 @@ function toggleDetail(id) {
       }, 50);
     }
   }
+}
+
+// ============================================================
+// MESSAGERIE AGENT — Boîte de réception + conversation
+// ============================================================
+async function renderAgentMessages() {
+  const el = document.getElementById('dash-messages-agent');
+  if (!el) return;
+  const u = state.currentUser;
+
+  // Load messages sent TO this agent
+  let inbox = [];
+  try {
+    const res = await sbGet('messages', '?to_agent=eq.' + encodeURIComponent(u.username) + '&order=created_at.desc');
+    if (Array.isArray(res)) inbox = res;
+  } catch(e) { console.warn(e); }
+
+  // Group by thread_id (one conversation per citizen)
+  const threads = {};
+  inbox.forEach(m => {
+    if (!threads[m.thread_id]) threads[m.thread_id] = [];
+    threads[m.thread_id].push(m);
+  });
+
+  // Check which threads have unread (no agent reply yet)
+  const threadList = Object.entries(threads).map(([tid, msgs]) => {
+    const lastMsg = msgs[0];
+    const hasReply = msgs.some(m => m.role === 'agent');
+    return { tid, msgs, lastMsg, hasReply, senderName: lastMsg.sender_name, fromUser: lastMsg.from_user };
+  }).sort((a,b) => new Date(b.lastMsg.created_at) - new Date(a.lastMsg.created_at));
+
+  const unreadCount = threadList.filter(t => !t.hasReply).length;
+
+  let html = `<h2 class="dash-section-title">Messages citoyens
+    ${unreadCount > 0 ? `<span style="background:#e74c3c;color:white;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle">${unreadCount} nouveau${unreadCount>1?'x':''}</span>` : ''}
+  </h2>`;
+
+  if (threadList.length === 0) {
+    html += `<div class="dash-block" style="padding:2rem;text-align:center">
+      <p style="color:var(--muted);font-size:13px">Aucun message reçu de citoyens pour le moment.</p>
+    </div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<div class="dash-block">';
+  threadList.forEach(({ tid, msgs, lastMsg, hasReply, senderName, fromUser }) => {
+    const init = (senderName||'?').slice(0,2).toUpperCase();
+    const timeStr = lastMsg.created_at ? new Date(lastMsg.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+    const dateStr = lastMsg.created_at ? new Date(lastMsg.created_at).toLocaleDateString('fr-FR') : '';
+    const preview = (lastMsg.text||'').substring(0,60) + ((lastMsg.text||'').length>60?'...':'');
+    const isUnread = !hasReply;
+
+    html += `<div onclick="openAgentConversation('${tid}','${senderName}','${fromUser}')"
+      style="display:flex;align-items:center;gap:12px;padding:12px 1rem;cursor:pointer;border-bottom:0.5px solid var(--border);
+      ${isUnread ? 'background:rgba(26,42,74,0.06);' : ''}">
+      <div style="width:42px;height:42px;border-radius:50%;background:${isUnread?'rgba(26,42,74,0.15)':'var(--panel)'};
+        display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;
+        color:${isUnread?'#1a2a4a':'var(--muted)'};flex-shrink:0">${init}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:${isUnread?'700':'400'};color:var(--text)">${senderName}</div>
+        <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${preview}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <span style="font-size:10px;color:var(--muted)">${timeStr||dateStr}</span>
+        ${isUnread ? '<span style="width:8px;height:8px;border-radius:50%;background:#e74c3c;display:block"></span>' : ''}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function openAgentConversation(threadId, senderName, fromUser) {
+  const el = document.getElementById('dash-messages-agent');
+  if (!el) return;
+  const u = state.currentUser;
+  const agentName = u.fullname || u.username;
+
+  // Load all messages in this thread
+  let msgs = [];
+  try {
+    const res = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(threadId) + '&order=created_at.asc');
+    if (Array.isArray(res)) msgs = res;
+  } catch(e) {}
+
+  const init = senderName.slice(0,2).toUpperCase();
+  const agentInit = agentName.slice(0,2).toUpperCase();
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:10px;padding:0 0 1rem;border-bottom:0.5px solid var(--border);margin-bottom:1rem">
+      <button onclick="renderAgentMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
+      <div style="width:38px;height:38px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#1a2a4a">${init}</div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">${senderName}</div>
+        <div style="font-size:11px;color:var(--muted)">Citoyen de Konoha</div>
+      </div>
+    </div>
+    <div id="conv-messages" style="display:flex;flex-direction:column;gap:12px;margin-bottom:1rem;min-height:150px;max-height:400px;overflow-y:auto;padding:4px 0">`;
+
+  if (msgs.length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px;text-align:center">Aucun message.</p>';
+  } else {
+    msgs.forEach(m => {
+      const isAgent = m.role === 'agent';
+      const time = m.time || (m.created_at ? new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '');
+      // Clean message text (remove [DEMANDE] prefix)
+      const text = (m.text||'').replace(/^\[DEMANDE\] /, '');
+
+      if (isAgent) {
+        html += `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end">
+          <div>
+            <div style="background:#1a2a4a;color:#e8f4ff;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:280px;line-height:1.5">${text}</div>
+            <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">${agentName} · ${time}</div>
+          </div>
+          <div style="width:32px;height:32px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">${agentInit}</div>
+        </div>`;
+      } else {
+        html += `<div style="display:flex;gap:8px;align-items:flex-end">
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">${init}</div>
+          <div>
+            <div style="background:var(--panel);border:0.5px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;max-width:280px;line-height:1.5;color:var(--text)">${text}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">${senderName} · ${time}</div>
+          </div>
+        </div>`;
+      }
+    });
+  }
+
+  html += `</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="agent-reply-input" placeholder="Répondre à ${senderName}..."
+        style="flex:1;padding:10px 16px;border:0.5px solid var(--border);border-radius:20px;font-size:13px;background:var(--panel);color:var(--text)"
+        onkeydown="if(event.key==='Enter') sendAgentReply('${threadId}','${fromUser}','${senderName}')"/>
+      <button onclick="sendAgentReply('${threadId}','${fromUser}','${senderName}')"
+        style="width:40px;height:40px;border-radius:50%;background:#1a2a4a;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8f4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>`;
+
+  el.innerHTML = html;
+
+  // Scroll to bottom
+  setTimeout(() => {
+    const conv = document.getElementById('conv-messages');
+    if (conv) conv.scrollTop = conv.scrollHeight;
+  }, 50);
+}
+
+async function sendAgentReply(threadId, toUser, toName) {
+  const input = document.getElementById('agent-reply-input');
+  if (!input || !input.value.trim()) return;
+  const text = input.value.trim();
+  input.value = '';
+
+  const u = state.currentUser;
+  const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+  try {
+    await sbPost('messages', {
+      thread_id: threadId,
+      from_user: u.username,
+      sender_name: u.fullname || u.username,
+      grade: u.grade,
+      role: 'agent',
+      text: text,
+      time: time,
+      to_agent: u.username
+    });
+  } catch(e) { console.warn(e); }
+
+  // Refresh conversation
+  openAgentConversation(threadId, toName, toUser);
 }
 </script></body></html>
