@@ -4711,7 +4711,7 @@ async function hasCasierJudiciaire(nom) {
 async function renderRapportsContent(g) {
   const el = document.getElementById('rapports-content');
   if (!el) return;
-  if (gradeRank(g) > 4) { el.innerHTML = noAccess('Recrue ou supérieur'); return; }
+  // Tous les agents peuvent soumettre un rapport }
 
   const u = state.currentUser;
   const isHighRank = gradeRank(g) <= 2;
