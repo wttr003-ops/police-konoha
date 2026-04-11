@@ -2748,6 +2748,26 @@ async function syncFromSupabase() {
       });
     }
 
+    // Auto-check casier: if a user has entries in casiers table, mark them
+    try {
+      const casierEntries = await sbGet('casiers', '?select=nom');
+      if (Array.isArray(casierEntries)) {
+        Object.entries(state.users).forEach(([username, userData]) => {
+          if (userData.casier === 'oui') return; // Already marked
+          const fullname = (userData.fullname || username.replace(/_/g,' ')).toLowerCase().trim();
+          const hasCasier = casierEntries.some(c => {
+            const cn = (c.nom||'').toLowerCase().trim();
+            return cn === fullname || cn === fullname.split(' ').reverse().join(' ');
+          });
+          if (hasCasier) {
+            state.users[username].casier = 'oui';
+            // Auto-update Supabase silently
+            sbPatch('users', '?username=eq.' + encodeURIComponent(username), { casier: 'oui' });
+          }
+        });
+      }
+    } catch(e) {}
+
   } catch(e) { console.warn('syncFromSupabase error', e); }
 }
 
@@ -3470,14 +3490,18 @@ async function renderCitoyensContent(g) {
     citoyens.forEach(([key, u]) => {
       const displayName = u.fullname || key.replace(/_/g,' ');
       const init = displayName.slice(0,2).toUpperCase();
-      html += `<div class="membre-row">
+      const gradeNinja = u.grade && u.grade !== 'Citoyen' ? u.grade : '';
+      html += `<div class="membre-row" style="gap:10px">
         <div class="avatar" style="background:rgba(100,116,139,0.2);border-color:#94a3b8;color:#94a3b8">${init}</div>
         <div style="flex:1;min-width:0">
           <div class="membre-name">${displayName}</div>
-          <div style="font-size:10px;color:var(--muted)">Inscrit le ${u.inscription||'—'}</div>
+          <div style="font-size:10px;color:var(--muted)">
+            Inscrit le ${u.inscription||'—'}
+            ${gradeNinja ? `<span style="margin-left:6px;background:rgba(59,130,246,0.1);color:var(--accent);padding:1px 7px;border-radius:8px;font-size:10px">${gradeNinja}</span>` : ''}
+          </div>
         </div>
-        <span class="grade-pill gp-d">${u.grade||'Citoyen'}</span>
-        ${u.casier === 'oui' ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:#e74c3c;padding:2px 8px;border-radius:10px">⚖ Casier</span>' : ''}
+        ${u.casier === 'oui' ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:#e74c3c;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0">⚖ Casier</span>' : ''}
+        <span style="font-size:11px;background:rgba(100,116,139,0.1);color:#64748b;padding:3px 10px;border-radius:10px;white-space:nowrap;flex-shrink:0;border:1px solid rgba(100,116,139,0.2)">Citoyen</span>
       </div>`;
     });
   }
@@ -3546,14 +3570,13 @@ function renderCitizenProfile() {
 async function saveCitizenProfile() {
   const u = state.currentUser;
   if (!u || !state.users[u.username]) return;
-  const grade   = document.getElementById('citizen-grade')?.value;
+  const grade   = document.getElementById('citizen-grade')?.value || '';
   const section = document.getElementById('citizen-section')?.value || 'aucune';
   const genre   = document.getElementById('citizen-genre')?.value || 'homme';
-  // casier NOT editable by citizen - only agents can change it
+  // Grade ninja - editable. "Citoyen" badge is always shown separately
   state.users[u.username].grade   = grade;
   state.users[u.username].section = section;
   state.users[u.username].genre   = genre;
-  u.grade = grade;
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   await sbPatch('users', `?username=eq.${u.username}`, { grade, section, genre });
   updateNav();
@@ -3612,17 +3635,18 @@ function renderCitizenOverview() {
     <div class="dash-info-box">
       <h3 style="margin-bottom:1rem;font-family:Georgia,serif;font-size:16px;color:white">Mettre a jour</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
-        <div class="form-group" style="margin:0"><label>Mon grade</label>
+        <div class="form-group" style="margin:0"><label>Grade ninja</label>
           <select id="citizen-grade" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 12px;color:var(--text);font-size:13px">
-            <option value="Citoyen" ${data.grade==='Citoyen'?'selected':''}>Citoyen</option>
-            <option value="Genin" ${data.grade==='Genin'?'selected':''}>Genin</option>
-            <option value="Genin confirme" ${data.grade==='Genin confirme'?'selected':''}>Genin confirme</option>
+            <option value="" ${!data.grade||data.grade==='Citoyen'?'selected':''}>-- Sélectionner --</option>
+            <option value="Genin" ${data.grade==='Genin'?'selected':''}>Génin</option>
+            <option value="Genin confirmé" ${data.grade==='Genin confirmé'?'selected':''}>Génin confirmé</option>
             <option value="Chunin" ${data.grade==='Chunin'?'selected':''}>Chunin</option>
             <option value="Tokubetsu-Chunin" ${data.grade==='Tokubetsu-Chunin'?'selected':''}>Tokubetsu-Chunin</option>
             <option value="Kakunin" ${data.grade==='Kakunin'?'selected':''}>Kakunin</option>
             <option value="Tokubetsu-Jonin" ${data.grade==='Tokubetsu-Jonin'?'selected':''}>Tokubetsu-Jonin</option>
             <option value="Jonin" ${data.grade==='Jonin'?'selected':''}>Jonin</option>
-          </select></div>
+          </select>
+        </div>
         <div class="form-group" style="margin:0"><label>Ma section</label>
           <select id="citizen-section" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 12px;color:var(--text);font-size:13px">
             <option value="aucune" ${!data.section||data.section==='aucune'?'selected':''}>Independant</option>
