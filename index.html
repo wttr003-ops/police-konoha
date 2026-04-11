@@ -2812,7 +2812,7 @@ const PERMS = {
   1: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
   2: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
   3: ['Voir les plaintes', 'Voir les candidatures'],
-  4: ['Voir les plaintes'],
+  4: ['Voir les plaintes', 'Voir les candidatures'],
   5: ['Accès espace agent uniquement']
 };
 
@@ -3190,7 +3190,7 @@ async function submitPostuler() {
 // ---- HELPERS PERMISSIONS ----
 function gradeRank(g) { return GRADE_RANK[g] ?? 99; }
 function canAll(g)      { return gradeRank(g) <= 2; }  // Dir, Adj, Lt — ajouter agent
-function canRecruit(g)  { return gradeRank(g) <= 3; }  // Dir, Adj, Lt, Sgt
+function canRecruit(g)  { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
 function canPlaintes(g) { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
 function canCasier(g)   { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
 function canRapports(g) { return gradeRank(g) <= 6; }  // Tous les grades agents
