@@ -5968,7 +5968,7 @@ async function openAgentConversation(threadId, senderName, fromUser) {
 
   let html = `
     <div style="display:flex;align-items:center;gap:10px;padding:0 0 1rem;border-bottom:0.5px solid var(--border);margin-bottom:1rem">
-      <button onclick="renderAgentMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
+      <button onclick="stopConvPolling(); renderAgentMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
       <div style="width:38px;height:38px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#1a2a4a">${init}</div>
       <div>
         <div style="font-size:15px;font-weight:600;color:var(--text)">${senderName}</div>
@@ -6048,6 +6048,9 @@ async function openAgentConversation(threadId, senderName, fromUser) {
     const conv = document.getElementById('conv-messages');
     if (conv) conv.scrollTop = conv.scrollHeight;
   }, 50);
+
+  // Start real-time polling
+  startConvPolling(threadId, 'agent', senderName, fromUser);
 }
 
 async function sendAgentReply(threadId, toUser, toName) {
@@ -6154,7 +6157,7 @@ async function openCitizenConversation(threadId) {
 
   let html = `
     <div style="display:flex;align-items:center;gap:10px;padding:0 0 1rem;border-bottom:0.5px solid var(--border);margin-bottom:1rem">
-      <button onclick="renderCitizenMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
+      <button onclick="stopConvPolling(); renderCitizenMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
       <div style="width:38px;height:38px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👮</div>
       <div>
         <div style="font-size:15px;font-weight:600;color:var(--text)">Police de Konoha</div>
@@ -6210,6 +6213,9 @@ async function openCitizenConversation(threadId) {
     const conv = el.querySelector('[style*="max-height:400px"]');
     if (conv) conv.scrollTop = conv.scrollHeight;
   }, 50);
+
+  // Start real-time polling
+  startConvPolling(threadId, 'citizen', '', '');
 }
 
 async function sendCitizenReply(threadId) {
@@ -6368,5 +6374,44 @@ async function respondCasierRequest(threadId, citizenUsername, genre, decision) 
   } catch(e) { console.warn(e); }
 
   openAgentConversation(threadId, state.users[citizenUsername]?.fullname || citizenUsername, citizenUsername);
+}
+
+// ============================================================
+// POLLING TEMPS RÉEL — Conversations
+// ============================================================
+let convPollingInterval = null;
+let currentOpenThread = null;
+let currentOpenSide = null; // 'agent' or 'citizen'
+let lastMsgCount = 0;
+
+function startConvPolling(threadId, side, senderName, fromUser) {
+  stopConvPolling();
+  currentOpenThread = threadId;
+  currentOpenSide = side;
+  lastMsgCount = 0;
+  
+  convPollingInterval = setInterval(async () => {
+    if (!currentOpenThread) return;
+    try {
+      const res = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(currentOpenThread) + '&order=created_at.asc');
+      if (Array.isArray(res) && res.length !== lastMsgCount) {
+        lastMsgCount = res.length;
+        if (currentOpenSide === 'agent') {
+          openAgentConversation(currentOpenThread, senderName, fromUser);
+        } else {
+          openCitizenConversation(currentOpenThread);
+        }
+      }
+    } catch(e) {}
+  }, 2000); // Every 2 seconds
+}
+
+function stopConvPolling() {
+  if (convPollingInterval) {
+    clearInterval(convPollingInterval);
+    convPollingInterval = null;
+  }
+  currentOpenThread = null;
+  currentOpenSide = null;
 }
 </script></body></html>
