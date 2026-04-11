@@ -4775,11 +4775,18 @@ async function renderRapportsContent(g) {
       </div>
       <div class="form-group" style="margin-bottom:0.75rem">
         <label class="form-label">Agents en patrouille / présents <span style="color:var(--muted);font-size:10px">(optionnel — sélection multiple)</span></label>
-        <div id="rap-agents-list" style="background:var(--mid);border:1px solid var(--border);border-radius:5px;padding:10px;max-height:140px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px">
+        <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+          <button type="button" onclick="rapToggleAll(true)" style="font-size:11px;padding:3px 10px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer">✓ Tout sélectionner</button>
+          <button type="button" onclick="rapToggleAll(false)" style="font-size:11px;padding:3px 10px;background:var(--panel);color:var(--muted);border:1px solid var(--border);border-radius:6px;cursor:pointer">✗ Tout désélectionner</button>
+        </div>
+        <div id="rap-agents-list" style="background:var(--mid);border:1px solid var(--border);border-radius:5px;padding:10px;max-height:160px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px">
           ${Object.entries(state.users).filter(([,u])=>u.isAgent).map(([un,u])=>`
-            <label style="display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--panel);border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:12px">
-              <input type="checkbox" value="${u.fullname||un}" style="cursor:pointer"/> ${u.fullname||un}
-            </label>`).join('')}
+            <div id="rap-chip-${un}" onclick="rapToggleAgent('${un}')"
+              style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--panel);border:1.5px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;user-select:none;transition:all 0.15s"
+              data-selected="false" data-name="${u.fullname||un}">
+              <span style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border);background:var(--panel);display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0" class="rap-check-icon"></span>
+              ${u.fullname||un}
+            </div>`).join('')}
         </div>
       </div>
       <div class="form-group" style="margin-bottom:1rem">
@@ -4905,12 +4912,15 @@ async function submitRapport() {
 
   if (!nom||!gradePol||!gradeNinj||!type||!desc) { alert('Tous les champs sont obligatoires.'); return; }
 
+  const agentsPresents = rapGetSelectedAgents();
+
   const entry = {
     nom,
     grade_police: gradePol,
     grade_ninja: gradeNinj,
     type_mission: type,
     description: desc,
+    agents_presents: agentsPresents,
     author: state.currentUser?.username,
     date: new Date().toLocaleDateString('fr-FR')
   };
@@ -6665,5 +6675,56 @@ async function confirmDeleteCitizen(username, displayName) {
 
   delete state.users[username];
   renderCitoyensContent(state.currentUser.grade);
+}
+
+function rapToggleAgent(agentId) {
+  const chip = document.getElementById('rap-chip-' + agentId);
+  if (!chip) return;
+  const selected = chip.getAttribute('data-selected') === 'true';
+  const newState = !selected;
+  chip.setAttribute('data-selected', newState);
+  const icon = chip.querySelector('.rap-check-icon');
+  if (newState) {
+    chip.style.background = 'rgba(59,130,246,0.12)';
+    chip.style.borderColor = 'var(--accent)';
+    chip.style.color = 'var(--accent)';
+    if (icon) { icon.style.background = 'var(--accent)'; icon.style.borderColor = 'var(--accent)'; icon.textContent = '✓'; icon.style.color = 'white'; }
+  } else {
+    chip.style.background = 'var(--panel)';
+    chip.style.borderColor = 'var(--border)';
+    chip.style.color = 'var(--text)';
+    if (icon) { icon.style.background = 'var(--panel)'; icon.style.borderColor = 'var(--border)'; icon.textContent = ''; icon.style.color = ''; }
+  }
+}
+
+function rapToggleAll(select) {
+  const list = document.getElementById('rap-agents-list');
+  if (!list) return;
+  list.querySelectorAll('[id^="rap-chip-"]').forEach(chip => {
+    const agentId = chip.id.replace('rap-chip-', '');
+    chip.setAttribute('data-selected', select);
+    const icon = chip.querySelector('.rap-check-icon');
+    if (select) {
+      chip.style.background = 'rgba(59,130,246,0.12)';
+      chip.style.borderColor = 'var(--accent)';
+      chip.style.color = 'var(--accent)';
+      if (icon) { icon.style.background = 'var(--accent)'; icon.style.borderColor = 'var(--accent)'; icon.textContent = '✓'; icon.style.color = 'white'; }
+    } else {
+      chip.style.background = 'var(--panel)';
+      chip.style.borderColor = 'var(--border)';
+      chip.style.color = 'var(--text)';
+      if (icon) { icon.style.background = 'var(--panel)'; icon.style.borderColor = 'var(--border)'; icon.textContent = ''; icon.style.color = ''; }
+    }
+  });
+}
+
+function rapGetSelectedAgents() {
+  const list = document.getElementById('rap-agents-list');
+  if (!list) return '';
+  const selected = [];
+  list.querySelectorAll('[data-selected="true"]').forEach(chip => {
+    selected.push(chip.getAttribute('data-name'));
+  });
+  return selected.join(', ');
 }
 </script></body></html>
