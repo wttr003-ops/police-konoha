@@ -5492,40 +5492,73 @@ function checkAgentNotifs() {
 // ============================================================
 // GESTION AGENTS
 // ============================================================
-async function deleteAgent(username) {
+function deleteAgent(username) {
   const data = state.users[username];
   if (!data) return;
   const displayName = data.fullname || username.replace(/_/g, ' ');
+  showDeleteConfirm(username, displayName);
+}
+
+function showDeleteConfirm(username, displayName) {
+  // Remove existing popup if any
+  const existing = document.getElementById('delete-confirm-popup');
+  if (existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.id = 'delete-confirm-popup';
+  popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML = `
+    <div style="background:var(--mid);border:1px solid var(--border);border-radius:12px;padding:2rem;max-width:420px;width:90%;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:1rem">⚠️</div>
+      <h3 style="margin:0 0 0.5rem;color:var(--text);font-size:18px">Supprimer cet agent ?</h3>
+      <p style="color:var(--muted);font-size:14px;margin:0 0 1.5rem">
+        <strong style="color:var(--text)">${displayName}</strong> sera supprimé définitivement du site et ne pourra plus se connecter.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button onclick="confirmDeleteAgent('${username}','${displayName}')" style="flex:1;max-width:180px;padding:10px;background:#c0392b;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+          🗑 Supprimer définitivement
+        </button>
+        <button onclick="document.getElementById('delete-confirm-popup').remove()" style="flex:1;max-width:120px;padding:10px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">
+          Annuler
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(popup);
+  // Click outside to close
+  popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+}
+
+async function confirmDeleteAgent(username, displayName) {
+  document.getElementById('delete-confirm-popup')?.remove();
   const u = state.currentUser;
-
-  const motif = prompt('Motif de suppression de "' + displayName + '" :\n(Démission, renvoi, décès RP...)');
-  if (!motif || !motif.trim()) return;
-  if (!confirm('SUPPRESSION DÉFINITIVE\n\n' + displayName + '\nMotif : ' + motif + '\n\nConfirmer ?')) return;
-
   const headers = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
 
+  // 1. Supprimer de Supabase
   try {
-    const r = await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(username), { method: 'DELETE', headers });
-    console.log('DELETE status:', r.status);
-  } catch(e) { console.error(e); }
+    await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(username), { method: 'DELETE', headers });
+  } catch(e) { console.warn(e); }
 
+  // 2. Blacklist Supabase
   try {
     await fetch(SB_URL + '/rest/v1/deleted_users', {
       method: 'POST',
       headers: { ...headers, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ username, fullname: displayName, motif: motif.trim(), deleted_by: u.fullname||u.username })
+      body: JSON.stringify({ username, fullname: displayName, motif: 'Suppression par direction', deleted_by: u?.fullname||u?.username||'Direction' })
     });
   } catch(e) {}
 
+  // 3. Blacklist localStorage
   const bl = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
   if (!bl.includes(username)) bl.push(username);
   localStorage.setItem('konoha_deleted', JSON.stringify(bl));
 
+  // 4. Supprimer état local
   delete state.users[username];
-  alert('✓ "' + displayName + '" supprimé définitivement.');
+
   if (state.currentUser?.username === username) { logout(); return; }
-  renderMembresContent(u.grade);
-  renderLogsContent(u.grade);
+
+  renderAnnuaireContent(state.currentUser.grade);
+  renderMembresContent(state.currentUser.grade);
   updateAgentStat();
 }
 
