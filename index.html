@@ -3469,7 +3469,7 @@ function renderMembresContent(g) {
 async function renderCitoyensContent(g) {
   const el = document.getElementById('citoyens-content');
   if (!el) return;
-  if (!canAll(g)) { el.innerHTML = noAccess('Lieutenant ou supérieur'); return; }
+  // Tous les agents peuvent voir — seuls Dir et Adj peuvent supprimer
 
   // Force reload from Supabase to get all citizens
   try {
