@@ -6874,6 +6874,53 @@ async function renderPresencesContent(g) {
   }
   html += `</div>`;
 
+  // === EN SERVICE EN TEMPS RÉEL — Direction + Lieutenant ===
+  if (gradeRank(g) <= 2) {
+    // Find all agents currently in service by checking their localStorage key
+    // We do this by storing active services in Supabase presences with fin_service=null
+    let enService = [];
+    try {
+      const res = await sbGet('presences', '?fin_service=is.null&order=created_at.desc');
+      if (Array.isArray(res)) enService = res;
+    } catch(e) {}
+
+    html += `<div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">🟢 Agents en service — Temps réel</div>
+        <button onclick="renderPresencesContent(state.currentUser.grade)" style="font-size:11px;padding:3px 10px;background:var(--mid);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--muted)">↻ Actualiser</button>
+      </div>`;
+
+    if (enService.length === 0) {
+      html += '<p style="color:var(--muted);font-size:13px">Aucun agent en service actuellement.</p>';
+    } else {
+      enService.forEach(p => {
+        const priseAt = new Date(p.prise_service);
+        const now = new Date();
+        const diffMins = Math.floor((now - priseAt) / 60000);
+        const h = Math.floor(diffMins/60), m = diffMins%60;
+        const taux = SALAIRES[p.grade] || 50;
+        const salaireEnCours = Math.round((diffMins/60)*taux);
+        html += `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.2);border-radius:8px;margin-bottom:8px">
+          <div style="width:10px;height:10px;border-radius:50%;background:#27ae60;flex-shrink:0;animation:pulse 2s infinite"></div>
+          <div class="avatar" style="font-size:12px">${(p.fullname||p.username).slice(0,2).toUpperCase()}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${p.fullname||p.username}</div>
+            <div style="font-size:11px;color:var(--muted)">${p.grade||'—'} • En service depuis ${priseAt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} • ${h}h${String(m).padStart(2,'0')}</div>
+          </div>
+          <div style="text-align:right;margin-right:8px">
+            <div style="font-size:14px;font-weight:700;color:#27ae60">${salaireEnCours} Ryos</div>
+            <div style="font-size:10px;color:var(--muted)">en cours</div>
+          </div>
+          <button onclick="forceFinService(${p.id},'${p.username}','${p.fullname||p.username}','${p.grade}')"
+            style="background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            ■ Clôturer
+          </button>
+        </div>`;
+      });
+    }
+    html += `</div>`;
+  }
+
   // === FICHES DE PAYE — DIRECTION UNIQUEMENT ===
   if (isDir) {
     const byAgent = {};
@@ -6973,14 +7020,36 @@ function showPresenceNotif(msg) {
 
 async function priseDeService() {
   const u = state.currentUser;
-  // Security: verify this is truly the logged-in user's own service
   const confirmedUser = state.users[u.username];
   if (!confirmedUser || !confirmedUser.isAgent) {
-    showPresenceNotif('⚠️ Erreur — Ce n\'est pas votre catégorie. Veuillez faire attention à ce que vous faites. Cliquez bien sur votre nom et prénom.');
+    showPresenceNotif('⚠️ Ce n\'est pas votre catégorie. Veuillez faire attention à ce que vous faites. Cliquez bien sur votre nom et prénom.');
     return;
   }
+  const now = new Date();
   const serviceKey = 'konoha_service_' + u.username;
-  localStorage.setItem(serviceKey, JSON.stringify({ prise: new Date().toISOString(), fin: null }));
+
+  // Save to Supabase with fin_service=null so direction sees it in real-time
+  let presenceId = null;
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/presences', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({
+        username: u.username,
+        fullname: confirmedUser.fullname || u.username,
+        grade: u.grade,
+        prise_service: now.toISOString(),
+        fin_service: null,
+        duree_minutes: null,
+        salaire: null,
+        date: now.toLocaleDateString('fr-FR')
+      })
+    });
+    const data = await res.json();
+    if (Array.isArray(data) && data[0]) presenceId = data[0].id;
+  } catch(e) { console.warn(e); }
+
+  localStorage.setItem(serviceKey, JSON.stringify({ prise: now.toISOString(), fin: null, id: presenceId }));
   renderPresencesContent(u.grade);
 }
 
@@ -7007,16 +7076,27 @@ async function finDeService() {
   }
 
   try {
-    await sbPost('presences', {
-      username: u.username,
-      fullname: confirmedUser.fullname || u.username,
-      grade: u.grade,
-      prise_service: prise.toISOString(),
-      fin_service: fin.toISOString(),
-      duree_minutes: diffMins,
-      salaire: salaire,
-      date: new Date().toLocaleDateString('fr-FR')
-    });
+    const presenceId = serviceData.id;
+    if (presenceId) {
+      // Update existing row
+      await fetch(SB_URL + '/rest/v1/presences?id=eq.' + presenceId, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ fin_service: fin.toISOString(), duree_minutes: diffMins, salaire: salaire })
+      });
+    } else {
+      // No ID (old session) - create new row
+      await sbPost('presences', {
+        username: u.username,
+        fullname: confirmedUser.fullname || u.username,
+        grade: u.grade,
+        prise_service: prise.toISOString(),
+        fin_service: fin.toISOString(),
+        duree_minutes: diffMins,
+        salaire: salaire,
+        date: new Date().toLocaleDateString('fr-FR')
+      });
+    }
   } catch(e) { console.warn(e); }
 
   localStorage.removeItem(serviceKey);
@@ -7028,4 +7108,71 @@ async function finDeService() {
 }
 
 
+
+async function forceFinService(presenceId, username, fullname, grade) {
+  // Ask for real end time
+  const heureStr = prompt(
+    'Clôturer le service de ' + fullname + '\n\nEntrez l\'heure réelle de fin de service :\n(format HH:MM, ex: 18:30)',
+    new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  );
+  if (!heureStr || !heureStr.trim()) return;
+
+  // Parse the entered time
+  const parts = heureStr.trim().split(':');
+  if (parts.length < 2) { alert('Format invalide. Utilisez HH:MM'); return; }
+  const h = parseInt(parts[0]), m = parseInt(parts[1]);
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+    alert('Heure invalide. Utilisez HH:MM (ex: 18:30)');
+    return;
+  }
+
+  // Get the presence to calculate correct salary
+  let prise = null;
+  try {
+    const res = await sbGet('presences', '?id=eq.' + presenceId);
+    if (Array.isArray(res) && res[0]) prise = new Date(res[0].prise_service);
+  } catch(e) {}
+
+  if (!prise) { alert('Erreur : impossible de trouver la prise de service.'); return; }
+
+  // Build fin_service with today's date + entered time
+  const fin = new Date();
+  fin.setHours(h, m, 0, 0);
+
+  // If fin < prise, assume next day (edge case)
+  if (fin < prise) fin.setDate(fin.getDate() + 1);
+
+  const diffMins = Math.max(1, Math.round((fin - prise) / 60000));
+  const taux = SALAIRES[grade] || 50;
+  const salaire = Math.round((diffMins / 60) * taux);
+  const hh = Math.floor(diffMins/60), mm = diffMins%60;
+
+  const confirm1 = confirm(
+    'Confirmer la clôture pour ' + fullname + ' ?\n\n' +
+    'Prise de service : ' + prise.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}) + '\n' +
+    'Fin de service : ' + fin.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}) + '\n' +
+    'Durée : ' + hh + 'h' + String(mm).padStart(2,'0') + '\n' +
+    'Salaire calculé : ' + salaire + ' Ryos'
+  );
+  if (!confirm1) return;
+
+  // Update in Supabase
+  try {
+    await fetch(SB_URL + '/rest/v1/presences?id=eq.' + presenceId, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        fin_service: fin.toISOString(),
+        duree_minutes: diffMins,
+        salaire: salaire
+      })
+    });
+  } catch(e) { console.warn(e); }
+
+  // Also clear their localStorage service key (they'll see it next time they load)
+  // Can't directly clear another user's localStorage, but Supabase update is enough
+
+  alert('✓ Service de ' + fullname + ' clôturé.\nSalaire final : ' + salaire + ' Ryos');
+  renderPresencesContent(state.currentUser.grade);
+}
 </script></body></html>
