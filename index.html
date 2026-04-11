@@ -2177,6 +2177,14 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <div class="form-msg success" id="reg-ok" style="display:none">Recensement enregistré ! Bienvenue dans les registres de Konoha.</div>
       <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="reg-user" placeholder="Ex : Sasuke Uchiha" /></div>
       <div class="form-group">
+        <label>Genre *</label>
+        <select id="reg-genre" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:5px;padding:9px 12px;color:var(--text);font-size:14px;font-family:sans-serif;outline:none;margin-bottom:0.75rem">
+          <option value="homme">Homme</option>
+          <option value="femme">Femme</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Grade / Rang actuel *</label>
         <select id="reg-grade" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:5px;padding:9px 12px;color:var(--text);font-size:14px;font-family:sans-serif;outline:none">
           <option value="">-- Votre rang shinobi --</option>
@@ -2846,6 +2854,7 @@ async function syncFromSupabase() {
           matricule: u.matricule || '',
           casier: u.casier || 'non',
           connu: u.connu || 'non',
+          genre: u.genre || 'homme',
           inscription: u.inscription || ''
         };
       });
@@ -3088,6 +3097,7 @@ async function doRegister() {
   const pass2 = document.getElementById('reg-pass2').value;
   const grade = document.getElementById('reg-grade') ? document.getElementById('reg-grade').value : 'Citoyen';
   const section = document.getElementById('reg-section') ? document.getElementById('reg-section').value : 'aucune';
+  const genre = document.getElementById('reg-genre') ? document.getElementById('reg-genre').value : 'homme';
   const err   = document.getElementById('reg-err');
   const ok    = document.getElementById('reg-ok');
   err.textContent = '';
@@ -3114,7 +3124,7 @@ async function doRegister() {
   await sbPost('users', {
     username: user, password: pass,
     grade: grade || 'Citoyen', section, fullname: user,
-    is_agent: false, casier: 'non', connu: 'non',
+    is_agent: false, casier: 'non', connu: 'non', genre: genre||'homme',
     inscription: new Date().toLocaleDateString('fr-FR')
   });
   ok.style.display = 'block';
@@ -3636,12 +3646,14 @@ async function saveCitizenProfile() {
   if (!u || !state.users[u.username]) return;
   const grade   = document.getElementById('citizen-grade')?.value;
   const section = document.getElementById('citizen-section')?.value || 'aucune';
+  const genre   = document.getElementById('citizen-genre')?.value || 'homme';
   // casier NOT editable by citizen - only agents can change it
   state.users[u.username].grade   = grade;
   state.users[u.username].section = section;
+  state.users[u.username].genre   = genre;
   u.grade = grade;
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
-  await sbPatch('users', `?username=eq.${u.username}`, { grade, section });
+  await sbPatch('users', `?username=eq.${u.username}`, { grade, section, genre });
   updateNav();
   const ok = document.getElementById('profile-ok');
   if (ok) { ok.style.display = 'block'; setTimeout(() => ok.style.display = 'none', 3000); }
@@ -3718,6 +3730,12 @@ function renderCitizenOverview() {
             <option value="strategie" ${data.section==='strategie'?'selected':''}>Stratégie</option>
           </select></div>
       </div>
+      <div class="form-group" style="margin-bottom:0.75rem"><label>Genre</label>
+        <select id="citizen-genre" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:4px;padding:8px 12px;color:var(--text);font-size:13px">
+          <option value="homme" ${(data.genre||'homme')==='homme'?'selected':''}>Homme</option>
+          <option value="femme" ${data.genre==='femme'?'selected':''}>Femme</option>
+          <option value="autre" ${data.genre==='autre'?'selected':''}>Autre</option>
+        </select></div>
       <div class="form-group" style="margin-bottom:0.75rem"><label>Casier judiciaire</label>
         <div style="padding:8px 12px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:13px;color:${data.casier==='oui'?'var(--red2)':'var(--green)'}">
           ${data.casier==='oui'?'⚠️ Casier actif — contactez un agent pour révision':'✓ Casier vierge'}
@@ -5976,6 +5994,30 @@ async function openAgentConversation(threadId, senderName, fromUser) {
           </div>
           <div style="width:32px;height:32px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">${agentInit}</div>
         </div>`;
+      } else if (m.role === 'citizen_casier_request') {
+        // Special: casier verification request
+        const parts = (m.text||'').replace('[DEMANDE_CASIER] ','').split('|');
+        const reqUser = parts[0] || fromUser;
+        const reqGenre = parts[1] || 'homme';
+        const civ = reqGenre === 'femme' ? 'Madame' : reqGenre === 'autre' ? '' : 'Monsieur';
+        html += `<div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">${init}</div>
+          <div style="background:rgba(212,149,0,0.08);border:1px solid rgba(212,149,0,0.3);border-radius:10px;padding:12px;max-width:280px">
+            <div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:6px">⚖️ Demande de vérification de casier</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${senderName} souhaite consulter son casier judiciaire.</div>
+            <div style="display:flex;gap:6px">
+              <button onclick="respondCasierRequest('${threadId}','${reqUser}','${reqGenre}','accord')" 
+                style="flex:1;padding:6px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">
+                ✓ Autoriser
+              </button>
+              <button onclick="respondCasierRequest('${threadId}','${reqUser}','${reqGenre}','refus')"
+                style="flex:1;padding:6px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);border-radius:6px;font-size:11px;cursor:pointer;font-weight:600">
+                ✗ Refuser
+              </button>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px">${senderName} · ${time}</div>
+          </div>
+        </div>`;
       } else {
         html += `<div style="display:flex;gap:8px;align-items:flex-end">
           <div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">${init}</div>
@@ -6146,10 +6188,16 @@ async function openCitizenConversation(threadId) {
   });
 
   html += `</div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;position:relative">
       <input type="text" id="citizen-reply-input" placeholder="Répondre..."
         style="flex:1;padding:10px 16px;border:0.5px solid var(--border);border-radius:20px;font-size:13px;background:var(--panel);color:var(--text)"
         onkeydown="if(event.key==='Enter') sendCitizenReply('${threadId}')"/>
+      <button onclick="showCitizenMenu('${threadId}')" title="Options"
+        style="width:40px;height:40px;border-radius:50%;background:var(--panel);border:1px solid var(--border);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
+        <span style="width:14px;height:2px;background:var(--muted);border-radius:1px;display:block"></span>
+        <span style="width:14px;height:2px;background:var(--muted);border-radius:1px;display:block"></span>
+        <span style="width:14px;height:2px;background:var(--muted);border-radius:1px;display:block"></span>
+      </button>
       <button onclick="sendCitizenReply('${threadId}')"
         style="width:40px;height:40px;border-radius:50%;background:#1a2a4a;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8f4ff" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -6193,5 +6241,132 @@ async function sendCitizenReply(threadId) {
   } catch(e) { console.warn(e); }
 
   openCitizenConversation(threadId);
+}
+
+// ============================================================
+// DEMANDE DE VÉRIFICATION DU CASIER JUDICIAIRE
+// ============================================================
+
+// Show 3-bars menu in citizen conversation
+function showCitizenMenu(threadId) {
+  const existing = document.getElementById('citizen-menu-popup');
+  if (existing) { existing.remove(); return; }
+
+  const menu = document.createElement('div');
+  menu.id = 'citizen-menu-popup';
+  menu.style.cssText = 'position:absolute;bottom:60px;right:50px;background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:8px;z-index:100;min-width:220px;box-shadow:0 4px 16px rgba(0,0,0,0.15)';
+  menu.innerHTML = `
+    <button onclick="requestCasierCheck('${threadId}')" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:15px">⚖️</span> Demander vérification de mon casier
+    </button>`;
+  menu.addEventListener('mouseleave', () => menu.remove());
+
+  // Append to conversation container
+  const conv = document.getElementById('dash-citizen-mes-messages');
+  if (conv) {
+    conv.style.position = 'relative';
+    conv.appendChild(menu);
+  }
+}
+
+async function requestCasierCheck(threadId) {
+  document.getElementById('citizen-menu-popup')?.remove();
+  const u = state.currentUser;
+  const data = state.users[u.username] || {};
+  const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+  // Find to_agent
+  let toAgent = '';
+  try {
+    const res = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(threadId) + '&limit=1');
+    if (Array.isArray(res) && res[0]) toAgent = res[0].to_agent || '';
+  } catch(e) {}
+
+  // Send special request message
+  const requestText = '[DEMANDE_CASIER] ' + u.username + '|' + (data.genre||'homme');
+  try {
+    await sbPost('messages', {
+      thread_id: threadId,
+      from_user: u.username,
+      sender_name: data.fullname || u.username,
+      grade: data.grade || 'Citoyen',
+      role: 'citizen_casier_request',
+      text: requestText,
+      time: time,
+      to_agent: toAgent
+    });
+  } catch(e) { console.warn(e); }
+
+  alert('✓ Demande envoyée ! L\'agent va traiter votre demande.');
+  openCitizenConversation(threadId);
+}
+
+// Agent side: accept or refuse casier request
+async function respondCasierRequest(threadId, citizenUsername, genre, decision) {
+  const u = state.currentUser;
+  const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+  let responseText = '';
+
+  if (decision === 'refus') {
+    const civ = genre === 'femme' ? 'Madame' : genre === 'autre' ? '' : 'Monsieur';
+    responseText = `Bonjour${civ?' '+civ:''}. Suite à votre demande, votre casier judiciaire reste confidentiel. Vous ne pouvez pas consulter son contenu.`;
+  } else {
+    // Get casier entries for this citizen
+    const nomComplet = (state.users[citizenUsername]?.fullname || citizenUsername.replace(/_/g,' ')).toLowerCase();
+    let casierEntries = [];
+    try {
+      const res = await sbGet('casiers', '?order=created_at.desc');
+      if (Array.isArray(res)) {
+        casierEntries = res.filter(c => {
+          const cNom = (c.nom||'').toLowerCase().replace(/\s+/g,' ').trim();
+          return cNom === nomComplet || cNom === nomComplet.split(' ').reverse().join(' ');
+        });
+      }
+    } catch(e) {}
+
+    const civ = genre === 'femme' ? 'Madame' : genre === 'autre' ? '' : 'Monsieur';
+
+    if (casierEntries.length === 0) {
+      responseText = `Bonjour${civ?' '+civ:''}. Suite à votre demande, votre casier judiciaire ne contient aucune entrée. Votre dossier est vierge.`;
+    } else {
+      let details = `Bonjour${civ?' '+civ:''}. Suite à votre demande, voici le contenu de votre casier judiciaire :\n\n`;
+      casierEntries.forEach((c, i) => {
+        details += `📋 Infraction ${i+1}\n`;
+        details += `• Type : ${c.type||'—'}\n`;
+        details += `• Motif : ${c.motif||'—'}\n`;
+        details += `• Date : ${c.date||'—'}\n`;
+        // Show amende/suivi if exists
+        if (c.suivis) {
+          try {
+            const suivis = typeof c.suivis === 'string' ? JSON.parse(c.suivis) : c.suivis;
+            suivis.forEach(s => {
+              if (s.type === 'amende_payee' || s.type === 'amende_impayee') {
+                details += `• Amende : ${s.montant||'—'} (${s.type==='amende_payee'?'✓ Payée':'⚠ Impayée'})\n`;
+              }
+            });
+          } catch(e) {}
+        }
+        details += '\n';
+      });
+      responseText = details;
+    }
+  }
+
+  // Send response
+  try {
+    await sbPost('messages', {
+      thread_id: threadId,
+      from_user: u.username,
+      sender_name: 'Police de Konoha',
+      grade: u.grade,
+      role: 'agent',
+      text: responseText,
+      time: time,
+      to_agent: u.username
+    });
+  } catch(e) { console.warn(e); }
+
+  openAgentConversation(threadId, state.users[citizenUsername]?.fullname || citizenUsername, citizenUsername);
 }
 </script></body></html>
