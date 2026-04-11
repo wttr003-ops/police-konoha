@@ -5661,6 +5661,9 @@ function renderAnnuaireContent(g) {
   if (!el) return;
   if (gradeRank(g) > 2) { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant uniquement'); return; }
 
+  const canDel      = gradeRank(g) <= 1; // Directeur + Adjoint
+  const canPromote  = gradeRank(g) <= 1; // Directeur + Adjoint peuvent promouvoir/rétrograder
+
   const agents = Object.entries(state.users)
     .filter(([k, u]) => u.isAgent)
     .sort((a,b) => (GRADE_RANK[a[1].grade]??10) - (GRADE_RANK[b[1].grade]??10));
@@ -5674,19 +5677,61 @@ function renderAnnuaireContent(g) {
   agents.forEach(([key, u]) => {
     const displayName = u.fullname || key.replace(/_/g,' ');
     const init = displayName.slice(0,2).toUpperCase();
-    const canDel = gradeRank(g) <= 1; // Directeur + Adjoint
-    html += `<div class="membre-row">
+    const rank = gradeRank(u.grade);
+    const canUp   = canPromote && rank > 0;  // peut monter (pas déjà Directeur)
+    const canDown = canPromote && rank < 6;  // peut descendre (pas déjà Recrue)
+
+    html += `<div class="membre-row" style="flex-wrap:wrap;gap:6px;padding:0.75rem 1rem">
       <div class="avatar">${init}</div>
-      <div style="flex:1;min-width:0">
+      <div style="flex:1;min-width:120px">
         <div class="membre-name">${displayName}</div>
         <div style="font-size:10px;color:var(--muted);letter-spacing:1px">${u.matricule||'—'}</div>
       </div>
       <span class="grade-pill ${GRADE_CLASS[u.grade]||'gp-d'}">${u.grade}</span>
-      ${canDel ? `<button onclick="deleteAgent('${key}')" style="margin-left:8px;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:3px 10px;border-radius:4px;font-size:11px;cursor:pointer">🗑</button>` : ''}
+      <div style="display:flex;gap:4px;align-items:center">
+        ${canUp   ? `<button onclick="changeGrade('${key}',-1)" title="Promouvoir" style="background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);padding:4px 10px;border-radius:4px;font-size:12px;cursor:pointer;font-weight:700">▲</button>` : ''}
+        ${canDown ? `<button onclick="changeGrade('${key}',+1)" title="Rétrograder" style="background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:4px 10px;border-radius:4px;font-size:12px;cursor:pointer;font-weight:700">▼</button>` : ''}
+        ${canDel  ? `<button onclick="deleteAgent('${key}')" title="Supprimer" style="background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:4px 10px;border-radius:4px;font-size:12px;cursor:pointer">🗑</button>` : ''}
+      </div>
     </div>`;
   });
   html += '</div>';
   el.innerHTML = html;
+}
+
+async function changeGrade(username, direction) {
+  const u = state.users[username];
+  if (!u) return;
+  const displayName = u.fullname || username.replace(/_/g,' ');
+  const currentRank = gradeRank(u.grade);
+  const newRank = currentRank + direction;
+
+  // Find new grade by rank
+  const newGrade = Object.entries(GRADE_RANK).find(([gr, r]) => r === newRank)?.[0];
+  if (!newGrade) return;
+
+  const action = direction < 0 ? 'promouvoir' : 'rétrograder';
+  if (!confirm(`Confirmer : ${action} ${displayName} de "${u.grade}" vers "${newGrade}" ?`)) return;
+
+  // Update in Supabase
+  try {
+    await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(username), {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ grade: newGrade })
+    });
+  } catch(e) { console.warn(e); }
+
+  // Update local state
+  state.users[username].grade = newGrade;
+
+  // If it's the current user, update their session too
+  if (state.currentUser?.username === username) {
+    state.currentUser.grade = newGrade;
+    localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+  }
+
+  renderAnnuaireContent(state.currentUser.grade);
 }
 
 // ============================================================
