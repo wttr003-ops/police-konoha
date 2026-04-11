@@ -3629,14 +3629,14 @@ function renderCitizenProfile() {
 async function saveCitizenProfile() {
   const u = state.currentUser;
   if (!u || !state.users[u.username]) return;
-  const grade  = document.getElementById('citizen-grade').value;
-  const casier = document.getElementById('citizen-casier').value;
-  const section = document.getElementById('citizen-section') ? document.getElementById('citizen-section').value : 'aucune';
+  const grade   = document.getElementById('citizen-grade')?.value;
+  const section = document.getElementById('citizen-section')?.value || 'aucune';
+  // casier NOT editable by citizen - only agents can change it
   state.users[u.username].grade   = grade;
-  state.users[u.username].casier  = casier;
   state.users[u.username].section = section;
   u.grade = grade;
-  await sbPatch('users', `?username=eq.${u.username}`, { grade, casier, section });
+  localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+  await sbPatch('users', `?username=eq.${u.username}`, { grade, section });
   updateNav();
   const ok = document.getElementById('profile-ok');
   if (ok) { ok.style.display = 'block'; setTimeout(() => ok.style.display = 'none', 3000); }
@@ -5855,8 +5855,19 @@ async function renderAgentMessages() {
   // Load messages sent TO this agent
   let inbox = [];
   try {
-    const res = await sbGet('messages', '?to_agent=eq.' + encodeURIComponent(u.username) + '&order=created_at.desc');
-    if (Array.isArray(res)) inbox = res;
+    // Get all contact_ thread messages and filter by to_agent
+    const res = await sbGet('messages', '?order=created_at.desc');
+    if (Array.isArray(res)) {
+      // Keep messages where to_agent matches OR thread contains our username
+      const seen = new Set();
+      res.forEach(m => {
+        if (m.to_agent === u.username || m.to_agent === u.fullname) {
+          inbox.push(m);
+        } else if (m.thread_id && m.thread_id.includes(u.username)) {
+          inbox.push(m);
+        }
+      });
+    }
   } catch(e) { console.warn(e); }
 
   // Group by thread_id (one conversation per citizen)
