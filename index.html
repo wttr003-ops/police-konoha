@@ -2834,6 +2834,27 @@ const state = {
   openCandid: null
 };
 
+// ============================================================
+// HELPERS MANQUANTS
+// ============================================================
+function noAccess(msg) {
+  return '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">🔒 Accès restreint — ' + (msg||'Permissions insuffisantes') + '</div>';
+}
+
+function isConnuFDO(username, fullname) {
+  // Check if person appears in casiers (criminal record)
+  try {
+    const casiers = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+    if (!casiers.length) return false;
+    const name = (fullname || username.replace(/_/g,' ')).toLowerCase().trim();
+    return casiers.some(c => {
+      const cn = (c.nom||'').toLowerCase().trim();
+      return cn === name || cn.includes(name) || name.includes(cn);
+    });
+  } catch(e) { return false; }
+}
+
+
 
 // ---- MISE À JOUR COMPTEUR PUBLIC ----
 function updateAgentStat() {
