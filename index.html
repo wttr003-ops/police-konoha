@@ -2897,7 +2897,18 @@ const ALL_PERMS = ['Voir les plaintes', 'Voir les candidatures', 'Gérer les mem
 // PERSISTANCE — Supabase (remplace localStorage)
 // ============================================================
 function saveState() { /* handled by Supabase directly */ }
-function loadState()  { /* handled by syncFromSupabase */ }
+function loadState() {
+  // Restore session from localStorage
+  const saved = localStorage.getItem('konoha_session');
+  if (saved) {
+    try {
+      const session = JSON.parse(saved);
+      if (session && session.username) {
+        state.currentUser = session;
+      }
+    } catch(e) {}
+  }
+}
 function resetState() { if(!confirm('Réinitialiser ?')) return; location.reload(); }
 
 function saveGradeOverride(username, grade) {
@@ -5600,11 +5611,44 @@ function restoreOpenItems() {
   }
 }
 
-// Auto-init on page load
+// Auto-init on page load + restore session
+async function initApp() {
+  // 1. Sync from Supabase first
+  await syncFromSupabase();
+
+  // 2. Restore session from localStorage and fix grade from Supabase
+  const saved = localStorage.getItem('konoha_session');
+  if (saved) {
+    try {
+      const session = JSON.parse(saved);
+      if (session && session.username && state.users[session.username]) {
+        const fresh = state.users[session.username];
+        // Always use grade from Supabase - never from cached session
+        state.currentUser = {
+          username: session.username,
+          grade: fresh.grade,
+          fullname: fresh.fullname || session.fullname,
+          matricule: fresh.matricule || session.matricule,
+          isAgent: fresh.isAgent
+        };
+        localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+        // Go straight to dashboard
+        showPage('dashboard');
+        startRealtime();
+      }
+    } catch(e) {}
+  }
+
+  updateNav();
+
+  // 3. Init Kaede
+  setTimeout(initKaede, 600);
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => setTimeout(initKaede, 800));
+  document.addEventListener('DOMContentLoaded', initApp);
 } else {
-  setTimeout(initKaede, 800);
+  initApp();
 }
 
 // ============================================================
