@@ -2616,7 +2616,14 @@ function startRealtime() {
         const g = u.grade;
         const id = activeDashTab.id;
         // Pour l'agent, ne pas re-render plaintes/candid si dossier ouvert
-        if (!hasOpenItem) {
+        // Check if user is actively typing in a message box
+        const activeInput = document.activeElement;
+        const isTyping = activeInput && (
+          activeInput.tagName === 'TEXTAREA' ||
+          (activeInput.tagName === 'INPUT' && activeInput.type !== 'button')
+        );
+
+        if (!hasOpenItem && !isTyping) {
           if (id === 'dash-plaintes')     renderPlaintesContent(g);
           if (id === 'dash-candidatures') renderCandidContent(g);
         } else {
