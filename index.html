@@ -6456,11 +6456,25 @@ async function renderGalerie() {
   if (!el) return;
   const u = state.currentUser;
 
-  // Load photos from localStorage (stored as base64)
+  // Load photos from Supabase so everyone sees the same photos
   let photos = [];
   try {
-    photos = JSON.parse(localStorage.getItem('konoha_galerie') || '[]');
-  } catch(e) { photos = []; }
+    const res = await sbGet('galerie', '?order=created_at.desc');
+    if (Array.isArray(res)) {
+      photos = res.map(p => ({
+        id: p.id,
+        image: p.image,
+        desc: p.description,
+        author: p.author,
+        authorName: p.author_name,
+        grade: p.grade,
+        date: p.date
+      }));
+    }
+  } catch(e) {
+    // Fallback to localStorage
+    try { photos = JSON.parse(localStorage.getItem('konoha_galerie') || '[]'); } catch(e2) {}
+  }
 
   const canDelete = (photo) => {
     return photo.author === u.username || gradeRank(u.grade) <= 1;
@@ -6563,7 +6577,7 @@ function galFileSelected(input) {
   if (zone) zone.style.borderColor = 'var(--accent)';
 }
 
-function publishPhoto() {
+async function publishPhoto() {
   if (!window._galTempImage) { alert('Selectionnez une photo.'); return; }
   const desc = document.getElementById('gal-desc')?.value.trim() || '';
   const u = state.currentUser;
@@ -6577,9 +6591,22 @@ function publishPhoto() {
     date: new Date().toLocaleDateString('fr-FR')
   };
 
-  const photos = JSON.parse(localStorage.getItem('konoha_galerie') || '[]');
-  photos.push(photo);
-  localStorage.setItem('konoha_galerie', JSON.stringify(photos));
+  // Save to Supabase so ALL agents can see it
+  try {
+    await sbPost('galerie', {
+      image: photo.image,
+      description: photo.desc,
+      author: photo.author,
+      author_name: photo.authorName,
+      grade: photo.grade,
+      date: photo.date
+    });
+  } catch(e) {
+    // Fallback to localStorage if Supabase fails
+    const photos = JSON.parse(localStorage.getItem('konoha_galerie') || '[]');
+    photos.push(photo);
+    localStorage.setItem('konoha_galerie', JSON.stringify(photos));
+  }
 
   // Reset form
   window._galTempImage = null;
