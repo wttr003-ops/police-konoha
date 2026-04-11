@@ -5153,7 +5153,7 @@ function showKaedePopup(type, data) {
     btns.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:8px;width:100%">
         <div style="display:flex;gap:8px">
-          <button onclick="closeKaedePopup(); showPage('dashboard');" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">📜 Consulter ma missive</button>
+          <button onclick="closeKaedePopup(); showPage('dashboard'); setTimeout(()=>{ const u=state.currentUser; if(u&&!state.users[u.username]?.isAgent) switchCitizenTab('plaintes',null); }, 300);" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">📜 Consulter ma missive</button>
           <button onclick="closeKaedePopup()" style="padding:10px 16px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">Plus tard</button>
         </div>
         <button onclick="closeKaedePopup()" style="width:100%;padding:7px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;opacity:0.6">— Fermer cette lettre —</button>
@@ -5785,5 +5785,55 @@ function renderAjoutContent(g) {
       </div>
       <button class="btn-primary" onclick="addAgent()">➕ Ajouter l'agent</button>
     </div>`;
+}
+
+// ============================================================
+// TOGGLE DETAIL — Ouvrir/fermer les dossiers
+// ============================================================
+function toggleDetail(id) {
+  const body = document.getElementById(id);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+
+  // Save open state so polling doesn't close it
+  const match = id.match(/^(plainte|candid)-body-(\d+)$/);
+  if (match) {
+    const type = match[1];
+    const itemId = parseInt(match[2]);
+    if (type === 'plainte') state.openPlainte = isOpen ? null : itemId;
+    if (type === 'candid')  state.openCandid  = isOpen ? null : itemId;
+  }
+
+  // Rotate arrow icon
+  const header = body.previousElementSibling;
+  if (header) {
+    const icon = header.querySelector('.detail-toggle-icon');
+    if (icon) icon.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
+
+  // When opening: inject discussion thread
+  if (!isOpen && state.currentUser && match) {
+    const type  = match[1];
+    const itemId = parseInt(match[2]);
+    const u = state.currentUser;
+    const slotId = 'thread-slot-' + type + '-' + itemId;
+    const slot = document.getElementById(slotId);
+    if (slot) {
+      let label = '';
+      if (type === 'plainte') {
+        const p = state.plaintes.find(x => x.id === itemId);
+        label = p ? 'Plainte #' + p.id + ' — ' + (p.type||'') : 'Plainte #' + itemId;
+      } else {
+        const c = state.candidatures.find(x => x.id === itemId);
+        label = c ? 'Candidature #' + c.id + ' — ' + (c.niveau||'') : 'Candidature #' + itemId;
+      }
+      slot.innerHTML = buildThread(type + '_' + itemId, u.username, u.fullname||u.username, label);
+      setTimeout(() => {
+        const ml = document.getElementById('msglist-' + type + '_' + itemId);
+        if (ml) ml.scrollTop = ml.scrollHeight;
+      }, 50);
+    }
+  }
 }
 </script></body></html>
