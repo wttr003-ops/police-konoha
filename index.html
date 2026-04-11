@@ -7187,35 +7187,40 @@ async function forceFinService(presenceId, username, fullname, grade) {
 // ============================================================
 
 const INFRACTIONS_AMENDES = [
-  { palier:'palier1', label:'Incivilité / Trouble de l\'ordre public',         montant:500  },
-  { palier:'palier1', label:'Stationnement interdit',                           montant:300  },
-  { palier:'palier1', label:'Outrage verbal envers un agent',                   montant:800  },
-  { palier:'palier1', label:'Refus d\'obtempérer (mineur)',                    montant:1000 },
-  { palier:'palier1', label:'Non-respect d\'une décision officielle',          montant:700  },
-  { palier:'palier2', label:'Vol ou arnaque',                                   montant:2000 },
-  { palier:'palier2', label:'Refus d\'obtempérer',                             montant:1500 },
-  { palier:'palier2', label:'Harcèlement physique ou psychologique',            montant:2500 },
-  { palier:'palier2', label:'Dégradation de bien public',                       montant:2000 },
-  { palier:'palier2', label:'Entrave à une intervention de Police',             montant:1800 },
-  { palier:'palier2', label:'Incident entre deux ninjas',                       montant:1500 },
-  { palier:'palier2', label:'Insubordination à la hiérarchie',                  montant:1200 },
-  { palier:'palier2', label:'Menace mineure',                                   montant:1500 },
-  { palier:'palier2', label:'Jeu d\'argent sans autorisation',                 montant:1000 },
-  { palier:'palier2', label:'Intrusion cours intérieure du palais',             montant:2000 },
-  { palier:'palier2', label:'Consommation/détention de drogues',                montant:3000 },
-  { palier:'palier3', label:'Menace majeure envers un agent/hiérarchie',        montant:5000 },
-  { palier:'palier3', label:'Agression envers un haut fonctionnaire',           montant:8000 },
-  { palier:'palier3', label:'Usurpation de grade ou d\'identité',              montant:6000 },
-  { palier:'palier3', label:'Tentative d\'homicide',                           montant:10000},
-  { palier:'palier3', label:'Tentative de désertion',                           montant:7000 },
-  { palier:'palier3', label:'Homicide',                                         montant:15000},
-  { palier:'palier3', label:'Fréquentation de traîtres/ninjas ennemis',         montant:8000 },
-  { palier:'palier3', label:'Kidnapping / Séquestration / Torture',             montant:12000},
-  { palier:'palier3', label:'Evasion des cellules',                             montant:6000 },
-  { palier:'palier3', label:'Actes terroristes',                                montant:20000},
-  { palier:'palier3', label:'Trahison envers Konoha',                          montant:25000},
-  { palier:'palier3', label:'Crime de guerre',                                  montant:20000},
-  { palier:'palier3', label:'Appartenance à une organisation criminelle',       montant:15000},
+  // ===== PALIER 1 — Rappel à l'ordre =====
+  { palier:'palier1', label:'Saut/course de chakra dans le village (saut de crapaud inclus)',  montant:1200, montant2:1600, montant3:2600 },
+  { palier:'palier1', label:'Utilisation de jutsu / taijutsu dans le village',                 montant:2000, montant2:2400, montant3:3000 },
+  { palier:'palier1', label:'Entrée dans les cellules du commissariat sans autorisation',      montant:1600, montant2:2000, montant3:3000 },
+  { palier:'palier1', label:'Intrusion dans le palais ou domaine de clan',                     montant:2400, montant2:3200, montant3:5000 },
+  { palier:'palier1', label:'Port du masque dans le village sans autorisation',                montant:1600, montant2:2000, montant3:2400 },
+  { palier:'palier1', label:'Ouverture des portes du village sans autorisation',               montant:1600, montant2:2400, montant3:2800 },
+  { palier:'palier1', label:'Être sur les toits sans autorisation',                            montant:1600, montant2:2000, montant3:2400 },
+  { palier:'palier1', label:'Mensonge à un agent de police',                                   montant:600,  montant2:1600, montant3:2000 },
+  // ===== PALIER 2 — Infractions graves =====
+  { palier:'palier2', label:'Vol ou arnaque (+ rendre le bien)',                               montant:3200, montant2:3600, montant3:4000 },
+  { palier:'palier2', label:'Refus d\'obtempérer',                                            montant:2400, montant2:2800, montant3:3200 },
+  { palier:'palier2', label:'Harcèlement physique ou psychologique',                           montant:2400, montant2:2800, montant3:3200 },
+  { palier:'palier2', label:'Dégradation de bien public',                                      montant:3200, montant2:3600, montant3:4000 },
+  { palier:'palier2', label:'Entrave à une intervention de police',                            montant:4000, montant2:4500, montant3:5000 },
+  { palier:'palier2', label:'Incident entre deux ninjas',                                      montant:2000, montant2:3000, montant3:5000 },
+  { palier:'palier2', label:'Insubordination à la hiérarchie mineure (Kakunin et -)',          montant:1600, montant2:1600, montant3:1600 },
+  { palier:'palier2', label:'Insubordination envers un haut fonctionnaire de Konoha',         montant:2400, montant2:3000, montant3:4000 },
+  { palier:'palier2', label:'Menace mineure',                                                  montant:2800, montant2:3200, montant3:3600 },
+  { palier:'palier2', label:'Jeu d\'argent / de bien sans autorisation (+ perquisition)',     montant:1600, montant2:2000, montant3:2400 },
+  { palier:'palier2', label:'Entrée dans la cour intérieure du palais sans autorisation',     montant:1600, montant2:2000, montant3:2400 },
+  { palier:'palier2', label:'Incitation à commettre une infraction',                           montant:2400, montant2:3000, montant3:3500 },
+  { palier:'palier2', label:'Consommation/détention de drogues dans le village (+ perquisition)', montant:2400, montant2:2800, montant3:3200 },
+  // ===== PALIER 3 — Infractions très graves + cellule =====
+  { palier:'palier3', label:'Menace majeure / mort / vol accessoire ou pupilles (+ cellule)', montant:5000, montant2:6000, montant3:7000 },
+  { palier:'palier3', label:'Agression envers un haut fonctionnaire de Konoha (+ cellule)',  montant:5000, montant2:6000, montant3:7000 },
+  { palier:'palier3', label:'Usurpation de grade ou d\'identité (+ cellule)',                montant:5000, montant2:6000, montant3:7000 },
+  { palier:'palier3', label:'Tentative d\'homicide (+ cellule)',                             montant:6000, montant2:7000, montant3:8000 },
+  { palier:'palier3', label:'Tentative de désertion (+ cellule)',                             montant:5000, montant2:6000, montant3:7000 },
+  { palier:'palier3', label:'Homicide (+ cellule)',                                           montant:5000, montant2:8500, montant3:9500 },
+  { palier:'palier3', label:'Fréquentation de traîtres / ninjas ennemis (+ cellule)',         montant:7500, montant2:8500, montant3:9500 },
+  { palier:'palier3', label:'Kidnapping / Séquestration / Torture (+ cellule)',               montant:7000, montant2:8000, montant3:9000 },
+  { palier:'palier3', label:'Évasion des cellules Police ou Palais (+ cellule)',              montant:5000, montant2:6000, montant3:7000 },
+  { palier:'palier3', label:'Acte terroriste — incendie ou explosion (+ cellule)',            montant:7000, montant2:8000, montant3:9000 },
 ];
 
 const PALIER_COLORS = { palier1:'#27ae60', palier2:'#f0c040', palier3:'#e74c3c' };
@@ -7274,22 +7279,30 @@ async function renderAmendesContent(g) {
           <label class="form-label">Infraction *</label>
           <select id="am-infraction" class="form-input" onchange="updateMontantAuto()">
             <option value="">-- Sélectionner --</option>
-            <optgroup label="⚠ Palier 1 — Infractions mineures">
-              ${INFRACTIONS_AMENDES.filter(i=>i.palier==='palier1').map(i=>`<option value="${i.label}|${i.montant}|palier1">${i.label} — ${i.montant.toLocaleString()} Ryos</option>`).join('')}
+            <optgroup label="⚠ Palier 1 — Rappel à l'ordre">
+              ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier1'?`<option value="${i.label}|${idx}|palier1">${i.label}</option>`:'').join('')}
             </optgroup>
             <optgroup label="🚨 Palier 2 — Infractions graves">
-              ${INFRACTIONS_AMENDES.filter(i=>i.palier==='palier2').map(i=>`<option value="${i.label}|${i.montant}|palier2">${i.label} — ${i.montant.toLocaleString()} Ryos</option>`).join('')}
+              ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier2'?`<option value="${i.label}|${idx}|palier2">${i.label}</option>`:'').join('')}
             </optgroup>
             <optgroup label="💀 Palier 3 — Infractions très graves">
-              ${INFRACTIONS_AMENDES.filter(i=>i.palier==='palier3').map(i=>`<option value="${i.label}|${i.montant}|palier3">${i.label} — ${i.montant.toLocaleString()} Ryos</option>`).join('')}
+              ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier3'?`<option value="${i.label}|${idx}|palier3">${i.label}</option>`:'').join('')}
             </optgroup>
           </select>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
         <div class="form-group">
-          <label class="form-label">Montant (Ryos) *</label>
-          <input type="number" id="am-montant" class="form-input" placeholder="Ex: 2000" min="1"/>
+          <label class="form-label">Niveau de récidive</label>
+          <div id="am-recidive-wrap" style="display:none">
+            <select id="am-recidive" class="form-input" onchange="updateMontantByRecidive()" style="margin-bottom:6px">
+              <option value="1">1ère fois</option>
+              <option value="2">2ème récidive</option>
+              <option value="3">3ème récidive et +</option>
+            </select>
+            <div id="am-montants-info" style="display:none;padding:6px 10px;background:var(--mid);border-radius:6px;margin-bottom:6px"></div>
+          </div>
+          <input type="number" id="am-montant" class="form-input" placeholder="Montant (se remplit automatiquement)" min="1"/>
         </div>
         <div class="form-group">
           <label class="form-label">Note / Détails</label>
@@ -7432,9 +7445,38 @@ function toggleAmendeDossier(safeId) {
 function updateMontantAuto() {
   const sel = document.getElementById('am-infraction');
   const montantEl = document.getElementById('am-montant');
+  const recidiveEl = document.getElementById('am-recidive');
   if (!sel || !montantEl) return;
-  const parts = sel.value.split('|');
-  if (parts.length >= 2) montantEl.value = parts[1];
+
+  const val = sel.value;
+  if (!val) return;
+  const idx = parseInt(val.split('|')[1]);
+  const inf = INFRACTIONS_AMENDES[idx];
+  if (!inf) return;
+
+  // Show recidive selector
+  const recDiv = document.getElementById('am-recidive-wrap');
+  if (recDiv) recDiv.style.display = 'block';
+
+  // Set montant based on recidive level
+  const level = recidiveEl ? parseInt(recidiveEl.value) : 1;
+  const montant = level === 1 ? inf.montant : level === 2 ? (inf.montant2||inf.montant) : (inf.montant3||inf.montant2||inf.montant);
+  montantEl.value = montant;
+
+  // Show all 3 amounts as info
+  const info = document.getElementById('am-montants-info');
+  if (info) {
+    const m1 = inf.montant.toLocaleString();
+    const m2 = inf.montant2 ? inf.montant2.toLocaleString() : m1;
+    const m3 = inf.montant3 ? inf.montant3.toLocaleString() : m2;
+    info.innerHTML = `<span style="color:var(--muted);font-size:11px">Récidive 1 : <strong>${m1} Ryos</strong> &nbsp;|&nbsp; Récidive 2 : <strong>${m2} Ryos</strong> &nbsp;|&nbsp; Récidive 3 : <strong>${m3} Ryos</strong></span>`;
+    info.style.display = 'block';
+  }
+}
+
+function updateMontantByRecidive() {
+  const sel = document.getElementById('am-infraction');
+  if (sel && sel.value) updateMontantAuto();
 }
 
 async function emettrAmende() {
