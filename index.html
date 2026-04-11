@@ -7302,7 +7302,19 @@ async function renderAmendesContent(g) {
             </select>
             <div id="am-montants-info" style="display:none;padding:6px 10px;background:var(--mid);border-radius:6px;margin-bottom:6px"></div>
           </div>
-          <input type="number" id="am-montant" class="form-input" placeholder="Montant (se remplit automatiquement)" min="1"/>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <input type="number" id="am-montant" class="form-input" placeholder="Montant auto" min="1" style="flex:1" oninput="updateMontantFinal()"/>
+            <span style="color:var(--muted);font-size:13px;flex-shrink:0">×</span>
+            <select id="am-multiplicateur" class="form-input" style="width:90px;flex-shrink:0" onchange="updateMontantFinal()">
+              <option value="1">× 1</option>
+              <option value="2">× 2</option>
+              <option value="3">× 3</option>
+              <option value="4">× 4</option>
+              <option value="5">× 5</option>
+            </select>
+            <span style="color:var(--muted);font-size:13px;flex-shrink:0">=</span>
+            <div id="am-montant-final" style="min-width:110px;padding:9px 12px;background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;font-size:14px;font-weight:700;color:#f0c040;text-align:center;flex-shrink:0">— Ryos</div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Note / Détails</label>
@@ -7462,6 +7474,7 @@ function updateMontantAuto() {
   const level = recidiveEl ? parseInt(recidiveEl.value) : 1;
   const montant = level === 1 ? inf.montant : level === 2 ? (inf.montant2||inf.montant) : (inf.montant3||inf.montant2||inf.montant);
   montantEl.value = montant;
+  setTimeout(updateMontantFinal, 10);
 
   // Show all 3 amounts as info
   const info = document.getElementById('am-montants-info');
@@ -7477,12 +7490,32 @@ function updateMontantAuto() {
 function updateMontantByRecidive() {
   const sel = document.getElementById('am-infraction');
   if (sel && sel.value) updateMontantAuto();
+  updateMontantFinal();
+}
+
+function updateMontantFinal() {
+  const montant = parseInt(document.getElementById('am-montant')?.value) || 0;
+  const mult = parseInt(document.getElementById('am-multiplicateur')?.value) || 1;
+  const final = montant * mult;
+  const el = document.getElementById('am-montant-final');
+  if (!el) return;
+  if (final > 0) {
+    el.textContent = final.toLocaleString() + ' Ryos';
+    el.style.color = mult > 1 ? '#e74c3c' : '#f0c040';
+    el.style.borderColor = mult > 1 ? 'rgba(192,57,43,0.3)' : 'rgba(240,192,64,0.3)';
+    el.style.background = mult > 1 ? 'rgba(192,57,43,0.08)' : 'rgba(240,192,64,0.1)';
+  } else {
+    el.textContent = '— Ryos';
+    el.style.color = '#f0c040';
+  }
 }
 
 async function emettrAmende() {
   const nom      = document.getElementById('am-nom')?.value.trim();
   const infSel   = document.getElementById('am-infraction')?.value;
-  const montant  = parseInt(document.getElementById('am-montant')?.value);
+  const baseMontant = parseInt(document.getElementById('am-montant')?.value);
+  const multiplicateur = parseInt(document.getElementById('am-multiplicateur')?.value) || 1;
+  const montant = baseMontant * multiplicateur;
   const note     = document.getElementById('am-note')?.value.trim();
   if (!nom || !infSel || !montant) { alert('Nom, infraction et montant sont obligatoires.'); return; }
   const parts = infSel.split('|');
