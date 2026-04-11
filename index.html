@@ -2410,6 +2410,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           Ajouter un agent
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('presences',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Présences
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('rapports',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
           Rapports de mission
@@ -2517,6 +2521,8 @@ span.footer-logo svg { width: 40px; height: 40px; }
       </div>
 
       <!-- RAPPORTS DE MISSION -->
+      <div class="dash-tab" id="dash-presences"></div>
+
       <div class="dash-tab" id="dash-rapports">
         <div id="rapports-content"></div>
       </div>
@@ -6727,4 +6733,271 @@ function rapGetSelectedAgents() {
   });
   return selected.join(', ');
 }
+
+// ============================================================
+// SYSTÈME DE PRÉSENCES — Pointage & Salaires
+// ============================================================
+
+const SALAIRES = {
+  'Directeur':         200,
+  'Directeur Adjoint': 150,
+  'Lieutenant':        125,
+  'Sergent':           100,
+  'Officier':           90,
+  'Stagiaire':          50,
+  'Recrue':             50
+};
+
+async function renderPresencesContent(g) {
+  const el = document.getElementById('dash-presences');
+  if (!el) return;
+  const u = state.currentUser;
+  const isDir = gradeRank(g) <= 1;
+
+  const serviceKey = 'konoha_service_' + u.username;
+  const serviceData = JSON.parse(localStorage.getItem(serviceKey) || 'null');
+  const inService = serviceData && serviceData.prise && !serviceData.fin;
+
+  let presences = [];
+  try {
+    const res = await sbGet('presences', '?order=created_at.desc');
+    if (Array.isArray(res)) presences = res;
+  } catch(e) {}
+
+  const myPresences = presences.filter(p => p.username === u.username);
+  const taux = SALAIRES[g] || 50;
+
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  weekStart.setHours(0,0,0,0);
+  const weekTotal = myPresences
+    .filter(p => new Date(p.created_at) >= weekStart)
+    .reduce((sum, p) => sum + (p.salaire||0), 0);
+  const allTimeTotal = myPresences.reduce((sum, p) => sum + (p.salaire||0), 0);
+  const totalMins = myPresences.reduce((sum, p) => sum + (p.duree_minutes||0), 0);
+  const totalH = Math.floor(totalMins/60), totalM = totalMins%60;
+
+  let html = `<h2 class="dash-section-title">⏱ Présences & Salaires</h2>`;
+
+  // === MON SERVICE ===
+  html += `<div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+    <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Mon service — ${u.fullname||u.username}</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem">
+      <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Taux/heure</div>
+        <div style="font-size:18px;font-weight:700;color:var(--accent)">${taux}<span style="font-size:10px;font-weight:400"> Ryos</span></div>
+      </div>
+      <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Cette semaine</div>
+        <div style="font-size:18px;font-weight:700;color:#27ae60">${weekTotal}<span style="font-size:10px;font-weight:400"> Ryos</span></div>
+      </div>
+      <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Total cumulé</div>
+        <div style="font-size:18px;font-weight:700;color:#f0c040">${allTimeTotal}<span style="font-size:10px;font-weight:400"> Ryos</span></div>
+      </div>
+      <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Heures totales</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)">${totalH}h${String(totalM).padStart(2,'0')}</div>
+      </div>
+    </div>`;
+
+  if (!inService) {
+    html += `<button onclick="priseDeService()" style="width:100%;padding:13px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">
+      ▶ Prise de service
+    </button>`;
+  } else {
+    const priseAt = new Date(serviceData.prise);
+    const diffMins = Math.floor((new Date() - priseAt) / 60000);
+    const h = Math.floor(diffMins/60), m = diffMins%60;
+    const salaireEnCours = Math.round((diffMins/60)*taux);
+    html += `<div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.25);border-radius:8px;padding:1rem;margin-bottom:1rem;text-align:center">
+      <div style="font-size:12px;color:var(--muted)">En service depuis <strong style="color:var(--text)">${priseAt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</strong></div>
+      <div style="font-size:36px;font-weight:700;color:#27ae60;margin:8px 0;font-variant-numeric:tabular-nums" id="service-timer">${h}h${String(m).padStart(2,'0')}</div>
+      <div style="font-size:13px;color:var(--muted)">Salaire en cours : <strong style="color:#27ae60">${salaireEnCours} Ryos</strong></div>
+    </div>
+    <button onclick="finDeService()" style="width:100%;padding:13px;background:linear-gradient(135deg,#c0392b,#922b21);color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">
+      ■ Fin de service
+    </button>`;
+  }
+  html += `</div>`;
+
+  // === MON HISTORIQUE ===
+  html += `<div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+    <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Mon historique de présences</div>`;
+  if (myPresences.length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px">Aucune présence enregistrée pour le moment.</p>';
+  } else {
+    myPresences.slice(0,15).forEach(p => {
+      const h2 = Math.floor((p.duree_minutes||0)/60), m2 = (p.duree_minutes||0)%60;
+      const priseStr = p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const finStr = p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+      html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⏱</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${p.date||'—'}</div>
+          <div style="font-size:11px;color:var(--muted)">${priseStr} → ${finStr} • ${h2}h${String(m2).padStart(2,'0')} • ${p.grade||g}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:15px;font-weight:700;color:#27ae60">+${p.salaire||0}</div>
+          <div style="font-size:10px;color:var(--muted)">Ryos</div>
+        </div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // === FICHES DE PAYE — DIRECTION UNIQUEMENT ===
+  if (isDir) {
+    const byAgent = {};
+    presences.forEach(p => {
+      if (!byAgent[p.username]) byAgent[p.username] = {
+        fullname: p.fullname||p.username, grade: p.grade,
+        totalRyos: 0, totalMins: 0, entries: []
+      };
+      byAgent[p.username].totalRyos += p.salaire||0;
+      byAgent[p.username].totalMins += p.duree_minutes||0;
+      byAgent[p.username].entries.push(p);
+    });
+
+    html += `<div class="dash-block" style="padding:1.5rem">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">📋 Fiches de paye — Direction</div>`;
+
+    if (Object.keys(byAgent).length === 0) {
+      html += '<p style="color:var(--muted);font-size:13px">Aucune fiche disponible.</p>';
+    } else {
+      Object.entries(byAgent)
+        .sort((a,b) => b[1].totalRyos - a[1].totalRyos)
+        .forEach(([uname, data]) => {
+          const th = Math.floor(data.totalMins/60), tm = data.totalMins%60;
+          const safeId = uname.replace(/[^a-zA-Z0-9]/g,'_');
+          html += `
+          <div style="background:var(--mid);border-radius:8px;margin-bottom:8px;overflow:hidden">
+            <div onclick="toggleFiche('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">
+              <div class="avatar" style="font-size:12px">${data.fullname.slice(0,2).toUpperCase()}</div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:700;color:var(--text)">${data.fullname}</div>
+                <div style="font-size:11px;color:var(--muted)">${data.grade||'—'} • ${data.entries.length} service(s) • ${th}h${String(tm).padStart(2,'0')} total</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:16px;font-weight:700;color:#f0c040">${data.totalRyos}</div>
+                <div style="font-size:10px;color:var(--muted)">Ryos à payer</div>
+              </div>
+              <span id="fiche-icon-${safeId}" style="color:var(--muted)">▼</span>
+            </div>
+            <div id="fiche-body-${safeId}" style="display:none;border-top:0.5px solid var(--border);padding:0 14px">
+              ${data.entries.map(p => {
+                const eh = Math.floor((p.duree_minutes||0)/60), em = (p.duree_minutes||0)%60;
+                const ps = p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+                const fs = p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+                return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+                  <div style="flex:1;color:var(--text)">${p.date||'—'}</div>
+                  <div style="color:var(--muted)">${ps} → ${fs}</div>
+                  <div style="color:var(--muted)">${eh}h${String(em).padStart(2,'0')}</div>
+                  <div style="font-weight:700;color:#27ae60;min-width:60px;text-align:right">+${p.salaire||0} Ryos</div>
+                </div>`;
+              }).join('')}
+              <div style="padding:10px 0;display:flex;justify-content:flex-end">
+                <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
+                  Total : ${data.totalRyos} Ryos
+                </div>
+              </div>
+            </div>
+          </div>`;
+        });
+    }
+    html += `</div>`;
+  }
+
+  el.innerHTML = html;
+  if (inService) startServiceTimer(serviceData.prise, taux);
+}
+
+function toggleFiche(safeId) {
+  const body = document.getElementById('fiche-body-' + safeId);
+  const icon = document.getElementById('fiche-icon-' + safeId);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (icon) icon.textContent = open ? '▼' : '▲';
+}
+
+function startServiceTimer(priseISO, taux) {
+  if (window._serviceTimer) clearInterval(window._serviceTimer);
+  window._serviceTimer = setInterval(() => {
+    const timerEl = document.getElementById('service-timer');
+    if (!timerEl) { clearInterval(window._serviceTimer); return; }
+    const diffMins = Math.floor((new Date() - new Date(priseISO)) / 60000);
+    const h = Math.floor(diffMins/60), m = diffMins%60;
+    timerEl.textContent = h + 'h' + String(m).padStart(2,'0');
+  }, 30000);
+}
+
+function showPresenceNotif(msg) {
+  const existing = document.getElementById('presence-notif');
+  if (existing) existing.remove();
+  const notif = document.createElement('div');
+  notif.id = 'presence-notif';
+  notif.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;background:#c0392b;color:white;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;max-width:420px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.3)';
+  notif.textContent = msg;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 5000);
+}
+
+async function priseDeService() {
+  const u = state.currentUser;
+  // Security: verify this is truly the logged-in user's own service
+  const confirmedUser = state.users[u.username];
+  if (!confirmedUser || !confirmedUser.isAgent) {
+    showPresenceNotif('⚠️ Erreur — Ce n\'est pas votre catégorie. Veuillez faire attention à ce que vous faites. Cliquez bien sur votre nom et prénom.');
+    return;
+  }
+  const serviceKey = 'konoha_service_' + u.username;
+  localStorage.setItem(serviceKey, JSON.stringify({ prise: new Date().toISOString(), fin: null }));
+  renderPresencesContent(u.grade);
+}
+
+async function finDeService() {
+  const u = state.currentUser;
+  const confirmedUser = state.users[u.username];
+  if (!confirmedUser || !confirmedUser.isAgent) {
+    showPresenceNotif('⚠️ Ce n\'est pas votre catégorie. Veuillez faire attention à ce que vous faites. Cliquez bien sur votre nom et prénom.');
+    return;
+  }
+  const serviceKey = 'konoha_service_' + u.username;
+  const serviceData = JSON.parse(localStorage.getItem(serviceKey) || 'null');
+  if (!serviceData || !serviceData.prise) return;
+
+  const prise = new Date(serviceData.prise);
+  const fin = new Date();
+  const diffMins = Math.round((fin - prise) / 60000);
+  const taux = SALAIRES[u.grade] || 50;
+  const salaire = Math.round((diffMins / 60) * taux);
+
+  if (diffMins < 1) {
+    showPresenceNotif('⚠️ Service trop court (moins d\'1 minute).');
+    return;
+  }
+
+  try {
+    await sbPost('presences', {
+      username: u.username,
+      fullname: confirmedUser.fullname || u.username,
+      grade: u.grade,
+      prise_service: prise.toISOString(),
+      fin_service: fin.toISOString(),
+      duree_minutes: diffMins,
+      salaire: salaire,
+      date: new Date().toLocaleDateString('fr-FR')
+    });
+  } catch(e) { console.warn(e); }
+
+  localStorage.removeItem(serviceKey);
+  if (window._serviceTimer) clearInterval(window._serviceTimer);
+
+  const h = Math.floor(diffMins/60), m = diffMins%60;
+  alert('✓ Service terminé !\n\nDurée : ' + h + 'h' + String(m).padStart(2,'0') + '\nSalaire gagné : ' + salaire + ' Ryos');
+  renderPresencesContent(u.grade);
+}
+
+
 </script></body></html>
