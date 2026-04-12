@@ -3323,24 +3323,7 @@ function renderPlaintesContent(g) {
   }
 
   const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
-  // Find Hokage
-  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
-
-  let html = '<div class="dash-block">'
-
-  // Hokage banner at very top
-  if (hokageUser) {
-    const [hk, hu] = hokageUser;
-    const hName = hu.fullname || hk.replace(/_/g,' ');
-    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
-      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
-      <div style="flex:1">
-        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
-        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
-      </div>
-      <span style="font-size:24px">🔥</span>
-    </div>`;
-  };
+;
 
     plaintes.forEach(p => {
     const sc = p.status === 'wait' ? 's-wait' : p.status === 'ok' ? 's-ok' : 's-no';
@@ -3403,24 +3386,7 @@ function renderCandidContent(g) {
   }
 
   const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
-  // Find Hokage
-  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
-
-  let html = '<div class="dash-block">'
-
-  // Hokage banner at very top
-  if (hokageUser) {
-    const [hk, hu] = hokageUser;
-    const hName = hu.fullname || hk.replace(/_/g,' ');
-    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
-      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
-      <div style="flex:1">
-        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
-        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
-      </div>
-      <span style="font-size:24px">🔥</span>
-    </div>`;
-  };
+;
 
     candidatures.forEach(c => {
     const sc  = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
@@ -4011,24 +3977,7 @@ function renderLogsContent(g) {
     return;
   }
 
-  // Find Hokage
-  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
-
-  let html = '<div class="dash-block">'
-
-  // Hokage banner at very top
-  if (hokageUser) {
-    const [hk, hu] = hokageUser;
-    const hName = hu.fullname || hk.replace(/_/g,' ');
-    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
-      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
-      <div style="flex:1">
-        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
-        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
-      </div>
-      <span style="font-size:24px">🔥</span>
-    </div>`;
-  };
+;
   html += `<div style="padding:0.75rem 1rem;background:rgba(192,57,43,0.1);border-bottom:1px solid var(--border);font-size:12px;color:#e88">
     Informations confidentielles — Accès réservé à la Direction
   </div>`;
@@ -5783,24 +5732,7 @@ function renderAnnuaireContent(g) {
     return;
   }
 
-  // Find Hokage
-  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
-
-  let html = '<div class="dash-block">'
-
-  // Hokage banner at very top
-  if (hokageUser) {
-    const [hk, hu] = hokageUser;
-    const hName = hu.fullname || hk.replace(/_/g,' ');
-    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
-      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
-      <div style="flex:1">
-        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
-        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
-      </div>
-      <span style="font-size:24px">🔥</span>
-    </div>`;
-  };
+;
   agents.forEach(([key, u]) => {
     const displayName = u.fullname || key.replace(/_/g,' ');
     const init = displayName.slice(0,2).toUpperCase();
