@@ -4428,6 +4428,7 @@ async function renderCasierContent(g) {
               <div class="detail-meta">
                 <span style="font-size:11px;color:${dc2};font-weight:600">● ${dangerLabels[c.danger]||c.danger}</span>
                 <span style="font-size:11px;color:var(--muted)">${c.date||'—'}</span>
+                ${c.source==='amende_auto' ? '<span style="font-size:10px;padding:2px 7px;background:rgba(240,192,64,0.12);color:#f0c040;border-radius:8px;border:1px solid rgba(240,192,64,0.3);font-weight:600">💰 Amende auto</span>' : ''}
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
@@ -4502,8 +4503,9 @@ async function deleteCasierById(id) {
 
 function addSuiviCasier(casierDbId, safeComboId) {
   const formEl = document.getElementById('suivi-form-'+safeComboId);
-  if (!formEl) return;
-  if (formEl.style.display !== 'none') { formEl.style.display='none'; return; }
+  if (!formEl) { console.warn('suivi-form not found:', 'suivi-form-'+safeComboId); return; }
+  // Toggle: if already open, close it
+  if (formEl.style.display === 'block') { formEl.style.display='none'; return; }
   formEl.style.display = 'block';
   formEl.innerHTML = `
     <div style="padding:0.75rem;background:var(--mid);border-radius:6px;border:1px solid var(--border)">
@@ -7789,12 +7791,37 @@ async function emettrAmende() {
     return;
   }
 
-  // Auto-casier si citoyen connu
-  if (matchUser) {
+  // Auto-casier si palier 2 ou 3
+  if (palier === 'palier2' || palier === 'palier3') {
+    // 1. Mettre casier=oui sur le user si connu
+    if (matchUser) {
+      try {
+        await sbPatch('users', '?username=eq.' + encodeURIComponent(matchUser[0]), { casier: 'oui' });
+        state.users[matchUser[0]].casier = 'oui';
+      } catch(e) {}
+    }
+
+    // 2. Créer ou ajouter une entrée dans le casier judiciaire
+    const casierEntry = {
+      nom: nom,
+      grade: matchUser ? (matchUser[1].grade || '—') : '—',
+      type: palier === 'palier3' ? 'Crime grave' : 'Infraction grave',
+      danger: palier === 'palier3' ? 'elevé' : 'modéré',
+      motif: infraction + (note ? ' — ' + note : ''),
+      sanction: 'Amende : ' + montant.toLocaleString() + ' Ryos',
+      agent: u.username,
+      agent_name: agentName,
+      date: new Date().toLocaleDateString('fr-FR'),
+      source: 'amende_auto',
+      palier: palier,
+      montant_amende: montant
+    };
     try {
-      await sbPatch('users', '?username=eq.' + encodeURIComponent(matchUser[0]), { casier: 'oui' });
-      state.users[matchUser[0]].casier = 'oui';
-    } catch(e) {}
+      await sbPost('casiers', casierEntry);
+    } catch(e) { console.warn('casier auto:', e); }
+  } else if (matchUser) {
+    // Palier 1 — juste mettre casier=oui si récidive (déjà un casier)
+    // On ne crée pas de fiche casier pour palier 1
   }
 
   // Reset formulaire
