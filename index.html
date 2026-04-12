@@ -3323,9 +3323,8 @@ function renderPlaintesContent(g) {
   }
 
   const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
-;
 
-    plaintes.forEach(p => {
+  plaintes.forEach(p => {
     const sc = p.status === 'wait' ? 's-wait' : p.status === 'ok' ? 's-ok' : 's-no';
     const sl = p.status === 'wait' ? 'En attente' : p.status === 'ok' ? 'Traité' : 'Rejeté';
     const typeColor = p.type === 'Homicide' || p.type === 'Abus de pouvoir d\'un agent' ? 'var(--red2)' : 'var(--lgold)';
@@ -3386,9 +3385,8 @@ function renderCandidContent(g) {
   }
 
   const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
-;
 
-    candidatures.forEach(c => {
+  candidatures.forEach(c => {
     const sc  = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
     const sl  = c.status === 'wait' ? 'En attente' : c.status === 'ok' ? 'Accepté' : 'Refusé';
     const casierBadge = c.casier === 'non'
