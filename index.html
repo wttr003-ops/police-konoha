@@ -4883,12 +4883,15 @@ async function renderRapportsContent(g) {
   } else {
     const byAgent = {};
     rapports.forEach(r => {
-      const key = r.nom || r.author || 'Inconnu';
+      // Group by author (username) for accurate matching
+      const key = r.author || r.nom || 'Inconnu';
       if (!byAgent[key]) byAgent[key] = [];
       byAgent[key].push(r);
     });
 
-    const agentNames = isHighRank ? Object.keys(byAgent) : [u.fullname||u.username];
+    // For non-direction: show rapports by their username
+    const myKey = u.username;
+    const agentNames = isHighRank ? Object.keys(byAgent) : (byAgent[myKey] ? [myKey] : []);
 
     agentNames.forEach(agentName => {
       const agentRaps = byAgent[agentName];
@@ -4896,9 +4899,11 @@ async function renderRapportsContent(g) {
       agentRaps.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
       const safeId = agentName.replace(/[^a-zA-Z0-9]/g,'_');
 
+      // Get display name from state.users or from rapport author_name
+      const agentDisplayName = state.users[agentName]?.fullname || agentRaps[0]?.author_name || agentRaps[0]?.nom || agentName.replace(/_/g,' ');
       html += `<div class="dash-block" style="margin-bottom:1rem">
         <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleAgentRap('${safeId}')">
-          <div style="font-weight:700;font-size:14px">📁 ${agentName}</div>
+          <div style="font-weight:700;font-size:14px">📁 ${agentDisplayName}</div>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:11px;color:var(--muted)">${agentRaps.length} rapport(s)</span>
             <span id="agrap-icon-${safeId}">▼</span>
@@ -5001,6 +5006,7 @@ async function submitRapport() {
     description: desc,
     agents_presents: agentsPresents,
     author: state.currentUser?.username,
+    author_name: state.users[state.currentUser?.username]?.fullname || state.currentUser?.fullname || nom,
     date: new Date().toLocaleDateString('fr-FR')
   };
 
