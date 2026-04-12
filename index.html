@@ -7277,19 +7277,23 @@ async function renderAmendesContent(g) {
           <input type="text" id="am-nom" class="form-input" placeholder="Ex: Naruto Uzumaki"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Infraction *</label>
-          <select id="am-infraction" class="form-input" onchange="updateMontantAuto()">
-            <option value="">-- Sélectionner --</option>
-            <optgroup label="⚠ Palier 1 — Rappel à l'ordre">
-              ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier1'?`<option value="${i.label}|${idx}|palier1">${i.label}</option>`:'').join('')}
-            </optgroup>
-            <optgroup label="🚨 Palier 2 — Infractions graves">
-              ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier2'?`<option value="${i.label}|${idx}|palier2">${i.label}</option>`:'').join('')}
-            </optgroup>
-            <optgroup label="💀 Palier 3 — Infractions très graves">
-              ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier3'?`<option value="${i.label}|${idx}|palier3">${i.label}</option>`:'').join('')}
-            </optgroup>
-          </select>
+          <label class="form-label">Infraction(s) * <span style="font-size:10px;color:var(--muted)">(sélection multiple possible)</span></label>
+          <select id="am-infraction" class="form-input" onchange="updateMontantAuto()" style="display:none"></select>
+          <div style="margin-bottom:6px">
+            <select id="am-infraction-picker" class="form-input" onchange="addInfractionChip()" style="margin-bottom:6px">
+              <option value="">-- Ajouter une infraction --</option>
+              <optgroup label="⚠ Palier 1 — Rappel à l'ordre">
+                ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier1'?`<option value="${idx}">${i.label}</option>`:'').join('')}
+              </optgroup>
+              <optgroup label="🚨 Palier 2 — Infractions graves">
+                ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier2'?`<option value="${idx}">${i.label}</option>`:'').join('')}
+              </optgroup>
+              <optgroup label="💀 Palier 3 — Infractions très graves">
+                ${INFRACTIONS_AMENDES.map((i,idx)=>i.palier==='palier3'?`<option value="${idx}">${i.label}</option>`:'').join('')}
+              </optgroup>
+            </select>
+            <div id="am-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:10px"></div>
+          </div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
@@ -7417,9 +7421,35 @@ async function renderAmendesContent(g) {
 
             <!-- Bouton reset si impayées -->
             ${canEdit && person.current.length > 0 ? `
-            <button onclick="resetAmendes('${person.fullname}')" style="width:100%;margin:8px 0;padding:8px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:6px;font-size:12px;cursor:pointer;font-weight:700">
-              ✓ Marquer tout payé — Reset (${totalDu.toLocaleString()} Ryos récupérés)
-            </button>` : ''}
+            <div style="margin:10px 0;padding:12px;background:rgba(240,192,64,0.06);border:1px solid rgba(240,192,64,0.25);border-radius:8px">
+              <div style="font-size:13px;color:var(--muted);margin-bottom:10px">
+                💰 Total impayé : <strong style="color:#f0c040;font-size:16px">${totalDu.toLocaleString()} Ryos</strong>
+              </div>
+              <button onclick="resetAmendes('${person.fullname}',${totalDu})"
+                style="width:100%;padding:11px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700;letter-spacing:0.3px">
+                ✓ ${state.users[state.currentUser?.username]?.fullname||state.currentUser?.username||'Directeur'} — J'ai récupéré ${totalDu.toLocaleString()} Ryos
+              </button>
+            </div>` : ''}
+
+            <!-- Historique récupérations -->
+            ${person.all.filter(a=>a.status==='recuperee' && a.recupere_par).length > 0 ? (() => {
+              const recups = {};
+              person.all.filter(a=>a.status==='recuperee' && a.recupere_par).forEach(a => {
+                const dateKey = a.recupere_le ? new Date(a.recupere_le).toLocaleDateString('fr-FR') : a.date||'—';
+                const key = (a.recupere_par||'—') + '_' + dateKey;
+                if (!recups[key]) recups[key] = { par: a.recupere_par, le: a.recupere_le, total: 0 };
+                recups[key].total += a.montant||0;
+              });
+              return '<div style="margin-top:6px">' +
+                Object.values(recups).map(r =>
+                  '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(39,174,96,0.05);border:1px solid rgba(39,174,96,0.15);border-radius:6px;font-size:12px;margin-bottom:4px">' +
+                  '<span style="color:#27ae60;flex-shrink:0">✓</span>' +
+                  '<div style="flex:1;color:var(--muted)">Récupéré par <strong style="color:var(--text)">' + (r.par||'—') + '</strong>' +
+                  (r.le ? ' — le ' + new Date(r.le).toLocaleDateString('fr-FR') + ' à ' + new Date(r.le).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '') + '</div>' +
+                  '<div style="font-weight:700;color:#27ae60;flex-shrink:0">' + r.total.toLocaleString() + ' Ryos</div>' +
+                  '</div>'
+                ).join('') + '</div>';
+            })() : ''}
 
             <!-- Historique payées -->
             ${person.paid.length > 0 ? `
@@ -7564,8 +7594,7 @@ function updateMontantAuto() {
 }
 
 function updateMontantByRecidive() {
-  const sel = document.getElementById('am-infraction');
-  if (sel && sel.value) updateMontantAuto();
+  updateMontantFromChips();
   updateMontantFinal();
 }
 
@@ -7614,8 +7643,14 @@ async function emettrAmende() {
     try { await sbPatch('users','?username=eq.'+encodeURIComponent(matchUser[0]),{casier:'oui'}); state.users[matchUser[0]].casier='oui'; } catch(e) {}
   }
   ['am-nom','am-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('am-infraction').value='';
   document.getElementById('am-montant').value='';
+  document.getElementById('am-multiplicateur').value='1';
+  document.getElementById('am-recidive-wrap').style.display='none';
+  document.getElementById('am-montant-final').textContent='— Ryos';
+  const chips = document.getElementById('am-chips');
+  if (chips) chips.innerHTML='';
+  const picker = document.getElementById('am-infraction-picker');
+  if (picker) picker.value='';
   const ok=document.getElementById('am-ok');
   if(ok){ok.style.display='block';setTimeout(()=>ok.style.display='none',3000);}
   renderAmendesContent(state.currentUser.grade);
@@ -7639,15 +7674,28 @@ async function supprimerAmende(id) {
   renderAmendesContent(state.currentUser.grade);
 }
 
-async function resetAmendes(fullname) {
-  if (!confirm('Marquer TOUTES les amendes impayées de '+fullname+' comme payées ?\n\nL\'historique sera conservé.')) return;
+async function resetAmendes(fullname, totalDu) {
+  const dirUser = state.currentUser;
+  const dirName = state.users[dirUser?.username]?.fullname || dirUser?.username || 'Directeur';
+
+  if (!confirm('Confirmer la récupération par '+dirName+' ?\n\nMontant total : '+(totalDu||0).toLocaleString()+' Ryos\n\nL\'historique sera conservé.')) return;
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
   try {
+    // Mark all as recuperee
     await fetch(SB_URL+'/rest/v1/amendes?fullname=eq.'+encodeURIComponent(fullname)+'&status=eq.impayee',{
       method:'PATCH',
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
-      body:JSON.stringify({status:'payee'})
+      body:JSON.stringify({
+        status:'recuperee',
+        recupere_par: dirName,
+        recupere_le: now.toISOString()
+      })
     });
   } catch(e){console.warn(e);}
+
   renderAmendesContent(state.currentUser.grade);
 }
 
@@ -7665,5 +7713,62 @@ async function resetAmendesAgent(agentKey, agentName) {
   } catch(e) { console.warn(e); }
 
   renderAmendesContent(state.currentUser.grade);
+}
+
+function addInfractionChip() {
+  const picker = document.getElementById('am-infraction-picker');
+  if (!picker || !picker.value) return;
+  const idx = parseInt(picker.value);
+  const inf = INFRACTIONS_AMENDES[idx];
+  if (!inf) return;
+
+  // Check not already added
+  const existing = document.querySelector('#am-chips [data-idx="' + idx + '"]');
+  if (existing) { picker.value = ''; return; }
+
+  const chip = document.createElement('div');
+  chip.setAttribute('data-idx', idx);
+  chip.setAttribute('data-label', inf.label);
+  chip.setAttribute('data-palier', inf.palier);
+  const pc = inf.palier === 'palier3' ? '#e74c3c' : inf.palier === 'palier2' ? '#f0c040' : '#27ae60';
+  chip.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid '+pc+'44;background:'+pc+'11;color:var(--text)';
+  chip.innerHTML = '<span style="color:'+pc+';font-size:10px;font-weight:700">'+(inf.palier==='palier3'?'P3':inf.palier==='palier2'?'P2':'P1')+'</span>'
+    + inf.label.substring(0,40) + (inf.label.length>40?'...':'')
+    + '<span onclick="removeChip(this)" style="color:var(--muted);margin-left:4px;font-size:14px;line-height:1">×</span>';
+
+  document.getElementById('am-chips').appendChild(chip);
+  picker.value = '';
+
+  // Auto-update montant based on first chip's base price + recidive
+  updateMontantFromChips();
+}
+
+function removeChip(btn) {
+  btn.closest('[data-idx]').remove();
+  updateMontantFromChips();
+}
+
+function updateMontantFromChips() {
+  const chips = document.querySelectorAll('#am-chips [data-idx]');
+  if (chips.length === 0) {
+    document.getElementById('am-montant').value = '';
+    document.getElementById('am-montant-final').textContent = '— Ryos';
+    document.getElementById('am-recidive-wrap').style.display = 'none';
+    document.getElementById('am-montants-info').style.display = 'none';
+    return;
+  }
+  // Sum all base montants
+  const recLevel = parseInt(document.getElementById('am-recidive')?.value) || 1;
+  let total = 0;
+  chips.forEach(c => {
+    const idx = parseInt(c.getAttribute('data-idx'));
+    const inf = INFRACTIONS_AMENDES[idx];
+    if (!inf) return;
+    const m = recLevel === 1 ? inf.montant : recLevel === 2 ? (inf.montant2||inf.montant) : (inf.montant3||inf.montant2||inf.montant);
+    total += m;
+  });
+  document.getElementById('am-montant').value = total;
+  document.getElementById('am-recidive-wrap').style.display = 'block';
+  updateMontantFinal();
 }
 </script></body></html>
