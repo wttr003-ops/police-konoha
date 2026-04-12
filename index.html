@@ -3253,7 +3253,7 @@ function renderDashboard(tab) {
   }
 }
 
-function switchDashTab(name, btn) {
+async function switchDashTab(name, btn) {
   document.querySelectorAll('.dash-nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
 
@@ -3282,7 +3282,7 @@ function switchDashTab(name, btn) {
   if (name === 'logs')          renderLogsContent(g);
   if (name === 'amendes')       renderAmendesContent(g);
   if (name === 'casier')        renderCasierContent(g);
-  if (name === 'rapports')      renderRapportsContent(g);
+  if (name === 'rapports')      await renderRapportsContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'citoyens')      renderCitoyensContent(g);
   if (name === 'messages-agent') renderAgentMessages();
