@@ -3197,7 +3197,7 @@ function gradeRank(g) { return GRADE_RANK[g] ?? 99; }
 function canAll(g)      { return gradeRank(g) <= 2; }  // Dir, Adj, Lt — ajouter agent
 function canRecruit(g)  { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
 function canPlaintes(g) { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
-function canCasier(g)   { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
+function canCasier(g)   { return gradeRank(g) <= 4; }  // Officier+ peuvent ajouter — DIr, Adj, Lt, Sgt, Off
 function canRapports(g) { return gradeRank(g) <= 6; }  // Tous les grades agents
 function canLogs(g)     { return gradeRank(g) <= 1; }  // Dir, Adj uniquement
 
@@ -4179,7 +4179,7 @@ function removeRecherchee(index) {
 async function renderCasierContent(g) {
   const el = document.getElementById('casier-content');
   if (!el) return;
-  if (!canCasier(g)) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
+  const canAddCasier = canCasier(g); // Officier+ peuvent ajouter
 
   const casiers = await loadCasiers();
   const u = state.currentUser;
@@ -4216,9 +4216,9 @@ async function renderCasierContent(g) {
       ⚠ Les personnes fichées ne peuvent ni postuler à la Police ni à l'Hôpital de Konoha.
     </div>
     <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem">
-      <button id="cas-tab-add" onclick="switchCasTab('add')" style="padding:8px 20px;border-radius:20px;border:none;cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:linear-gradient(135deg,var(--red),#8B0000);color:white">
+      ${canAddCasier ? `<button id="cas-tab-add" onclick="switchCasTab('add')" style="padding:8px 20px;border-radius:20px;border:none;cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:linear-gradient(135deg,var(--red),#8B0000);color:white">
         ➕ Ajouter une infraction
-      </button>
+      </button>` : ''}
       <button id="cas-tab-list" onclick="switchCasTab('list')" style="padding:8px 20px;border-radius:20px;border:1.5px solid var(--border);cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:var(--panel);color:var(--text)">
         📁 Dossiers (${Object.keys(dossiers).length} personne(s))
       </button>
@@ -7230,7 +7230,7 @@ async function renderAmendesContent(g) {
   const el = document.getElementById('dash-amendes');
   if (!el) return;
   const u = state.currentUser;
-  const canEdit = gradeRank(g) <= 4;
+  const canEdit = gradeRank(g) <= 6; // Tous les agents peuvent émettre des amendes
   const isDir = gradeRank(g) <= 1;
 
   let amendes = [];
