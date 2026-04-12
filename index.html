@@ -7497,81 +7497,120 @@ async function renderAmendesContent(g) {
     });
   }
 
-  // === AMENDES ÉMISES PAR AGENT — Vue direction ===
+  // === FICHES AGENTS — Amendes émises ===
   if (isDir) {
     const byAgent = {};
     amendes.forEach(a => {
       const agentKey = a.agent || 'inconnu';
       if (!byAgent[agentKey]) byAgent[agentKey] = {
         agentName: a.agent_name || agentKey,
-        amendes: [], total: 0, recuperees: 0
+        amendes: []
       };
       byAgent[agentKey].amendes.push(a);
-      byAgent[agentKey].total += a.montant || 0;
-      if (a.status === 'recuperee' || a.status === 'payee') byAgent[agentKey].recuperees += a.montant || 0;
     });
 
-    const nonRecup = Object.values(byAgent).filter(d => d.amendes.some(a => a.status === 'impayee'));
+    html += `<div class="dash-block" style="margin-top:1rem">
+      <div style="padding:12px 1rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">💼 Fiches agents — Amendes collectées</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Cliquez sur un agent pour voir son détail et récupérer l'argent</div>
+        </div>
+      </div>`;
 
-    if (Object.keys(byAgent).length > 0) {
-      html += `<div class="dash-block" style="margin-top:1rem">
-        <div style="padding:12px 1rem;border-bottom:0.5px solid var(--border)">
-          <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">💼 Amendes par agent émetteur — Direction</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Cliquez sur un agent pour voir ses amendes et effectuer le reset</div>
-        </div>`;
-
+    if (Object.keys(byAgent).length === 0) {
+      html += '<p style="color:var(--muted);font-size:13px;padding:1rem">Aucune amende émise.</p>';
+    } else {
       Object.entries(byAgent)
-        .sort((a,b) => b[1].total - a[1].total)
+        .sort((a,b) => {
+          const aTotal = b[1].amendes.filter(x=>x.status==='payee'&&!x.recupere_par).reduce((s,x)=>s+(x.montant||0),0);
+          const bTotal = a[1].amendes.filter(x=>x.status==='payee'&&!x.recupere_par).reduce((s,x)=>s+(x.montant||0),0);
+          return aTotal - bTotal;
+        })
         .forEach(([agentKey, data]) => {
-          const nonPaid = data.amendes.filter(a => a.status === 'impayee');
-          const totalDu = nonPaid.reduce((s,a) => s+(a.montant||0), 0);
-          const safeId = ('agent_' + agentKey).replace(/[^a-zA-Z0-9]/g,'_');
+          // Amendes encaissées par l'agent (payées mais pas encore récupérées par la direction)
+          const aEncaissees = data.amendes.filter(a => a.status === 'payee' && !a.recupere_par);
+          const totalEncaisse = aEncaissees.reduce((s,a)=>s+(a.montant||0),0);
+          // Amendes impayées (pas encore encaissées par l'agent)
+          const aImpayees = data.amendes.filter(a => a.status === 'impayee');
+          const totalImpaye = aImpayees.reduce((s,a)=>s+(a.montant||0),0);
+          // Total historique
+          const totalHistorique = data.amendes.reduce((s,a)=>s+(a.montant||0),0);
+          const safeId = ('ag_'+agentKey).replace(/[^a-zA-Z0-9]/g,'_');
 
           html += `<div style="border-bottom:0.5px solid var(--border)">
             <div onclick="toggleAmendeDossier('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 1rem;cursor:pointer">
               <div class="avatar" style="font-size:12px">${data.agentName.slice(0,2).toUpperCase()}</div>
               <div style="flex:1">
                 <div style="font-size:13px;font-weight:700;color:var(--text)">${data.agentName}</div>
-                <div style="font-size:11px;color:var(--muted)">${data.amendes.length} amende(s) émise(s) • ${nonPaid.length} non récupérée(s)</div>
+                <div style="font-size:11px;color:var(--muted)">${data.amendes.length} amende(s) émise(s) • ${aImpayees.length} impayée(s)</div>
               </div>
               <div style="text-align:right;margin-right:8px">
-                ${totalDu > 0
-                  ? `<div style="font-size:14px;font-weight:700;color:#f0c040">${totalDu.toLocaleString()} Ryos</div><div style="font-size:10px;color:var(--muted)">à récupérer</div>`
-                  : `<div style="font-size:12px;color:#27ae60;font-weight:600">✓ Tout récupéré</div>`}
+                ${totalEncaisse > 0
+                  ? `<div style="font-size:14px;font-weight:700;color:#f0c040">${totalEncaisse.toLocaleString()} Ryos</div>
+                     <div style="font-size:10px;color:var(--muted)">à récupérer sur lui</div>`
+                  : `<div style="font-size:12px;color:#27ae60;font-weight:600">✓ Rien à récupérer</div>`}
               </div>
               <span id="am-icon-${safeId}" style="color:var(--muted)">▼</span>
             </div>
-            <div id="am-body-${safeId}" style="display:none;padding:0 1rem 12px">
-              ${totalDu > 0 ? `
-              <button onclick="resetAmendesAgent('${agentKey}','${data.agentName}')"
-                style="width:100%;margin-bottom:12px;padding:10px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
-                ✓ Reset — J'ai récupéré les amendes de ${data.agentName} (${totalDu.toLocaleString()} Ryos)
-              </button>` : `
-              <div style="padding:8px 12px;background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.2);border-radius:6px;margin-bottom:12px;font-size:12px;color:#27ae60;text-align:center">
-                ✓ Toutes les amendes de ${data.agentName} ont été récupérées
-              </div>`}
+
+            <div id="am-body-${safeId}" style="display:none;padding:0 1rem 14px">
+
+              <!-- Mini stats agent -->
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:10px;background:var(--mid);border-radius:8px;text-align:center">
+                <div>
+                  <div style="font-size:10px;color:var(--muted)">Non encaissées</div>
+                  <div style="font-size:15px;font-weight:700;color:#e74c3c">${totalImpaye.toLocaleString()} Ryos</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--muted)">À récupérer</div>
+                  <div style="font-size:15px;font-weight:700;color:#f0c040">${totalEncaisse.toLocaleString()} Ryos</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--muted)">Total historique</div>
+                  <div style="font-size:15px;font-weight:700;color:var(--text)">${totalHistorique.toLocaleString()} Ryos</div>
+                </div>
+              </div>
+
+              <!-- Bouton récupérer si l'agent a de l'argent à remettre -->
+              ${totalEncaisse > 0 ? `
+              <button onclick="recupererAgentAmendes('${agentKey}','${data.agentName}',${totalEncaisse})"
+                style="width:100%;margin-bottom:12px;padding:11px;background:linear-gradient(135deg,#f0c040,#e67e22);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.3px">
+                💰 Récupérer ${totalEncaisse.toLocaleString()} Ryos sur ${data.agentName}
+              </button>` : ''}
+
+              <!-- Liste des amendes de cet agent -->
               ${data.amendes.map(a => {
                 const pc = PALIER_COLORS[a.palier||'palier1'];
                 const pl = PALIER_LABELS[a.palier||'palier1'];
-                const isRecup = a.status === 'recuperee' || a.status === 'payee';
-                return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:3px;background:${isRecup?'rgba(39,174,96,0.04)':'rgba(240,192,64,0.05)'};border:1px solid ${isRecup?'rgba(39,174,96,0.15)':'rgba(240,192,64,0.2)'};border-radius:6px;font-size:12px;opacity:${isRecup?'0.75':'1'}">
+                const statusColor = a.status==='impayee' ? '#e74c3c' : a.status==='payee' ? '#f0c040' : '#27ae60';
+                const statusLabel = a.status==='impayee' ? '⏳ Impayée' : a.status==='payee' ? '💰 Encaissée' : '✓ Récupérée';
+                return `<div style="display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:4px;background:var(--mid);border-radius:6px;font-size:12px">
                   <span style="font-size:10px;padding:2px 6px;border-radius:6px;background:${pc}22;color:${pc};font-weight:700;flex-shrink:0">${pl}</span>
                   <div style="flex:1;min-width:0">
-                    <div style="color:var(--text);font-weight:500">${a.infraction}</div>
-                    <div style="color:var(--muted);font-size:10px">Contre : ${a.fullname} • ${a.date||'—'}</div>
+                    <div style="color:var(--text);font-weight:500">${a.fullname}</div>
+                    <div style="color:var(--muted);font-size:10px">${a.infraction.substring(0,45)}${a.infraction.length>45?'...':''}</div>
+                    <div style="color:var(--muted);font-size:10px">${a.date||'—'}${a.encaisse_par?' • Encaissé par '+a.encaisse_par:''}</div>
                   </div>
-                  <div style="font-weight:600;flex-shrink:0;color:${isRecup?'#27ae60':'#f0c040'}">
-                    ${isRecup?'✓':'⏳'} ${(a.montant||0).toLocaleString()} Ryos
+                  <div style="font-weight:700;color:${statusColor};flex-shrink:0;text-align:right">
+                    <div style="font-size:13px">${(a.montant||0).toLocaleString()} Ryos</div>
+                    <div style="font-size:10px;font-weight:400">${statusLabel}</div>
                   </div>
                 </div>`;
               }).join('')}
+
+              ${data.amendes.filter(a=>a.recupere_par).length > 0 ? `
+              <div style="margin-top:8px;padding:8px 10px;background:rgba(39,174,96,0.05);border:1px solid rgba(39,174,96,0.15);border-radius:6px;font-size:11px;color:var(--muted)">
+                ${[...new Set(data.amendes.filter(a=>a.recupere_par).map(a=>
+                  '✓ Récupéré par <strong style="color:var(--text)">' + a.recupere_par + '</strong>' +
+                  (a.recupere_le ? ' le ' + new Date(a.recupere_le).toLocaleDateString('fr-FR') : '')
+                ))].join(' &nbsp;|&nbsp; ')}
+              </div>` : ''}
             </div>
           </div>`;
         });
-      html += `</div>`;
     }
+    html += `</div>`;
   }
-
   html += '</div>';
   el.innerHTML = html;
 }
