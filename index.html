@@ -3324,6 +3324,7 @@ function renderPlaintesContent(g) {
 
   const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
 
+  let html = '<div class="dash-block">';
   plaintes.forEach(p => {
     const sc = p.status === 'wait' ? 's-wait' : p.status === 'ok' ? 's-ok' : 's-no';
     const sl = p.status === 'wait' ? 'En attente' : p.status === 'ok' ? 'Traité' : 'Rejeté';
@@ -3386,6 +3387,7 @@ function renderCandidContent(g) {
 
   const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
 
+  let html = '<div class="dash-block">';
   candidatures.forEach(c => {
     const sc  = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
     const sl  = c.status === 'wait' ? 'En attente' : c.status === 'ok' ? 'Accepté' : 'Refusé';
