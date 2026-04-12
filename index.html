@@ -3374,7 +3374,7 @@ function renderPlaintesContent(g) {
 }
 function renderCandidContent(g) {
   const el = document.getElementById('candid-content');
-  if (!canRecruit(g)) { el.innerHTML = noAccess('Sergent ou supérieur'); return; }
+  if (!canRecruit(g)) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
 
   // Sort newest first
   const candidatures = [...state.candidatures].sort((a,b) => (b.id||0) - (a.id||0));
@@ -5717,11 +5717,10 @@ if (document.readyState === 'loading') {
 function renderAnnuaireContent(g) {
   const el = document.getElementById('annuaire-content');
   if (!el) return;
-  if (g === 'Hokage') { el.innerHTML = noAccess('Le Hokage ne peut pas ajouter d\'agents via ce panel.'); return; }
-  if (gradeRank(g) > 2) { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant uniquement'); return; }
+  if (gradeRank(g) > 2 && g !== 'Hokage') { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant uniquement'); return; }
 
   const canDel      = gradeRank(g) <= 1 && g !== 'Hokage'; // Directeur + Adjoint (pas Hokage)
-  const canPromote  = gradeRank(g) <= 1; // Directeur + Adjoint peuvent promouvoir/rétrograder
+  const canPromote  = gradeRank(g) <= 1 && g !== 'Hokage'; // Directeur + Adjoint peuvent promouvoir/rétrograder
 
   const agents = Object.entries(state.users)
     .filter(([k, u]) => u.isAgent)
