@@ -7617,14 +7617,11 @@ function updateMontantFinal() {
 
 async function emettrAmende() {
   const nom      = document.getElementById('am-nom')?.value.trim();
-  const infSel   = document.getElementById('am-infraction')?.value;
   const baseMontant = parseInt(document.getElementById('am-montant')?.value);
   const multiplicateur = parseInt(document.getElementById('am-multiplicateur')?.value) || 1;
   const montant = baseMontant * multiplicateur;
   const note     = document.getElementById('am-note')?.value.trim();
-  if (!nom || !infSel || !montant) { alert('Nom, infraction et montant sont obligatoires.'); return; }
-  const parts = infSel.split('|');
-  const infraction = parts[0], palier = parts[2] || 'palier1';
+  // validation done above with chips
   const u = state.currentUser;
   const matchUser = Object.entries(state.users).find(([k,v]) =>
     (v.fullname||k.replace(/_/g,' ')).toLowerCase() === nom.toLowerCase()
