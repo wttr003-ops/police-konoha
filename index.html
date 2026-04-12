@@ -7046,7 +7046,11 @@ async function renderPresencesContent(g) {
                   <div style="font-weight:700;color:#27ae60;min-width:60px;text-align:right">+${p.salaire||0} Ryos</div>
                 </div>`;
               }).join('')}
-              <div style="padding:10px 0;display:flex;justify-content:flex-end">
+              <div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <button onclick="payerSalaire('${uname}','${data.fullname}',${data.totalRyos})"
+                  style="padding:8px 16px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+                  ✓ Payer ${data.totalRyos} Ryos — Remettre à zéro
+                </button>
                 <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
                   Total : ${data.totalRyos} Ryos
                 </div>
@@ -7981,5 +7985,30 @@ function showGradeWarning(msg) {
   toast.innerHTML = '<span style="font-size:20px">🚫</span><span>' + msg + '</span>';
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 5000);
+}
+
+async function payerSalaire(username, fullname, totalRyos) {
+  const dirUser = state.currentUser;
+  const dirName = state.users[dirUser?.username]?.fullname || dirUser?.username || 'Direction';
+
+  if (!confirm('Confirmer le paiement du salaire de ' + fullname + ' ?\n\nMontant : ' + totalRyos.toLocaleString() + ' Ryos\n\nLes entrées de présence seront marquées comme payées et remises à zéro.')) return;
+
+  const now = new Date();
+
+  try {
+    // Mark all presences for this agent as 'paye' so they don't count in next period
+    await fetch(SB_URL + '/rest/v1/presences?username=eq.' + encodeURIComponent(username) + '&statut_paye=neq.paye', {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        statut_paye: 'paye',
+        paye_par: dirName,
+        paye_le: now.toISOString()
+      })
+    });
+  } catch(e) { console.warn(e); }
+
+  alert('✓ Salaire de ' + fullname + ' payé !\n' + totalRyos.toLocaleString() + ' Ryos versés par ' + dirName);
+  renderPresencesContent(state.currentUser.grade);
 }
 </script></body></html>
