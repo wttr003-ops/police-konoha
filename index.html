@@ -3322,7 +3322,7 @@ function renderPlaintesContent(g) {
     return;
   }
 
-  const canAct = canAll(g);
+  const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
   // Find Hokage
   const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
 
@@ -3402,7 +3402,7 @@ function renderCandidContent(g) {
     return;
   }
 
-  const canAct = canAll(g);
+  const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
   // Find Hokage
   const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
 
@@ -3483,6 +3483,7 @@ function renderMembresContent(g) {
   const currentUser = state.currentUser;
   const mySection = state.users[currentUser.username]?.section || 'aucune';
   const isDirection = gradeRank(g) <= 1; // Dir et Adj voient tout le monde
+  const hokageReadOnly = g === 'Hokage'; // Hokage voit mais ne peut pas modifier
 
   // Find Hokage
   const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
@@ -3552,7 +3553,7 @@ async function renderCitoyensContent(g) {
     }
   } catch(e) {}
 
-  const canDelCitizen = gradeRank(g) <= 1; // Directeur + Directeur Adjoint uniquement
+  const canDelCitizen = gradeRank(g) <= 1 && g !== 'Hokage'; // Directeur + Directeur Adjoint uniquement
   const citoyens = Object.entries(state.users)
     .filter(([key, u]) => !u.isAgent)
     .sort((a,b) => a[0].localeCompare(b[0]));
@@ -4320,7 +4321,7 @@ async function renderCasierContent(g) {
       ⚠ Les personnes fichées ne peuvent ni postuler à la Police ni à l'Hôpital de Konoha.
     </div>
     <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem">
-      ${canAddCasier ? `<button id="cas-tab-add" onclick="switchCasTab('add')" style="padding:8px 20px;border-radius:20px;border:none;cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:linear-gradient(135deg,var(--red),#8B0000);color:white">
+      ${canAddCasier && g !== 'Hokage' ? `<button id="cas-tab-add" onclick="switchCasTab('add')" style="padding:8px 20px;border-radius:20px;border:none;cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:linear-gradient(135deg,var(--red),#8B0000);color:white">
         ➕ Ajouter une infraction
       </button>` : ''}
       <button id="cas-tab-list" onclick="switchCasTab('list')" style="padding:8px 20px;border-radius:20px;border:1.5px solid var(--border);cursor:pointer;font-family:sans-serif;font-size:13px;font-weight:600;background:var(--panel);color:var(--text)">
@@ -4329,7 +4330,7 @@ async function renderCasierContent(g) {
     </div>
 
     <!-- Formulaire ajout infraction -->
-    <div id="cas-panel-add" class="dash-block" style="display:${canAddCasier?'block':'none'};padding:1.5rem;margin-bottom:1rem">
+    <div id="cas-panel-add" class="dash-block" style="display:${canAddCasier && g !== 'Hokage'?'block':'none'};padding:1.5rem;margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.5rem">Nouvelle infraction</div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:1rem;padding:6px 10px;background:rgba(192,57,43,0.05);border-radius:4px;border-left:3px solid var(--red)">
         ⚠ Si la personne a déjà un casier, l'infraction sera ajoutée à son dossier existant.
@@ -4620,8 +4621,8 @@ async function loadCasiers() {
 
 async function saveCasier() {
   const g = state.currentUser?.grade;
-  if (!canCasier(g)) {
-    showGradeWarning('Vous ne pouvez pas créer de casier judiciaire. Grade requis : Officier ou supérieur.');
+  if (!canCasier(g) || g === 'Hokage') {
+    showGradeWarning('Vous ne pouvez pas créer de casier judiciaire.');
     return;
   }
   const nom     = document.getElementById('cas-nom')?.value.trim();
@@ -4790,8 +4791,8 @@ async function saveSuiviCasier(idx) {
 
 function switchCasTab(tab) {
   const g = state.currentUser?.grade;
-  if (tab === 'add' && !canCasier(g)) {
-    showGradeWarning('Vous ne pouvez pas créer de casier judiciaire. Grade requis : Officier ou supérieur.');
+  if (tab === 'add' && (!canCasier(g) || g === 'Hokage')) {
+    showGradeWarning('Vous ne pouvez pas créer de casier judiciaire.');
     return;
   }
   const ap = document.getElementById('cas-panel-add');
@@ -5369,6 +5370,7 @@ function kaedeBack() {
 // TRAITEMENT PLAINTES ET CANDIDATURES
 // ============================================================
 async function actPlainte(id, status) {
+  if (state.currentUser?.grade === 'Hokage') { showGradeWarning('Le Hokage peut consulter les plaintes mais ne peut pas les traiter.'); return; }
   const label = status === 'ok' ? 'traiter' : 'rejeter';
   if (!confirm('Confirmer : ' + label + ' cette plainte ?')) return;
 
@@ -5390,6 +5392,7 @@ async function actPlainte(id, status) {
 }
 
 async function actCandid(id, status) {
+  if (state.currentUser?.grade === 'Hokage') { showGradeWarning('Le Hokage peut consulter les candidatures mais ne peut pas les traiter.'); return; }
   const label = status === 'ok' ? 'accepter' : 'refuser';
   if (!confirm('Confirmer : ' + label + ' cette candidature ?')) return;
 
@@ -5565,6 +5568,7 @@ function checkAgentNotifs() {
 // GESTION AGENTS
 // ============================================================
 function deleteAgent(username) {
+  if (state.currentUser?.grade === 'Hokage') { showGradeWarning('Le Hokage ne peut pas supprimer des agents.'); return; }
   const data = state.users[username];
   if (!data) return;
   const displayName = data.fullname || username.replace(/_/g, ' ');
@@ -5764,9 +5768,10 @@ if (document.readyState === 'loading') {
 function renderAnnuaireContent(g) {
   const el = document.getElementById('annuaire-content');
   if (!el) return;
+  if (g === 'Hokage') { el.innerHTML = noAccess('Le Hokage ne peut pas ajouter d\'agents via ce panel.'); return; }
   if (gradeRank(g) > 2) { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant uniquement'); return; }
 
-  const canDel      = gradeRank(g) <= 1; // Directeur + Adjoint
+  const canDel      = gradeRank(g) <= 1 && g !== 'Hokage'; // Directeur + Adjoint (pas Hokage)
   const canPromote  = gradeRank(g) <= 1; // Directeur + Adjoint peuvent promouvoir/rétrograder
 
   const agents = Object.entries(state.users)
@@ -5822,6 +5827,7 @@ function renderAnnuaireContent(g) {
 }
 
 async function changeGrade(username, direction) {
+  if (state.currentUser?.grade === 'Hokage') { showGradeWarning('Le Hokage ne peut pas modifier les grades des agents.'); return; }
   const u = state.users[username];
   if (!u) return;
   const displayName = u.fullname || username.replace(/_/g,' ');
@@ -5862,6 +5868,7 @@ async function changeGrade(username, direction) {
 function renderAjoutContent(g) {
   const el = document.getElementById('ajout-content');
   if (!el) return;
+  if (g === 'Hokage') { el.innerHTML = noAccess('Le Hokage ne peut pas ajouter d\'agents via ce panel.'); return; }
   if (gradeRank(g) > 2) { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant'); return; }
   el.innerHTML = `
     <h2 class="dash-section-title">Ajouter un agent</h2>
@@ -7157,6 +7164,7 @@ function showPresenceNotif(msg) {
 
 async function priseDeService() {
   const u = state.currentUser;
+  if (u.grade === 'Hokage') { showPresenceNotif('⚠️ Le Hokage ne prend pas de service via ce système.'); return; }
   const confirmedUser = state.users[u.username];
   if (!confirmedUser || !confirmedUser.isAgent) {
     showPresenceNotif('⚠️ Ce n\'est pas votre catégorie. Veuillez faire attention à ce que vous faites. Cliquez bien sur votre nom et prénom.');
@@ -7361,7 +7369,7 @@ async function renderAmendesContent(g) {
   const el = document.getElementById('dash-amendes');
   if (!el) return;
   const u = state.currentUser;
-  const canEdit = gradeRank(g) <= 6; // Tous les agents peuvent émettre des amendes
+  const canEdit = gradeRank(g) <= 6 && g !== 'Hokage'; // Tous sauf Hokage (lecture seule)
   const isDir = gradeRank(g) <= 1;
 
   let amendes = [];
