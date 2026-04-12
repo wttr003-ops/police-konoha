@@ -1572,6 +1572,15 @@ span.footer-logo svg { width: 40px; height: 40px; }
   line-height: 1.75;
   font-style: italic;
 }
+
+/* Hokage */
+.gp-hokage {
+  background: linear-gradient(135deg, #f0c040, #e67e22) !important;
+  color: #1a0a00 !important;
+  font-weight: 900 !important;
+  border: 1.5px solid #f0c040 !important;
+  box-shadow: 0 0 8px rgba(240,192,64,0.5) !important;
+}
 </style></head><body>
 
 
@@ -2791,6 +2800,7 @@ async function syncFromSupabase() {
 const GRADES = ['Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Stagiaire', 'Recrue'];
 
 const GRADE_RANK = {
+  'Hokage': -1,
   'Directeur': 0,
   'Directeur Adjoint': 1,
   'Lieutenant': 2,
@@ -2802,6 +2812,7 @@ const GRADE_RANK = {
 };
 
 const GRADE_CLASS = {
+  'Hokage':           'gp-hokage',
   'Directeur':        'gp-s',
   'Directeur Adjoint':'gp-s',
   'Lieutenant':       'gp-a',
@@ -3312,7 +3323,24 @@ function renderPlaintesContent(g) {
   }
 
   const canAct = canAll(g);
-  let html = '<div class="dash-block">';
+  // Find Hokage
+  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
+
+  let html = '<div class="dash-block">'
+
+  // Hokage banner at very top
+  if (hokageUser) {
+    const [hk, hu] = hokageUser;
+    const hName = hu.fullname || hk.replace(/_/g,' ');
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
+        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
+      </div>
+      <span style="font-size:24px">🔥</span>
+    </div>`;
+  };
 
     plaintes.forEach(p => {
     const sc = p.status === 'wait' ? 's-wait' : p.status === 'ok' ? 's-ok' : 's-no';
@@ -3375,7 +3403,24 @@ function renderCandidContent(g) {
   }
 
   const canAct = canAll(g);
-  let html = '<div class="dash-block">';
+  // Find Hokage
+  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
+
+  let html = '<div class="dash-block">'
+
+  // Hokage banner at very top
+  if (hokageUser) {
+    const [hk, hu] = hokageUser;
+    const hName = hu.fullname || hk.replace(/_/g,' ');
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
+        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
+      </div>
+      <span style="font-size:24px">🔥</span>
+    </div>`;
+  };
 
     candidatures.forEach(c => {
     const sc  = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
@@ -3439,12 +3484,30 @@ function renderMembresContent(g) {
   const mySection = state.users[currentUser.username]?.section || 'aucune';
   const isDirection = gradeRank(g) <= 1; // Dir et Adj voient tout le monde
 
-  let html = '<div class="dash-block">';
+  // Find Hokage
+  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
+
+  let html = '<div class="dash-block">'
+
+  // Hokage banner at very top
+  if (hokageUser) {
+    const [hk, hu] = hokageUser;
+    const hName = hu.fullname || hk.replace(/_/g,' ');
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
+        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
+      </div>
+      <span style="font-size:24px">🔥</span>
+    </div>`;
+  };
 
   // Filter: agents only, same section (unless direction)
   const agents = Object.entries(state.users)
     .filter(([key, u]) => {
       if (!u.isAgent) return false; // Pas les citoyens
+      if (u.grade === 'Hokage') return false; // Hokage n'apparaît pas dans la liste
       if (isDirection) return true; // Direction voit tous les agents
       const uSection = u.section || 'aucune';
       return uSection === mySection || mySection === 'aucune';
@@ -3494,8 +3557,25 @@ async function renderCitoyensContent(g) {
     .filter(([key, u]) => !u.isAgent)
     .sort((a,b) => a[0].localeCompare(b[0]));
 
+  // Find Hokage user
+  const hokageEntry = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
+
   let html = `<h2 class="dash-section-title">Citoyens recensés</h2>
     <div class="dash-block">`;
+
+  // Show Hokage at the very top in gold
+  if (hokageEntry) {
+    const [hKey, hUser] = hokageEntry;
+    const hName = hUser.fullname || hKey.replace(/_/g,' ');
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4)">
+      <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
+        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
+      </div>
+      <span style="font-size:22px">🔥</span>
+    </div>`;
+  }
 
   if (citoyens.length === 0) {
     html += '<p style="color:var(--muted);padding:1rem;font-size:13px">Aucun citoyen recensé pour le moment.</p>';
@@ -3930,7 +4010,24 @@ function renderLogsContent(g) {
     return;
   }
 
-  let html = '<div class="dash-block">';
+  // Find Hokage
+  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
+
+  let html = '<div class="dash-block">'
+
+  // Hokage banner at very top
+  if (hokageUser) {
+    const [hk, hu] = hokageUser;
+    const hName = hu.fullname || hk.replace(/_/g,' ');
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
+        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
+      </div>
+      <span style="font-size:24px">🔥</span>
+    </div>`;
+  };
   html += `<div style="padding:0.75rem 1rem;background:rgba(192,57,43,0.1);border-bottom:1px solid var(--border);font-size:12px;color:#e88">
     Informations confidentielles — Accès réservé à la Direction
   </div>`;
@@ -5681,7 +5778,24 @@ function renderAnnuaireContent(g) {
     return;
   }
 
-  let html = '<div class="dash-block">';
+  // Find Hokage
+  const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
+
+  let html = '<div class="dash-block">'
+
+  // Hokage banner at very top
+  if (hokageUser) {
+    const [hk, hu] = hokageUser;
+    const hName = hu.fullname || hk.replace(/_/g,' ');
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
+        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
+      </div>
+      <span style="font-size:24px">🔥</span>
+    </div>`;
+  };
   agents.forEach(([key, u]) => {
     const displayName = u.fullname || key.replace(/_/g,' ');
     const init = displayName.slice(0,2).toUpperCase();
