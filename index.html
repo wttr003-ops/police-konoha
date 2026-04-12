@@ -3196,7 +3196,7 @@ async function submitPostuler() {
 function gradeRank(g) { return GRADE_RANK[g] ?? 99; }
 function canAll(g)      { return gradeRank(g) <= 2; }  // Dir, Adj, Lt — ajouter agent
 function canRecruit(g)  { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
-function canPlaintes(g) { return gradeRank(g) <= 4; }  // Dir, Adj, Lt, Sgt, Off
+function canPlaintes(g) { return gradeRank(g) <= 5; }  // Dir, Adj, Lt, Sgt, Off, Stagiaire
 function canCasier(g)   { return gradeRank(g) <= 4; }  // Officier+ peuvent ajouter — DIr, Adj, Lt, Sgt, Off
 function canRapports(g) { return gradeRank(g) <= 6; }  // Tous les grades agents
 function canLogs(g)     { return gradeRank(g) <= 1; }  // Dir, Adj uniquement
@@ -3300,7 +3300,7 @@ function renderOverview(g) {
 
 function renderPlaintesContent(g) {
   const el = document.getElementById('plaintes-content');
-  if (!canPlaintes(g)) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
+  if (!canPlaintes(g)) { el.innerHTML = noAccess('Stagiaire ou supérieur'); return; }
 
   // Sort newest first
   const plaintes = [...state.plaintes].sort((a,b) => (b.id||0) - (a.id||0));
@@ -4212,6 +4212,13 @@ async function renderCasierContent(g) {
   const sanctionLabels = { amende:'Amende', avertissement:'Avertissement', interdiction:'Interdiction', prison:'Prison (RP)', cellule:'Cellule du Palais', bannissement:'Banni', en_cours:'En instruction' };
 
   let html = `<h2 class="dash-section-title">📋 Casier Judiciaire</h2>
+    ${!canAddCasier ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(240,192,64,0.08);border:1px solid rgba(240,192,64,0.3);border-radius:8px;margin-bottom:1rem">
+      <span style="font-size:20px">🔒</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#f0c040">Accès limité — Consultation uniquement</div>
+        <div style="font-size:12px;color:var(--muted)">Votre grade ne vous permet pas de créer ou modifier des casiers judiciaires. Grade requis : Officier ou supérieur.</div>
+      </div>
+    </div>` : ''}
     <div style="background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1.5rem;font-size:12px;color:var(--red2)">
       ⚠ Les personnes fichées ne peuvent ni postuler à la Police ni à l'Hôpital de Konoha.
     </div>
@@ -4680,6 +4687,11 @@ async function saveSuiviCasier(idx) {
 }
 
 function switchCasTab(tab) {
+  const g = state.currentUser?.grade;
+  if (tab === 'add' && !canCasier(g)) {
+    showGradeWarning('Vous ne pouvez pas créer de casier judiciaire. Grade requis : Officier ou supérieur.');
+    return;
+  }
   const ap = document.getElementById('cas-panel-add');
   const lp = document.getElementById('cas-panel-list');
   const ab = document.getElementById('cas-tab-add');
@@ -7427,7 +7439,7 @@ async function renderAmendesContent(g) {
             }).join('')}
 
             <!-- Bouton reset si impayées -->
-            ${canEdit && person.current.length > 0 ? `
+            ${isDir && person.current.length > 0 ? `
             <div style="margin:10px 0;padding:12px;background:rgba(240,192,64,0.06);border:1px solid rgba(240,192,64,0.25);border-radius:8px">
               <div style="font-size:13px;color:var(--muted);margin-bottom:10px">
                 💰 Total impayé : <strong style="color:#f0c040;font-size:16px">${totalDu.toLocaleString()} Ryos</strong>
@@ -7464,11 +7476,12 @@ async function renderAmendesContent(g) {
             ${person.paid.map(a => {
               const pc = PALIER_COLORS[a.palier||'palier1'];
               const pl = PALIER_LABELS[a.palier||'palier1'];
-              return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:3px;background:rgba(39,174,96,0.04);border:1px solid rgba(39,174,96,0.1);border-radius:6px;font-size:11px;opacity:0.8">
+              return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:3px;background:rgba(39,174,96,0.04);border:1px solid rgba(39,174,96,0.1);border-radius:6px;font-size:11px;opacity:0.85">
                 <span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${pc}22;color:${pc};font-weight:700;flex-shrink:0">${pl}</span>
                 <div style="flex:1;min-width:0">
                   <div style="color:var(--text)">${a.infraction}</div>
-                  <div style="color:var(--muted);font-size:10px">${a.date||'—'} • par ${a.agent_name||'—'}</div>
+                  <div style="color:var(--muted);font-size:10px">${a.date||'—'} • Amende émise par ${a.agent_name||'—'}</div>
+                  ${a.encaisse_par ? `<div style="color:#27ae60;font-size:10px;font-weight:600">💰 Encaissé par ${a.encaisse_par}</div>` : ''}
                 </div>
                 <div style="color:#27ae60;font-weight:600;flex-shrink:0">✓ ${(a.montant||0).toLocaleString()} Ryos</div>
                 ${isDir?`<button onclick="supprimerAmende(${a.id},'${safeId}')" style="background:none;color:var(--muted);border:none;cursor:pointer;font-size:11px;flex-shrink:0">🗑</button>`:''}
@@ -7706,12 +7719,18 @@ async function emettrAmende() {
 }
 
 async function payerAmende(id, safeId) {
-  if (!confirm('Confirmer le paiement de cette amende ?')) return;
+  if (!confirm('Confirmer : vous avez bien encaissé le montant de cette amende ?')) return;
+  const u = state.currentUser;
+  const agentName = state.users[u.username]?.fullname || u.username;
   try {
     await fetch(SB_URL+'/rest/v1/amendes?id=eq.'+id,{
       method:'PATCH',
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
-      body:JSON.stringify({status:'payee'})
+      body:JSON.stringify({
+        status: 'payee',
+        encaisse_par: agentName,
+        encaisse_le: new Date().toISOString()
+      })
     });
   } catch(e){console.warn(e);}
   renderAmendesContent(state.currentUser.grade);
@@ -7854,5 +7873,16 @@ async function resetSemaineAmendes() {
 
   alert('✓ Semaine réinitialisée ! Toutes les amendes ont été marquées comme récupérées par '+dirName+'.');
   renderAmendesContent(state.currentUser.grade);
+}
+
+function showGradeWarning(msg) {
+  const existing = document.getElementById('grade-warning-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'grade-warning-toast';
+  toast.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;background:#c0392b;color:white;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;max-width:460px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.4);display:flex;align-items:center;gap:10px';
+  toast.innerHTML = '<span style="font-size:20px">🚫</span><span>' + msg + '</span>';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
 }
 </script></body></html>
