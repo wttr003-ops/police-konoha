@@ -7332,7 +7332,7 @@ async function renderAmendesContent(g) {
   }
 
   // === STATS ===
-  html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem">
+  html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:${isDir?'0.5':'1'}rem">
     <div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center">
       <div style="font-size:10px;color:var(--muted)">Total amendes</div>
       <div style="font-size:18px;font-weight:700;color:var(--text)">${amendes.length}</div>
@@ -7349,7 +7349,14 @@ async function renderAmendesContent(g) {
       <div style="font-size:10px;color:var(--muted)">Cette semaine</div>
       <div style="font-size:16px;font-weight:700;color:#f0c040">${weekTotal.toLocaleString()} Ryos</div>
     </div>
-  </div>`;
+  </div>
+  ${isDir ? `
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:1rem;gap:10px">
+    <span style="font-size:11px;color:var(--muted)">Semaine en cours : <strong style="color:#f0c040">${weekTotal.toLocaleString()} Ryos</strong> collectés</span>
+    <button onclick="resetSemaineAmendes()" style="padding:7px 16px;background:rgba(240,192,64,0.12);color:#f0c040;border:1px solid rgba(240,192,64,0.35);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+      🔄 Reset semaine — Tout marquer récupéré
+    </button>
+  </div>` : ''}`;
 
   // === DOSSIERS PAR PERSONNE ===
   html += '<div class="dash-block">';
@@ -7812,5 +7819,40 @@ function updateMontantFromChips() {
   document.getElementById('am-montant').value = total;
   document.getElementById('am-recidive-wrap').style.display = 'block';
   updateMontantFinal();
+}
+
+async function resetSemaineAmendes() {
+  // Count impayees this week
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + (weekStart.getDay()===0?-6:1));
+  weekStart.setHours(0,0,0,0);
+
+  let weekAmendes = [];
+  try {
+    const res = await sbGet('amendes', '?status=eq.impayee&order=created_at.desc');
+    if (Array.isArray(res)) weekAmendes = res.filter(a => new Date(a.created_at) >= weekStart);
+  } catch(e) {}
+
+  const total = weekAmendes.reduce((s,a)=>s+(a.montant||0),0);
+  const dirUser = state.currentUser;
+  const dirName = state.users[dirUser?.username]?.fullname || dirUser?.username || 'Directeur';
+
+  if (!confirm('Reset semaine — Marquer TOUTES les amendes impayées comme récupérées ?\n\nTotal : '+total.toLocaleString()+' Ryos\nRécupéré par : '+dirName+'\n\nL\'historique sera conservé.')) return;
+
+  const now = new Date();
+  try {
+    await fetch(SB_URL+'/rest/v1/amendes?status=eq.impayee', {
+      method: 'PATCH',
+      headers: {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({
+        status: 'recuperee',
+        recupere_par: dirName,
+        recupere_le: now.toISOString()
+      })
+    });
+  } catch(e) { console.warn(e); }
+
+  alert('✓ Semaine réinitialisée ! Toutes les amendes ont été marquées comme récupérées par '+dirName+'.');
+  renderAmendesContent(state.currentUser.grade);
 }
 </script></body></html>
