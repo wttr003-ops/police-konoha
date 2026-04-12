@@ -7616,40 +7616,85 @@ function updateMontantFinal() {
 }
 
 async function emettrAmende() {
-  const nom      = document.getElementById('am-nom')?.value.trim();
+  const u = state.currentUser;
+  const nom = document.getElementById('am-nom')?.value.trim();
   const baseMontant = parseInt(document.getElementById('am-montant')?.value);
   const multiplicateur = parseInt(document.getElementById('am-multiplicateur')?.value) || 1;
   const montant = baseMontant * multiplicateur;
-  const note     = document.getElementById('am-note')?.value.trim();
-  // validation done above with chips
-  const u = state.currentUser;
+  const note = document.getElementById('am-note')?.value.trim();
+
+  // Récupérer les chips sélectionnées
+  const chipEls = document.querySelectorAll('#am-chips [data-idx]');
+
+  // Validations
+  if (!nom) { alert('Le nom du contrevenant est obligatoire.'); return; }
+  if (chipEls.length === 0) { alert('Veuillez sélectionner au moins une infraction.'); return; }
+  if (!montant || montant <= 0) { alert('Le montant est obligatoire.'); return; }
+
+  // Construire infraction et palier depuis les chips
+  const selectedInfractions = [...chipEls].map(c => ({
+    label: c.getAttribute('data-label'),
+    palier: c.getAttribute('data-palier')
+  }));
+  const infraction = selectedInfractions.map(i => i.label).join(' + ');
+  const paliers = selectedInfractions.map(i => i.palier);
+  const palier = paliers.includes('palier3') ? 'palier3' : paliers.includes('palier2') ? 'palier2' : 'palier1';
+
+  // Agent connecté
+  const agentName = state.users[u.username]?.fullname || u.username;
+
+  // Chercher si la personne est un citoyen connu
   const matchUser = Object.entries(state.users).find(([k,v]) =>
-    (v.fullname||k.replace(/_/g,' ')).toLowerCase() === nom.toLowerCase()
+    (v.fullname || k.replace(/_/g,' ')).toLowerCase() === nom.toLowerCase()
   );
+
+  // Sauvegarder dans Supabase
   try {
     await sbPost('amendes', {
       username: matchUser ? matchUser[0] : null,
-      fullname: nom, infraction, palier, montant,
-      note: note||null, agent: u.username,
-      agent_name: state.users[u.username]?.fullname||u.username,
+      fullname: nom,
+      infraction: infraction,
+      palier: palier,
+      montant: montant,
+      note: note || null,
+      agent: u.username,
+      agent_name: agentName,
       status: 'impayee',
       date: new Date().toLocaleDateString('fr-FR')
     });
-  } catch(e) { console.warn(e); }
-  if (matchUser) {
-    try { await sbPatch('users','?username=eq.'+encodeURIComponent(matchUser[0]),{casier:'oui'}); state.users[matchUser[0]].casier='oui'; } catch(e) {}
+  } catch(e) {
+    console.error('Erreur Supabase amendes:', e);
+    alert('Erreur lors de l\'enregistrement. Vérifiez votre connexion.');
+    return;
   }
-  ['am-nom','am-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('am-montant').value='';
-  document.getElementById('am-multiplicateur').value='1';
-  document.getElementById('am-recidive-wrap').style.display='none';
-  document.getElementById('am-montant-final').textContent='— Ryos';
-  const chips = document.getElementById('am-chips');
-  if (chips) chips.innerHTML='';
-  const picker = document.getElementById('am-infraction-picker');
-  if (picker) picker.value='';
-  const ok=document.getElementById('am-ok');
-  if(ok){ok.style.display='block';setTimeout(()=>ok.style.display='none',3000);}
+
+  // Auto-casier si citoyen connu
+  if (matchUser) {
+    try {
+      await sbPatch('users', '?username=eq.' + encodeURIComponent(matchUser[0]), { casier: 'oui' });
+      state.users[matchUser[0]].casier = 'oui';
+    } catch(e) {}
+  }
+
+  // Reset formulaire
+  document.getElementById('am-nom').value = '';
+  document.getElementById('am-montant').value = '';
+  if (document.getElementById('am-note')) document.getElementById('am-note').value = '';
+  const multEl = document.getElementById('am-multiplicateur');
+  if (multEl) multEl.value = '1';
+  const recWrap = document.getElementById('am-recidive-wrap');
+  if (recWrap) recWrap.style.display = 'none';
+  const finalEl = document.getElementById('am-montant-final');
+  if (finalEl) finalEl.textContent = '— Ryos';
+  const chipsEl = document.getElementById('am-chips');
+  if (chipsEl) chipsEl.innerHTML = '';
+  const pickerEl = document.getElementById('am-infraction-picker');
+  if (pickerEl) pickerEl.value = '';
+
+  // Confirmation
+  const ok = document.getElementById('am-ok');
+  if (ok) { ok.style.display = 'block'; setTimeout(() => ok.style.display = 'none', 3000); }
+
   renderAmendesContent(state.currentUser.grade);
 }
 
