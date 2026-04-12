@@ -4232,7 +4232,7 @@ async function renderCasierContent(g) {
     </div>
 
     <!-- Formulaire ajout infraction -->
-    <div id="cas-panel-add" class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+    <div id="cas-panel-add" class="dash-block" style="display:${canAddCasier?'block':'none'};padding:1.5rem;margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.5rem">Nouvelle infraction</div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:1rem;padding:6px 10px;background:rgba(192,57,43,0.05);border-radius:4px;border-left:3px solid var(--red)">
         ⚠ Si la personne a déjà un casier, l'infraction sera ajoutée à son dossier existant.
@@ -4522,6 +4522,11 @@ async function loadCasiers() {
 }
 
 async function saveCasier() {
+  const g = state.currentUser?.grade;
+  if (!canCasier(g)) {
+    showGradeWarning('Vous ne pouvez pas créer de casier judiciaire. Grade requis : Officier ou supérieur.');
+    return;
+  }
   const nom     = document.getElementById('cas-nom')?.value.trim();
   const grade   = document.getElementById('cas-grade')?.value.trim();
   const type    = document.getElementById('cas-type')?.value;
