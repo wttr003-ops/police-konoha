@@ -6156,7 +6156,8 @@ async function renderCitizenMessages() {
     const firstMsg = msgs[msgs.length-1];
     const agentReply = msgs.find(m => m.role === 'agent');
     const lastMsg = msgs[0];
-    const status = agentReply ? 'answered' : 'pending';
+    const isClosed = msgs.some(m => m.status === 'closed' || m.role === 'system');
+    const status = isClosed ? 'closed' : (agentReply ? 'answered' : 'pending');
     const preview = (lastMsg.text||'').replace(/^\[DEMANDE\] /,'').substring(0,50) + '...';
 
     html += `<div onclick="openCitizenConversation('${tid}')"
@@ -6167,8 +6168,8 @@ async function renderCitizenMessages() {
         <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
       </div>
       <div style="flex-shrink:0">
-        <span style="font-size:11px;padding:3px 8px;border-radius:10px;${status==='answered'?'background:rgba(39,174,96,0.15);color:#27ae60':'background:rgba(255,165,0,0.15);color:#e67e22'}">
-          ${status==='answered'?'✓ Répondu':'⏳ En attente'}
+        <span style="font-size:11px;padding:3px 8px;border-radius:10px;${status==='closed'?'background:rgba(100,116,139,0.15);color:#64748b':status==='answered'?'background:rgba(39,174,96,0.15);color:#27ae60':'background:rgba(255,165,0,0.15);color:#e67e22'}">
+          ${status==='closed'?'🔒 Fermée':status==='answered'?'✓ Répondu':'⏳ En attente'}
         </span>
       </div>
     </div>`;
@@ -6225,8 +6226,15 @@ async function openCitizenConversation(threadId) {
     }
   });
 
-  html += `</div>
-    <div style="display:flex;gap:8px;align-items:center;position:relative">
+  const convClosed = msgs.some(m => m.status === 'closed' || m.role === 'system');
+  html += `</div>`;
+
+  if (convClosed) {
+    html += `<div style="padding:12px 1rem;background:rgba(100,116,139,0.08);border:1px solid rgba(100,116,139,0.2);border-radius:8px;text-align:center;font-size:13px;color:var(--muted)">
+      🔒 Cette conversation est fermée.
+    </div>`;
+  } else {
+    html += `<div style="display:flex;gap:8px;align-items:center;position:relative">
       <input type="text" id="citizen-reply-input" placeholder="Répondre..."
         style="flex:1;padding:10px 16px;border:0.5px solid var(--border);border-radius:20px;font-size:13px;background:var(--panel);color:var(--text)"
         onkeydown="if(event.key==='Enter') sendCitizenReply('${threadId}')"/>
@@ -6241,6 +6249,7 @@ async function openCitizenConversation(threadId) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8f4ff" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>`;
+  }
 
   el.innerHTML = html;
   // Scroll bottom
@@ -6289,6 +6298,39 @@ async function sendCitizenReply(threadId) {
 // ============================================================
 
 // Show 3-bars menu in citizen conversation
+
+async function closeCitizenConversation(threadId) {
+  const popup = document.getElementById('citizen-menu-popup');
+  if (popup) popup.remove();
+
+  if (!confirm('Fermer définitivement cette conversation ?\n\nElle sera archivée et vous ne pourrez plus y répondre.')) return;
+
+  try {
+    // Mark thread as closed by adding a system message
+    const u = state.currentUser;
+    const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    await sbPost('messages', {
+      thread_id: threadId,
+      from_user: u.username,
+      sender_name: state.users[u.username]?.fullname || u.username,
+      role: 'system',
+      text: '🔒 Conversation fermée par le citoyen.',
+      time: time,
+      status: 'closed',
+      to_agent: ''
+    });
+    // Update all messages in thread to closed status
+    await fetch(SB_URL + '/rest/v1/messages?thread_id=eq.' + encodeURIComponent(threadId), {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status: 'closed' })
+    });
+  } catch(e) { console.warn(e); }
+
+  stopConvPolling();
+  renderCitizenMessages();
+}
+
 function showCitizenMenu(threadId) {
   const existing = document.getElementById('citizen-menu-popup');
   if (existing) { existing.remove(); return; }
@@ -6299,6 +6341,10 @@ function showCitizenMenu(threadId) {
   menu.innerHTML = `
     <button onclick="requestCasierCheck('${threadId}')" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:8px">
       <span style="font-size:15px">⚖️</span> Demander vérification de mon casier
+    </button>
+    <div style="height:0.5px;background:var(--border);margin:4px 8px"></div>
+    <button onclick="closeCitizenConversation('${threadId}')" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;color:#e74c3c;font-size:13px;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:15px">🔒</span> Fermer cette conversation
     </button>`;
   menu.addEventListener('mouseleave', () => menu.remove());
 
