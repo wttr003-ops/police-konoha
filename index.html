@@ -5029,9 +5029,34 @@ async function submitRapport() {
     date: new Date().toLocaleDateString('fr-FR')
   };
 
+  let savedOk = false;
+  let saveError = '';
   try {
-    await sbPost('rapports', entry);
-  } catch(e) {}
+    const result = await fetch(SB_URL + '/rest/v1/rapports', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(entry)
+    });
+    if (result.ok) {
+      savedOk = true;
+    } else {
+      const errText = await result.text();
+      saveError = 'HTTP ' + result.status + ': ' + errText;
+      console.error('Rapport save error:', saveError);
+    }
+  } catch(e) {
+    saveError = e.message;
+    console.error('Rapport save exception:', e);
+  }
+
+  if (!savedOk) {
+    alert('⚠️ Erreur lors de la sauvegarde du rapport :\n' + saveError + '\n\nVérifiez la console et la table Supabase.');
+  }
 
   // Local backup
   const list = JSON.parse(localStorage.getItem('konoha_rapports') || '[]');
