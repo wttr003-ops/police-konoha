@@ -2602,7 +2602,7 @@ async function sbDelete(table, query)    { return sbFetch(table, 'DELETE', null,
 // ============================================================
 let realtimeChannel = null;
 
-function startRealtime() {
+async function startRealtime() {
   if (realtimeChannel) return;
 
   realtimeChannel = setInterval(async () => {
@@ -2683,7 +2683,7 @@ function startRealtime() {
   }, 3000);
 }
 
-function stopRealtime() {
+async function stopRealtime() {
   if (realtimeChannel) {
     clearInterval(realtimeChannel);
     realtimeChannel = null;
@@ -2994,7 +2994,7 @@ function updateNav() {
 }
 
 // ---- AUTH ----
-function doLogin() {
+async function doLogin() {
   const user = document.getElementById('login-user').value.trim();
   const pass = document.getElementById('login-pass').value;
   const err  = document.getElementById('login-err');
@@ -3021,7 +3021,7 @@ function doLogin() {
 
 
 // ---- AGENT LOGIN (nom complet + matricule) ----
-function doAgentLogin() {
+async function doAgentLogin() {
   const fullname = document.getElementById('agent-fullname').value.trim();
   const password = document.getElementById('agent-matricule').value.trim();
   const err = document.getElementById('agent-login-err');
@@ -3094,7 +3094,7 @@ async function doRegister() {
   setTimeout(() => showPage('login'), 1800);
 }
 
-function logout() {
+async function logout() {
   stopRealtime();
   state.currentUser = null;
   localStorage.removeItem('konoha_session');
@@ -3233,7 +3233,7 @@ function canRapports(g) { return gradeRank(g) <= 6; }  // Tous les grades agents
 function canLogs(g)     { return gradeRank(g) <= 1; }  // Dir, Adj uniquement
 
 // ---- DASHBOARD ----
-function renderDashboard(tab) {
+async function renderDashboard(tab) {
   const u = state.currentUser;
   if (!u) return;
   const g = u.grade;
@@ -3461,7 +3461,7 @@ function renderCandidContent(g) {
   el.innerHTML = html;
 }
 
-function renderMembresContent(g) {
+async function renderMembresContent(g) {
   const el = document.getElementById('membres-content');
   if (!el) return;
   // Tous les agents peuvent voir la liste des membres
@@ -3593,7 +3593,7 @@ async function renderCitoyensContent(g) {
 }
 
 
-function renderCitizenProfile() {
+async function renderCitizenProfile() {
   const u = state.currentUser;
   if (!u) return;
   const data = state.users[u.username];
@@ -3918,7 +3918,7 @@ function sendMsg(threadId, fromKey, senderName) {
 // ============================================================
 // JOURNAL DU VILLAGE
 // ============================================================
-function renderJournal(isAgentView) {
+async function renderJournal(isAgentView) {
   const tabId = isAgentView ? 'dash-journal' : 'dash-citizen-journal';
   const el = document.getElementById(tabId);
   if (!el) return;
@@ -4231,7 +4231,7 @@ function addRecherchee() {
   renderRecherchees();
 }
 
-function removeRecherchee(index) {
+async function removeRecherchee(index) {
   if (!confirm('Retirer cet avis de recherche ?')) return;
   const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
   list.splice(index, 1);
@@ -4505,7 +4505,7 @@ function toggleCasierDossier(safeId) {
   if (icon) icon.textContent = open ? '▼' : '▲';
 }
 
-function toggleCasier(id) {
+async function toggleCasier(id) {
   const body = document.getElementById('cas-body-'+id);
   const icon = document.getElementById('cas-icon-'+id);
   if (!body) return;
@@ -4521,7 +4521,7 @@ async function deleteCasierById(id) {
   renderCasierContent(state.currentUser.grade);
 }
 
-function addSuiviCasier(casierDbId, safeComboId) {
+async function addSuiviCasier(casierDbId, safeComboId) {
   const formEl = document.getElementById('suivi-form-'+safeComboId);
   if (!formEl) { console.warn('suivi-form not found:', 'suivi-form-'+safeComboId); return; }
   // Toggle: if already open, close it
@@ -4710,7 +4710,7 @@ async function addSuiviCasier(idx) {
   renderSuiviList(idx, casier.suivis || []);
 }
 
-function renderSuiviList(idx, suivis) {
+async function renderSuiviList(idx, suivis) {
   const el = document.getElementById('suivi-list-'+idx);
   if (!el || !suivis.length) return;
   const typeLabels = {
@@ -5045,7 +5045,10 @@ async function submitRapport() {
   ok.style.display = 'block';
   setTimeout(() => ok.style.display='none', 3000);
 
-  renderRapportsContent(state.currentUser.grade);
+  // Recharger depuis Supabase pour avoir les données à jour
+  await renderRapportsContent(state.currentUser.grade);
+  // Switcher sur l'onglet liste pour voir son rapport
+  switchRapTab('list');
 }
 
 async function deleteRapport(id) {
@@ -5333,7 +5336,7 @@ function kaedeAnswer(type) {
   if (backBtn) backBtn.style.display = 'block';
 }
 
-function kaedeBack() {
+async function kaedeBack() {
   const answerEl  = document.getElementById('kaede-answer');
   const backBtn   = document.getElementById('kaede-back-btn');
   const questions = document.querySelectorAll('#kaede-help-panel button[onclick^="kaedeAnswer"]');
@@ -5389,7 +5392,7 @@ async function actCandid(id, status) {
 }
 
 // Message indicator dot in nav
-function setMsgDot(hasNew) {
+async function setMsgDot(hasNew) {
   const dot = document.getElementById('nav-msg-dot');
   if (!dot) return;
   dot.style.background = hasNew ? '#e74c3c' : '#888';
@@ -5413,7 +5416,7 @@ async function deleteCandid(id) {
 // ============================================================
 // CONTACTER UN AGENT (citoyen → agent)
 // ============================================================
-function renderContactAgent() {
+async function renderContactAgent() {
   const el = document.getElementById('dash-citizen-contact');
   if (!el) return;
   const u = state.currentUser;
@@ -5551,7 +5554,7 @@ function deleteAgent(username) {
   showDeleteConfirm(username, displayName);
 }
 
-function showDeleteConfirm(username, displayName) {
+async function showDeleteConfirm(username, displayName) {
   // Remove existing popup if any
   const existing = document.getElementById('delete-confirm-popup');
   if (existing) existing.remove();
@@ -5663,7 +5666,7 @@ function togglePwdAjout() {
 }
 
 // Restore open plainte/candid after re-render
-function restoreOpenItems() {
+async function restoreOpenItems() {
   if (state.openPlainte !== null) {
     const body = document.getElementById('plainte-body-' + state.openPlainte);
     if (body && body.style.display === 'none') {
@@ -5741,7 +5744,7 @@ if (document.readyState === 'loading') {
 // ============================================================
 // ANNUAIRE
 // ============================================================
-function renderAnnuaireContent(g) {
+async function renderAnnuaireContent(g) {
   const el = document.getElementById('annuaire-content');
   if (!el) return;
   if (gradeRank(g) > 2 && g !== 'Hokage') { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant uniquement'); return; }
@@ -5868,7 +5871,7 @@ function renderAjoutContent(g) {
 // ============================================================
 // TOGGLE DETAIL — Ouvrir/fermer les dossiers
 // ============================================================
-function toggleDetail(id) {
+async function toggleDetail(id) {
   const body = document.getElementById(id);
   if (!body) return;
   const isOpen = body.style.display !== 'none';
@@ -6358,7 +6361,7 @@ async function closeCitizenConversation(threadId) {
   renderCitizenMessages();
 }
 
-function showCitizenMenu(threadId) {
+async function showCitizenMenu(threadId) {
   const existing = document.getElementById('citizen-menu-popup');
   if (existing) { existing.remove(); return; }
 
@@ -6492,7 +6495,7 @@ let currentOpenThread = null;
 let currentOpenSide = null; // 'agent' or 'citizen'
 let lastMsgCount = 0;
 
-function startConvPolling(threadId, side, senderName, fromUser) {
+async function startConvPolling(threadId, side, senderName, fromUser) {
   stopConvPolling();
   currentOpenThread = threadId;
   currentOpenSide = side;
@@ -6588,7 +6591,7 @@ function startConvPolling(threadId, side, senderName, fromUser) {
   }, 2000);
 }
 
-function stopConvPolling() {
+async function stopConvPolling() {
   if (convPollingInterval) {
     clearInterval(convPollingInterval);
     convPollingInterval = null;
@@ -6706,7 +6709,7 @@ async function renderGalerie() {
   el.innerHTML = html;
 }
 
-function galFileSelected(input) {
+async function galFileSelected(input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) {
@@ -6795,7 +6798,7 @@ function deletePhoto(idx) {
   renderGalerie();
 }
 
-function galOpenPhoto(idx) {
+async function galOpenPhoto(idx) {
   const photos = JSON.parse(localStorage.getItem('konoha_galerie') || '[]');
   const p = photos[idx];
   if (!p) return;
@@ -7810,7 +7813,7 @@ function updateMontantByRecidive() {
   updateMontantFinal();
 }
 
-function updateMontantFinal() {
+async function updateMontantFinal() {
   const montant = parseInt(document.getElementById('am-montant')?.value) || 0;
   const mult = parseInt(document.getElementById('am-multiplicateur')?.value) || 1;
   const final = montant * mult;
@@ -8033,7 +8036,7 @@ function removeChip(btn) {
   updateMontantFromChips();
 }
 
-function updateMontantFromChips() {
+async function updateMontantFromChips() {
   const chips = document.querySelectorAll('#am-chips [data-idx]');
   if (chips.length === 0) {
     document.getElementById('am-montant').value = '';
