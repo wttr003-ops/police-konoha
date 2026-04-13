@@ -2627,9 +2627,26 @@ function startRealtime() {
     if (isCitizen) {
       try {
         const lastSeen = parseInt(localStorage.getItem('citizen_last_msg_' + u.username) || '0');
-        const msgs = await sbGet('messages', '?role=eq.agent&order=id.desc&limit=5');
+        const msgs = await sbGet('messages', '?role=eq.agent&order=id.desc&limit=20');
         if (Array.isArray(msgs)) {
-          const newOnes = msgs.filter(m => (m.id||0) > lastSeen);
+          // Filter: only messages for THIS citizen, not in closed conversations
+          const myMsgs = msgs.filter(m => {
+            // Must be newer than last seen
+            if ((m.id||0) <= lastSeen) return false;
+            // Must be addressed to this citizen (thread contains username) OR generic
+            const isForMe = !m.thread_id || m.thread_id.includes(u.username);
+            if (!isForMe) return false;
+            // Must NOT be in a closed conversation
+            if (m.status === 'closed') return false;
+            return true;
+          });
+
+          // Also check if the thread itself is closed (any message in thread has status=closed)
+          const closedThreads = new Set(
+            msgs.filter(m => m.status === 'closed' || m.role === 'system').map(m => m.thread_id)
+          );
+          const newOnes = myMsgs.filter(m => !closedThreads.has(m.thread_id));
+
           if (newOnes.length > 0) {
             setMsgDot(true);
             // Kaede notification — max once per 30s
@@ -2641,6 +2658,9 @@ function startRealtime() {
                 desc: 'Un agent de la Police de Konoha vous a envoyé un message confidentiel.'
               });
             }
+          } else {
+            // All conversations closed or no new messages — clear the dot
+            if (myMsgs.length === 0) setMsgDot(false);
           }
         }
       } catch(e) {}
@@ -6304,6 +6324,16 @@ async function closeCitizenConversation(threadId) {
   if (popup) popup.remove();
 
   if (!confirm('Fermer définitivement cette conversation ?\n\nElle sera archivée et vous ne pourrez plus y répondre.')) return;
+
+  // Mark lastSeen to current max ID so no more notifications for this thread
+  try {
+    const allMsgs = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(threadId) + '&order=id.desc&limit=1');
+    if (Array.isArray(allMsgs) && allMsgs[0]) {
+      const currentMax = parseInt(localStorage.getItem('citizen_last_msg_' + state.currentUser.username) || '0');
+      const newMax = Math.max(currentMax, allMsgs[0].id || 0);
+      localStorage.setItem('citizen_last_msg_' + state.currentUser.username, newMax);
+    }
+  } catch(e) {}
 
   try {
     // Mark thread as closed by adding a system message
