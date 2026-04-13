@@ -4803,11 +4803,11 @@ async function hasCasierJudiciaire(nom) {
 async function renderRapportsContent(g) {
   const el = document.getElementById('rapports-content');
   if (!el) return;
-  // Tous les agents peuvent soumettre un rapport }
 
   const u = state.currentUser;
   const isHighRank = gradeRank(g) <= 2;
 
+  // Charger tous les rapports depuis Supabase
   let rapports = [];
   try {
     const res = await sbGet('rapports', '?order=created_at.desc');
@@ -4844,44 +4844,33 @@ async function renderRapportsContent(g) {
         <div class="form-group">
           <label class="form-label">Grade Ninja *</label>
           <select id="rap-grade-ninja" class="form-input">
-            <option>Citoyen</option>
-            <option>Génin Simple</option>
-            <option>Génin Confirmé</option>
-            <option>Tokubetsu-Chunin</option>
-            <option>Chunin</option>
-            <option>Kakunin</option>
-            <option>Tokubetsu-Jonin</option>
-            <option>Jonin</option>
-            <option>Commandant-Jonin</option>
+            <option>Citoyen</option><option>Génin Simple</option><option>Génin Confirmé</option>
+            <option>Tokubetsu-Chunin</option><option>Chunin</option><option>Kakunin</option>
+            <option>Tokubetsu-Jonin</option><option>Jonin</option><option>Commandant-Jonin</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Type de mission *</label>
           <select id="rap-type" class="form-input">
             <option value="">-- Sélectionner --</option>
-            <option>Patrouille de routine</option>
-            <option>Intervention d'urgence</option>
-            <option>Arrestation</option>
-            <option>Contrôle d'identité</option>
-            <option>Escorte officielle</option>
-            <option>Opération spéciale</option>
-            <option>Enquête criminelle</option>
-            <option>Maintien de l'ordre</option>
-            <option>Mission de renseignement</option>
-            <option>Autre</option>
+            <option>Patrouille de routine</option><option>Intervention d'urgence</option>
+            <option>Arrestation</option><option>Contrôle d'identité</option>
+            <option>Escorte officielle</option><option>Opération spéciale</option>
+            <option>Enquête criminelle</option><option>Maintien de l'ordre</option>
+            <option>Mission de renseignement</option><option>Autre</option>
           </select>
         </div>
       </div>
       <div class="form-group" style="margin-bottom:0.75rem">
-        <label class="form-label">Agents en patrouille / présents <span style="color:var(--muted);font-size:10px">(optionnel — sélection multiple)</span></label>
-        <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+        <label class="form-label">Agents présents <span style="color:var(--muted);font-size:10px">(optionnel)</span></label>
+        <div style="margin-bottom:6px;display:flex;gap:8px">
           <button type="button" onclick="rapToggleAll(true)" style="font-size:11px;padding:3px 10px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer">✓ Tout sélectionner</button>
-          <button type="button" onclick="rapToggleAll(false)" style="font-size:11px;padding:3px 10px;background:var(--panel);color:var(--muted);border:1px solid var(--border);border-radius:6px;cursor:pointer">✗ Tout désélectionner</button>
+          <button type="button" onclick="rapToggleAll(false)" style="font-size:11px;padding:3px 10px;background:var(--panel);color:var(--muted);border:1px solid var(--border);border-radius:6px;cursor:pointer">✗ Désélectionner</button>
         </div>
         <div id="rap-agents-list" style="background:var(--mid);border:1px solid var(--border);border-radius:5px;padding:10px;max-height:160px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px">
           ${Object.entries(state.users).filter(([,u])=>u.isAgent).map(([un,u])=>`
             <div id="rap-chip-${un}" onclick="rapToggleAgent('${un}')"
-              style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--panel);border:1.5px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;user-select:none;transition:all 0.15s"
+              style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--panel);border:1.5px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;user-select:none"
               data-selected="false" data-name="${u.fullname||un}">
               <span style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border);background:var(--panel);display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0" class="rap-check-icon"></span>
               ${u.fullname||un}
@@ -4889,7 +4878,7 @@ async function renderRapportsContent(g) {
         </div>
       </div>
       <div class="form-group" style="margin-bottom:1rem">
-        <label class="form-label">Description complète de la mission *</label>
+        <label class="form-label">Description complète *</label>
         <textarea id="rap-desc" class="form-input" rows="5" placeholder="Décrivez de A à Z : déroulement, personnes impliquées, actions menées, résultat..."></textarea>
       </div>
       <button class="btn-primary" onclick="submitRapport()">📋 Soumettre le rapport</button>
@@ -4901,54 +4890,60 @@ async function renderRapportsContent(g) {
   if (rapports.length === 0) {
     html += '<div class="dash-block" style="padding:1.5rem;text-align:center"><p style="color:var(--muted)">Aucun rapport enregistré.</p></div>';
   } else {
+    // Grouper par agent — clé = username (fiable)
     const byAgent = {};
     rapports.forEach(r => {
-      // Group by author_name > nom > author username
-      const key = r.author_name || r.nom || r.author || 'Inconnu';
-      if (!byAgent[key]) byAgent[key] = [];
-      byAgent[key].push(r);
+      const key = r.author || r.nom?.replace(/\s+/g,'_')?.toLowerCase() || 'inconnu';
+      if (!byAgent[key]) {
+        byAgent[key] = {
+          displayName: r.author_name || r.nom || r.author || 'Inconnu',
+          rapports: []
+        };
+      }
+      byAgent[key].rapports.push(r);
     });
 
-    // Direction sees all, agents see only their own
-    const myName = state.users[u.username]?.fullname || u.fullname || u.username;
-    const agentNames = isHighRank
-      ? Object.keys(byAgent).sort()
-      : (byAgent[myName] ? [myName] : (byAgent[u.username] ? [u.username] : []));
+    // Tous les agents voient tous les dossiers (pas de filtre par grade)
+    const agentKeys = Object.keys(byAgent).sort((a,b) => {
+      const na = byAgent[a].displayName.toLowerCase();
+      const nb = byAgent[b].displayName.toLowerCase();
+      return na.localeCompare(nb);
+    });
 
-    agentNames.forEach(agentName => {
-      const agentRaps = byAgent[agentName];
-      if (!agentRaps || agentRaps.length === 0) return;
+    agentKeys.forEach(key => {
+      const { displayName, rapports: agentRaps } = byAgent[key];
       agentRaps.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
-      const safeId = agentName.replace(/[^a-zA-Z0-9]/g,'_');
+      const safeId = key.replace(/[^a-zA-Z0-9]/g,'_');
+      const isMe = key === u.username || displayName === (state.users[u.username]?.fullname||u.username);
 
-      // agentName is already the display name (author_name || nom || author)
-      const agentDisplayName = agentName.replace(/_/g, ' ');
-      html += `<div class="dash-block" style="margin-bottom:1rem">
+      html += `<div class="dash-block" style="margin-bottom:0.75rem;${isMe?'border-color:var(--accent)':''}">
         <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleAgentRap('${safeId}')">
-          <div style="font-weight:700;font-size:14px">📁 ${agentDisplayName}</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;color:var(--muted)">${agentRaps.length} rapport(s)</span>
-            <span id="agrap-icon-${safeId}">▼</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="avatar" style="font-size:12px">${displayName.slice(0,2).toUpperCase()}</div>
+            <div>
+              <div style="font-weight:700;font-size:14px">${displayName}${isMe ? ' <span style="font-size:11px;color:var(--accent)">(moi)</span>' : ''}</div>
+              <div style="font-size:11px;color:var(--muted)">${agentRaps.length} rapport(s) — dernier : ${agentRaps[0]?.date||'—'}</div>
+            </div>
           </div>
+          <span id="agrap-icon-${safeId}" style="color:var(--muted);font-size:12px">▼</span>
         </div>
-        <div id="agrap-body-${safeId}" style="display:none">`;
+        <div id="agrap-body-${safeId}" style="display:none;padding:0.5rem">`;
 
       agentRaps.forEach((r, i) => {
-        html += `<div class="detail-card">
+        html += `<div class="detail-card" style="margin-bottom:0.5rem">
           <div class="detail-card-header" onclick="toggleRapport('${safeId}-${i}')">
             <div>
               <div class="detail-title">${r.type_mission||r.type||'Mission'}</div>
               <div class="detail-meta">
                 <span style="font-size:11px;color:var(--muted)">${r.date||'—'}</span>
                 <span style="font-size:11px;background:rgba(59,130,246,0.1);color:var(--accent);padding:1px 7px;border-radius:8px">${r.grade_police||'—'}</span>
-                <span style="font-size:11px;color:var(--muted)">${r.grade_ninja||''}</span>
               </div>
             </div>
             <span class="detail-toggle-icon" id="rap-icon-${safeId}-${i}">▼</span>
           </div>
           <div class="detail-card-body" id="rap-body-${safeId}-${i}" style="display:none">
             <div class="detail-grid">
-              <div class="detail-field"><span class="detail-field-label">Agent</span><span class="detail-field-val">${r.nom||'—'}</span></div>
+              <div class="detail-field"><span class="detail-field-label">Agent</span><span class="detail-field-val">${r.nom||displayName}</span></div>
               <div class="detail-field"><span class="detail-field-label">Grade Police</span><span class="detail-field-val">${r.grade_police||'—'}</span></div>
               <div class="detail-field"><span class="detail-field-label">Grade Ninja</span><span class="detail-field-val">${r.grade_ninja||'—'}</span></div>
               <div class="detail-field"><span class="detail-field-label">Type de mission</span><span class="detail-field-val">${r.type_mission||r.type||'—'}</span></div>
@@ -4959,12 +4954,13 @@ async function renderRapportsContent(g) {
               <div class="detail-section-text">${r.description||r.desc||'—'}</div>
             </div>
             <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">
-              📅 Soumis le <strong>${r.date||'—'}</strong> — Réf. RAP-${String(i+1).padStart(4,'0')}
+              📅 Soumis le <strong>${r.date||'—'}</strong> — Réf. RAP-${String(r.id||i+1).padStart(4,'0')}
             </div>
             ${isHighRank && r.id ? `<button onclick="deleteRapport(${r.id})" style="margin-top:0.5rem;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer">🗑 Supprimer</button>` : ''}
           </div>
         </div>`;
       });
+
       html += '</div></div>';
     });
   }
@@ -4972,6 +4968,7 @@ async function renderRapportsContent(g) {
   html += '</div>';
   el.innerHTML = html;
 }
+
 
 function switchRapTab(tab) {
   const fp = document.getElementById('rap-panel-form');
