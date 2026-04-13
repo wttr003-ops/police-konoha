@@ -7430,7 +7430,7 @@ async function renderAmendesContent(g) {
   const totalImpayees = amendes.filter(a=>a.status==='impayee').reduce((s,a)=>s+(a.montant||0),0);
   const nbImpayees = amendes.filter(a=>a.status==='impayee').length;
   const totalRecupere = amendes.filter(a=>a.status==='recuperee'||a.status==='payee').reduce((s,a)=>s+(a.montant||0),0);
-  const weekAmendes = amendes.filter(a => new Date(a.created_at) >= weekStart);
+  const weekAmendes = amendes.filter(a => new Date(a.created_at) >= weekStart && a.status === 'impayee');
   const weekTotal = weekAmendes.reduce((s,a)=>s+(a.montant||0),0);
 
   let html = '<h2 class="dash-section-title">💰 Amendes</h2>';
@@ -7539,7 +7539,7 @@ async function renderAmendesContent(g) {
         const totalHistorique = person.all.reduce((s,a)=>s+(a.montant||0),0);
         const totalPaye = person.paid.reduce((s,a)=>s+(a.montant||0),0);
         // This week for this person
-        const personWeek = person.all.filter(a=>new Date(a.created_at)>=weekStart).reduce((s,a)=>s+(a.montant||0),0);
+        const personWeek = person.all.filter(a=>new Date(a.created_at)>=weekStart && a.status==='impayee').reduce((s,a)=>s+(a.montant||0),0);
         const safeId = key.replace(/[^a-zA-Z0-9]/g,'_');
 
         html += `<div style="border-bottom:0.5px solid var(--border)">
@@ -7984,7 +7984,8 @@ async function resetAmendes(fullname, totalDu) {
     });
   } catch(e){console.warn(e);}
 
-  renderAmendesContent(state.currentUser.grade);
+  alert('✓ Amendes de '+fullname+' marquées comme récupérées !');
+  await renderAmendesContent(state.currentUser.grade);
 }
 
 
@@ -8000,7 +8001,8 @@ async function resetAmendesAgent(agentKey, agentName) {
     });
   } catch(e) { console.warn(e); }
 
-  renderAmendesContent(state.currentUser.grade);
+  alert('✓ Amendes récupérées avec succès !');
+  await renderAmendesContent(state.currentUser.grade);
 }
 
 function addInfractionChip() {
@@ -8092,7 +8094,8 @@ async function resetSemaineAmendes() {
   } catch(e) { console.warn(e); }
 
   alert('✓ Semaine réinitialisée ! Toutes les amendes ont été marquées comme récupérées par '+dirName+'.');
-  renderAmendesContent(state.currentUser.grade);
+  // Force reload depuis Supabase
+  await renderAmendesContent(state.currentUser.grade);
 }
 
 function showGradeWarning(msg) {
