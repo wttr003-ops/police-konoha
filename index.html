@@ -7090,8 +7090,11 @@ async function renderPresencesContent(g) {
         fullname: p.fullname||p.username, grade: p.grade,
         totalRyos: 0, totalMins: 0, entries: []
       };
-      byAgent[p.username].totalRyos += p.salaire||0;
-      byAgent[p.username].totalMins += p.duree_minutes||0;
+      // Seulement les présences non payées dans le total
+      if (p.statut_paye !== 'paye') {
+        byAgent[p.username].totalRyos += p.salaire||0;
+        byAgent[p.username].totalMins += p.duree_minutes||0;
+      }
       byAgent[p.username].entries.push(p);
     });
 
@@ -7133,10 +7136,13 @@ async function renderPresencesContent(g) {
                 </div>`;
               }).join('')}
               <div style="padding:10px 0;display:flex;align-items:center;justify-content:space-between;gap:10px">
-                <button onclick="payerSalaire('${uname}','${data.fullname}',${data.totalRyos})"
-                  style="padding:8px 16px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
-                  ✓ Payer ${data.totalRyos} Ryos — Remettre à zéro
-                </button>
+                ${data.totalRyos > 0
+                  ? `<button onclick="payerSalaire('${uname}','${data.fullname}',${data.totalRyos})"
+                      style="padding:8px 16px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+                      ✓ Payer ${data.totalRyos} Ryos — Remettre à zéro
+                    </button>`
+                  : `<span style="font-size:12px;color:#27ae60;font-weight:700">✓ Salaire soldé</span>`
+                }
                 <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
                   Total : ${data.totalRyos} Ryos
                 </div>
@@ -8110,7 +8116,7 @@ async function payerSalaire(username, fullname, totalRyos) {
 
   try {
     // Mark all presences for this agent as 'paye' so they don't count in next period
-    await fetch(SB_URL + '/rest/v1/presences?username=eq.' + encodeURIComponent(username) + '&statut_paye=neq.paye', {
+    await fetch(SB_URL + '/rest/v1/presences?username=eq.' + encodeURIComponent(username) + '&or=(statut_paye.is.null,statut_paye.neq.paye)', {
       method: 'PATCH',
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({
@@ -8122,6 +8128,7 @@ async function payerSalaire(username, fullname, totalRyos) {
   } catch(e) { console.warn(e); }
 
   alert('✓ Salaire de ' + fullname + ' payé !\n' + totalRyos.toLocaleString() + ' Ryos versés par ' + dirName);
-  renderPresencesContent(state.currentUser.grade);
+  // Force reload from Supabase to get fresh data
+  await renderPresencesContent(state.currentUser.grade);
 }
 </script></body></html>
