@@ -4883,15 +4883,17 @@ async function renderRapportsContent(g) {
   } else {
     const byAgent = {};
     rapports.forEach(r => {
-      // Group by author (username) for accurate matching
-      const key = r.author || r.nom || 'Inconnu';
+      // Group by author_name > nom > author username
+      const key = r.author_name || r.nom || r.author || 'Inconnu';
       if (!byAgent[key]) byAgent[key] = [];
       byAgent[key].push(r);
     });
 
-    // For non-direction: show rapports by their username
-    const myKey = u.username;
-    const agentNames = isHighRank ? Object.keys(byAgent) : (byAgent[myKey] ? [myKey] : []);
+    // Direction sees all, agents see only their own
+    const myName = state.users[u.username]?.fullname || u.fullname || u.username;
+    const agentNames = isHighRank
+      ? Object.keys(byAgent).sort()
+      : (byAgent[myName] ? [myName] : (byAgent[u.username] ? [u.username] : []));
 
     agentNames.forEach(agentName => {
       const agentRaps = byAgent[agentName];
@@ -4899,8 +4901,8 @@ async function renderRapportsContent(g) {
       agentRaps.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
       const safeId = agentName.replace(/[^a-zA-Z0-9]/g,'_');
 
-      // Get display name from state.users or from rapport author_name
-      const agentDisplayName = state.users[agentName]?.fullname || agentRaps[0]?.author_name || agentRaps[0]?.nom || agentName.replace(/_/g,' ');
+      // agentName is already the display name (author_name || nom || author)
+      const agentDisplayName = agentName.replace(/_/g, ' ');
       html += `<div class="dash-block" style="margin-bottom:1rem">
         <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleAgentRap('${safeId}')">
           <div style="font-weight:700;font-size:14px">📁 ${agentDisplayName}</div>
