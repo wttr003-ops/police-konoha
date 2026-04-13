@@ -6988,8 +6988,8 @@ async function renderPresencesContent(g) {
   } else {
     myPresences.slice(0,15).forEach(p => {
       const h2 = Math.floor((p.duree_minutes||0)/60), m2 = (p.duree_minutes||0)%60;
-      const priseStr = p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
-      const finStr = p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const priseStr = p.heure_prise || (p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—');
+      const finStr = p.heure_fin || (p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—');
       html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">
         <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⏱</div>
         <div style="flex:1;min-width:0">
@@ -7178,7 +7178,9 @@ async function priseDeService() {
         fin_service: null,
         duree_minutes: null,
         salaire: null,
-        date: now.toLocaleDateString('fr-FR')
+        date: now.toLocaleDateString('fr-FR'),
+        heure_prise: now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+        heure_fin: null
       })
     });
     const data = await res.json();
@@ -7218,7 +7220,7 @@ async function finDeService() {
       await fetch(SB_URL + '/rest/v1/presences?id=eq.' + presenceId, {
         method: 'PATCH',
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ fin_service: fin.toISOString(), duree_minutes: diffMins, salaire: salaire })
+        body: JSON.stringify({ fin_service: fin.toISOString(), duree_minutes: diffMins, salaire: salaire, heure_fin: fin.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) })
       });
     } else {
       // No ID (old session) - create new row
