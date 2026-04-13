@@ -8038,6 +8038,39 @@ function removeChip(btn) {
   updateMontantFromChips();
 }
 
+
+async function recupererAgentAmendes(agentKey, agentName, totalEncaisse) {
+  if (!confirm('Confirmer la récupération des amendes encaissées de ' + agentName + ' ?\n\nMontant : ' + totalEncaisse.toLocaleString() + ' Ryos\n\nCes amendes seront marquées comme récupérées.')) return;
+
+  const dirUser = state.currentUser;
+  const dirName = state.users[dirUser?.username]?.fullname || dirUser?.username || 'Direction';
+  const now = new Date();
+
+  try {
+    // Mark all 'payee' amendes from this agent that haven't been recuperated yet
+    await fetch(SB_URL + '/rest/v1/amendes?agent=eq.' + encodeURIComponent(agentKey) + '&status=eq.payee&recupere_par=is.null', {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        recupere_par: dirName,
+        recupere_le: now.toISOString()
+      })
+    });
+    // Also try with encaisse_par matching
+    await fetch(SB_URL + '/rest/v1/amendes?encaisse_par=eq.' + encodeURIComponent(agentKey) + '&status=eq.payee&recupere_par=is.null', {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        recupere_par: dirName,
+        recupere_le: now.toISOString()
+      })
+    });
+  } catch(e) { console.warn('recupererAgentAmendes:', e); }
+
+  alert('✓ ' + totalEncaisse.toLocaleString() + ' Ryos récupérés sur ' + agentName + ' par ' + dirName + ' !');
+  await renderAmendesContent(state.currentUser.grade);
+}
+
 async function updateMontantFromChips() {
   const chips = document.querySelectorAll('#am-chips [data-idx]');
   if (chips.length === 0) {
