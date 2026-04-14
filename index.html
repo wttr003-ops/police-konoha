@@ -1953,96 +1953,92 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <div class="palier-block active" id="palier-0">
         <div class="palier-header palier-0-color">
           <span class="palier-badge">Palier 0</span>
-          <span>Rappel à l'ordre — Infractions de catégorie 1</span>
+          <span>Rappel à l'ordre — Infractions mineures</span>
         </div>
-        <div class="penal-table-wrap">
+        <div class="table-wrap">
           <table class="penal-table">
-            <thead><tr><th>Infraction</th><th>Genin / Toku Chunin</th><th>Chunin / Kakunin</th><th>Toku / Jonin</th><th>Membre Conseil</th></tr></thead>
+            <thead><tr><th>Infraction</th><th>Description</th><th>Sanction</th></tr></thead>
             <tbody>
-              <tr><td>Infraction type catégorie 1</td><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic">Rappel à l'ordre — aucune amende</td></tr>
+              <tr><td><strong>Infraction catégorie 1</strong></td><td>Tout comportement mineur perturbant l'ordre public sans gravité.</td><td><span class="penal-note">Rappel à l'ordre verbal</span></td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- PALIER 1 -->
       <div class="palier-block" id="palier-1">
         <div class="palier-header palier-1-color">
           <span class="palier-badge">Palier 1</span>
-          <span>Infractions mineures — Amendes</span>
+          <span>Infractions légères</span>
         </div>
-        <div class="penal-table-wrap">
+        <div class="table-wrap">
           <table class="penal-table">
-            <thead><tr><th>Infraction</th><th>Genin / Toku Chunin</th><th>Chunin / Kakunin</th><th>Toku / Jonin</th><th>Note</th></tr></thead>
+            <thead><tr><th>Infraction</th><th>Description</th><th>×1</th><th>×2</th><th>×3</th><th>Note</th></tr></thead>
             <tbody>
-              <tr><td>Saut et course de chakra dans le village (saut de crapaud aussi)</td><td>1 200 Ryos</td><td>1 600 Ryos</td><td>2 600 Ryos</td><td></td></tr>
-              <tr><td>Utilisation de jutsu / taijutsu dans le village</td><td>2 000 Ryos</td><td>2 400 Ryos</td><td>3 000 Ryos</td><td></td></tr>
-              <tr><td>Rentrer dans les cellules du commissariat sans autorisation</td><td>1 600 Ryos</td><td>2 000 Ryos</td><td>3 000 Ryos</td><td></td></tr>
-              <tr><td>Intrusion dans le palais ou domaine de clan</td><td>2 400 Ryos</td><td>3 200 Ryos</td><td>4 000 Ryos</td><td><span class="penal-note">(Le clan aura son avis si désir)</span></td></tr>
-              <tr><td>Port du masque dans le village (sans autorisation)</td><td>1 600 Ryos</td><td>2 000 Ryos</td><td>2 400 Ryos</td><td></td></tr>
-              <tr><td>Ouverture des portes du village sans autorisation</td><td>1 600 Ryos</td><td>2 400 Ryos</td><td>2 800 Ryos</td><td></td></tr>
-              <tr><td>Être sur les toits sans autorisation</td><td>1 600 Ryos</td><td>2 000 Ryos</td><td>2 400 Ryos</td><td></td></tr>
-              <tr><td>Mensonge à un agent de police</td><td>600 Ryos</td><td>1 600 Ryos</td><td>2 000 Ryos</td><td><span class="penal-note">(x2 si récidive)</span></td></tr>
+              <tr><td><strong>[FUSION] Usage de capacités ninja dans le village</strong></td><td>Interdiction d'utiliser le chakra, jutsu ou taijutsu dans le village. Saut de crapaud inclus.</td><td>1 200</td><td>1 600</td><td>2 600</td><td>—</td></tr>
+              <tr><td><strong>Accès non autorisé aux cellules du commissariat</strong></td><td>Pénétrer dans la zone des cellules sans autorisation explicite d'un agent en service.</td><td>1 600</td><td>2 000</td><td>3 000</td><td>—</td></tr>
+              <tr><td><strong>Intrusion dans le palais ou domaine de clan</strong></td><td>Entrer sans permission dans l'enceinte du palais ou le territoire privé d'un clan.</td><td>2 400</td><td>3 200</td><td>4 000</td><td><span class="penal-note">Le clan aura son avis à donner</span></td></tr>
+              <tr><td><strong>Port du masque sans autorisation</strong></td><td>Porter un masque dissimulant le visage sans autorisation officielle préalable.</td><td>1 600</td><td>2 000</td><td>2 400</td><td>—</td></tr>
+              <tr><td><strong>Ouverture des portes du village sans autorisation</strong></td><td>Manœuvrer les portes d'entrée ou de sortie sans ordre d'un supérieur habilité.</td><td>1 600</td><td>2 400</td><td>2 800</td><td>—</td></tr>
+              <tr><td><strong>Présence sur les toits sans autorisation</strong></td><td>Se trouver sur les toits sans raison officielle validée par un supérieur.</td><td>1 600</td><td>2 000</td><td>2 400</td><td>—</td></tr>
+              <tr><td><strong>Mensonge à un agent de police</strong></td><td>Fournir volontairement de fausses informations à un agent lors d'une intervention ou interrogatoire.</td><td>600</td><td>1 600</td><td>2 000</td><td><span class="penal-note">x2 si récidive</span></td></tr>
+              <tr><td><strong>[NOUVEAU] Non-respect du protocole de salut envers un gradé</strong></td><td>Bas gradé : mains derrière le dos + "mes respects, sensei". Haut Gradé : à genoux + "mes respects, maître".</td><td>800</td><td>1 200</td><td>1 600</td><td><span class="penal-note">x2 si récidive</span></td></tr>
+              <tr><td><strong>[NOUVEAU] Retard lors d'une convocation officielle</strong></td><td>Ne pas se présenter à l'heure fixée lors d'une convocation officielle de la hiérarchie.</td><td>600</td><td>800</td><td>1 000</td><td><span class="penal-note">x2 si récidive</span></td></tr>
+              <tr><td><strong>[COLLECTIF] Prise de parole non autorisée dans les rangs</strong></td><td>Dès qu'un membre parle sans ordre, tous les membres dans les rangs sont sanctionnés.</td><td>500</td><td>500</td><td>500</td><td><span class="penal-note penal-cell">Sanction collective</span></td></tr>
+              <tr><td><strong>[COLLECTIF] Mains non placées derrière le dos dans les rangs</strong></td><td>Dès qu'un membre ne respecte pas la position réglementaire, tous les membres sont sanctionnés.</td><td>500</td><td>500</td><td>500</td><td><span class="penal-note penal-cell">Sanction collective</span></td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- PALIER 2 -->
       <div class="palier-block" id="palier-2">
         <div class="palier-header palier-2-color">
           <span class="palier-badge">Palier 2</span>
-          <span>Infractions graves — Amendes + Mesures complémentaires</span>
+          <span>Infractions graves</span>
         </div>
-        <div class="penal-table-wrap">
+        <div class="table-wrap">
           <table class="penal-table">
-            <thead><tr><th>Infraction</th><th>Genin / Toku Chunin</th><th>Chunin / Kakunin</th><th>Toku / Jonin</th><th>Note</th></tr></thead>
+            <thead><tr><th>Infraction</th><th>Description</th><th>×1</th><th>×2</th><th>×3</th><th>Note</th></tr></thead>
             <tbody>
-              <tr><td>Vol ou arnaque</td><td>3 200 Ryos</td><td>3 600 Ryos</td><td>4 000 Ryos</td><td><span class="penal-note">(+ Rendre le bien à son propriétaire)</span></td></tr>
-              <tr><td>Refus d'obtempérer</td><td>2 400 Ryos</td><td>2 800 Ryos</td><td>3 200 Ryos</td><td></td></tr>
-              <tr><td>Harcèlement physique ou psychologique</td><td>2 400 Ryos</td><td>2 800 Ryos</td><td>3 200 Ryos</td><td></td></tr>
-              <tr><td>Dégradation de bien public</td><td>3 200 Ryos</td><td>3 600 Ryos</td><td>4 000 Ryos</td><td></td></tr>
-              <tr><td>Entrave à une intervention de Police</td><td>4 000 Ryos</td><td>4 500 Ryos</td><td>5 000 Ryos</td><td></td></tr>
-              <tr><td>Incident entre deux ninjas</td><td>2 000 Ryos</td><td>3 000 Ryos</td><td>5 000 Ryos</td><td></td></tr>
-              <tr><td>Insubordination à la hiérarchie mineure (Kakunin et -)</td><td>1 600 Ryos</td><td>—</td><td>—</td><td></td></tr>
-              <tr><td>Insubordination envers un * Haut fonctionnaire de Konoha</td><td>2 400 Ryos</td><td>3 000 Ryos</td><td>4 000 Ryos</td><td></td></tr>
-              <tr><td>Menace mineure</td><td>2 800 Ryos</td><td>3 200 Ryos</td><td>3 600 Ryos</td><td></td></tr>
-              <tr><td>Jeu d'argent ou de bien dans le village sans autorisation</td><td>1 600 Ryos</td><td>2 000 Ryos</td><td>2 400 Ryos</td><td><span class="penal-note">(+ Perquisition)</span></td></tr>
-              <tr><td>Entrer dans la cours intérieur du palais sans autorisation</td><td>1 600 Ryos</td><td>2 000 Ryos</td><td>2 400 Ryos</td><td></td></tr>
-              <tr><td>Incitation d'une personne à faire une infraction</td><td>2 400 Ryos</td><td>3 000 Ryos</td><td>3 500 Ryos</td><td></td></tr>
-              <tr><td>Consommation ou détention de drogues dans l'enceinte du village</td><td>2 400 Ryos</td><td>2 800 Ryos</td><td>3 200 Ryos</td><td><span class="penal-note">(+ Perquisition)</span></td></tr>
+              <tr><td><strong>Vol ou arnaque</strong></td><td>Dérober un bien ou tromper une personne pour en tirer un avantage matériel.</td><td>3 200</td><td>3 600</td><td>4 000</td><td><span class="penal-note">+ Rendre le bien</span></td></tr>
+              <tr><td><strong>Refus d'obtempérer</strong></td><td>Refuser d'obéir à un ordre direct d'un agent ou supérieur hiérarchique en service.</td><td>2 400</td><td>2 800</td><td>3 200</td><td>—</td></tr>
+              <tr><td><strong>Harcèlement physique ou psychologique</strong></td><td>Pressions répétées, intimidations ou violences verbales/physiques sur une personne.</td><td>2 400</td><td>2 800</td><td>3 200</td><td>—</td></tr>
+              <tr><td><strong>Dégradation de bien public</strong></td><td>Endommager, détruire ou souiller volontairement un bien du village ou de ses habitants.</td><td>3 200</td><td>3 600</td><td>4 000</td><td>—</td></tr>
+              <tr><td><strong>Entrave à une intervention de Police</strong></td><td>S'opposer ou bloquer activement une intervention des forces de l'ordre de Konoha.</td><td>4 000</td><td>4 500</td><td>5 000</td><td>—</td></tr>
+              <tr><td><strong>Incident entre deux ninjas</strong></td><td>Altercation grave entre deux ninjas au sein du village nécessitant l'intervention de la police.</td><td>2 000</td><td>3 000</td><td>5 000</td><td>—</td></tr>
+              <tr><td><strong>[FUSION] Insubordination envers la hiérarchie</strong></td><td>Refus d'obéir envers un supérieur. Kakunin et moins : réduit. Haut fonctionnaire et plus : majoré.</td><td>1 600</td><td>3 000</td><td>4 000</td><td>—</td></tr>
+              <tr><td><strong>Menace mineure</strong></td><td>Proférer des menaces légères sans mise en danger immédiate de la vie d'une personne.</td><td>2 800</td><td>3 200</td><td>3 600</td><td>—</td></tr>
+              <tr><td><strong>Jeu d'argent ou de bien sans autorisation</strong></td><td>Organiser ou participer à des jeux d'argent dans le village sans autorisation.</td><td>1 600</td><td>2 000</td><td>2 400</td><td><span class="penal-note">+ Perquisition possible</span></td></tr>
+              <tr><td><strong>Accès à la cour intérieure du palais sans autorisation</strong></td><td>Pénétrer dans la cour intérieure du palais sans permission explicite d'un supérieur.</td><td>1 600</td><td>2 000</td><td>2 400</td><td><span class="penal-note">+ Perquisition possible</span></td></tr>
+              <tr><td><strong>Incitation à commettre une infraction</strong></td><td>Pousser ou encourager une autre personne à commettre un acte répréhensible.</td><td>2 400</td><td>3 000</td><td>3 500</td><td>—</td></tr>
+              <tr><td><strong>Consommation ou détention de drogues dans le village</strong></td><td>Consommer ou détenir des substances illicites dans l'enceinte du village de Konoha.</td><td>2 400</td><td>2 800</td><td>3 200</td><td>—</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- PALIER 3 -->
       <div class="palier-block" id="palier-3">
         <div class="palier-header palier-3-color">
           <span class="palier-badge">Palier 3</span>
-          <span>Infractions majeures — Sanctions minimales après délibération du HC / Gérance police</span>
+          <span>Infractions très graves — Sanctions après délibération HC et/ou gérance police</span>
         </div>
-        <div class="penal-table-wrap">
+        <div class="table-wrap">
           <table class="penal-table">
-            <thead><tr><th>Infraction</th><th>Genin / Toku Chunin</th><th>Chunin / Kakunin</th><th>Toku / Jonin</th><th>Note</th></tr></thead>
+            <thead><tr><th>Infraction</th><th>Description</th><th>×1</th><th>×2</th><th>×3</th><th>Note</th></tr></thead>
             <tbody>
-              <tr><td>Menace majeure envers la hiérarchie supérieure, agent de police ou menace de mort, de vol d'accessoire/pupilles</td><td>5 000 Ryos</td><td>6 000 Ryos</td><td>7 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Agression envers un * Haut fonctionnaire de Konoha</td><td>5 000 Ryos</td><td>6 000 Ryos</td><td>7 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Usurpation de grade ou d'identité</td><td>5 000 Ryos</td><td>6 000 Ryos</td><td>7 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Tentative d'homicide</td><td>6 000 Ryos</td><td>7 000 Ryos</td><td>8 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Tentative de désertion</td><td>5 000 Ryos</td><td>6 000 Ryos</td><td>7 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Homicide</td><td>7 500 Ryos</td><td>8 500 Ryos</td><td>9 500 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Fréquentation de Traître ou de ninjas ennemie à Konoha</td><td>7 500 Ryos</td><td>8 500 Ryos</td><td>9 500 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Kidnapping, Séquestration ou Torture</td><td>7 000 Ryos</td><td>8 000 Ryos</td><td>9 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Évasion des cellules (Police ou Palais)</td><td>5 000 Ryos</td><td>6 000 Ryos</td><td>7 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
-              <tr><td>Actes terroristes (Incendie ou explosion d'un bâtiment)</td><td>7 000 Ryos</td><td>8 000 Ryos</td><td>9 000 Ryos</td><td><span class="penal-note penal-cell">(+ CELLULE DU PALAIS)</span></td></tr>
+              <tr><td><strong>Menace majeure</strong></td><td>Menacer de mort un agent ou membre de la hiérarchie, ou menacer de voler des accessoires/pupilles.</td><td>5 000</td><td>6 000</td><td>7 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Agression envers un Haut Fonctionnaire de Konoha</strong></td><td>Porter atteinte physiquement à un HC, Jonin, CJ, Co-gérant ou Gérant de police.</td><td>5 000</td><td>6 000</td><td>7 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Usurpation de grade ou d'identité</strong></td><td>Se faire passer pour quelqu'un d'autre ou revendiquer faussement un grade.</td><td>6 000</td><td>7 000</td><td>8 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Tentative d'homicide</strong></td><td>Tenter délibérément de mettre fin à la vie d'une personne sans y parvenir.</td><td>5 000</td><td>6 000</td><td>7 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Tentative de désertion</strong></td><td>Tenter de quitter le village de manière non autorisée avec l'intention de ne pas revenir.</td><td>5 000</td><td>6 000</td><td>7 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Homicide</strong></td><td>Mettre fin volontairement à la vie d'une personne au sein ou en lien avec le village.</td><td>7 500</td><td>8 500</td><td>9 500</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Fréquentation de traîtres ou ninjas ennemis</strong></td><td>Entretenir des contacts avec des traîtres à Konoha ou des ninjas de villages ennemis.</td><td>7 500</td><td>8 500</td><td>9 500</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Kidnapping, Séquestration ou Torture</strong></td><td>Enlever, retenir de force ou infliger des souffrances à une personne contre sa volonté.</td><td>7 000</td><td>8 000</td><td>9 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Évasion des cellules</strong></td><td>S'échapper ou aider quelqu'un à s'échapper des cellules de la police ou du palais.</td><td>5 000</td><td>6 000</td><td>7 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
+              <tr><td><strong>Acte terroriste</strong></td><td>Provoquer un incendie ou une explosion visant un bâtiment ou infrastructure du village.</td><td>7 000</td><td>8 000</td><td>9 000</td><td><span class="penal-note penal-cell">+ CELLULE DU PALAIS</span></td></tr>
             </tbody>
           </table>
         </div>
-      </div>
-
-    </div>
-  </section>
+      </div>  </section>
 
   <!-- DÉONTOLOGIE -->
   <section class="section" id="deontologie">
@@ -7411,40 +7407,47 @@ async function forceFinService(presenceId, username, fullname, grade) {
 // ============================================================
 
 const INFRACTIONS_AMENDES = [
-  // ===== PALIER 1 — Rappel à l'ordre =====
-  { palier:'palier1', label:'Saut/course de chakra dans le village (saut de crapaud inclus)',  montant:1200, montant2:1600, montant3:2600 },
-  { palier:'palier1', label:'Utilisation de jutsu / taijutsu dans le village',                 montant:2000, montant2:2400, montant3:3000 },
-  { palier:'palier1', label:'Entrée dans les cellules du commissariat sans autorisation',      montant:1600, montant2:2000, montant3:3000 },
-  { palier:'palier1', label:'Intrusion dans le palais ou domaine de clan',                     montant:2400, montant2:3200, montant3:5000 },
-  { palier:'palier1', label:'Port du masque dans le village sans autorisation',                montant:1600, montant2:2000, montant3:2400 },
-  { palier:'palier1', label:'Ouverture des portes du village sans autorisation',               montant:1600, montant2:2400, montant3:2800 },
-  { palier:'palier1', label:'Être sur les toits sans autorisation',                            montant:1600, montant2:2000, montant3:2400 },
-  { palier:'palier1', label:'Mensonge à un agent de police',                                   montant:600,  montant2:1600, montant3:2000 },
+  // ===== PALIER 0 — Rappel à l'ordre verbal =====
+  { palier:'palier0', label:'Infraction type catégorie 1 — Comportement mineur perturbant l\'ordre public',  montant:0, montant2:0, montant3:0, note:'Rappel à l\'ordre verbal' },
+
+  // ===== PALIER 1 =====
+  { palier:'palier1', label:'[FUSION] Usage de capacités ninja dans le village (chakra, jutsu, taijutsu, saut de crapaud)', montant:1200, montant2:1600, montant3:2600 },
+  { palier:'palier1', label:'Accès non autorisé aux cellules du commissariat',            montant:1600, montant2:2000, montant3:3000 },
+  { palier:'palier1', label:'Intrusion dans le palais ou domaine de clan',                montant:2400, montant2:3200, montant3:4000, note:'Le clan aura son avis à donner s\'il le désire' },
+  { palier:'palier1', label:'Port du masque sans autorisation',                           montant:1600, montant2:2000, montant3:2400 },
+  { palier:'palier1', label:'Ouverture des portes du village sans autorisation',          montant:1600, montant2:2400, montant3:2800 },
+  { palier:'palier1', label:'Présence sur les toits sans autorisation',                   montant:1600, montant2:2000, montant3:2400 },
+  { palier:'palier1', label:'Mensonge à un agent de police',                              montant:600,  montant2:1600, montant3:2000, note:'x2 si récidive' },
+  { palier:'palier1', label:'[NOUVEAU] Non-respect du protocole de salut envers un gradé', montant:800, montant2:1200, montant3:1600, note:'x2 si récidive' },
+  { palier:'palier1', label:'[NOUVEAU] Retard lors d\'une convocation officielle',        montant:600,  montant2:800,  montant3:1000, note:'x2 si récidive' },
+  { palier:'palier1', label:'[COLLECTIF] Prise de parole non autorisée dans les rangs',   montant:500,  montant2:500,  montant3:500,  note:'Sanction collective' },
+  { palier:'palier1', label:'[COLLECTIF] Mains non placées derrière le dos dans les rangs', montant:500, montant2:500, montant3:500, note:'Sanction collective' },
+
   // ===== PALIER 2 — Infractions graves =====
-  { palier:'palier2', label:'Vol ou arnaque (+ rendre le bien)',                               montant:3200, montant2:3600, montant3:4000 },
-  { palier:'palier2', label:'Refus d\'obtempérer',                                            montant:2400, montant2:2800, montant3:3200 },
-  { palier:'palier2', label:'Harcèlement physique ou psychologique',                           montant:2400, montant2:2800, montant3:3200 },
-  { palier:'palier2', label:'Dégradation de bien public',                                      montant:3200, montant2:3600, montant3:4000 },
-  { palier:'palier2', label:'Entrave à une intervention de police',                            montant:4000, montant2:4500, montant3:5000 },
-  { palier:'palier2', label:'Incident entre deux ninjas',                                      montant:2000, montant2:3000, montant3:5000 },
-  { palier:'palier2', label:'Insubordination à la hiérarchie mineure (Kakunin et -)',          montant:1600, montant2:1600, montant3:1600 },
-  { palier:'palier2', label:'Insubordination envers un haut fonctionnaire de Konoha',         montant:2400, montant2:3000, montant3:4000 },
-  { palier:'palier2', label:'Menace mineure',                                                  montant:2800, montant2:3200, montant3:3600 },
-  { palier:'palier2', label:'Jeu d\'argent / de bien sans autorisation (+ perquisition)',     montant:1600, montant2:2000, montant3:2400 },
-  { palier:'palier2', label:'Entrée dans la cour intérieure du palais sans autorisation',     montant:1600, montant2:2000, montant3:2400 },
-  { palier:'palier2', label:'Incitation à commettre une infraction',                           montant:2400, montant2:3000, montant3:3500 },
-  { palier:'palier2', label:'Consommation/détention de drogues dans le village (+ perquisition)', montant:2400, montant2:2800, montant3:3200 },
-  // ===== PALIER 3 — Infractions très graves + cellule =====
-  { palier:'palier3', label:'Menace majeure / mort / vol accessoire ou pupilles (+ cellule)', montant:5000, montant2:6000, montant3:7000 },
-  { palier:'palier3', label:'Agression envers un haut fonctionnaire de Konoha (+ cellule)',  montant:5000, montant2:6000, montant3:7000 },
-  { palier:'palier3', label:'Usurpation de grade ou d\'identité (+ cellule)',                montant:5000, montant2:6000, montant3:7000 },
-  { palier:'palier3', label:'Tentative d\'homicide (+ cellule)',                             montant:6000, montant2:7000, montant3:8000 },
-  { palier:'palier3', label:'Tentative de désertion (+ cellule)',                             montant:5000, montant2:6000, montant3:7000 },
-  { palier:'palier3', label:'Homicide (+ cellule)',                                           montant:5000, montant2:8500, montant3:9500 },
-  { palier:'palier3', label:'Fréquentation de traîtres / ninjas ennemis (+ cellule)',         montant:7500, montant2:8500, montant3:9500 },
-  { palier:'palier3', label:'Kidnapping / Séquestration / Torture (+ cellule)',               montant:7000, montant2:8000, montant3:9000 },
-  { palier:'palier3', label:'Évasion des cellules Police ou Palais (+ cellule)',              montant:5000, montant2:6000, montant3:7000 },
-  { palier:'palier3', label:'Acte terroriste — incendie ou explosion (+ cellule)',            montant:7000, montant2:8000, montant3:9000 },
+  { palier:'palier2', label:'Vol ou arnaque (+ rendre le bien)',                          montant:3200, montant2:3600, montant3:4000 },
+  { palier:'palier2', label:'Refus d\'obtempérer',                                       montant:2400, montant2:2800, montant3:3200 },
+  { palier:'palier2', label:'Harcèlement physique ou psychologique',                      montant:2400, montant2:2800, montant3:3200 },
+  { palier:'palier2', label:'Dégradation de bien public',                                 montant:3200, montant2:3600, montant3:4000 },
+  { palier:'palier2', label:'Entrave à une intervention de police',                       montant:4000, montant2:4500, montant3:5000 },
+  { palier:'palier2', label:'Incident entre deux ninjas',                                 montant:2000, montant2:3000, montant3:5000 },
+  { palier:'palier2', label:'[FUSION] Insubordination envers la hiérarchie',             montant:1600, montant2:3000, montant3:4000, note:'Kakunin et moins : réduit — Haut fonctionnaire et plus : majoré' },
+  { palier:'palier2', label:'Menace mineure',                                             montant:2800, montant2:3200, montant3:3600 },
+  { palier:'palier2', label:'Jeu d\'argent ou de bien sans autorisation',               montant:1600, montant2:2000, montant3:2400, note:'+ Perquisition possible' },
+  { palier:'palier2', label:'Accès à la cour intérieure du palais sans autorisation',    montant:1600, montant2:2000, montant3:2400, note:'+ Perquisition possible' },
+  { palier:'palier2', label:'Incitation à commettre une infraction',                      montant:2400, montant2:3000, montant3:3500 },
+  { palier:'palier2', label:'Consommation ou détention de drogues dans le village',      montant:2400, montant2:2800, montant3:3200 },
+
+  // ===== PALIER 3 — Sanctions après délibération HC + cellule =====
+  { palier:'palier3', label:'Menace majeure (menacer de mort un agent, membre HC, ou vol accessoires/pupilles)',  montant:5000, montant2:6000, montant3:7000, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Agression envers un Haut Fonctionnaire de Konoha',          montant:5000, montant2:6000, montant3:7000, note:'+ CELLULE DU PALAIS — HC, Jonin, CJ, Co-gérant ou Gérant' },
+  { palier:'palier3', label:'Usurpation de grade ou d\'identité',                       montant:6000, montant2:7000, montant3:8000, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Tentative d\'homicide',                                    montant:5000, montant2:6000, montant3:7000, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Tentative de désertion',                                    montant:5000, montant2:6000, montant3:7000, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Homicide',                                                  montant:7500, montant2:8500, montant3:9500, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Fréquentation de traîtres ou ninjas ennemis',               montant:7500, montant2:8500, montant3:9500, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Kidnapping, Séquestration ou Torture',                      montant:7000, montant2:8000, montant3:9000, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Évasion des cellules',                                      montant:5000, montant2:6000, montant3:7000, note:'+ CELLULE DU PALAIS' },
+  { palier:'palier3', label:'Acte terroriste (incendie ou explosion visant un bâtiment)', montant:7000, montant2:8000, montant3:9000, note:'+ CELLULE DU PALAIS' },
 ];
 
 const PALIER_COLORS = { palier1:'#27ae60', palier2:'#f0c040', palier3:'#e74c3c' };
