@@ -3336,6 +3336,7 @@ async function switchDashTab(name, btn) {
   if (name === 'amendes')       renderAmendesContent(g);
   if (name === 'casier')        renderCasierContent(g);
   if (name === 'rapports')      await renderRapportsContent(g);
+  if (name === 'documents')     await renderDocumentsContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'citoyens')      renderCitoyensContent(g);
   if (name === 'messages-agent') renderAgentMessages();
@@ -8326,16 +8327,27 @@ async function renderDocumentsContent(g) {
 
   const isDir = gradeRank(g) <= 1;
   let docs = [];
+  let docsError = false;
   try {
     const res = await sbGet('documents_police', '?order=created_at.desc');
     if (Array.isArray(res)) docs = res;
-  } catch(e) { console.warn('documents:', e); }
+    else docsError = true;
+  } catch(e) {
+    console.warn('documents:', e);
+    docsError = true;
+  }
 
   const categories = ['Tous', 'Cours', 'Impôts', 'Procédures', 'Règlements', 'Divers'];
   const catColors = { 'Cours':'#3b82f6','Impôts':'#f59e0b','Procédures':'#10b981','Règlements':'#8b5cf6','Divers':'#64748b' };
   const catIcons  = { 'Cours':'📘','Impôts':'💰','Procédures':'📋','Règlements':'⚖️','Divers':'📄' };
 
   let html = '<h2 class="dash-section-title">📚 Documents & Ressources</h2>';
+  if (docsError) {
+    html += '<div style="padding:10px 14px;background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:8px;font-size:13px;color:var(--red2);margin-bottom:1rem">'
+      + '⚠️ La table <strong>documents_police</strong> n\'existe pas encore dans Supabase. '
+      + 'Exécutez le fichier <strong>supabase_documents.sql</strong> dans Supabase Police pour l\'activer.'
+      + '</div>';
+  }
 
   if (isDir) {
     html += '<div class="dash-block" style="padding:1.25rem;margin-bottom:1rem">'
@@ -8367,9 +8379,9 @@ async function renderDocumentsContent(g) {
   if (docs.length === 0) {
     html += '<div class="dash-block" style="padding:2rem;text-align:center">'
       + '<div style="font-size:32px;margin-bottom:0.75rem">📂</div>'
-      + '<p style="color:var(--muted);font-size:14px">Aucun document disponible pour le moment.'
-      + (isDir ? '<br>Utilisez le formulaire ci-dessus pour publier le premier document.' : '<br>La direction publiera bientôt des documents.')
-      + '</p></div>';
+      + '<p style="color:var(--muted);font-size:14px">Aucun document publié pour le moment.</p>'
+      + (isDir ? '<p style="color:var(--accent);font-size:13px;margin-top:8px">👆 Utilisez le formulaire ci-dessus pour publier le premier document.</p>' : '<p style="color:var(--muted);font-size:12px;margin-top:4px">La direction publiera bientôt des documents.</p>')
+      + '</div>';
   } else {
     html += '<div id="docs-list">';
     docs.forEach(function(d) {
