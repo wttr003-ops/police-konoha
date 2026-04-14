@@ -7254,6 +7254,27 @@ async function priseDeService() {
     showPresenceNotif('⚠️ Ce n\'est pas votre catégorie. Veuillez faire attention à ce que vous faites. Cliquez bien sur votre nom et prénom.');
     return;
   }
+
+  const now = new Date();
+  const heureActuelle = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+  showConfirmModal({
+    title: 'Prise de service',
+    message: 'Vous êtes sur le point de prendre votre service.<br><br>'
+      + '<strong>' + (confirmedUser.fullname||u.username) + '</strong><br>'
+      + '🕐 ' + heureActuelle + '<br><br>'
+      + 'Confirmez-vous la prise de service ?',
+    icon: '▶️',
+    color: '#27ae60',
+    confirmLabel: '✓ Prendre le service',
+    cancelLabel: 'Annuler',
+    onConfirm: async function() { await _doPriseDeService(); }
+  });
+}
+
+async function _doPriseDeService() {
+  const u = state.currentUser;
+  const confirmedUser = state.users[u.username];
   const now = new Date();
   const serviceKey = 'konoha_service_' + u.username;
 
@@ -7281,7 +7302,7 @@ async function priseDeService() {
   } catch(e) { console.warn(e); }
 
   localStorage.setItem(serviceKey, JSON.stringify({ prise: now.toISOString(), fin: null, id: presenceId }));
-  renderPresencesContent(u.grade);
+  await renderPresencesContent(u.grade);
 }
 
 async function finDeService() {
@@ -7300,11 +7321,34 @@ async function finDeService() {
   const diffMins = Math.round((fin - prise) / 60000);
   const taux = SALAIRES[u.grade] || 50;
   const salaire = Math.round((diffMins / 60) * taux);
+  const h = Math.floor(diffMins/60), m = diffMins%60;
+  const heureDebut = prise.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const heureFin = fin.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
   if (diffMins < 1) {
     showPresenceNotif('⚠️ Service trop court (moins d\'1 minute).');
     return;
   }
+
+  showConfirmModal({
+    title: 'Fin de service',
+    message: 'Confirmez-vous la fin de votre service ?<br><br>'
+      + '🕐 Début : <strong>' + heureDebut + '</strong><br>'
+      + '🕑 Fin : <strong>' + heureFin + '</strong><br>'
+      + '⏱ Durée : <strong>' + h + 'h' + String(m).padStart(2,'0') + '</strong><br>'
+      + '💰 Salaire gagné : <strong style="color:#f0c040">' + salaire.toLocaleString() + ' Ryos</strong>',
+    icon: '⏹️',
+    color: '#e74c3c',
+    confirmLabel: '✓ Terminer le service',
+    cancelLabel: 'Continuer le service',
+    onConfirm: async function() { await _doFinDeService(serviceData, prise, fin, diffMins, salaire, taux); }
+  });
+}
+
+async function _doFinDeService(serviceData, prise, fin, diffMins, salaire, taux) {
+  const u = state.currentUser;
+  const confirmedUser = state.users[u.username];
+  const serviceKey = 'konoha_service_' + u.username;
 
   try {
     const presenceId = serviceData.id;
@@ -7333,9 +7377,19 @@ async function finDeService() {
   localStorage.removeItem(serviceKey);
   if (window._serviceTimer) clearInterval(window._serviceTimer);
 
-  const h = Math.floor(diffMins/60), m = diffMins%60;
-  alert('✓ Service terminé !\n\nDurée : ' + h + 'h' + String(m).padStart(2,'0') + '\nSalaire gagné : ' + salaire + ' Ryos');
-  renderPresencesContent(u.grade);
+  const hh = Math.floor(diffMins/60), mm = diffMins%60;
+  showConfirmModal({
+    title: '✓ Service terminé !',
+    message: 'Votre service a bien été enregistré.<br><br>'
+      + '⏱ Durée : <strong>' + hh + 'h' + String(mm).padStart(2,'0') + '</strong><br>'
+      + '💰 Salaire gagné : <strong style="color:#f0c040">' + salaire.toLocaleString() + ' Ryos</strong>',
+    icon: '✅',
+    color: '#27ae60',
+    confirmLabel: 'OK',
+    cancelLabel: '',
+    onConfirm: async function() {}
+  });
+  await renderPresencesContent(u.grade);
 }
 
 
@@ -8352,9 +8406,25 @@ async function saveDocument() {
 
   if (!titre) { alert('Le titre est obligatoire.'); return; }
 
+  showConfirmModal({
+    title: 'Publier ce document ?',
+    message: '<strong>' + titre + '</strong><br>'
+      + '<span style="font-size:12px;color:var(--muted)">Catégorie : ' + cat + '</span>'
+      + (desc ? '<br><span style="font-size:12px;color:var(--muted)">' + desc + '</span>' : '')
+      + '<br><br>Ce document sera visible par tous les agents.',
+    icon: '📎',
+    color: '#3b82f6',
+    confirmLabel: '✓ Publier',
+    cancelLabel: 'Annuler',
+    onConfirm: async function() { await _doSaveDocument(titre, cat, desc, url); }
+  });
+}
+
+async function _doSaveDocument(titre, cat, desc, url) {
+
   const u = state.currentUser;
   const entry = {
-    titre: titre, categorie: cat, description: desc, url: url,
+    titre: titre, categorie: cat, description: desc||'', url: url||'',
     auteur: state.users[u ? u.username : ''] ? state.users[u.username].fullname : (u ? u.username : 'Direction'),
     date: new Date().toLocaleDateString('fr-FR')
   };
