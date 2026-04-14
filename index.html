@@ -3430,7 +3430,7 @@ function renderCandidContent(g) {
     return;
   }
 
-  const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
+  const canAct = canRecruit(g) && g !== 'Hokage'; // Officier+ peuvent traiter
 
   let html = '<div class="dash-block">'
  candidatures.forEach(c => {
@@ -5431,17 +5431,44 @@ async function actCandid(id, status) {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status })
     });
-  } catch(e) { console.warn(e); }
 
-  const candid = state.candidatures?.find(c => c.id === id);
-  if (candid) candid.status = status;
+    // Si acceptée — envoyer un message automatique au candidat
+    if (status === 'ok') {
+      // Trouver la candidature pour avoir le nom
+      const cand = state.candidatures.find(c => c.id === id);
+      const candNom = cand?.pseudo || cand?.nom || 'Candidat';
+      const recruteurName = state.users[state.currentUser?.username]?.fullname || state.currentUser?.username || 'La Direction';
+      const threadId = 'candid_' + id + '_' + Date.now();
+      const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
-  await syncFromSupabase();
+      try {
+        await sbPost('messages', {
+          thread_id: threadId,
+          from_user: state.currentUser?.username,
+          sender_name: recruteurName,
+          grade: state.currentUser?.grade,
+          role: 'agent',
+          text: '[CANDIDATURE ACCEPTÉE] Félicitations ' + candNom + ' ! Votre candidature à la Police de Konoha a été acceptée. Vous devez maintenant passer un entretien oral devant le recruteur. Présentez-vous auprès d\'un membre de la direction pour organiser votre entretien. Bienvenue dans nos rangs, ninja.',
+          time: time,
+          to_agent: state.currentUser?.username,
+          candid_id: id
+        });
+      } catch(e) { console.warn('message candid:', e); }
+
+      alert('✓ Candidature acceptée ! Un message automatique a été enregistré.');
+    } else {
+      alert('✓ Candidature refusée.');
+    }
+
+  } catch(e) { console.warn('actCandid:', e); }
+
+  // Reload
+  const idx2 = state.candidatures.findIndex(c => c.id === id);
+  if (idx2 >= 0) state.candidatures[idx2].status = status;
   renderCandidContent(state.currentUser.grade);
-  alert('✓ Candidature ' + (status === 'ok' ? 'acceptée' : 'refusée') + ' avec succès.');
 }
 
-// Message indicator dot in nav
+
 async function setMsgDot(hasNew) {
   const dot = document.getElementById('nav-msg-dot');
   if (!dot) return;
