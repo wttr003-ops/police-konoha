@@ -6984,11 +6984,13 @@ async function renderPresencesContent(g) {
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   weekStart.setHours(0,0,0,0);
-  const weekTotal = myPresences
+  // Seulement les présences non payées dans les compteurs
+  const unpaidPresences = myPresences.filter(p => p.statut_paye !== 'paye');
+  const weekTotal = unpaidPresences
     .filter(p => new Date(p.created_at) >= weekStart)
     .reduce((sum, p) => sum + (p.salaire||0), 0);
-  const allTimeTotal = myPresences.reduce((sum, p) => sum + (p.salaire||0), 0);
-  const totalMins = myPresences.reduce((sum, p) => sum + (p.duree_minutes||0), 0);
+  const allTimeTotal = unpaidPresences.reduce((sum, p) => sum + (p.salaire||0), 0);
+  const totalMins = unpaidPresences.reduce((sum, p) => sum + (p.duree_minutes||0), 0);
   const totalH = Math.floor(totalMins/60), totalM = totalMins%60;
 
   let html = `<h2 class="dash-section-title">⏱ Présences & Salaires</h2>`;
