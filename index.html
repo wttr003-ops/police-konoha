@@ -8478,4 +8478,115 @@ function confirmDeleteDoc(id, titre) {
     }
   });
 }
+
+async function renderAjoutContent(g) {
+  const el = document.getElementById('ajout-content');
+  if (!el) return;
+
+  if (g === 'Hokage') { el.innerHTML = noAccess('Le Hokage ne peut pas ajouter d\'agents via ce panel.'); return; }
+  if (gradeRank(g) > 2) { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant uniquement'); return; }
+
+  el.innerHTML = `<h2 class="dash-section-title">Ajouter un agent</h2>
+    <div class="dash-block" style="padding:1.5rem;max-width:520px">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1.25rem">Nouveau membre de la Police de Konoha</div>
+
+      <div class="form-group">
+        <label class="form-label">Nom et Prénom *</label>
+        <input type="text" id="aj-fullname" class="form-input" placeholder="Ex: Naruto Uzumaki"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Grade *</label>
+        <select id="aj-grade" class="form-input">
+          ${GRADES.filter(gr => gr !== 'Hokage').map(gr => '<option value="'+gr+'">'+gr+'</option>').join('')}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mot de passe *</label>
+        <input type="text" id="aj-password" class="form-input" placeholder="Ex: ABC12345"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Section</label>
+        <select id="aj-section" class="form-input">
+          <option value="aucune">Aucune</option>
+          <option value="renseignement">Renseignement</option>
+          <option value="intervention">Intervention</option>
+          <option value="investigation">Investigation</option>
+        </select>
+      </div>
+
+      <div style="margin-top:0.5rem;margin-bottom:1rem;padding:10px 14px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:8px;font-size:12px;color:var(--muted)">
+        💡 Le matricule sera généré automatiquement. L'agent pourra se connecter avec son nom complet et son mot de passe.
+      </div>
+
+      <button class="btn-primary" onclick="ajouterAgent()">➕ Ajouter l'agent</button>
+      <div id="aj-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.2);border-radius:6px;font-size:13px">✓ Agent ajouté avec succès !</div>
+      <div id="aj-err" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);border-radius:6px;font-size:13px"></div>
+    </div>`;
+}
+
+async function ajouterAgent() {
+  const fullname  = document.getElementById('aj-fullname')?.value.trim();
+  const grade     = document.getElementById('aj-grade')?.value;
+  const password  = document.getElementById('aj-password')?.value.trim();
+  const section   = document.getElementById('aj-section')?.value || 'aucune';
+  const ok        = document.getElementById('aj-ok');
+  const errEl     = document.getElementById('aj-err');
+
+  if (ok) ok.style.display = 'none';
+  if (errEl) errEl.style.display = 'none';
+
+  if (!fullname || !grade || !password) {
+    if (errEl) { errEl.textContent = '⚠️ Tous les champs obligatoires doivent être remplis.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const username = fullname.replace(/\s+/g, '_').toLowerCase();
+  const matricule = 'KNH-' + Math.random().toString(36).substring(2,6).toUpperCase();
+
+  showConfirmModal({
+    title: 'Ajouter cet agent ?',
+    message: '<strong>' + fullname + '</strong><br>'
+      + '<span style="font-size:12px;color:var(--muted)">Grade : ' + grade + '</span><br>'
+      + '<span style="font-size:12px;color:var(--muted)">Matricule : ' + matricule + '</span>',
+    icon: '👮',
+    color: '#3b82f6',
+    confirmLabel: '✓ Ajouter',
+    cancelLabel: 'Annuler',
+    onConfirm: async function() {
+      try {
+        const res = await fetch(SB_URL + '/rest/v1/users', {
+          method: 'POST',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            username: username,
+            fullname: fullname,
+            grade: grade,
+            password: password,
+            is_agent: true,
+            matricule: matricule,
+            section: section,
+            casier: 'non',
+            inscription: new Date().toLocaleDateString('fr-FR'),
+            created_at: new Date().toISOString()
+          })
+        });
+        if (res.ok) {
+          // Update local state
+          state.users[username] = { fullname, grade, password, isAgent: true, matricule, section, casier: 'non' };
+          if (document.getElementById('aj-fullname')) document.getElementById('aj-fullname').value = '';
+          if (document.getElementById('aj-password')) document.getElementById('aj-password').value = '';
+          if (ok) { ok.style.display = 'block'; setTimeout(function(){ ok.style.display='none'; }, 4000); }
+        } else {
+          const errText = await res.text();
+          if (errEl) { errEl.textContent = '⚠️ Erreur : ' + errText.substring(0,100); errEl.style.display = 'block'; }
+        }
+      } catch(e) {
+        if (errEl) { errEl.textContent = '⚠️ Erreur réseau : ' + e.message; errEl.style.display = 'block'; }
+      }
+    }
+  });
+}
 </script></body></html>
