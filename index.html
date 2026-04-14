@@ -5457,7 +5457,26 @@ async function actCandid(id, status) {
 
       alert('✓ Candidature acceptée ! Un message automatique a été enregistré.');
     } else {
-      alert('✓ Candidature refusée.');
+      // Message automatique de refus
+      const cand2 = state.candidatures.find(c => c.id === id);
+      const candNom2 = cand2?.pseudo || cand2?.nom || 'Candidat';
+      const recruteurName2 = state.users[state.currentUser?.username]?.fullname || state.currentUser?.username || 'La Direction';
+      const threadId2 = 'candid_refus_' + id + '_' + Date.now();
+      const time2 = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      try {
+        await sbPost('messages', {
+          thread_id: threadId2,
+          from_user: state.currentUser?.username,
+          sender_name: recruteurName2,
+          grade: state.currentUser?.grade,
+          role: 'agent',
+          text: '[CANDIDATURE REFUSÉE] Bonjour ' + candNom2 + '. Après examen de votre dossier, nous avons le regret de vous informer que votre candidature à la Police de Konoha n\'a pas été retenue. Nous vous souhaitons bonne continuation, ninja.',
+          time: time2,
+          to_agent: state.currentUser?.username,
+          candid_id: id
+        });
+      } catch(e) { console.warn('message refus:', e); }
+      alert('✓ Candidature refusée. Un message a été enregistré.');
     }
 
   } catch(e) { console.warn('actCandid:', e); }
