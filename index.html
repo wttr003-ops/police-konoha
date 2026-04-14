@@ -2472,6 +2472,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           Logs comptes
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('documents',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          📚 Documents
+        </button>
       </nav>
 </nav></div>
       <!-- SIDEBAR CITOYEN -->
@@ -2578,6 +2582,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <div class="dash-tab" id="dash-logs">
         <h2 class="dash-section-title">Logs — Comptes & Accès</h2>
         <div id="logs-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-documents">
+        <div id="documents-content"></div>
       </div>
 
       <!-- TABS CITOYEN -->
@@ -5890,83 +5898,34 @@ async function changeGrade(username, direction) {
   const displayName = u.fullname || username.replace(/_/g,' ');
   const currentRank = gradeRank(u.grade);
   const newRank = currentRank + direction;
-
-  // Find new grade by rank
   const newGrade = Object.entries(GRADE_RANK).find(([gr, r]) => r === newRank)?.[0];
   if (!newGrade) return;
 
-  const action = direction < 0 ? 'promouvoir' : 'rétrograder';
-  if (!confirm(`Confirmer : ${action} ${displayName} de "${u.grade}" vers "${newGrade}" ?`)) return;
-
-  // Update in Supabase
-  try {
-    await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(username), {
-      method: 'PATCH',
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ grade: newGrade })
-    });
-  } catch(e) { console.warn(e); }
-
-  // Update local state
-  state.users[username].grade = newGrade;
-
-  // If it's the current user, update their session too
-  if (state.currentUser?.username === username) {
-    state.currentUser.grade = newGrade;
-    localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
-  }
-
-  renderAnnuaireContent(state.currentUser.grade);
+  const isPromo = direction < 0;
+  showConfirmModal({
+    title: isPromo ? '⬆️ Promotion' : '⬇️ Rétrogradation',
+    message: '<strong>' + displayName + '</strong><br><br>'
+      + (isPromo ? '🟢 ' + u.grade + ' → <strong style="color:#27ae60">' + newGrade + '</strong>' : '🔴 ' + u.grade + ' → <strong style="color:#e74c3c">' + newGrade + '</strong>')
+      + '<br><br>Confirmer ce changement de grade ?',
+    icon: isPromo ? '⭐' : '📉',
+    color: isPromo ? '#27ae60' : '#e74c3c',
+    confirmLabel: isPromo ? 'Promouvoir' : 'Rétrograder',
+    onConfirm: async function() {
+      try {
+        await fetch(SB_URL + '/rest/v1/users?username=eq.' + encodeURIComponent(username), {
+          method: 'PATCH',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ grade: newGrade })
+        });
+        state.users[username].grade = newGrade;
+        await syncAll();
+        renderAnnuaireContent(state.currentUser.grade);
+      } catch(e) { console.warn('changeGrade:', e); }
+    }
+  });
 }
 
-// ============================================================
-// AJOUTER UN AGENT
-// ============================================================
-function renderAjoutContent(g) {
-  const el = document.getElementById('ajout-content');
-  if (!el) return;
-  if (g === 'Hokage') { el.innerHTML = noAccess('Le Hokage ne peut pas ajouter d\'agents via ce panel.'); return; }
-  if (gradeRank(g) > 2) { el.innerHTML = noAccess('Directeur, Directeur Adjoint ou Lieutenant'); return; }
-  el.innerHTML = `
-    <h2 class="dash-section-title">Ajouter un agent</h2>
-    <div class="dash-block" style="padding:1.5rem;max-width:520px">
-      <div class="form-msg success" id="ajout-ok" style="display:none">✓ Agent ajouté avec succès !</div>
-      <div class="form-group">
-        <label class="form-label">Nom et Prénom *</label>
-        <input type="text" id="aj-nom" class="form-input" placeholder="Ex: Naruto Uzumaki"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Grade *</label>
-        <select id="aj-grade" class="form-input">
-          ${GRADES.map(gr => `<option value="${gr}">${gr}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Matricule <span style="font-size:10px;color:var(--muted)">(visible dans la liste)</span></label>
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <input type="text" id="aj-mat" class="form-input" placeholder="Ex: KNH-STG-0000" style="flex:1;font-family:monospace"/>
-          <button type="button" onclick="generateMatricule()" style="background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:9px 14px;cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap">🎲 Générer</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Mot de passe * <span style="font-size:10px;color:var(--muted)">(confidentiel)</span></label>
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <div style="position:relative;flex:1">
-            <input type="password" id="aj-pass" class="form-input" placeholder="Mot de passe secret" style="padding-right:42px;font-family:monospace"/>
-            <button type="button" onclick="togglePwdAjout()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-          <button type="button" onclick="generatePwdAgent()" style="background:var(--accent);color:white;border:none;border-radius:5px;padding:9px 14px;cursor:pointer;font-size:13px;white-space:nowrap">🔑 Générer</button>
-        </div>
-      </div>
-      <button class="btn-primary" onclick="addAgent()">➕ Ajouter l'agent</button>
-    </div>`;
-}
 
-// ============================================================
-// TOGGLE DETAIL — Ouvrir/fermer les dossiers
-// ============================================================
 async function toggleDetail(id) {
   const body = document.getElementById(id);
   if (!body) return;
@@ -8271,5 +8230,170 @@ async function payerSalaire(username, fullname, totalRyos) {
   alert('✓ Salaire de ' + fullname + ' payé !\n' + totalRyos.toLocaleString() + ' Ryos versés par ' + dirName);
   // Force reload from Supabase to get fresh data
   await renderPresencesContent(state.currentUser.grade);
+}
+
+// ============================================================
+// MODAL DE CONFIRMATION UNIVERSEL
+// ============================================================
+
+function showConfirmModal(opts) {
+  const existing = document.getElementById('confirm-modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'confirm-modal-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)';
+
+  const col = opts.color || 'var(--accent)';
+  const ico = opts.icon || '❓';
+
+  overlay.innerHTML = '<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">'
+    + '<div style="font-size:48px;margin-bottom:1rem">' + ico + '</div>'
+    + '<div style="font-size:18px;font-weight:800;color:' + col + ';margin-bottom:0.75rem">' + (opts.title||'Confirmation') + '</div>'
+    + '<div style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:1.75rem">' + (opts.message||'') + '</div>'
+    + '<div style="display:flex;gap:12px;justify-content:center">'
+    + '<button id="modal-cancel-btn" style="padding:10px 24px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:sans-serif">' + (opts.cancelLabel||'Annuler') + '</button>'
+    + '<button id="modal-confirm-btn" style="padding:10px 24px;background:' + col + ';color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:sans-serif">' + (opts.confirmLabel||'Confirmer') + '</button>'
+    + '</div></div>';
+
+  document.body.appendChild(overlay);
+  document.getElementById('modal-confirm-btn').onclick = function() { overlay.remove(); opts.onConfirm(); };
+  document.getElementById('modal-cancel-btn').onclick = function() { overlay.remove(); };
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+}
+
+// ============================================================
+// DOCUMENTS — BASE DOCUMENTAIRE
+// ============================================================
+
+async function renderDocumentsContent(g) {
+  const el = document.getElementById('documents-content');
+  if (!el) return;
+
+  const isDir = gradeRank(g) <= 1;
+  let docs = [];
+  try {
+    const res = await sbGet('documents_police', '?order=created_at.desc');
+    if (Array.isArray(res)) docs = res;
+  } catch(e) { console.warn('documents:', e); }
+
+  const categories = ['Tous', 'Cours', 'Impôts', 'Procédures', 'Règlements', 'Divers'];
+  const catColors = { 'Cours':'#3b82f6','Impôts':'#f59e0b','Procédures':'#10b981','Règlements':'#8b5cf6','Divers':'#64748b' };
+  const catIcons  = { 'Cours':'📘','Impôts':'💰','Procédures':'📋','Règlements':'⚖️','Divers':'📄' };
+
+  let html = '<h2 class="dash-section-title">📚 Documents & Ressources</h2>';
+
+  if (isDir) {
+    html += '<div class="dash-block" style="padding:1.25rem;margin-bottom:1rem">'
+      + '<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Publier un document</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">'
+      + '<div class="form-group"><label class="form-label">Titre *</label><input type="text" id="doc-titre" class="form-input" placeholder="Ex: Règlement intérieur 2025"/></div>'
+      + '<div class="form-group"><label class="form-label">Catégorie</label><select id="doc-cat" class="form-input">'
+      + categories.slice(1).map(function(c){return '<option>'+c+'</option>';}).join('')
+      + '</select></div></div>'
+      + '<div class="form-group" style="margin-bottom:0.75rem"><label class="form-label">Description <span style="color:var(--muted);font-size:10px">(optionnel)</span></label>'
+      + '<textarea id="doc-desc" class="form-input" rows="2" placeholder="Brève description du document..."></textarea></div>'
+      + '<div class="form-group" style="margin-bottom:1rem"><label class="form-label">Lien URL <span style="color:var(--muted);font-size:10px">(optionnel)</span></label>'
+      + '<input type="text" id="doc-url" class="form-input" placeholder="https://..."/></div>'
+      + '<button class="btn-primary" onclick="saveDocument()">📎 Publier le document</button>'
+      + '<div id="doc-ok" style="display:none;margin-top:8px;font-size:13px;color:var(--accent)">✓ Document publié !</div>'
+      + '</div>';
+  }
+
+  // Filter tabs
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">';
+  categories.forEach(function(c, i) {
+    const safeId = c.replace(/[^a-z]/gi,'');
+    html += '<button onclick="filterDocs(\''+c+'\')" id="doc-filter-'+safeId+'"'
+      + ' style="padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);cursor:pointer;font-size:12px;font-weight:600;'
+      + 'background:'+(i===0?'var(--accent)':'var(--panel)')+';color:'+(i===0?'white':'var(--text)')+';font-family:sans-serif">'+c+'</button>';
+  });
+  html += '</div>';
+
+  if (docs.length === 0) {
+    html += '<div class="dash-block" style="padding:2rem;text-align:center">'
+      + '<div style="font-size:32px;margin-bottom:0.75rem">📂</div>'
+      + '<p style="color:var(--muted);font-size:14px">Aucun document disponible pour le moment.'
+      + (isDir ? '<br>Utilisez le formulaire ci-dessus pour publier le premier document.' : '<br>La direction publiera bientôt des documents.')
+      + '</p></div>';
+  } else {
+    html += '<div id="docs-list">';
+    docs.forEach(function(d) {
+      const catCol = catColors[d.categorie] || '#64748b';
+      const catIco = catIcons[d.categorie] || '📄';
+      const safeTitle = (d.titre||'').replace(/'/g, '&#39;');
+      html += '<div class="dash-block doc-item" data-cat="'+(d.categorie||'Divers')+'" style="padding:0;margin-bottom:0.75rem;overflow:hidden">'
+        + '<div style="display:flex;align-items:center;gap:14px;padding:14px 1.25rem">'
+        + '<div style="width:44px;height:44px;border-radius:10px;background:'+catCol+'22;border:1px solid '+catCol+'44;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">'+catIco+'</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px">'+(d.titre||'—')+'</div>'
+        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:'+catCol+'22;color:'+catCol+';font-weight:600">'+(d.categorie||'Divers')+'</span>'
+        + (d.description ? '<span style="font-size:11px;color:var(--muted)">'+d.description+'</span>' : '')
+        + '</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:4px">Publié le '+(d.date||'—')+' par '+(d.auteur||'Direction')+'</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:8px;align-items:center;flex-shrink:0">'
+        + (d.url ? '<a href="'+d.url+'" target="_blank" style="padding:7px 16px;background:var(--accent);color:white;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block">🔗 Ouvrir</a>' : '<span style="font-size:11px;color:var(--muted);font-style:italic">Pas de lien</span>')
+        + (isDir ? '<button onclick="confirmDeleteDoc('+d.id+',\''+safeTitle+'\')" style="padding:6px 10px;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);border-radius:6px;font-size:11px;cursor:pointer">🗑</button>' : '')
+        + '</div></div></div>';
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+async function saveDocument() {
+  const titre = document.getElementById('doc-titre') ? document.getElementById('doc-titre').value.trim() : '';
+  const cat   = document.getElementById('doc-cat') ? document.getElementById('doc-cat').value : 'Divers';
+  const desc  = document.getElementById('doc-desc') ? document.getElementById('doc-desc').value.trim() : '';
+  const url   = document.getElementById('doc-url') ? document.getElementById('doc-url').value.trim() : '';
+
+  if (!titre) { alert('Le titre est obligatoire.'); return; }
+
+  const u = state.currentUser;
+  const entry = {
+    titre: titre, categorie: cat, description: desc, url: url,
+    auteur: state.users[u ? u.username : ''] ? state.users[u.username].fullname : (u ? u.username : 'Direction'),
+    date: new Date().toLocaleDateString('fr-FR')
+  };
+
+  try { await sbPost('documents_police', entry); } catch(e) { console.warn('saveDocument:', e); }
+
+  if (document.getElementById('doc-titre')) document.getElementById('doc-titre').value = '';
+  if (document.getElementById('doc-desc')) document.getElementById('doc-desc').value = '';
+  if (document.getElementById('doc-url')) document.getElementById('doc-url').value = '';
+  const ok = document.getElementById('doc-ok');
+  if (ok) { ok.style.display = 'block'; setTimeout(function(){ ok.style.display='none'; }, 3000); }
+
+  await renderDocumentsContent(state.currentUser.grade);
+}
+
+function filterDocs(cat) {
+  document.querySelectorAll('[id^="doc-filter-"]').forEach(function(btn) {
+    btn.style.background = 'var(--panel)'; btn.style.color = 'var(--text)';
+  });
+  const activeBtn = document.getElementById('doc-filter-' + cat.replace(/[^a-z]/gi,''));
+  if (activeBtn) { activeBtn.style.background = 'var(--accent)'; activeBtn.style.color = 'white'; }
+  document.querySelectorAll('.doc-item').forEach(function(item) {
+    item.style.display = (cat === 'Tous' || item.dataset.cat === cat) ? '' : 'none';
+  });
+}
+
+function confirmDeleteDoc(id, titre) {
+  showConfirmModal({
+    title: 'Supprimer ce document ?',
+    message: 'Vous êtes sur le point de supprimer :<br><strong>' + titre + '</strong><br><br>Cette action est irréversible.',
+    icon: '🗑️', color: '#e74c3c', confirmLabel: 'Supprimer',
+    onConfirm: async function() {
+      try {
+        await fetch(SB_URL + '/rest/v1/documents_police?id=eq.' + id, {
+          method: 'DELETE', headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+      } catch(e) { console.warn(e); }
+      await renderDocumentsContent(state.currentUser.grade);
+    }
+  });
 }
 </script></body></html>
