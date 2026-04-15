@@ -2476,6 +2476,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           📚 Documents
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('salaires',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          💰 Salaires
+        </button>
       </nav>
 </nav></div>
       <!-- SIDEBAR CITOYEN -->
@@ -2586,6 +2590,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
       <div class="dash-tab" id="dash-documents">
         <div id="documents-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-salaires">
+        <div id="salaires-content"></div>
       </div>
 
       <!-- TABS CITOYEN -->
@@ -3337,6 +3345,7 @@ async function switchDashTab(name, btn) {
   if (name === 'casier')        renderCasierContent(g);
   if (name === 'rapports')      await renderRapportsContent(g);
   if (name === 'documents')     await renderDocumentsContent(g);
+  if (name === 'salaires')      renderSalairesContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'citoyens')      renderCitoyensContent(g);
   if (name === 'messages-agent') renderAgentMessages();
@@ -8706,5 +8715,190 @@ function genererMotDePasse() {
     display.style.display = 'block';
     display.innerHTML = '✓ Mot de passe généré : <strong>' + pwd + '</strong> — Notez-le avant de valider.';
   }
+}
+
+// ============================================================
+// GESTION DES SALAIRES — DIRECTION UNIQUEMENT
+// ============================================================
+
+// Salaires en Supabase (table: salaires_config) OR stored in localStorage with fallback to SALAIRES const
+// Key: grade name, Value: ryos_par_heure
+
+function renderSalairesContent(g) {
+  const el = document.getElementById('salaires-content');
+  if (!el) return;
+
+  if (gradeRank(g) > 1) {
+    el.innerHTML = noAccess('Directeur ou Directeur Adjoint uniquement');
+    return;
+  }
+
+  const grades = [
+    { grade: 'Directeur',         icon: '🏛', color: '#f0c040', rank: 0 },
+    { grade: 'Directeur Adjoint', icon: '🏛', color: '#e0b030', rank: 1 },
+    { grade: 'Lieutenant',        icon: '⭐', color: '#3b82f6', rank: 2 },
+    { grade: 'Sergent',           icon: '⭐', color: '#6366f1', rank: 3 },
+    { grade: 'Officier',          icon: '🔵', color: '#10b981', rank: 4 },
+    { grade: 'Stagiaire',         icon: '🔘', color: '#64748b', rank: 5 },
+    { grade: 'Recrue',            icon: '🔘', color: '#94a3b8', rank: 6 },
+  ];
+
+  let html = '<h2 class="dash-section-title">💰 Gestion des Salaires</h2>';
+
+  // Info box
+  html += '<div style="padding:10px 14px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:8px;font-size:13px;color:var(--muted);margin-bottom:1.25rem">'
+    + 'ℹ️ Les salaires sont exprimés en <strong>Ryos par heure</strong> de service. Toute modification est appliquée immédiatement pour les prochaines prises de service.'
+    + '</div>';
+
+  // Grades table
+  html += '<div class="dash-block" style="padding:0;overflow:hidden;margin-bottom:1.5rem">';
+  html += '<div style="padding:12px 1.25rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Barème des salaires par grade</div>'
+    + '<div style="font-size:11px;color:var(--muted)">Ryos / heure</div>'
+    + '</div>';
+
+  grades.forEach(function(g_item) {
+    const current = SALAIRES[g_item.grade] || 50;
+    const safeGrade = g_item.grade.replace(/[^a-zA-Z0-9]/g,'_');
+    html += '<div style="display:flex;align-items:center;gap:14px;padding:14px 1.25rem;border-bottom:0.5px solid var(--border)">'
+      + '<div style="width:40px;height:40px;border-radius:10px;background:'+g_item.color+'18;border:1px solid '+g_item.color+'33;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+g_item.icon+'</div>'
+      + '<div style="flex:1">'
+      + '<div style="font-size:14px;font-weight:600;color:var(--text)">'+g_item.grade+'</div>'
+      + '<div style="font-size:11px;color:var(--muted)">Rang '+g_item.rank+'</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:10px">'
+      + '<div style="text-align:right">'
+      + '<div style="font-size:18px;font-weight:800;color:'+g_item.color+'" id="sal-display-'+safeGrade+'">'+current.toLocaleString()+'</div>'
+      + '<div style="font-size:10px;color:var(--muted)">Ryos/h</div>'
+      + '</div>'
+      + '<button onclick="openEditSalaireByIndex(' + grades.indexOf(g_item) + ')"'
+      + ' style="padding:7px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">✏️ Modifier</button>'
+      + '</div>'
+      + '</div>';
+  });
+  html += '</div>';
+
+  // Preview : how much each grade earns per 8h shift
+  html += '<div class="dash-block" style="padding:1.25rem">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Simulation — Salaire pour 8h de service</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">';
+
+  grades.forEach(function(g_item) {
+    const current = SALAIRES[g_item.grade] || 50;
+    const pour8h = current * 8;
+    html += '<div style="background:var(--mid);border-radius:10px;padding:12px;text-align:center">'
+      + '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+g_item.icon+' '+g_item.grade+'</div>'
+      + '<div style="font-size:16px;font-weight:700;color:'+g_item.color+'">'+pour8h.toLocaleString()+'</div>'
+      + '<div style="font-size:10px;color:var(--muted)">Ryos / 8h</div>'
+      + '</div>';
+  });
+
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+function openEditSalaire(grade, color) {
+  const current = SALAIRES[grade] || 50;
+
+  const existing = document.getElementById('confirm-modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'confirm-modal-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)';
+
+  overlay.innerHTML = '<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem 2.5rem;max-width:380px;width:92%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">'
+    + '<div style="font-size:42px;margin-bottom:10px">💰</div>'
+    + '<div style="font-size:18px;font-weight:800;color:'+(color||'var(--accent)')+';margin-bottom:6px">Modifier le salaire</div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:1.5rem"><strong style="color:var(--text)">'+grade+'</strong></div>'
+
+    + '<div style="margin-bottom:1.5rem">'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">Salaire actuel : <strong style="color:var(--text)">'+current.toLocaleString()+' Ryos/h</strong></div>'
+    + '<div style="display:flex;align-items:center;justify-content:center;gap:10px">'
+    + '<input type="number" id="sal-new-value" min="1" max="9999" value="'+current+'"'
+    + ' style="width:120px;padding:12px;text-align:center;font-size:24px;font-weight:800;border:2px solid var(--border);border-radius:10px;background:var(--mid);color:var(--text);font-family:monospace"/>'
+    + '<div style="font-size:14px;font-weight:600;color:var(--muted)">Ryos/h</div>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-top:6px">Modifiez la valeur ci-dessus</div>'
+    + '</div>'
+
+    + '<div id="sal-preview" style="background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.15);border-radius:8px;padding:10px;margin-bottom:1.25rem;font-size:13px;color:var(--muted)">'
+    + 'Pour 8h de service : <strong style="color:'+(color||'var(--accent)')+'">'+( current*8).toLocaleString()+' Ryos</strong>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:10px;justify-content:center">'
+    + '<button id="sal-cancel" style="padding:10px 20px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:sans-serif">Annuler</button>'
+    + '<button id="sal-save" style="padding:10px 20px;background:'+(color||'#27ae60')+';color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">✓ Enregistrer</button>'
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+
+  // Live preview
+  document.getElementById('sal-new-value').oninput = function() {
+    const v = parseInt(this.value) || 0;
+    document.getElementById('sal-preview').innerHTML = 'Pour 8h de service : <strong style="color:'+(color||'var(--accent)')+'">'+( v*8).toLocaleString()+' Ryos</strong>';
+  };
+
+  document.getElementById('sal-cancel').onclick = () => overlay.remove();
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  document.getElementById('sal-save').onclick = function() {
+    const newVal = parseInt(document.getElementById('sal-new-value').value);
+    if (isNaN(newVal) || newVal < 1 || newVal > 9999) {
+      alert('Valeur invalide. Entrez un nombre entre 1 et 9999.');
+      return;
+    }
+    overlay.remove();
+    showConfirmModal({
+      title: 'Confirmer la modification ?',
+      message: 'Nouveau salaire pour <strong>'+grade+'</strong> :<br><br>'
+        + '<span style="font-size:20px;font-weight:800;color:'+(color||'var(--accent)')+'">'+newVal.toLocaleString()+' Ryos/h</span><br><br>'
+        + 'Soit <strong>'+(newVal*8).toLocaleString()+' Ryos</strong> pour 8h de service.',
+      icon: '💰', color: color||'#27ae60', confirmLabel: '✓ Valider',
+      onConfirm: function() {
+        SALAIRES[grade] = newVal;
+        // Persist in localStorage as backup
+        try {
+          const saved = JSON.parse(localStorage.getItem('konoha_salaires') || '{}');
+          saved[grade] = newVal;
+          localStorage.setItem('konoha_salaires', JSON.stringify(saved));
+        } catch(e) {}
+        renderSalairesContent(state.currentUser.grade);
+        // Show success
+        showConfirmModal({
+          title: '✓ Salaire mis à jour !',
+          message: '<strong>'+grade+'</strong> → <strong style="color:'+(color||'#27ae60')+'">'+newVal.toLocaleString()+' Ryos/h</strong>',
+          icon: '✅', color: '#27ae60', confirmLabel: 'OK', cancelLabel: '',
+          onConfirm: function() {}
+        });
+      }
+    });
+  };
+}
+
+// Load saved salaires from localStorage on startup
+(function() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('konoha_salaires') || '{}');
+    Object.keys(saved).forEach(function(k) {
+      if (SALAIRES[k] !== undefined) SALAIRES[k] = saved[k];
+    });
+  } catch(e) {}
+})();
+
+// Wrapper to avoid quote issues in onclick for grades with spaces
+const _salairesGrades = [
+  { grade: 'Directeur',         color: '#f0c040' },
+  { grade: 'Directeur Adjoint', color: '#e0b030' },
+  { grade: 'Lieutenant',        color: '#3b82f6' },
+  { grade: 'Sergent',           color: '#6366f1' },
+  { grade: 'Officier',          color: '#10b981' },
+  { grade: 'Stagiaire',         color: '#64748b' },
+  { grade: 'Recrue',            color: '#94a3b8' },
+];
+function openEditSalaireByIndex(i) {
+  const g = _salairesGrades[i];
+  if (g) openEditSalaire(g.grade, g.color);
 }
 </script></body></html>
