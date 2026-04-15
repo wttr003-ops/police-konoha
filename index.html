@@ -6170,7 +6170,7 @@ async function openAgentConversation(threadId, senderName, fromUser) {
   }, 50);
 
   // Start real-time polling
-  startConvPolling(threadId, 'agent', senderName, fromUser);
+  startConvPolling(threadId, 'agent', senderName, fromUser, msgs.length);
 }
 
 async function sendAgentReply(threadId, toUser, toName) {
@@ -6290,7 +6290,7 @@ async function openCitizenConversation(threadId) {
     <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:1rem;max-height:400px;overflow-y:auto;padding:4px 0">`;
 
   msgs.forEach(m => {
-    const isMine = m.from_user === u.username || m.role === 'citizen';
+    const isMine = m.from_user === u.username;
     const text = (m.text||'').replace(/^\[DEMANDE\] /,'');
     const time = m.time || '';
 
@@ -6346,7 +6346,7 @@ async function openCitizenConversation(threadId) {
   }, 50);
 
   // Start real-time polling
-  startConvPolling(threadId, 'citizen', '', '');
+  startConvPolling(threadId, 'citizen', '', '', msgs.length);
 }
 
 async function sendCitizenReply(threadId) {
@@ -6562,11 +6562,11 @@ let currentOpenThread = null;
 let currentOpenSide = null; // 'agent' or 'citizen'
 let lastMsgCount = 0;
 
-async function startConvPolling(threadId, side, senderName, fromUser) {
+async function startConvPolling(threadId, side, senderName, fromUser, initialCount) {
   stopConvPolling();
   currentOpenThread = threadId;
   currentOpenSide = side;
-  lastMsgCount = 0;
+  lastMsgCount = initialCount || 0;
   
   convPollingInterval = setInterval(async () => {
     if (!currentOpenThread) return;
@@ -6629,7 +6629,7 @@ async function startConvPolling(threadId, side, senderName, fromUser) {
             + '</div></div>';
 
         } else if (currentOpenSide === 'citizen') {
-          const isMine = m.from_user === u.username || m.role === 'citizen';
+          const isMine = m.from_user === u.username;
           // Use citizen's own name from session, not from state.users (which contains agents)
   const citizenFullname = u.fullname || u.username;
   const myInit = citizenFullname.slice(0,2).toUpperCase();
