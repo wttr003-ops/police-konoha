@@ -7193,9 +7193,13 @@ async function renderPresencesContent(g) {
                 <div style="font-size:11px;color:var(--muted)">${data.grade||'—'} • ${data.entries.length} service(s) • ${th}h${String(tm).padStart(2,'0')} total</div>
               </div>
               <div style="text-align:right">
-                <div style="font-size:16px;font-weight:700;color:#f0c040">${data.totalRyos}</div>
+                <div style="font-size:16px;font-weight:700;color:#f0c040">${data.totalRyos.toLocaleString()}</div>
                 <div style="font-size:10px;color:var(--muted)">Ryos à payer</div>
               </div>
+              <button onclick="event.stopPropagation();ouvrirRetraitSalaire('${uname}','${data.fullname}',${data.totalRyos})"
+                style="padding:6px 12px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">
+                ✂️ Retirer
+              </button>
               <span id="fiche-icon-${safeId}" style="color:var(--muted)">▼</span>
             </div>
             <div id="fiche-body-${safeId}" style="display:none;border-top:0.5px solid var(--border);padding:0 14px">
@@ -7218,15 +7222,9 @@ async function renderPresencesContent(g) {
                     </button>`
                   : `<span style="font-size:12px;color:#27ae60;font-weight:700">✓ Salaire soldé</span>`
                 }
-                <div style="display:flex;gap:8px;align-items:center">
-                  <button onclick="ouvrirRetraitSalaire('${uname}','${data.fullname}',${data.totalRyos})"
-                    style="padding:8px 14px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
-                    ✂️ Retirer des Ryos
-                  </button>
-                  <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
+                <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
                     Total : ${data.totalRyos} Ryos
                   </div>
-                </div>
               </div>
             </div>
           </div>`;
