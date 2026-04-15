@@ -6018,9 +6018,13 @@ async function renderAgentMessages() {
 
   // Check which threads have unread (no agent reply yet)
   const threadList = Object.entries(threads).map(([tid, msgs]) => {
-    const lastMsg = msgs[0];
+    const lastMsg = msgs[0]; // newest message
     const hasReply = msgs.some(m => m.role === 'agent');
-    return { tid, msgs, lastMsg, hasReply, senderName: lastMsg.sender_name, fromUser: lastMsg.from_user };
+    // Always get citizen info from the first citizen message (not agent reply)
+    const citizenMsg = msgs.find(m => m.role === 'citizen') || msgs[msgs.length-1];
+    const senderName = citizenMsg.sender_name || citizenMsg.from_user || 'Citoyen';
+    const fromUser = citizenMsg.from_user || '';
+    return { tid, msgs, lastMsg, hasReply, senderName, fromUser };
   }).sort((a,b) => new Date(b.lastMsg.created_at) - new Date(a.lastMsg.created_at));
 
   const unreadCount = threadList.filter(t => !t.hasReply).length;
@@ -6614,7 +6618,7 @@ async function startConvPolling(threadId, side, senderName, fromUser, initialCou
           div.innerHTML = '<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end">'
             + '<div>'
             + '<div style="background:#1a2a4a;color:#e8f4ff;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:280px;line-height:1.5">' + rawText + '</div>'
-            + '<div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">' + (m.sender_name||'Vous') + ' · ' + time + '</div>'
+            + '<div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">Vous · ' + time + '</div>'
             + '</div>'
             + '<div style="width:32px;height:32px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">' + agentInit + '</div>'
             + '</div>';
@@ -6625,7 +6629,7 @@ async function startConvPolling(threadId, side, senderName, fromUser, initialCou
             + '<div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">' + citInit + '</div>'
             + '<div>'
             + '<div style="background:var(--panel);border:0.5px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;max-width:280px;line-height:1.5;color:var(--text)">' + rawText + '</div>'
-            + '<div style="font-size:10px;color:var(--muted);margin-top:3px">' + senderName + ' · ' + time + '</div>'
+            + '<div style="font-size:10px;color:var(--muted);margin-top:3px">' + (m.sender_name||senderName) + ' · ' + time + '</div>'
             + '</div></div>';
 
         } else if (currentOpenSide === 'citizen') {
