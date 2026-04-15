@@ -7218,8 +7218,14 @@ async function renderPresencesContent(g) {
                     </button>`
                   : `<span style="font-size:12px;color:#27ae60;font-weight:700">✓ Salaire soldé</span>`
                 }
-                <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
-                  Total : ${data.totalRyos} Ryos
+                <div style="display:flex;gap:8px;align-items:center">
+                  <button onclick="ouvrirRetraitSalaire('${uname}','${data.fullname}',${data.totalRyos})"
+                    style="padding:8px 14px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+                    ✂️ Retirer des Ryos
+                  </button>
+                  <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
+                    Total : ${data.totalRyos} Ryos
+                  </div>
                 </div>
               </div>
             </div>
@@ -7312,12 +7318,19 @@ function localDateStr(date) {
 async function _doPriseDeService() {
   const u = state.currentUser;
   const confirmedUser = state.users[u.username];
-  const now = new Date();
   const serviceKey = 'konoha_service_' + u.username;
+  const now = new Date();
 
-  // Save to Supabase with fin_service=null so direction sees it in real-time
+  // Store local display time for UI only
+  const heureLocale = localTimeStr(now);
+  const dateLocale  = localDateStr(now);
+
   let presenceId = null;
+  let serverPrise = null;
+
   try {
+    // POST without prise_service — let Supabase set created_at as server timestamp
+    // We also send a client timestamp but Supabase server time is authoritative
     const res = await fetch(SB_URL + '/rest/v1/presences', {
       method: 'POST',
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
@@ -7325,22 +7338,34 @@ async function _doPriseDeService() {
         username: u.username,
         fullname: confirmedUser.fullname || u.username,
         grade: u.grade,
-        prise_service: localISOString(now),
+        prise_service: new Date().toISOString(), // Will be overwritten by server check
         fin_service: null,
         duree_minutes: null,
         salaire: null,
-        date: localDateStr(now),
-        heure_prise: localTimeStr(now),
+        date: dateLocale,
+        heure_prise: heureLocale,
         heure_fin: null
       })
     });
     const data = await res.json();
-    if (Array.isArray(data) && data[0]) presenceId = data[0].id;
-  } catch(e) { console.warn(e); }
+    if (Array.isArray(data) && data[0]) {
+      presenceId = data[0].id;
+      // Use server created_at as the authoritative prise time
+      serverPrise = data[0].created_at || data[0].prise_service;
+    }
+  } catch(e) { console.warn('prise service:', e); }
 
-  localStorage.setItem(serviceKey, JSON.stringify({ prise: localISOString(now), fin: null, id: presenceId }));
+  // Store presenceId AND server timestamp in localStorage
+  localStorage.setItem(serviceKey, JSON.stringify({
+    prise: serverPrise || now.toISOString(),
+    heureLocale: heureLocale,
+    fin: null,
+    id: presenceId
+  }));
+
   await renderPresencesContent(u.grade);
 }
+
 
 async function finDeService() {
   const u = state.currentUser;
@@ -7372,8 +7397,9 @@ async function finDeService() {
     message: 'Confirmez-vous la fin de votre service ?<br><br>'
       + '🕐 Début : <strong>' + heureDebut + '</strong><br>'
       + '🕑 Fin : <strong>' + heureFin + '</strong><br>'
-      + '⏱ Durée : <strong>' + h + 'h' + String(m).padStart(2,'0') + '</strong><br>'
-      + '💰 Salaire gagné : <strong style="color:#f0c040">' + salaire.toLocaleString() + ' Ryos</strong>',
+      + '⏱ Durée estimée : <strong>' + h + 'h' + String(m).padStart(2,'0') + '</strong><br>'
+      + '💰 Salaire estimé : <strong style="color:#f0c040">' + salaire.toLocaleString() + ' Ryos</strong><br><br>'
+      + '<span style="font-size:11px;color:var(--muted)">Le calcul final est effectué par le serveur.</span>',
     icon: '⏹️',
     color: '#e74c3c',
     confirmLabel: '✓ Terminer le service',
@@ -7382,53 +7408,85 @@ async function finDeService() {
   });
 }
 
-async function _doFinDeService(serviceData, prise, fin, diffMins, salaire, taux) {
+async function _doFinDeService(serviceData, priseClient, finClient, diffMinsClient, salaireClient, taux) {
   const u = state.currentUser;
   const confirmedUser = state.users[u.username];
   const serviceKey = 'konoha_service_' + u.username;
+  const presenceId = serviceData.id;
+
+  // SECURITY: Fetch the actual prise_service from Supabase (server timestamp)
+  // This prevents client-side time manipulation
+  let diffMins = diffMinsClient;
+  let salaire = salaireClient;
+  let finISO = new Date().toISOString();
+  const heureFinLocale = localTimeStr(new Date());
+
+  if (presenceId) {
+    try {
+      const res = await sbGet('presences', '?id=eq.' + presenceId);
+      if (Array.isArray(res) && res[0]) {
+        const serverPrise = new Date(res[0].created_at || res[0].prise_service);
+        const serverFin = new Date(); // server-side now
+        const serverDiff = Math.round((serverFin - serverPrise) / 60000);
+
+        // SECURITY CAP: max 12h (720 mins) per service
+        const MAX_MINS = 720;
+        diffMins = Math.min(serverDiff, MAX_MINS);
+
+        if (diffMins < 1) {
+          showConfirmModal({
+            title: 'Service trop court',
+            message: 'Le service doit durer au moins 1 minute.',
+            icon: '⚠️', color: '#e74c3c', confirmLabel: 'OK', cancelLabel: '',
+            onConfirm: function() {}
+          });
+          localStorage.removeItem(serviceKey);
+          await renderPresencesContent(u.grade);
+          return;
+        }
+
+        if (serverDiff > MAX_MINS) {
+          // Capped — notify
+          console.warn('Service duration capped at 12h for', u.username);
+        }
+
+        salaire = Math.round((diffMins / 60) * (taux || SALAIRES[u.grade] || 50));
+        finISO = serverFin.toISOString();
+      }
+    } catch(e) { console.warn('fin service server check:', e); }
+  }
+
+  const hFin = Math.floor(diffMins/60), mFin = diffMins%60;
 
   try {
-    const presenceId = serviceData.id;
     if (presenceId) {
-      // Update existing row
       await fetch(SB_URL + '/rest/v1/presences?id=eq.' + presenceId, {
         method: 'PATCH',
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ fin_service: localISOString(fin), duree_minutes: diffMins, salaire: salaire, heure_fin: localTimeStr(fin) })
-      });
-    } else {
-      // No ID (old session) - create new row
-      await sbPost('presences', {
-        username: u.username,
-        fullname: confirmedUser.fullname || u.username,
-        grade: u.grade,
-        prise_service: localISOString(prise),
-        fin_service: localISOString(fin),
-        duree_minutes: diffMins,
-        salaire: salaire,
-        date: new Date()
+        body: JSON.stringify({
+          fin_service: finISO,
+          heure_fin: heureFinLocale,
+          duree_minutes: diffMins,
+          salaire: salaire
+        })
       });
     }
-  } catch(e) { console.warn(e); }
+  } catch(e) { console.warn('fin service patch:', e); }
 
   localStorage.removeItem(serviceKey);
   if (window._serviceTimer) clearInterval(window._serviceTimer);
 
-  const hh = Math.floor(diffMins/60), mm = diffMins%60;
   showConfirmModal({
     title: '✓ Service terminé !',
     message: 'Votre service a bien été enregistré.<br><br>'
-      + '⏱ Durée : <strong>' + hh + 'h' + String(mm).padStart(2,'0') + '</strong><br>'
-      + '💰 Salaire gagné : <strong style="color:#f0c040">' + salaire.toLocaleString() + ' Ryos</strong>',
-    icon: '✅',
-    color: '#27ae60',
-    confirmLabel: 'OK',
-    cancelLabel: '',
+      + '⏱ Durée : <strong>' + hFin + 'h' + String(mFin).padStart(2,'0') + '</strong><br>'
+      + '💰 Salaire gagné : <strong style="color:#f0c040">' + salaire.toLocaleString() + ' Ryos</strong>'
+      + (diffMins >= 720 ? '<br><br><span style="font-size:11px;color:#e74c3c">⚠️ Durée limitée à 12h maximum.</span>' : ''),
+    icon: '✅', color: '#27ae60', confirmLabel: 'OK', cancelLabel: '',
     onConfirm: async function() {}
   });
   await renderPresencesContent(u.grade);
 }
-
 
 
 async function forceFinService(presenceId, username, fullname, grade) {
@@ -8904,5 +8962,175 @@ const _salairesGrades = [
 function openEditSalaireByIndex(i) {
   const g = _salairesGrades[i];
   if (g) openEditSalaire(g.grade, g.color);
+}
+
+async function ouvrirRetraitSalaire(username, fullname, totalRyos) {
+  if (totalRyos <= 0) {
+    showConfirmModal({
+      title: 'Aucun solde',
+      message: '<strong>' + fullname + '</strong> n\'a aucun Ryos à retirer.',
+      icon: 'ℹ️', color: '#64748b', confirmLabel: 'OK', cancelLabel: '',
+      onConfirm: function() {}
+    });
+    return;
+  }
+
+  const existing = document.getElementById('confirm-modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'confirm-modal-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)';
+
+  overlay.innerHTML = '<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem 2.5rem;max-width:400px;width:92%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">'
+    + '<div style="font-size:44px;margin-bottom:10px">✂️</div>'
+    + '<div style="font-size:18px;font-weight:800;color:#c0392b;margin-bottom:6px">Retirer des Ryos</div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem"><strong style="color:var(--text)">' + fullname + '</strong></div>'
+
+    + '<div style="background:var(--mid);border-radius:10px;padding:12px;margin-bottom:1.25rem;font-size:13px">'
+    + '💰 Solde actuel : <strong style="color:#f0c040">' + totalRyos.toLocaleString() + ' Ryos</strong>'
+    + '</div>'
+
+    + '<div style="margin-bottom:1rem">'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;text-align:left">Montant à retirer (Ryos)</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;justify-content:center">'
+    + '<input type="number" id="retrait-montant" min="1" max="' + totalRyos + '" value="0"'
+    + ' style="width:140px;padding:11px;text-align:center;font-size:22px;font-weight:700;border:2px solid var(--border);border-radius:10px;background:var(--mid);color:var(--text);font-family:monospace"/>'
+    + '<div style="font-size:14px;font-weight:600;color:var(--muted)">Ryos</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px;justify-content:center;margin-top:10px">'
+    + '<button onclick="setRetraitQuick(25)" style="padding:5px 12px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:sans-serif">25%</button>'
+    + '<button onclick="setRetraitQuick(50)" style="padding:5px 12px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:sans-serif">50%</button>'
+    + '<button onclick="setRetraitQuick(75)" style="padding:5px 12px;background:var(--panel);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:sans-serif">75%</button>'
+    + '<button onclick="setRetraitQuick(100)" style="padding:5px 12px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);border-radius:6px;font-size:11px;cursor:pointer;font-family:sans-serif">Tout</button>'
+    + '</div>'
+    + '</div>'
+
+    + '<div id="retrait-motif-wrap" style="margin-bottom:1.25rem;text-align:left">'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">Motif du retrait *</div>'
+    + '<select id="retrait-motif" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--mid);color:var(--text);font-size:13px;font-family:sans-serif">'
+    + '<option value="">-- Sélectionner un motif --</option>'
+    + '<option value="Correction heures incorrectes">Correction heures incorrectes</option>'
+    + '<option value="Amende interne">Amende interne</option>'
+    + '<option value="Remboursement équipement">Remboursement équipement</option>'
+    + '<option value="Sanction disciplinaire">Sanction disciplinaire</option>'
+    + '<option value="Erreur de calcul">Erreur de calcul</option>'
+    + '<option value="Autre">Autre</option>'
+    + '</select>'
+    + '</div>'
+
+    + '<div id="retrait-recap" style="display:none;background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.18);border-radius:8px;padding:10px;margin-bottom:1.25rem;font-size:13px;color:var(--text)"></div>'
+
+    + '<div style="display:flex;gap:10px;justify-content:center">'
+    + '<button id="retrait-cancel" style="padding:10px 20px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:sans-serif">Annuler</button>'
+    + '<button id="retrait-confirm" style="padding:10px 20px;background:#c0392b;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">✂️ Confirmer le retrait</button>'
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+
+  // Store for quick buttons
+  window._retraitMax = totalRyos;
+  window._retraitUsername = username;
+  window._retraitFullname = fullname;
+
+  document.getElementById('retrait-cancel').onclick = () => overlay.remove();
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  // Live recap
+  document.getElementById('retrait-montant').oninput = function() {
+    updateRetraitRecap(totalRyos);
+  };
+  document.getElementById('retrait-motif').onchange = function() {
+    updateRetraitRecap(totalRyos);
+  };
+
+  document.getElementById('retrait-confirm').onclick = async function() {
+    const montant = parseInt(document.getElementById('retrait-montant').value) || 0;
+    const motif = document.getElementById('retrait-motif').value;
+
+    if (montant <= 0) { alert('Entrez un montant valide.'); return; }
+    if (montant > totalRyos) { alert('Le montant dépasse le solde disponible.'); return; }
+    if (!motif) { alert('Sélectionnez un motif.'); return; }
+
+    overlay.remove();
+
+    showConfirmModal({
+      title: 'Confirmer le retrait ?',
+      message: 'Retirer <strong style="color:#c0392b">' + montant.toLocaleString() + ' Ryos</strong> de <strong>' + fullname + '</strong> ?<br><br>'
+        + 'Motif : <em>' + motif + '</em><br><br>'
+        + 'Solde restant : <strong style="color:#f0c040">' + (totalRyos - montant).toLocaleString() + ' Ryos</strong>',
+      icon: '✂️', color: '#c0392b', confirmLabel: 'Retirer',
+      onConfirm: async function() {
+        await executerRetrait(username, fullname, montant, totalRyos, motif);
+      }
+    });
+  };
+}
+
+function setRetraitQuick(pct) {
+  const max = window._retraitMax || 0;
+  const val = Math.round(max * pct / 100);
+  const input = document.getElementById('retrait-montant');
+  if (input) { input.value = val; updateRetraitRecap(max); }
+}
+
+function updateRetraitRecap(totalRyos) {
+  const montant = parseInt(document.getElementById('retrait-montant')?.value) || 0;
+  const motif = document.getElementById('retrait-motif')?.value || '';
+  const recap = document.getElementById('retrait-recap');
+  if (!recap) return;
+  if (montant > 0 && motif) {
+    recap.style.display = 'block';
+    recap.innerHTML = '✂️ Retrait : <strong style="color:#c0392b">' + montant.toLocaleString() + ' Ryos</strong>'
+      + ' &nbsp;|&nbsp; Solde restant : <strong style="color:#f0c040">' + Math.max(0, totalRyos - montant).toLocaleString() + ' Ryos</strong>'
+      + '<br><span style="font-size:11px;color:var(--muted)">Motif : ' + motif + '</span>';
+  } else {
+    recap.style.display = 'none';
+  }
+}
+
+async function executerRetrait(username, fullname, montant, totalRyos, motif) {
+  const dirUser = state.currentUser;
+  const dirName = state.users[dirUser?.username]?.fullname || dirUser?.username || 'Direction';
+  const now = new Date();
+
+  // Create a negative presence entry to represent the deduction
+  try {
+    await sbPost('presences', {
+      username: username,
+      fullname: fullname,
+      grade: state.users[username]?.grade || '—',
+      prise_service: localISOString(now),
+      fin_service: localISOString(now),
+      duree_minutes: 0,
+      salaire: -montant,  // NEGATIVE amount = deduction
+      date: localDateStr(now),
+      heure_prise: localTimeStr(now),
+      heure_fin: localTimeStr(now),
+      statut_paye: null,
+      note_retrait: motif + ' — par ' + dirName
+    });
+  } catch(e) { console.warn('retrait:', e); }
+
+  // Log in journal
+  try {
+    await sbPost('journal', {
+      action: 'RETRAIT_SALAIRE',
+      details: 'Retrait de ' + montant + ' Ryos sur ' + fullname + ' — Motif : ' + motif,
+      auteur: dirName,
+      date: localDateStr(now)
+    });
+  } catch(e) {}
+
+  showConfirmModal({
+    title: '✓ Retrait effectué !',
+    message: '<strong>' + montant.toLocaleString() + ' Ryos</strong> retirés de <strong>' + fullname + '</strong>.<br><br>'
+      + 'Motif : <em>' + motif + '</em>',
+    icon: '✅', color: '#27ae60', confirmLabel: 'OK', cancelLabel: '',
+    onConfirm: async function() {}
+  });
+
+  await renderPresencesContent(state.currentUser.grade);
 }
 </script></body></html>
