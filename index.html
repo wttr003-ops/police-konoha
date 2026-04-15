@@ -7080,8 +7080,8 @@ async function renderPresencesContent(g) {
   } else {
     myPresences.slice(0,15).forEach(p => {
       const h2 = Math.floor((p.duree_minutes||0)/60), m2 = (p.duree_minutes||0)%60;
-      const priseStr = p.heure_prise || (p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—');
-      const finStr = p.heure_fin || (p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—');
+      const priseStr = p.heure_prise || (p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}) : '—');
+      const finStr = p.heure_fin || (p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}) : '—');
       html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">
         <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⏱</div>
         <div style="flex:1;min-width:0">
@@ -7277,6 +7277,25 @@ async function priseDeService() {
   });
 }
 
+
+// Helper: format local datetime as ISO-like string with timezone offset
+// Avoids UTC shift problem (toISOString() returns UTC, not local time)
+function localISOString(date) {
+  const pad = n => String(n).padStart(2,'0');
+  return date.getFullYear() + '-'
+    + pad(date.getMonth()+1) + '-'
+    + pad(date.getDate()) + 'T'
+    + pad(date.getHours()) + ':'
+    + pad(date.getMinutes()) + ':'
+    + pad(date.getSeconds());
+}
+function localTimeStr(date) {
+  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+}
+function localDateStr(date) {
+  return date.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
+}
+
 async function _doPriseDeService() {
   const u = state.currentUser;
   const confirmedUser = state.users[u.username];
@@ -7293,12 +7312,12 @@ async function _doPriseDeService() {
         username: u.username,
         fullname: confirmedUser.fullname || u.username,
         grade: u.grade,
-        prise_service: now.toISOString(),
+        prise_service: localISOString(now),
         fin_service: null,
         duree_minutes: null,
         salaire: null,
-        date: now.toLocaleDateString('fr-FR'),
-        heure_prise: now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+        date: localDateStr(now),
+        heure_prise: localTimeStr(now),
         heure_fin: null
       })
     });
@@ -7306,7 +7325,7 @@ async function _doPriseDeService() {
     if (Array.isArray(data) && data[0]) presenceId = data[0].id;
   } catch(e) { console.warn(e); }
 
-  localStorage.setItem(serviceKey, JSON.stringify({ prise: now.toISOString(), fin: null, id: presenceId }));
+  localStorage.setItem(serviceKey, JSON.stringify({ prise: localISOString(now), fin: null, id: presenceId }));
   await renderPresencesContent(u.grade);
 }
 
@@ -7362,7 +7381,7 @@ async function _doFinDeService(serviceData, prise, fin, diffMins, salaire, taux)
       await fetch(SB_URL + '/rest/v1/presences?id=eq.' + presenceId, {
         method: 'PATCH',
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ fin_service: fin.toISOString(), duree_minutes: diffMins, salaire: salaire, heure_fin: fin.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) })
+        body: JSON.stringify({ fin_service: localISOString(fin), duree_minutes: diffMins, salaire: salaire, heure_fin: localTimeStr(fin) })
       });
     } else {
       // No ID (old session) - create new row
@@ -7370,11 +7389,11 @@ async function _doFinDeService(serviceData, prise, fin, diffMins, salaire, taux)
         username: u.username,
         fullname: confirmedUser.fullname || u.username,
         grade: u.grade,
-        prise_service: prise.toISOString(),
-        fin_service: fin.toISOString(),
+        prise_service: localISOString(prise),
+        fin_service: localISOString(fin),
         duree_minutes: diffMins,
         salaire: salaire,
-        date: new Date().toLocaleDateString('fr-FR')
+        date: new Date()
       });
     }
   } catch(e) { console.warn(e); }
@@ -7400,71 +7419,146 @@ async function _doFinDeService(serviceData, prise, fin, diffMins, salaire, taux)
 
 
 async function forceFinService(presenceId, username, fullname, grade) {
-  // Ask for real end time
-  const heureStr = prompt(
-    'Clôturer le service de ' + fullname + '\n\nEntrez l\'heure réelle de fin de service :\n(format HH:MM, ex: 18:30)',
-    new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-  );
-  if (!heureStr || !heureStr.trim()) return;
-
-  // Parse the entered time
-  const parts = heureStr.trim().split(':');
-  if (parts.length < 2) { alert('Format invalide. Utilisez HH:MM'); return; }
-  const h = parseInt(parts[0]), m = parseInt(parts[1]);
-  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
-    alert('Heure invalide. Utilisez HH:MM (ex: 18:30)');
-    return;
-  }
-
-  // Get the presence to calculate correct salary
-  let prise = null;
+  // Get the presence record to show prise time
+  let priseHeure = '—';
+  let priseDate = null;
   try {
     const res = await sbGet('presences', '?id=eq.' + presenceId);
-    if (Array.isArray(res) && res[0]) prise = new Date(res[0].prise_service);
+    if (Array.isArray(res) && res[0]) {
+      priseDate = res[0].heure_prise || (res[0].prise_service
+        ? new Date(res[0].prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'})
+        : '—');
+      priseHeure = priseDate;
+    }
   } catch(e) {}
 
-  if (!prise) { alert('Erreur : impossible de trouver la prise de service.'); return; }
+  // Get current local time as default
+  const nowLocal = new Date();
+  const defaultHeure = nowLocal.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
+  const defaultHH = String(nowLocal.getHours()).padStart(2,'0');
+  const defaultMM = String(nowLocal.getMinutes()).padStart(2,'0');
 
-  // Build fin_service with today's date + entered time
-  const fin = new Date();
-  fin.setHours(h, m, 0, 0);
+  // Show beautiful modal with time picker
+  const existing = document.getElementById('confirm-modal-overlay');
+  if (existing) existing.remove();
 
-  // If fin < prise, assume next day (edge case)
-  if (fin < prise) fin.setDate(fin.getDate() + 1);
+  const overlay = document.createElement('div');
+  overlay.id = 'confirm-modal-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
 
-  const diffMins = Math.max(1, Math.round((fin - prise) / 60000));
-  const taux = SALAIRES[grade] || 50;
-  const salaire = Math.round((diffMins / 60) * taux);
-  const hh = Math.floor(diffMins/60), mm = diffMins%60;
+  overlay.innerHTML = '<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem 2.5rem;max-width:400px;width:92%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,0.5)">'
+    + '<div style="font-size:44px;margin-bottom:0.75rem">⏹️</div>'
+    + '<div style="font-size:18px;font-weight:800;color:#e74c3c;margin-bottom:0.5rem">Clôturer le service</div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem"><strong style="color:var(--text)">' + fullname + '</strong> — ' + grade + '</div>'
+    + '<div style="background:var(--mid);border-radius:10px;padding:12px;margin-bottom:1.25rem;font-size:13px;color:var(--muted)">'
+    + '🕐 Prise de service : <strong style="color:var(--text)">' + priseHeure + '</strong>'
+    + '</div>'
+    + '<div style="margin-bottom:1.5rem">'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600">🕑 Heure réelle de fin de service</div>'
+    + '<div style="display:flex;align-items:center;justify-content:center;gap:8px">'
+    + '<input type="number" id="cloture-hh" min="0" max="23" value="' + defaultHH + '"'
+    + ' style="width:64px;padding:10px;text-align:center;font-size:22px;font-weight:700;border:2px solid var(--border);border-radius:8px;background:var(--mid);color:var(--text);font-family:monospace"/>'
+    + '<span style="font-size:24px;font-weight:700;color:var(--text)">:</span>'
+    + '<input type="number" id="cloture-mm" min="0" max="59" value="' + defaultMM + '"'
+    + ' style="width:64px;padding:10px;text-align:center;font-size:22px;font-weight:700;border:2px solid var(--border);border-radius:8px;background:var(--mid);color:var(--text);font-family:monospace"/>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-top:6px">Format 24h — Heure de Paris</div>'
+    + '</div>'
+    + '<div id="cloture-recap" style="background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.15);border-radius:8px;padding:10px;margin-bottom:1.25rem;font-size:13px;display:none"></div>'
+    + '<div style="display:flex;gap:10px;justify-content:center">'
+    + '<button id="cloture-cancel" style="padding:10px 20px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:sans-serif">Annuler</button>'
+    + '<button id="cloture-preview" style="padding:10px 20px;background:rgba(59,130,246,0.12);color:var(--accent);border:1px solid rgba(59,130,246,0.3);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">🔍 Calculer</button>'
+    + '<button id="cloture-confirm" style="padding:10px 20px;background:#e74c3c;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif;display:none">✓ Clôturer</button>'
+    + '</div>'
+    + '</div>';
 
-  const confirm1 = confirm(
-    'Confirmer la clôture pour ' + fullname + ' ?\n\n' +
-    'Prise de service : ' + prise.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}) + '\n' +
-    'Fin de service : ' + fin.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}) + '\n' +
-    'Durée : ' + hh + 'h' + String(mm).padStart(2,'0') + '\n' +
-    'Salaire calculé : ' + salaire + ' Ryos'
-  );
-  if (!confirm1) return;
+  document.body.appendChild(overlay);
 
-  // Update in Supabase
-  try {
-    await fetch(SB_URL + '/rest/v1/presences?id=eq.' + presenceId, {
-      method: 'PATCH',
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        fin_service: fin.toISOString(),
-        duree_minutes: diffMins,
-        salaire: salaire
-      })
+  // Store computed values
+  let computedDiff = 0, computedSalaire = 0, computedFin = null;
+
+  document.getElementById('cloture-cancel').onclick = () => overlay.remove();
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  document.getElementById('cloture-preview').onclick = async () => {
+    const hh = parseInt(document.getElementById('cloture-hh').value);
+    const mm = parseInt(document.getElementById('cloture-mm').value);
+    if (isNaN(hh)||isNaN(mm)||hh<0||hh>23||mm<0||mm>59) {
+      document.getElementById('cloture-recap').style.display = 'block';
+      document.getElementById('cloture-recap').innerHTML = '⚠️ Heure invalide.';
+      document.getElementById('cloture-recap').style.background = 'rgba(192,57,43,0.08)';
+      document.getElementById('cloture-recap').style.borderColor = 'rgba(192,57,43,0.2)';
+      return;
+    }
+
+    // Get prise from Supabase for exact calculation
+    let priseTS = null;
+    try {
+      const res2 = await sbGet('presences', '?id=eq.' + presenceId);
+      if (Array.isArray(res2) && res2[0]) {
+        // Try heure_prise first (stored as local HH:MM), else prise_service ISO
+        if (res2[0].heure_prise) {
+          const parts = res2[0].heure_prise.split(':');
+          priseTS = new Date();
+          priseTS.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
+        } else if (res2[0].prise_service) {
+          priseTS = new Date(res2[0].prise_service);
+        }
+      }
+    } catch(e) {}
+
+    if (!priseTS) {
+      document.getElementById('cloture-recap').style.display = 'block';
+      document.getElementById('cloture-recap').innerHTML = '⚠️ Impossible de récupérer la prise de service.';
+      return;
+    }
+
+    computedFin = new Date();
+    computedFin.setHours(hh, mm, 0, 0);
+    if (computedFin < priseTS) computedFin.setDate(computedFin.getDate()+1); // next day edge
+
+    computedDiff = Math.max(1, Math.round((computedFin - priseTS) / 60000));
+    const taux = SALAIRES[grade] || 50;
+    computedSalaire = Math.round((computedDiff / 60) * taux);
+    const dH = Math.floor(computedDiff/60), dM = computedDiff%60;
+
+    const recap = document.getElementById('cloture-recap');
+    recap.style.display = 'block';
+    recap.style.background = 'rgba(39,174,96,0.06)';
+    recap.style.borderColor = 'rgba(39,174,96,0.15)';
+    recap.innerHTML = '🕐 Début : <strong>' + priseHeure + '</strong> &nbsp;→&nbsp; 🕑 Fin : <strong>' + String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0') + '</strong><br>'
+      + '⏱ Durée : <strong>' + dH + 'h' + String(dM).padStart(2,'0') + '</strong>'
+      + ' &nbsp;|&nbsp; 💰 Salaire : <strong style="color:#f0c040">' + computedSalaire.toLocaleString() + ' Ryos</strong>';
+
+    document.getElementById('cloture-confirm').style.display = 'inline-block';
+  };
+
+  document.getElementById('cloture-confirm').onclick = async () => {
+    overlay.remove();
+    try {
+      await fetch(SB_URL + '/rest/v1/presences?id=eq.' + presenceId, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          fin_service: localISOString(computedFin),
+          heure_fin: String(computedFin.getHours()).padStart(2,'0') + ':' + String(computedFin.getMinutes()).padStart(2,'0'),
+          duree_minutes: computedDiff,
+          salaire: computedSalaire
+        })
+      });
+    } catch(e) { console.warn(e); }
+
+    showConfirmModal({
+      title: '✓ Service clôturé !',
+      message: '<strong>' + fullname + '</strong><br><br>'
+        + '💰 Salaire final : <strong style="color:#f0c040">' + computedSalaire.toLocaleString() + ' Ryos</strong>',
+      icon: '✅', color: '#27ae60', confirmLabel: 'OK', cancelLabel: '',
+      onConfirm: async function() {}
     });
-  } catch(e) { console.warn(e); }
-
-  // Also clear their localStorage service key (they'll see it next time they load)
-  // Can't directly clear another user's localStorage, but Supabase update is enough
-
-  alert('✓ Service de ' + fullname + ' clôturé.\nSalaire final : ' + salaire + ' Ryos');
-  renderPresencesContent(state.currentUser.grade);
+    await renderPresencesContent(state.currentUser.grade);
+  };
 }
+
 
 // ============================================================
 // SYSTÈME D'AMENDES
