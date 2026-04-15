@@ -9094,22 +9094,38 @@ async function executerRetrait(username, fullname, montant, totalRyos, motif) {
   const now = new Date();
 
   // Create a negative presence entry to represent the deduction
+  let retraitOk = false;
   try {
-    await sbPost('presences', {
-      username: username,
-      fullname: fullname,
-      grade: state.users[username]?.grade || '—',
-      prise_service: localISOString(now),
-      fin_service: localISOString(now),
-      duree_minutes: 0,
-      salaire: -montant,  // NEGATIVE amount = deduction
-      date: localDateStr(now),
-      heure_prise: localTimeStr(now),
-      heure_fin: localTimeStr(now),
-      statut_paye: null,
-      note_retrait: motif + ' — par ' + dirName
+    const res = await fetch(SB_URL + '/rest/v1/presences', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({
+        username: username,
+        fullname: fullname,
+        grade: state.users[username]?.grade || '—',
+        prise_service: localISOString(now),
+        fin_service: localISOString(now),
+        duree_minutes: 0,
+        salaire: -montant,
+        date: localDateStr(now),
+        heure_prise: '[RETRAIT] ' + motif + ' par ' + dirName,
+        heure_fin: localTimeStr(now),
+        statut_paye: null
+      })
     });
-  } catch(e) { console.warn('retrait:', e); }
+    if (res.ok) {
+      retraitOk = true;
+    } else {
+      const errText = await res.text();
+      console.error('Retrait error:', errText);
+      alert('⚠️ Erreur lors du retrait : ' + errText.substring(0, 150));
+      return;
+    }
+  } catch(e) {
+    console.error('Retrait exception:', e);
+    alert('⚠️ Erreur réseau : ' + e.message);
+    return;
+  }
 
   // Log in journal
   try {
