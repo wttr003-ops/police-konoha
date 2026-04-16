@@ -6877,6 +6877,7 @@ async function renderGalerie() {
         grade: p.grade,
         date: p.date
       }));
+      window._galerieCache = photos; // Cache pour galOpenPhoto
     }
   } catch(e) {
     // Fallback to localStorage
@@ -6944,7 +6945,7 @@ async function renderGalerie() {
                 <div style="font-size:10px;color:var(--muted)">${p.date||'—'}</div>
               </div>
             </div>
-            ${canDel ? `<button onclick="deletePhoto(${realIdx})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:4px" title="Supprimer">🗑</button>` : ''}
+            ${canDel ? `<button onclick="deletePhoto(${p.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:4px" title="Supprimer">🗑</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -7036,16 +7037,19 @@ async function publishPhoto() {
   renderGalerie();
 }
 
-function deletePhoto(idx) {
+async function deletePhoto(id) {
   if (!confirm('Supprimer cette photo définitivement ?')) return;
-  const photos = JSON.parse(localStorage.getItem('konoha_galerie') || '[]');
-  photos.splice(idx, 1);
-  localStorage.setItem('konoha_galerie', JSON.stringify(photos));
+  try {
+    await fetch(SB_URL + '/rest/v1/galerie?id=eq.' + id, {
+      method: 'DELETE',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+  } catch(e) { alert('Erreur lors de la suppression : ' + e.message); return; }
   renderGalerie();
 }
 
 async function galOpenPhoto(idx) {
-  const photos = JSON.parse(localStorage.getItem('konoha_galerie') || '[]');
+  const photos = window._galerieCache || [];
   const p = photos[idx];
   if (!p) return;
 
