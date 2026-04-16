@@ -9892,7 +9892,14 @@ async function renderPlanningContent(g) {
     const lastKey  = days[6].key;
     const res = await sbGet('planning', '?date=gte.' + firstKey + '&date=lte.' + lastKey + '&order=heure_debut.asc');
     if (Array.isArray(res)) slots = res;
-  } catch(e) { console.warn('planning load:', e); }
+  } catch(e) {
+    console.warn('planning load:', e);
+    el.innerHTML = '<h2 class="dash-section-title">📅 Planning hebdomadaire</h2>'
+      + '<div style="padding:12px 14px;background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:8px;font-size:13px;color:#c0392b;margin-bottom:1rem">'
+      + "⚠️ La table <strong>planning</strong> n'existe pas encore. Exécutez supabase_planning.sql dans Supabase Police."
+      + '</div>';
+    return;
+  }
 
   // Group by date
   const byDay = {};
