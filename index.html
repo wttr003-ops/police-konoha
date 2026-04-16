@@ -9988,7 +9988,8 @@ async function renderPlanningContent(g) {
     + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem;max-width:360px;width:92%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">'
     + '<div style="font-size:36px;margin-bottom:10px">📅</div>'
     + '<div style="font-size:17px;font-weight:700;color:var(--accent);margin-bottom:6px">Ajouter un créneau</div>'
-    + '<div id="planning-add-date-label" style="font-size:13px;color:var(--muted);margin-bottom:1.25rem"></div>'
+    + '<div id="planning-add-date-label" style="font-size:13px;color:var(--muted);margin-bottom:0.75rem"></div>'
+    + '<div id="planning-agent-wrap" style="margin-bottom:1rem;display:none"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-align:left">Ajouter pour</div><select id="planning-agent-select" style="width:100%;padding:8px;border:0.5px solid var(--border);border-radius:7px;background:var(--mid);color:var(--text);font-size:13px;font-family:sans-serif"></select></div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">'
     + '<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-align:left">Heure de début</div>'
     + '<input type="time" id="planning-heure-debut" value="20:00" style="width:100%;padding:8px;border:0.5px solid var(--border);border-radius:7px;background:var(--mid);color:var(--text);font-size:14px"/></div>'
@@ -10018,6 +10019,24 @@ function planningOpenAdd(dateKey) {
   const dayIdx = dt.getDay()===0?6:dt.getDay()-1;
   const lbl = document.getElementById('planning-add-date-label');
   if (lbl) lbl.textContent = DAYS_FR[dayIdx] + ' ' + dt.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+
+  // Sergent+ can add for any agent
+  const u = state.currentUser;
+  const canAddForOthers = gradeRank(u.grade) <= 3; // Sergent, Lieutenant, Dir.Adj, Directeur
+  const wrap = document.getElementById('planning-agent-wrap');
+  const sel = document.getElementById('planning-agent-select');
+  if (wrap && sel) {
+    if (canAddForOthers) {
+      wrap.style.display = 'block';
+      // Build options from real agents
+      const agents = Object.values(state.users).filter(a=>a.isAgent&&a.fullname).sort((a,b)=>a.fullname.localeCompare(b.fullname));
+      const myName = state.users[u.username]?.fullname || u.username;
+      sel.innerHTML = agents.map(a=>'<option value="'+a.fullname+'" data-username="'+Object.keys(state.users).find(k=>state.users[k]===a)+'"'+(a.fullname===myName?' selected':'')+'>'+a.fullname+'</option>').join('');
+    } else {
+      wrap.style.display = 'none';
+    }
+  }
+
   const modal = document.getElementById('planning-add-modal');
   if (modal) modal.style.display = 'flex';
 }
@@ -10036,12 +10055,24 @@ async function planningConfirmAdd() {
     if (debut <= fin) { alert('L\'heure de fin doit être après l\'heure de début.'); return; }
   }
   const u = state.currentUser;
-  const agent = state.users[u.username]?.fullname || u.username;
+  const canAddForOthers = gradeRank(u.grade) <= 3;
+  let agent = state.users[u.username]?.fullname || u.username;
+  let agentUsername = u.username;
+  let agentGrade = u.grade;
+  if (canAddForOthers) {
+    const sel = document.getElementById('planning-agent-select');
+    if (sel && sel.value) {
+      agent = sel.value;
+      // Find username for this agent
+      const found = Object.entries(state.users).find(([k,v])=>v.fullname===agent);
+      if (found) { agentUsername = found[0]; agentGrade = found[1].grade || ''; }
+    }
+  }
   try {
     const res = await fetch(SB_URL + '/rest/v1/planning', {
       method: 'POST',
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-      body: JSON.stringify({ date: _planningSelectedDate, heure_debut: debut, heure_fin: fin, username: u.username, agent: agent, grade: u.grade })
+      body: JSON.stringify({ date: _planningSelectedDate, heure_debut: debut, heure_fin: fin, username: agentUsername, agent: agent, grade: agentGrade })
     });
     if (!res.ok) { const e = await res.text(); alert('Erreur : ' + e.substring(0,100)); return; }
   } catch(e) { alert('Erreur réseau : ' + e.message); return; }
