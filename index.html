@@ -3684,11 +3684,10 @@ function renderPlaintesContent(g) {
   html += '</div>';
   el.innerHTML = html;
 }
+
 function renderCandidContent(g) {
   const el = document.getElementById('candid-content');
   if (!canRecruit(g)) { el.innerHTML = noAccess('Officier ou supérieur'); return; }
-
-  // Sort newest first
   const candidatures = [...state.candidatures].sort((a,b) => (b.id||0) - (a.id||0));
   const canDelete = gradeRank(g) <= 1;
 
@@ -3756,63 +3755,60 @@ function renderCandidContent(g) {
 async function renderMembresContent(g) {
   const el = document.getElementById('membres-content');
   if (!el) return;
-  // Tous les agents peuvent voir la liste des membres
 
   const currentUser = state.currentUser;
-  const mySection = state.users[currentUser.username]?.section || 'aucune';
-  const isDirection = gradeRank(g) <= 1; // Dir et Adj voient tout le monde
-  const hokageReadOnly = g === 'Hokage'; // Hokage voit mais ne peut pas modifier
+  if (!currentUser) { el.innerHTML = ''; return; }
 
-  // Find Hokage
+  const mySection = state.users[currentUser.username]?.section || 'aucune';
+  const isDirection = gradeRank(g) <= 1;
+
+  // Hokage
   const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
 
-  let html = '<div class="dash-block">';
-
-  // Hokage banner at very top
-  if (hokageUser) {
-    const [hk, hu] = hokageUser;
-    const hName = hu.fullname || hk.replace(/_/g,' ');
-    html += `<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4);margin-bottom:4px">
-      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 12px rgba(240,192,64,0.5)">👑</div>
-      <div style="flex:1">
-        <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f0c040,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${hName}</div>
-        <div style="font-size:11px;color:#f0c040;font-weight:700;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div>
-      </div>
-      <span style="font-size:24px">🔥</span>
-    </div>`;
-  };
-
-  // Filter: agents only, same section (unless direction)
+  // Agents filtrés
   const agents = Object.entries(state.users)
     .filter(([key, u]) => {
-      if (!u.isAgent) return false; // Pas les citoyens
-      if (u.grade === 'Hokage') return false; // Hokage n'apparaît pas dans la liste
-      if (isDirection) return true; // Direction voit tous les agents
+      if (!u.isAgent) return false;
+      if (u.grade === 'Hokage') return false;
+      if (isDirection) return true;
       const uSection = u.section || 'aucune';
       return uSection === mySection || mySection === 'aucune';
     })
     .sort((a,b) => (GRADE_RANK[a[1].grade]??10) - (GRADE_RANK[b[1].grade]??10));
 
+  let html = '<div class="dash-block">';
+
+  // Bannière Hokage
+  if (hokageUser) {
+    const [hk, hu] = hokageUser;
+    const hName = hu.fullname || hk.replace(/_/g,' ');
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:14px 1rem;background:linear-gradient(135deg,rgba(240,192,64,0.12),rgba(230,126,34,0.08));border-bottom:2px solid rgba(240,192,64,0.4)">'
+      + '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f0c040,#e67e22);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👑</div>'
+      + '<div style="flex:1"><div style="font-size:15px;font-weight:700;color:#f0c040">' + hName + '</div>'
+      + '<div style="font-size:11px;color:#f0c040;letter-spacing:1px">✦ HOKAGE — Maître Suprême de Konoha ✦</div></div>'
+      + '<span style="font-size:24px">🔥</span></div>';
+  }
+
   if (agents.length === 0) {
     html += '<p style="color:var(--muted);padding:1rem;font-size:13px">Aucun membre dans votre section.</p>';
   } else {
-    agents.forEach(([key, u]) => {
+    agents.forEach(function([key, u]) {
       const displayName = u.fullname || key.replace(/_/g,' ');
       const init = displayName.slice(0,2).toUpperCase();
-      html += `<div class="membre-row">
-        <div class="avatar">${init}</div>
-        <div style="flex:1;min-width:0">
-          <div class="membre-name">${displayName}</div>
-          <div style="font-size:10px;color:var(--muted);letter-spacing:1px">${u.matricule||'—'}</div>
-        </div>
-        <span class="grade-pill ${GRADE_CLASS[u.grade]||'gp-d'}">${u.grade}</span>
-      </div>`;
+      const gpClass = GRADE_CLASS[u.grade] || 'gp-d';
+      html += '<div class="membre-row">'
+        + '<div class="avatar">' + init + '</div>'
+        + '<div style="flex:1;min-width:0"><div class="membre-name">' + displayName + '</div>'
+        + '<div style="font-size:10px;color:var(--muted);letter-spacing:1px">' + (u.matricule||'—') + '</div></div>'
+        + '<span class="grade-pill ' + gpClass + '">' + u.grade + '</span>'
+        + '</div>';
     });
   }
 
   html += '</div>';
   el.innerHTML = html;
 }
+
 
 async function renderCitoyensContent(g) {
   const el = document.getElementById('citoyens-content');
