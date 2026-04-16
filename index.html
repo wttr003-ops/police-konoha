@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Police de Konoha — Ninja Road FiveM</title>
+<title>Police de Konoha</title>
 <style>/* ============================================================
    POLICE DE KONOHA — NINJA ROAD FiveM
    style.css
@@ -4273,11 +4273,11 @@ async function publishJournal() {
 
 async function deleteJournal(id) {
   konohaConfirm('Supprimer cet article ?', async () => {
-
-  await sbDelete('journal', `?id=eq.${id}`);
-  await syncFromSupabase();
-  renderJournal(true);
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
+    await sbDelete('journal', `?id=eq.${id}`);
+    await syncFromSupabase();
+    renderJournal(true);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 
 // ============================================================
@@ -4527,12 +4527,12 @@ function addRecherchee() {
 
 async function removeRecherchee(index) {
   konohaConfirm('Retirer cet avis de recherche ?', async () => {
-
-  const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
-  list.splice(index, 1);
-  localStorage.setItem('konoha_recherchees', JSON.stringify(list));
-  renderRecherchees();
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
+      const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
+      list.splice(index, 1);
+      localStorage.setItem('konoha_recherchees', JSON.stringify(list));
+      renderRecherchees();
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 
 
@@ -4813,11 +4813,10 @@ async function toggleCasier(id) {
 async function deleteCasierById(id) {
   if (!id) return;
   konohaConfirm('Supprimer cette infraction définitivement ?', async () => {
-
-  try { await sbDelete('casiers', '?id=eq.'+id); } catch(e) {}
-  renderCasierContent(state.currentUser.grade);
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
-
+      try { await sbDelete('casiers', '?id=eq.'+id); } catch(e) {}
+      renderCasierContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 async function addSuiviCasier(casierDbId, safeComboId) {
   const formEl = document.getElementById('suivi-form-'+safeComboId);
@@ -4952,16 +4951,16 @@ async function saveCasier() {
 
 async function deleteCasier(idx) {
   konohaConfirm('Supprimer cette fiche de casier judiciaire ?', async () => {
-
-  const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
-  const casier = list[idx];
-  if (casier?.id) {
-    try { await sbDelete('casiers', '?id=eq.'+casier.id); } catch(e) {}
-  }
-  list.splice(idx, 1);
-  localStorage.setItem('konoha_casiers', JSON.stringify(list));
-  renderCasierContent(state.currentUser.grade);
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
+      const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+      const casier = list[idx];
+      if (casier?.id) {
+        try { await sbDelete('casiers', '?id=eq.'+casier.id); } catch(e) {}
+      }
+      list.splice(idx, 1);
+      localStorage.setItem('konoha_casiers', JSON.stringify(list));
+      renderCasierContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 
 async function addSuiviCasier(idx) {
@@ -5378,13 +5377,12 @@ async function submitRapport() {
 
 async function deleteRapport(id) {
   konohaConfirm('Supprimer ce rapport définitivement ?', async () => {
-
-  try {
-    await sbDelete('rapports', '?id=eq.' + id);
-  } catch(e) {}
-  renderRapportsContent(state.currentUser.grade);
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
-
+      try {
+        await sbDelete('rapports', '?id=eq.' + id);
+      } catch(e) {}
+        renderRapportsContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 function toggleRapport(id) {
   const body = document.getElementById('rap-body-' + id);
@@ -5774,20 +5772,19 @@ async function setMsgDot(hasNew) {
 
 async function deletePlainte(id) {
   konohaConfirm('Supprimer cette plainte définitivement ?', async () => {
-
-  try { await sbDelete('plaintes', '?id=eq.' + id); } catch(e) {}
-  state.plaintes = state.plaintes.filter(p => p.id !== id);
-  renderPlaintesContent(state.currentUser.grade);
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
+      try { await sbDelete('plaintes', '?id=eq.' + id); } catch(e) {}
+      state.plaintes = state.plaintes.filter(p => p.id !== id);
+      renderPlaintesContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 
 async function deleteCandid(id) {
   konohaConfirm('Supprimer cette candidature définitivement ?', async () => {
-
-  try { await sbDelete('candidatures', '?id=eq.' + id); } catch(e) {}
-  state.candidatures = state.candidatures.filter(c => c.id !== id);
-  renderCandidContent(state.currentUser.grade);
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
+      try { await sbDelete('candidatures', '?id=eq.' + id); } catch(e) {}
+      state.candidatures = state.candidatures.filter(c => c.id !== id);
+      renderCandidContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
 
 
 // ============================================================
@@ -6636,44 +6633,42 @@ async function closeCitizenConversation(threadId) {
   if (popup) popup.remove();
 
   konohaConfirm('Fermer définitivement cette conversation ?\n\nElle sera archivée et vous ne pourrez plus y répondre.', async () => {
+      // Mark lastSeen to current max ID so no more notifications for this thread
+      try {
+        const allMsgs = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(threadId) + '&order=id.desc&limit=1');
+        if (Array.isArray(allMsgs) && allMsgs[0]) {
+          const currentMax = parseInt(localStorage.getItem('citizen_last_msg_' + state.currentUser.username) || '0');
+          const newMax = Math.max(currentMax, allMsgs[0].id || 0);
+          localStorage.setItem('citizen_last_msg_' + state.currentUser.username, newMax);
+        }
+      } catch(e) {}
 
+      try {
+        // Mark thread as closed by adding a system message
+        const u = state.currentUser;
+        const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+        await sbPost('messages', {
+          thread_id: threadId,
+          from_user: u.username,
+          sender_name: state.users[u.username]?.fullname || u.username,
+          role: 'system',
+          text: '🔒 Conversation fermée par le citoyen.',
+          time: time,
+          status: 'closed',
+          to_agent: ''
+        });
+        // Update all messages in thread to closed status
+        await fetch(SB_URL + '/rest/v1/messages?thread_id=eq.' + encodeURIComponent(threadId), {
+          method: 'PATCH',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status: 'closed' })
+        });
+      } catch(e) { console.warn(e); }
 
-  // Mark lastSeen to current max ID so no more notifications for this thread
-  try {
-    const allMsgs = await sbGet('messages', '?thread_id=eq.' + encodeURIComponent(threadId) + '&order=id.desc&limit=1');
-    if (Array.isArray(allMsgs) && allMsgs[0]) {
-      const currentMax = parseInt(localStorage.getItem('citizen_last_msg_' + state.currentUser.username) || '0');
-      const newMax = Math.max(currentMax, allMsgs[0].id || 0);
-      localStorage.setItem('citizen_last_msg_' + state.currentUser.username, newMax);
-    }
-  } catch(e) {}
-
-  try {
-    // Mark thread as closed by adding a system message
-    const u = state.currentUser;
-    const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    await sbPost('messages', {
-      thread_id: threadId,
-      from_user: u.username,
-      sender_name: state.users[u.username]?.fullname || u.username,
-      role: 'system',
-      text: '🔒 Conversation fermée par le citoyen.',
-      time: time,
-      status: 'closed',
-      to_agent: ''
-    });
-    // Update all messages in thread to closed status
-    await fetch(SB_URL + '/rest/v1/messages?thread_id=eq.' + encodeURIComponent(threadId), {
-      method: 'PATCH',
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ status: 'closed' })
-    });
-  } catch(e) { console.warn(e); }
-
-  stopConvPolling();
-  renderCitizenMessages();
-}, { icon: '🔒', label: 'Fermer', danger: false });
-
+      stopConvPolling();
+      renderCitizenMessages();
+  }, { icon: '🔒', label: 'Fermer', danger: false });
+}
 
 async function showCitizenMenu(threadId) {
   const existing = document.getElementById('citizen-menu-popup');
@@ -6916,15 +6911,16 @@ async function stopConvPolling() {
   currentOpenSide = null;
 }
 
+}
 async function closeConversation(threadId, fromUser) {
   konohaConfirm('Fermer et supprimer cette conversation pour les deux parties ?', async () => {
-
-  try {
-    await sbDelete('messages', '?thread_id=eq.' + encodeURIComponent(threadId));
-  } catch(e) { console.warn(e); }
-  stopConvPolling();
-  renderAgentMessages();
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
+      try {
+        await sbDelete('messages', '?thread_id=eq.' + encodeURIComponent(threadId));
+      } catch(e) { console.warn(e); }
+      stopConvPolling();
+      renderAgentMessages();
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 
 // ============================================================
@@ -8499,30 +8495,30 @@ async function emettrAmende() {
 
 async function payerAmende(id, safeId) {
   konohaConfirm('Confirmer : vous avez bien encaissé le montant de cette amende ?', async () => {
-
-  const u = state.currentUser;
-  const agentName = state.users[u.username]?.fullname || u.username;
-  try {
-    await fetch(SB_URL+'/rest/v1/amendes?id=eq.'+id,{
-      method:'PATCH',
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
-      body:JSON.stringify({
-        status: 'payee',
-        encaisse_par: agentName,
-        encaisse_le: new Date().toISOString()
-      })
-    });
-  } catch(e){console.warn(e);}
-  renderAmendesContent(state.currentUser.grade);
-}, { icon: '💰', label: 'Confirmer', danger: false });
+      const u = state.currentUser;
+      const agentName = state.users[u.username]?.fullname || u.username;
+      try {
+        await fetch(SB_URL+'/rest/v1/amendes?id=eq.'+id,{
+          method:'PATCH',
+          headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+          body:JSON.stringify({
+            status: 'payee',
+            encaisse_par: agentName,
+            encaisse_le: new Date().toISOString()
+          })
+        });
+      } catch(e){console.warn(e);}
+      renderAmendesContent(state.currentUser.grade);
+  }, { icon: '💰', label: 'Confirmer', danger: false });
+}
 
 
 async function supprimerAmende(id) {
   konohaConfirm('Supprimer cette amende définitivement ?', async () => {
-
-  try { await sbDelete('amendes','?id=eq.'+id); } catch(e){}
-  renderAmendesContent(state.currentUser.grade);
-}, { icon: '🗑️', label: 'Supprimer', danger: true });
+      try { await sbDelete('amendes','?id=eq.'+id); } catch(e){}
+      renderAmendesContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 
 async function resetAmendes(fullname, totalDu) {
@@ -10135,17 +10131,5 @@ async function planDel(id) {
     } catch(e) { console.warn(e); }
     renderPlanningContent(state.currentUser.grade);
   }, { icon: '🗑️', label: 'Supprimer', danger: true });
-}
-
-}
-}
-}
-}
-}
-}
-}
-}
-}
-}
 }
 </script></body></html>
