@@ -9203,7 +9203,11 @@ async function renderImpotsContent(g) {
   const el = document.getElementById('impots-content');
   if (!el) return;
   const isDir = gradeRank(g) <= 1;
-  const data = impotsLoad();
+  let data = [];
+  let impotsError = false;
+  try {
+    data = await impotsLoad();
+  } catch(e) { impotsError = true; console.warn('impots render:', e); }
   let nextId = Math.max(...data.map(d=>d.id), 0) + 1;
 
   const payes = data.filter(r=>r.s==='paye');
@@ -9217,6 +9221,11 @@ async function renderImpotsContent(g) {
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
 
   let html = '<h2 class="dash-section-title">🏯 Registre des Impôts</h2>';
+  if (impotsError) {
+    html += '<div style="padding:10px 14px;background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:8px;font-size:13px;color:#c0392b;margin-bottom:1rem">'
+      + '⚠️ La table <strong>impots</strong> n\'existe pas encore dans Supabase. Exécutez le fichier <strong>supabase_impots.sql</strong> dans Supabase Police.'
+      + '</div>';
+  }
 
   // KPIs
   html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem">'
@@ -9306,7 +9315,7 @@ async function renderImpotsContent(g) {
   html += '</div></div>';
 
   el.innerHTML = html;
-  impotsRenderTable(g);
+  await impotsRenderTable(g);
 }
 
 // ── Rendu tableau ────────────────────────────────────────────
