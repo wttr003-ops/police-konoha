@@ -4963,51 +4963,6 @@ async function deleteCasier(idx) {
 }
 
 
-async function addSuiviCasier(idx) {
-  const casiers = await loadCasiers();
-  const casier = casiers[idx];
-  if (!casier) return;
-
-  // Show suivi form inline
-  const formId = 'suivi-form-'+idx;
-  const existing = document.getElementById(formId);
-  if (existing) { existing.style.display = existing.style.display==='none'?'block':'none'; return; }
-
-  const container = document.getElementById('cas-suivi-'+idx);
-  if (!container) return;
-
-  container.innerHTML = `
-    <div id="${formId}" style="margin-top:0.75rem;padding:0.75rem;background:var(--mid);border-radius:6px;border:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Ajouter un suivi</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.5rem">
-        <div>
-          <label style="font-size:11px;color:var(--muted)">Type de suivi</label>
-          <select id="suivi-type-${idx}" class="form-input" style="font-size:12px;padding:6px">
-            <option value="nouveau_fait">Nouveau fait reproché</option>
-            <option value="amende_payee">Amende payée</option>
-            <option value="amende_impayee">Amende impayée</option>
-            <option value="liberation">Libération / Fin de peine</option>
-            <option value="recidive">Récidive constatée</option>
-            <option value="note">Note de l'agent</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--muted)">Montant (si amende)</label>
-          <input type="text" id="suivi-montant-${idx}" class="form-input" style="font-size:12px;padding:6px" placeholder="Ex: 3200 Ryos"/>
-        </div>
-      </div>
-      <div style="margin-bottom:0.5rem">
-        <label style="font-size:11px;color:var(--muted)">Description</label>
-        <textarea id="suivi-desc-${idx}" class="form-input" rows="2" style="font-size:12px;padding:6px" placeholder="Décrivez les nouveaux faits ou le statut de l'amende..."></textarea>
-      </div>
-      <button onclick="saveSuiviCasier(${idx})" class="btn-primary" style="font-size:12px;padding:5px 14px">💾 Enregistrer le suivi</button>
-    </div>
-    <div id="suivi-list-${idx}" style="margin-top:0.5rem"></div>
-  `;
-
-  // Show existing suivis
-  renderSuiviList(idx, casier.suivis || []);
-}
 
 async function renderSuiviList(idx, suivis) {
   const el = document.getElementById('suivi-list-'+idx);
@@ -5081,14 +5036,7 @@ function switchCasTab(tab) {
   }
 }
 
-function toggleCasier(idx) {
-  const body = document.getElementById('cas-body-'+idx);
-  const icon = document.getElementById('cas-icon-'+idx);
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : 'block';
-  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
-}
+
 
 // Check casier before candidature (shared with hospital)
 async function hasCasierJudiciaire(nom) {
@@ -5382,15 +5330,6 @@ async function deleteRapport(id) {
       } catch(e) {}
         renderRapportsContent(state.currentUser.grade);
   }, { icon: '🗑️', label: 'Supprimer', danger: true });
-}
-
-function toggleRapport(id) {
-  const body = document.getElementById('rap-body-' + id);
-  const icon = document.getElementById('rap-icon-' + id);
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : 'block';
-  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
 }
 
 function generateMatricule() {
@@ -9468,6 +9407,15 @@ function impotsSort(arr) {
 }
 
 // ── Rendu principal ──────────────────────────────────────────
+function impColToggle(id) {
+  const el = document.getElementById('detail_'+id);
+  const arrow = document.getElementById('arrow_'+id);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
+}
+
 async function renderImpotsContent(g) {
   const el = document.getElementById('impots-content');
   if (!el) return;
@@ -9591,10 +9539,11 @@ async function renderImpotsContent(g) {
     colList.forEach(function([agent,d],i) {
       const pct = enc>0 ? Math.round(d.t/enc*100) : 0;
       const init = agent.split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);
-      const safeId = agent.replace(/[^a-zA-Z0-9]/g,'_');
-      const ninjasHtml = d.ninjas.map(function(n){
+      const safeId = 'col_' + i;
+      const ninjas = d.ninjas || [];
+      const ninjasHtml = ninjas.map(function(n){
         const col = IMPOTS_COLORS[n.grade]||'#64748b';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 10px 4px 14px;border-bottom:0.5px solid rgba(59,130,246,0.06)">'
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px 5px 20px;border-bottom:0.5px solid rgba(59,130,246,0.06)">'
           + '<div style="display:flex;align-items:center;gap:8px">'
           + '<span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:6px;background:'+col+'18;color:'+col+'">'+n.grade+'</span>'
           + '<span style="font-size:12px;color:var(--text)">'+n.nom+'</span>'
@@ -9602,7 +9551,19 @@ async function renderImpotsContent(g) {
           + '<span style="font-size:12px;font-weight:700;color:#27ae60">'+n.montant.toLocaleString('fr-FR')+' Ryos</span>'
           + '</div>';
       }).join('');
-      html += '<div style="border-bottom:0.5px solid var(--border)">'        + '<div onclick="document.getElementById(\'col-detail-'+safeId+'\').style.display=document.getElementById(\'col-detail-'+safeId+'\').style.display===\'none\'?\'block\':\'none\'; this.querySelector(\'.col-arrow\').textContent=document.getElementById(\'col-detail-'+safeId+'\').style.display===\'none\'?\'▼\':\'▲\'" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">'        + '<span style="font-size:11px;color:var(--muted);width:16px;flex-shrink:0">'+(i+1)+'.</span>'        + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+agent+'</div>'        + '<div style="margin-top:4px;height:3px;background:var(--mid);border-radius:2px"><div style="height:3px;background:#27ae60;border-radius:2px;width:'+pct+'%"></div></div></div>'        + '<div style="text-align:right;flex-shrink:0;margin-right:8px"><div style="font-size:13px;font-weight:700;color:#27ae60">'+d.t.toLocaleString('fr-FR')+' Ryos</div>'        + '<div style="font-size:11px;color:var(--muted)">'+d.c+' ninja'+(d.c>1?'s':'')+'</div></div>'        + '<span class="col-arrow" style="font-size:11px;color:var(--muted)">▼</span>'        + '</div>'        + '<div id="col-detail-'+safeId+'" style="display:none;background:rgba(0,0,0,0.08)">'+ninjasHtml+'</div>'        + '</div>';
+      const onclick = 'impColToggle(' + JSON.stringify(safeId) + ')';
+      html += '<div style="border-bottom:0.5px solid var(--border)">'
+        + '<div onclick="' + onclick + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">'
+        + '<span style="font-size:11px;color:var(--muted);width:16px;flex-shrink:0">'+(i+1)+'.</span>'
+        + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+agent+'</div>'
+        + '<div style="margin-top:4px;height:3px;background:var(--mid);border-radius:2px"><div style="height:3px;background:#27ae60;border-radius:2px;width:'+pct+'%"></div></div></div>'
+        + '<div style="text-align:right;flex-shrink:0;margin-right:8px"><div style="font-size:13px;font-weight:700;color:#27ae60">'+d.t.toLocaleString('fr-FR')+' Ryos</div>'
+        + '<div style="font-size:11px;color:var(--muted)">'+d.c+' ninja'+(d.c>1?'s':'')+'</div></div>'
+        + '<span id="arrow_'+safeId+'" style="font-size:11px;color:var(--muted)">▼</span>'
+        + '</div>'
+        + (ninjas.length ? '<div id="detail_'+safeId+'" style="display:none;background:rgba(0,0,0,0.08)">'+ninjasHtml+'</div>' : '')
+        + '</div>';
     });
   }
   html += '</div>';
@@ -9877,13 +9838,6 @@ async function impotsReset() {
     } catch(e) { console.warn('impots reset:', e); }
     await renderImpotsContent(state.currentUser.grade);
   }, { icon: '🔄', label: 'Remettre à zéro', danger: true });
-}
-
-function impotsSort(arr) {
-  return [...arr].sort((a,b) => {
-    const d = IMPOTS_GRADES_ORDER.indexOf(a.grade) - IMPOTS_GRADES_ORDER.indexOf(b.grade);
-    return d !== 0 ? d : a.nom.localeCompare(b.nom);
-  });
 }
 
 // ── Génération PDF ────────────────────────────────────────────
