@@ -9557,28 +9557,18 @@ async function impotsSetFilter(f, btn) {
   });
   await impotsRenderTable(state.currentUser.grade);
 }
-function impotsDelete(id) {
+async function impotsDelete(id) {
   const cached = _impotsCache.find(d=>d.id===id);
   const nom = cached ? cached.nom : 'ce ninja';
-  showConfirmModal({
-    title: 'Supprimer ' + nom + ' ?',
-    message: 'Cette personne sera retirée du registre des impôts.<br>Cette action est irréversible.',
-    icon: '🗑️', color: '#c0392b', confirmLabel: 'Supprimer',
-    onConfirm: async function() {
-      // Remove from cache immediately
-      _impotsCache = _impotsCache.filter(d=>d.id!==id);
-      impotsUpdateKPIsFromCache();
-      // Delete from Supabase
-      try {
-        await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
-          method: 'DELETE',
-          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-        });
-      } catch(e) { console.warn('impots delete:', e); }
-      // Reload table to remove the row
-      await renderImpotsContent(state.currentUser.grade);
-    }
-  });
+  if (!confirm('Supprimer ' + nom + ' du registre des impôts ?')) return;
+  try {
+    await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
+      method: 'DELETE',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+  } catch(e) { console.warn('impots delete:', e); }
+  _impotsCache = _impotsCache.filter(d=>d.id!==id);
+  await renderImpotsContent(state.currentUser.grade);
 }
 
 function impotsHideAdd() { const f = document.getElementById('imp-add-form'); if(f) f.style.display='none'; }
@@ -9603,23 +9593,18 @@ async function impotsAdd() {
   if (f) f.style.display = 'none';
   renderImpotsContent(state.currentUser.grade);
 }
-function impotsReset() {
-  showConfirmModal({
-    title: 'Remettre à zéro ?',
-    message: 'Tous les statuts passent à "Non payé" et les collecteurs sont effacés.<br><br>Cette action est irréversible.',
-    icon: '🔄', color: '#c0392b', confirmLabel: 'Remettre à zéro',
-    onConfirm: async function() {
-      try {
-        await fetch(SB_URL + '/rest/v1/impots', {
-          method: 'PATCH',
-          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ statut: 'non', collecteur: '' })
-        });
-      } catch(e) { console.warn('impots reset:', e); }
-      renderImpotsContent(state.currentUser.grade);
-    }
-  });
+async function impotsReset() {
+  if (!confirm('Remettre tous les statuts à "Non payé" et effacer les collecteurs ?\n\nCette action est irréversible.')) return;
+  try {
+    await fetch(SB_URL + '/rest/v1/impots', {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ statut: 'non', collecteur: '' })
+    });
+  } catch(e) { console.warn('impots reset:', e); }
+  await renderImpotsContent(state.currentUser.grade);
 }
+
 function impotsSort(arr) {
   return [...arr].sort((a,b) => {
     const d = IMPOTS_GRADES_ORDER.indexOf(a.grade) - IMPOTS_GRADES_ORDER.indexOf(b.grade);
