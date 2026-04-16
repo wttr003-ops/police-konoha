@@ -2966,67 +2966,70 @@ async function stopRealtime() {
 // ============================================================
 
 async function _loadUsersFromSupabase() {
-  // Load users from supabase
-  // Blacklist — toujours charger en premier
+  // Blacklist
   let blacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
   try {
     const res = await fetch(SB_URL + '/rest/v1/deleted_users?select=username', {
-    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
     });
     if (res.ok) {
-    const deleted = await res.json();
-    if (Array.isArray(deleted)) {
-      const sbBl = deleted.map(d => d.username);
-      blacklist = [...new Set([...blacklist, ...sbBl])];
-      localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
-    }
+      const deleted = await res.json();
+      if (Array.isArray(deleted)) {
+        const sbBl = deleted.map(d => d.username);
+        blacklist = [...new Set([...blacklist, ...sbBl])];
+        localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
+      }
     }
   } catch(e) {}
 
-  const users = await sbGet('users', '');
-  if (Array.isArray(users)) {
-    users.forEach(u => {
-    if (blacklist.includes(u.username)) return; // BLOQUÉ — ne revient jamais
-    state.users[u.username] = {
-      password: u.password,
-      grade: u.grade || 'Citoyen',
-      fullname: u.fullname || u.username,
-      section: u.section || 'aucune',
-      isAgent: u.is_agent || false,
-      matricule: u.matricule || '',
-      casier: u.casier || 'non',
-      connu: u.connu || 'non',
-      genre: u.genre || 'homme',
-      inscription: u.inscription || ''
-    };
-    });
-  }
+  // Load users — wrapped in try/catch to never fail
+  try {
+    const users = await sbGet('users', '');
+    if (Array.isArray(users)) {
+      users.forEach(u => {
+        if (blacklist.includes(u.username)) return;
+        state.users[u.username] = {
+          password: u.password,
+          grade: u.grade || 'Citoyen',
+          fullname: u.fullname || u.username,
+          section: u.section || 'aucune',
+          isAgent: u.is_agent || false,
+          matricule: u.matricule || '',
+          casier: u.casier || 'non',
+          connu: u.connu || 'non',
+          genre: u.genre || 'homme',
+          inscription: u.inscription || ''
+        };
+      });
+    }
+  } catch(e) { console.warn('users load failed:', e); }
 
-  // Load grade overrides
-  const overrides = await sbGet('grade_overrides', '');
-  if (Array.isArray(overrides)) {
-    overrides.forEach(o => {
-    if (state.users[o.username]) state.users[o.username].grade = o.grade;
-    });
-  }
+  // Load grade overrides — optional table, ignore if missing
+  try {
+    const overrides = await sbGet('grade_overrides', '');
+    if (Array.isArray(overrides)) {
+      overrides.forEach(o => {
+        if (state.users[o.username]) state.users[o.username].grade = o.grade;
+      });
+    }
+  } catch(e) {}
 
-  // Auto-check casier: if a user has entries in casiers table, mark them
+  // Auto-check casier
   try {
     const casierEntries = await sbGet('casiers', '?select=nom');
     if (Array.isArray(casierEntries)) {
-    Object.entries(state.users).forEach(([username, userData]) => {
-      if (userData.casier === 'oui') return; // Already marked
-      const fullname = (userData.fullname || username.replace(/_/g,' ')).toLowerCase().trim();
-      const hasCasier = casierEntries.some(c => {
-      const cn = (c.nom||'').toLowerCase().trim();
-      return cn === fullname || cn === fullname.split(' ').reverse().join(' ');
+      Object.entries(state.users).forEach(([username, userData]) => {
+        if (userData.casier === 'oui') return;
+        const fullname = (userData.fullname || username.replace(/_/g,' ')).toLowerCase().trim();
+        const hasCasier = casierEntries.some(c => {
+          const cn = (c.nom||'').toLowerCase().trim();
+          return cn === fullname || cn === fullname.split(' ').reverse().join(' ');
+        });
+        if (hasCasier) {
+          state.users[username].casier = 'oui';
+          sbPatch('users', '?username=eq.' + encodeURIComponent(username), { casier: 'oui' });
+        }
       });
-      if (hasCasier) {
-      state.users[username].casier = 'oui';
-      // Auto-update Supabase silently
-      sbPatch('users', '?username=eq.' + encodeURIComponent(username), { casier: 'oui' });
-      }
-    });
     }
   } catch(e) {}
 }
@@ -3279,6 +3282,13 @@ async function doLogin() {
   err.textContent = '';
 
   if (!user || !pass) { err.textContent = 'Veuillez remplir tous les champs.'; return; }
+
+  // Si les users ne sont pas encore chargés, on les charge maintenant
+  if (Object.keys(state.users).length === 0) {
+    err.textContent = 'Connexion en cours...';
+    await _loadUsersFromSupabase();
+    err.textContent = '';
+  }
 
   const found = state.users[user];
   if (!found || found.password !== pass) {
@@ -6070,35 +6080,13 @@ async function restoreOpenItems() {
 
 // Auto-init on page load + restore session
 async function initApp() {
-  // 1. Sync from Supabase first
+  // Charger les données Supabase
   await syncFromSupabase();
 
-  // 2. Restore session from localStorage and fix grade from Supabase
-  const saved = localStorage.getItem('konoha_session');
-  if (saved) {
-    try {
-      const session = JSON.parse(saved);
-      if (session && session.username && state.users[session.username]) {
-        const fresh = state.users[session.username];
-        // Always use grade from Supabase - never from cached session
-        state.currentUser = {
-          username: session.username,
-          grade: fresh.grade,
-          fullname: fresh.fullname || session.fullname,
-          matricule: fresh.matricule || session.matricule,
-          isAgent: fresh.isAgent
-        };
-        localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
-        // Go straight to dashboard
-        showPage('dashboard');
-        startRealtime();
-      }
-    } catch(e) {}
-  }
+  // Pas d'auto-reconnexion — l'agent doit se connecter manuellement à chaque fois
+  localStorage.removeItem('konoha_session');
 
   updateNav();
-
-  // 3. Init Kaede
   setTimeout(initKaede, 600);
 }
 
