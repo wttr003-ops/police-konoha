@@ -10003,7 +10003,7 @@ async function impotsGenPDF() {
   const data = await impotsLoad();
   const sorted = impotsSort(data);
   const payes = sorted.filter(r=>r.s==='paye');
-  const nons  = sorted.filter(r=>r.s==='non');
+  const nons  = sorted.filter(r=>r.s==='non' && (IMPOTS_MONTANTS[r.grade]||0) > 0);
   const enc   = payes.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
   const rest  = nons.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
   const today = new Date().toLocaleDateString('fr-FR');
@@ -10048,7 +10048,7 @@ async function impotsGenPDF() {
 <div class="header"><h1>🏯 VILLAGE DE KONOHA — REGISTRE DES IMPOTS</h1><p>Document officiel — Police de Konoha — Généré le ${today}</p></div>
 <div class="kpis">
   <div class="kpi kpi-g"><div class="kpi-v" style="color:#1a6e3c">${payes.length}</div><div class="kpi-l">Ninjas ayant payé</div></div>
-  <div class="kpi kpi-r"><div class="kpi-v" style="color:#8b1a1a">${nons.length}</div><div class="kpi-l">Ninjas non payés</div></div>
+  <div class="kpi kpi-r"><div class="kpi-v" style="color:#8b1a1a">${nons.length}</div><div class="kpi-l">Ninjas imposables non payés</div></div>
   <div class="kpi kpi-o"><div class="kpi-v" style="color:#c49a1a;font-size:14px">${enc.toLocaleString('fr-FR')} Ryos</div><div class="kpi-l">Ryos encaissés</div></div>
   <div class="kpi kpi-r"><div class="kpi-v" style="color:#8b1a1a;font-size:14px">${rest.toLocaleString('fr-FR')} Ryos</div><div class="kpi-l">Ryos restants</div></div>
 </div>
