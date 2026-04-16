@@ -9958,7 +9958,9 @@ async function renderPlanningContent(g) {
         + '</div>';
     });
 
-    html += '<div onclick="planningOpenAdd(\''+d.key+'\')" style="margin:2px 0;border-radius:5px;padding:4px 5px;border:1px dashed var(--border);font-size:10px;color:var(--muted);text-align:center;cursor:pointer;opacity:0.6" onmouseover="this.style.opacity=1;this.style.background=\'var(--mid)\'" onmouseout="this.style.opacity=0.6;this.style.background=\'transparent\'">+ Ajouter</div>'
+    if (canAddPlanning) {
+      html += '<div onclick="planningOpenAdd(\''+d.key+'\')" style="margin:2px 0;border-radius:5px;padding:4px 5px;border:1px dashed var(--border);font-size:10px;color:var(--muted);text-align:center;cursor:pointer;opacity:0.6" onmouseover="this.style.opacity=1;this.style.background=\'var(--mid)\'" onmouseout="this.style.opacity=0.6;this.style.background=\'transparent\'">+ Ajouter</div>';
+    }
       + '</div></div>';
   });
 
@@ -9996,6 +9998,9 @@ async function renderPlanningContent(g) {
     + '<div style="font-size:36px;margin-bottom:10px">📅</div>'
     + '<div style="font-size:17px;font-weight:700;color:var(--accent);margin-bottom:6px">Ajouter un créneau</div>'
     + '<div id="planning-add-date-label" style="font-size:13px;color:var(--muted);margin-bottom:0.75rem"></div>'
+    + '<div id="planning-day-wrap" style="margin-bottom:0.75rem"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-align:left">Jour</div><select id="planning-day-select" style="width:100%;padding:8px;border:0.5px solid var(--border);border-radius:7px;background:var(--mid);color:var(--text);font-size:13px;font-family:sans-serif">'
+    + (()=>{ const offset=window._planningWeekOffset||0; const today=new Date(); const mon=new Date(today); const d=mon.getDay(); mon.setDate(mon.getDate()-(d===0?6:d-1)+offset*7); mon.setHours(0,0,0,0); const DAYS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']; return DAYS.map((dl,i)=>{ const dt=new Date(mon); dt.setDate(mon.getDate()+i); const k=dt.toISOString().slice(0,10); return '<option value="'+k+'">'+dl+' '+dt.getDate()+'</option>'; }).join(''); })()
+    + '</select></div>'
     + '<div id="planning-agent-wrap" style="margin-bottom:1rem;display:none"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-align:left">Ajouter pour</div><select id="planning-agent-select" style="width:100%;padding:8px;border:0.5px solid var(--border);border-radius:7px;background:var(--mid);color:var(--text);font-size:13px;font-family:sans-serif"></select></div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">'
     + '<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-align:left">Heure de début</div>'
@@ -10019,13 +10024,28 @@ function planningWeek(dir) {
   renderPlanningContent(state.currentUser.grade);
 }
 
+function planningOpenAddForm() {
+  // Open modal without pre-selected date — user picks day in the form
+  planningOpenAdd('');
+}
+
 function planningOpenAdd(dateKey) {
   _planningSelectedDate = dateKey;
-  const dt = new Date(dateKey+'T12:00:00');
   const DAYS_FR = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
-  const dayIdx = dt.getDay()===0?6:dt.getDay()-1;
   const lbl = document.getElementById('planning-add-date-label');
-  if (lbl) lbl.textContent = DAYS_FR[dayIdx] + ' ' + dt.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+
+  // Show day selector if no date pre-selected
+  const daySel = document.getElementById('planning-day-wrap');
+  if (daySel) daySel.style.display = dateKey ? 'none' : 'block';
+
+  if (dateKey && lbl) {
+    const dt = new Date(dateKey+'T12:00:00');
+    const dayIdx = dt.getDay()===0?6:dt.getDay()-1;
+    lbl.textContent = DAYS_FR[dayIdx] + ' ' + dt.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+    lbl.style.display = 'block';
+  } else if (lbl) {
+    lbl.style.display = 'none';
+  }
 
   // Sergent+ can add for any agent
   const u = state.currentUser;
@@ -10051,9 +10071,17 @@ function planningOpenAdd(dateKey) {
 function planningCloseAdd() {
   const modal = document.getElementById('planning-add-modal');
   if (modal) modal.style.display = 'none';
+  _planningSelectedDate = '';
 }
 
 async function planningConfirmAdd() {
+  // If no pre-selected date, use the day selector
+  if (!_planningSelectedDate) {
+    const daySel = document.getElementById('planning-day-select');
+    if (daySel) _planningSelectedDate = daySel.value;
+  }
+  if (!_planningSelectedDate) { alert('Sélectionnez un jour.'); return; }
+
   const debut = document.getElementById('planning-heure-debut')?.value;
   const fin   = document.getElementById('planning-heure-fin')?.value;
   if (!debut || !fin) { alert('Entrez les heures.'); return; }
