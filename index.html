@@ -2480,6 +2480,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           💰 Salaires
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('impots',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          🏯 Impôts
+        </button>
       </nav>
 </nav></div>
       <!-- SIDEBAR CITOYEN -->
@@ -2594,6 +2598,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
       <div class="dash-tab" id="dash-salaires">
         <div id="salaires-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-impots">
+        <div id="impots-content"></div>
       </div>
 
       <!-- TABS CITOYEN -->
@@ -3346,6 +3354,7 @@ async function switchDashTab(name, btn) {
   if (name === 'rapports')      await renderRapportsContent(g);
   if (name === 'documents')     await renderDocumentsContent(g);
   if (name === 'salaires')      renderSalairesContent(g);
+  if (name === 'impots')        renderImpotsContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'citoyens')      renderCitoyensContent(g);
   if (name === 'messages-agent') renderAgentMessages();
@@ -9158,5 +9167,364 @@ async function executerRetrait(username, fullname, montant, totalRyos, motif) {
   });
 
   await renderPresencesContent(state.currentUser.grade);
+}
+
+// ============================================================
+// SYSTÈME D'IMPÔTS — KONOHA
+// ============================================================
+
+const IMPOTS_GRADES_ORDER = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Génin Confirmé','Génin Simple'];
+const IMPOTS_MONTANTS = {'Hokage':8400,'Commandant-Jonin':7800,'Jonin':7200,'Tokubetsu-Jonin':6000,'Kakunin':4800,'Chunin':3600,'Tokubetsu-Chunin':2400,'Génin Confirmé':1200,'Génin Simple':0};
+const IMPOTS_COLORS = {'Hokage':'#c49a1a','Commandant-Jonin':'#c0392b','Jonin':'#8b5cf6','Tokubetsu-Jonin':'#3b82f6','Kakunin':'#10b981','Chunin':'#f59e0b','Tokubetsu-Chunin':'#6366f1','Génin Confirmé':'#64748b','Génin Simple':'#94a3b8'};
+const IMPOTS_COLLECTEURS = ['Arakawa Akihiro','Kibo Ao','Yume Uchiha','Tsurizao Nagasawa','Daiki Shintaro','Hayate Kitsu','Kazuto Eichiro','Issei Morinaga'];
+
+// ── Chargement / sauvegarde locale ──────────────────────────
+async function impotsLoad() {
+  try {
+    const res = await sbGet('impots', '?order=id.asc');
+    if (Array.isArray(res)) return res.map(r => ({
+      id: r.id, nom: r.nom, grade: r.grade, s: r.statut||'non', col: r.collecteur||''
+    }));
+  } catch(e) { console.warn('impots load:', e); }
+  return [];
+}
+async function impotsSave(data) {
+  // Unused - we save directly to Supabase on each change
+}
+function impotsSort(arr) {
+  return [...arr].sort((a,b) => {
+    const d = IMPOTS_GRADES_ORDER.indexOf(a.grade) - IMPOTS_GRADES_ORDER.indexOf(b.grade);
+    return d !== 0 ? d : a.nom.localeCompare(b.nom);
+  });
+}
+
+// ── Rendu principal ──────────────────────────────────────────
+async function renderImpotsContent(g) {
+  const el = document.getElementById('impots-content');
+  if (!el) return;
+  const isDir = gradeRank(g) <= 1;
+  const data = impotsLoad();
+  let nextId = Math.max(...data.map(d=>d.id), 0) + 1;
+
+  const payes = data.filter(r=>r.s==='paye');
+  const nons  = data.filter(r=>r.s==='non');
+  const enc   = payes.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
+  const rest  = nons.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
+
+  // Collecteurs
+  const byCol = {};
+  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; }});
+  const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
+
+  let html = '<h2 class="dash-section-title">🏯 Registre des Impôts</h2>';
+
+  // KPIs
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem">'
+    + '<div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:700;color:#27ae60">'+payes.length+'</div><div style="font-size:11px;color:var(--muted)">Payés</div></div>'
+    + '<div style="background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:700;color:#c0392b">'+nons.length+'</div><div style="font-size:11px;color:var(--muted)">Non payés</div></div>'
+    + '<div style="background:rgba(196,154,26,0.08);border:1px solid rgba(196,154,26,0.2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:16px;font-weight:700;color:#c49a1a">'+enc.toLocaleString('fr-FR')+'</div><div style="font-size:11px;color:var(--muted)">Ryos encaissés</div></div>'
+    + '<div style="background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:16px;font-weight:700;color:#c0392b">'+rest.toLocaleString('fr-FR')+'</div><div style="font-size:11px;color:var(--muted)">Ryos restants</div></div>'
+    + '</div>';
+
+  // Toolbar
+  html += '<div class="dash-block" style="padding:0;overflow:hidden;margin-bottom:1rem">'
+    + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + '<input type="text" id="imp-search" placeholder="Rechercher un ninja..." oninput="impotsFilter()" style="flex:1;min-width:140px;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--panel);color:var(--text)"/>'
+    + '<div style="display:flex;gap:5px">'
+    + '<button id="imp-f-tous" onclick="impotsSetFilter(\'tous\',this)" style="padding:5px 13px;border-radius:20px;background:var(--accent);color:white;border:none;font-size:12px;cursor:pointer;font-family:sans-serif">Tous</button>'
+    + '<button id="imp-f-paye" onclick="impotsSetFilter(\'paye\',this)" style="padding:5px 13px;border-radius:20px;background:var(--panel);color:var(--text);border:1px solid var(--border);font-size:12px;cursor:pointer;font-family:sans-serif">Payés</button>'
+    + '<button id="imp-f-non" onclick="impotsSetFilter(\'non\',this)" style="padding:5px 13px;border-radius:20px;background:var(--panel);color:var(--text);border:1px solid var(--border);font-size:12px;cursor:pointer;font-family:sans-serif">Non payés</button>'
+    + '</div>';
+  if (isDir) html += '<button onclick="impotsToggleAdd()" style="padding:5px 12px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">+ Ninja</button>';
+  html += '</div>';
+
+  // Add form (direction only)
+  if (isDir) {
+    html += '<div id="imp-add-form" style="display:none;padding:10px 14px;background:var(--mid);border-bottom:0.5px solid var(--border)">'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+      + '<div style="flex:1;min-width:130px"><div style="font-size:11px;color:var(--muted);margin-bottom:3px">Nom & Prénom</div><input type="text" id="imp-new-nom" placeholder="Ex: Naruto Uzumaki" class="form-input" style="width:100%"/></div>'
+      + '<div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">Grade ninja</div><select id="imp-new-grade" class="form-input">'
+      + IMPOTS_GRADES_ORDER.map(g=>'<option>'+g+'</option>').join('')
+      + '</select></div>'
+      + '<button onclick="impotsAdd()" class="btn-primary">Ajouter</button>'
+      + '<button onclick="document.getElementById(\'imp-add-form\').style.display=\'none\'" style="padding:7px 12px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;font-family:sans-serif">Annuler</button>'
+      + '</div></div>';
+  }
+
+  // Table
+  html += '<div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">'
+    + '<thead style="position:sticky;top:0;background:var(--panel);z-index:1"><tr>'
+    + '<th style="width:28px;padding:8px 8px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:0.5px solid var(--border);text-align:left">#</th>'
+    + '<th style="width:28%;padding:8px 8px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:0.5px solid var(--border);text-align:left">Nom & Prénom</th>'
+    + '<th style="width:18%;padding:8px 8px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:0.5px solid var(--border);text-align:left">Grade</th>'
+    + '<th style="width:10%;padding:8px 8px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:0.5px solid var(--border);text-align:right">Montant</th>'
+    + '<th style="width:12%;padding:8px 8px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:0.5px solid var(--border);text-align:left">Statut</th>'
+    + '<th style="width:18%;padding:8px 8px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:0.5px solid var(--border);text-align:left">Collecteur</th>'
+    + (isDir ? '<th style="width:24px;border-bottom:0.5px solid var(--border)"></th>' : '')
+    + '</tr></thead>'
+    + '<tbody id="imp-tbody"></tbody></table></div></div>';
+
+  // Historique collecteurs
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">';
+
+  // Agents
+  html += '<div class="dash-block" style="padding:0;overflow:hidden">'
+    + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Historique collectes — agents</div>';
+  if (colList.length) {
+    colList.forEach(([agent,d],i) => {
+      const pct = enc>0 ? Math.round(d.t/enc*100) : 0;
+      const init = agent.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border)">'
+        + '<span style="font-size:11px;color:var(--muted);width:16px;flex-shrink:0">'+(i+1)+'.</span>'
+        + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+agent+'</div>'
+        + '<div style="margin-top:3px;height:3px;background:var(--mid);border-radius:2px"><div style="height:3px;background:#27ae60;border-radius:2px;width:'+pct+'%"></div></div></div>'
+        + '<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:#27ae60">'+d.t.toLocaleString('fr-FR')+' Ryos</div><div style="font-size:11px;color:var(--muted)">'+d.c+' collecte'+(d.c>1?'s':'')+'</div></div></div>';
+    });
+  } else {
+    html += '<div style="padding:14px;font-size:13px;color:var(--muted)">Aucune collecte.</div>';
+  }
+  html += '</div>';
+
+  // Bilan direction
+  const nb = payes.length;
+  const pct = data.length>0 ? Math.round(nb/data.length*100) : 0;
+  html += '<div class="dash-block" style="padding:0;overflow:hidden">'
+    + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Bilan direction</div>'
+    + '<div style="padding:12px 14px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:13px;color:var(--muted)">Total encaissé</span><span style="font-size:18px;font-weight:700;color:#27ae60">'+enc.toLocaleString('fr-FR')+' Ryos</span></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:13px;color:var(--muted)">Progression</span><span style="font-size:13px;font-weight:600;color:var(--text)">'+nb+' / '+data.length+' ('+pct+'%)</span></div>'
+    + '<div style="height:8px;background:var(--mid);border-radius:4px"><div style="height:8px;background:#27ae60;border-radius:4px;width:'+pct+'%"></div></div>'
+    + '</div>';
+
+  if (isDir) {
+    html += '<div style="padding:10px 14px;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button onclick="impotsReset()" style="padding:7px 14px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">🔄 Remettre à zéro</button>'
+      + '<button onclick="impotsGenPDF()" style="padding:7px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📄 Générer rapport PDF</button>'
+      + '</div>';
+  }
+  html += '</div></div>';
+
+  el.innerHTML = html;
+  impotsRenderTable(g);
+}
+
+// ── Rendu tableau ────────────────────────────────────────────
+let _impotsFilter = 'tous';
+async function impotsRenderTable(g) {
+  const tbody = document.getElementById('imp-tbody');
+  if (!tbody) return;
+  const isDir = g ? gradeRank(g) <= 1 : false;
+  const data = await impotsLoad();
+  const q = (document.getElementById('imp-search')?.value||'').toLowerCase();
+  const filtered = impotsSort(data).filter(r => {
+    const mq = !q || r.nom.toLowerCase().includes(q) || r.grade.toLowerCase().includes(q) || r.col.toLowerCase().includes(q);
+    const mf = _impotsFilter==='tous' || (_impotsFilter==='paye'&&r.s==='paye') || (_impotsFilter==='non'&&r.s==='non');
+    return mq && mf;
+  });
+
+  let n = 0;
+  tbody.innerHTML = filtered.map(r => {
+    n++;
+    const gc = IMPOTS_COLORS[r.grade]||'#64748b';
+    const init = r.nom.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const montant = IMPOTS_MONTANTS[r.grade]||0;
+
+    const gradePart = isDir
+      ? '<select onchange="impotsChange(\'grade\','+r.id+',this.value)" style="border:1px solid '+gc+'44;border-radius:6px;background:'+gc+'12;color:'+gc+';font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:130px">'
+        + IMPOTS_GRADES_ORDER.map(gr=>'<option'+(r.grade===gr?' selected':'')+'>'+gr+'</option>').join('')+'</select>'
+      : '<span style="font-size:11px;padding:2px 7px;border-radius:10px;background:'+gc+'18;color:'+gc+'">'+r.grade+'</span>';
+
+    const statutPart = isDir
+      ? '<select onchange="impotsChange(\'s\','+r.id+',this.value)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;color:'+(r.s==='paye'?'#27ae60':'#c0392b')+'">'
+        + '<option value="paye"'+(r.s==='paye'?' selected':'')+'>Payé</option>'
+        + '<option value="non"'+(r.s==='non'?' selected':'')+'>Non payé</option></select>'
+      : '<span style="font-size:11px;padding:2px 7px;border-radius:10px;'+(r.s==='paye'?'background:rgba(39,174,96,0.1);color:#27ae60':'background:rgba(192,57,43,0.1);color:#c0392b')+'">'+( r.s==='paye'?'Payé':'Non payé')+'</span>';
+
+    const allCols = ['', ...IMPOTS_COLLECTEURS];
+    // Add current col if not in list
+    if (r.col && !allCols.includes(r.col)) allCols.push(r.col);
+    const colPart = isDir
+      ? '<select onchange="impotsChange(\'col\','+r.id+',this.value)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:115px">'
+        + allCols.map(c=>'<option value="'+c+'"'+(r.col===c?' selected':'')+'>'+( c||'— aucun')+'</option>').join('')+'</select>'
+      : '<span style="font-size:12px;color:var(--muted)">'+( r.col||'—')+'</span>';
+
+    const delPart = isDir ? '<button onclick="impotsDelete('+r.id+')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 3px">×</button>' : '';
+
+    return '<tr>'
+      + '<td style="padding:7px 8px;font-size:11px;color:var(--muted);border-bottom:0.5px solid var(--border)">'+n+'</td>'
+      + '<td style="padding:7px 8px;border-bottom:0.5px solid var(--border)"><div style="display:flex;align-items:center;gap:7px"><div style="width:26px;height:26px;border-radius:50%;background:'+gc+'20;color:'+gc+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'+r.nom+'</div></td>'
+      + '<td style="padding:7px 8px;border-bottom:0.5px solid var(--border)">'+gradePart+'</td>'
+      + '<td style="padding:7px 8px;font-size:12px;font-weight:600;color:var(--text);border-bottom:0.5px solid var(--border);text-align:right">'+montant.toLocaleString('fr-FR')+'</td>'
+      + '<td style="padding:7px 8px;border-bottom:0.5px solid var(--border)">'+statutPart+'</td>'
+      + '<td style="padding:7px 8px;border-bottom:0.5px solid var(--border)">'+colPart+'</td>'
+      + (isDir ? '<td style="padding:7px 4px;border-bottom:0.5px solid var(--border)">'+delPart+'</td>' : '')
+      + '</tr>';
+  }).join('');
+}
+
+async function impotsChange(type, id, val) {
+  try {
+    const patch = {};
+    if (type === 'grade') patch.grade = val;
+    if (type === 's') { patch.statut = val; if (val==='non') patch.collecteur = ''; }
+    if (type === 'col') patch.collecteur = val;
+    await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(patch)
+    });
+  } catch(e) { console.warn('impots change:', e); }
+  renderImpotsContent(state.currentUser.grade);
+}
+function impotsDelete(id) {
+  showConfirmModal({
+    title: 'Supprimer ce ninja ?',
+    message: 'Cette personne sera retirée du registre des impôts.',
+    icon: '🗑️', color: '#c0392b', confirmLabel: 'Supprimer',
+    onConfirm: async function() {
+      try {
+        await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
+          method: 'DELETE',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+      } catch(e) { console.warn('impots delete:', e); }
+      renderImpotsContent(state.currentUser.grade);
+    }
+  });
+}
+async function impotsFilter() { await impotsRenderTable(state.currentUser.grade); }
+async function impotsSetFilter(f, btn) {
+  _impotsFilter = f;
+  ['tous','paye','non'].forEach(k => {
+    const b = document.getElementById('imp-f-'+k);
+    if (b) { b.style.background=k===f?'var(--accent)':'var(--panel)'; b.style.color=k===f?'white':'var(--text)'; b.style.border=k===f?'none':'1px solid var(--border)'; }
+  });
+  await impotsRenderTable(state.currentUser.grade);
+}
+function impotsToggleAdd() {
+  const f = document.getElementById('imp-add-form');
+  if (f) f.style.display = f.style.display==='none' ? 'flex' : 'none';
+}
+async function impotsAdd() {
+  const nom = document.getElementById('imp-new-nom')?.value.trim();
+  const grade = document.getElementById('imp-new-grade')?.value;
+  if (!nom) { alert('Entrez un nom.'); return; }
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/impots', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({ nom, grade, statut: 'non', collecteur: '' })
+    });
+    if (!res.ok) { const e = await res.text(); alert('Erreur : ' + e.substring(0,100)); return; }
+  } catch(e) { alert('Erreur réseau : ' + e.message); return; }
+  if (document.getElementById('imp-new-nom')) document.getElementById('imp-new-nom').value = '';
+  const f = document.getElementById('imp-add-form');
+  if (f) f.style.display = 'none';
+  renderImpotsContent(state.currentUser.grade);
+}
+function impotsReset() {
+  showConfirmModal({
+    title: 'Remettre à zéro ?',
+    message: 'Tous les statuts passent à "Non payé" et les collecteurs sont effacés.<br><br>Cette action est irréversible.',
+    icon: '🔄', color: '#c0392b', confirmLabel: 'Remettre à zéro',
+    onConfirm: async function() {
+      try {
+        await fetch(SB_URL + '/rest/v1/impots', {
+          method: 'PATCH',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ statut: 'non', collecteur: '' })
+        });
+      } catch(e) { console.warn('impots reset:', e); }
+      renderImpotsContent(state.currentUser.grade);
+    }
+  });
+}
+function impotsSort(arr) {
+  return [...arr].sort((a,b) => {
+    const d = IMPOTS_GRADES_ORDER.indexOf(a.grade) - IMPOTS_GRADES_ORDER.indexOf(b.grade);
+    return d !== 0 ? d : a.nom.localeCompare(b.nom);
+  });
+}
+
+// ── Génération PDF ────────────────────────────────────────────
+async function impotsGenPDF() {
+  const data = await impotsLoad();
+  const sorted = impotsSort(data);
+  const payes = sorted.filter(r=>r.s==='paye');
+  const nons  = sorted.filter(r=>r.s==='non');
+  const enc   = payes.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
+  const rest  = nons.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
+  const today = new Date().toLocaleDateString('fr-FR');
+
+  // Collecteurs stats
+  const byCol = {};
+  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; }});
+  const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
+
+  // Build HTML for PDF (via print)
+  const pdfHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<style>
+  @page { size: A4; margin: 1.5cm; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #1a1a2e; background: white; }
+  .header { background: #0f1923; color: white; padding: 18px 20px; border-radius: 8px; margin-bottom: 14px; text-align: center; }
+  .header h1 { font-size: 20px; color: #c49a1a; margin: 0 0 4px; }
+  .header p { font-size: 11px; color: #94a3b8; margin: 0; }
+  .kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px; }
+  .kpi { padding: 10px; border-radius: 6px; text-align: center; }
+  .kpi-v { font-size: 18px; font-weight: 700; }
+  .kpi-l { font-size: 10px; color: #64748b; margin-top: 2px; }
+  .kpi-g { background: #e8f5ee; border: 1px solid #27ae60; }
+  .kpi-r { background: #faeaea; border: 1px solid #c0392b; }
+  .kpi-o { background: #fdf6e3; border: 1px solid #c49a1a; }
+  h2 { font-size: 12px; font-weight: 700; margin: 14px 0 4px; padding-bottom: 4px; }
+  h2.green { color: #1a6e3c; border-bottom: 1.5px solid #27ae60; }
+  h2.red { color: #8b1a1a; border-bottom: 1.5px solid #c0392b; }
+  h2.blue { color: #1a3a6e; border-bottom: 1.5px solid #3b82f6; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10px; }
+  th { background: #0f1923; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
+  th.right { text-align: right; }
+  td { padding: 5px 8px; border-bottom: 0.5px solid #e2e8f0; }
+  td.right { text-align: right; font-weight: 700; }
+  tr.grade-row td { background: #e8eef8; color: #1a3a6e; font-weight: 700; font-size: 10px; }
+  tr.paye td { background: white; }
+  tr.paye:nth-child(even) td { background: #f0faf4; }
+  tr.non td { background: white; }
+  tr.non:nth-child(even) td { background: #fff5f5; }
+  tr.total-row td { background: #0f1923; color: white; font-weight: 700; }
+  .footer { text-align: center; font-size: 9px; color: #94a3b8; margin-top: 16px; border-top: 0.5px solid #e2e8f0; padding-top: 8px; }
+</style></head><body>
+<div class="header"><h1>🏯 VILLAGE DE KONOHA — REGISTRE DES IMPOTS</h1><p>Document officiel — Police de Konoha — Généré le ${today}</p></div>
+<div class="kpis">
+  <div class="kpi kpi-g"><div class="kpi-v" style="color:#1a6e3c">${payes.length}</div><div class="kpi-l">Ninjas ayant payé</div></div>
+  <div class="kpi kpi-r"><div class="kpi-v" style="color:#8b1a1a">${nons.length}</div><div class="kpi-l">Ninjas non payés</div></div>
+  <div class="kpi kpi-o"><div class="kpi-v" style="color:#c49a1a;font-size:14px">${enc.toLocaleString('fr-FR')} Ryos</div><div class="kpi-l">Ryos encaissés</div></div>
+  <div class="kpi kpi-r"><div class="kpi-v" style="color:#8b1a1a;font-size:14px">${rest.toLocaleString('fr-FR')} Ryos</div><div class="kpi-l">Ryos restants</div></div>
+</div>
+<h2 class="blue">BILAN DES COLLECTEURS</h2>
+<table><thead><tr><th>Agent collecteur</th><th>Collectes</th><th class="right">Montant total</th><th class="right">%</th></tr></thead><tbody>
+${colList.map(([a,d])=>`<tr><td>${a}</td><td>${d.c}</td><td class="right" style="color:#1a6e3c">${d.t.toLocaleString('fr-FR')} Ryos</td><td class="right" style="color:#64748b">${enc>0?Math.round(d.t/enc*100):0}%</td></tr>`).join('')}
+<tr class="total-row"><td><b>TOTAL DIRECTION</b></td><td>${payes.length}</td><td class="right">${enc.toLocaleString('fr-FR')} Ryos</td><td class="right">100%</td></tr>
+</tbody></table>
+<h2 class="green">NINJAS AYANT PAYE LEURS IMPOTS (${payes.length})</h2>
+<table><thead><tr><th>#</th><th>Nom & Prénom</th><th>Grade</th><th class="right">Montant</th><th>Collecteur</th></tr></thead><tbody>
+${(()=>{let rows='',lg='',i=0;payes.forEach(r=>{if(r.grade!==lg){lg=r.grade;rows+=`<tr class="grade-row"><td colspan="2">${r.grade.toUpperCase()}</td><td></td><td class="right">${(IMPOTS_MONTANTS[r.grade]||0).toLocaleString('fr-FR')} Ryos</td><td></td></tr>`;}i++;rows+=`<tr class="paye"><td>${i}</td><td>${r.nom}</td><td style="color:#64748b;font-size:9px">${r.grade}</td><td class="right" style="color:#1a6e3c">${(IMPOTS_MONTANTS[r.grade]||0).toLocaleString('fr-FR')}</td><td style="color:#64748b">${r.col||'—'}</td></tr>`;});return rows;})()}
+</tbody></table>
+<h2 class="red">NINJAS N'AYANT PAS PAYE LEURS IMPOTS (${nons.length})</h2>
+<table><thead><tr><th>#</th><th>Nom & Prénom</th><th>Grade</th><th class="right">Montant dû</th></tr></thead><tbody>
+${(()=>{let rows='',lg='',i=0;nons.forEach(r=>{if(r.grade!==lg){lg=r.grade;rows+=`<tr class="grade-row"><td colspan="2">${r.grade.toUpperCase()}</td><td></td><td class="right">${(IMPOTS_MONTANTS[r.grade]||0).toLocaleString('fr-FR')} Ryos</td></tr>`;}i++;rows+=`<tr class="non"><td>${i}</td><td>${r.nom}</td><td style="color:#64748b;font-size:9px">${r.grade}</td><td class="right" style="color:#8b1a1a">${(IMPOTS_MONTANTS[r.grade]||0).toLocaleString('fr-FR')}</td></tr>`;});return rows;})()}
+<tr class="total-row"><td colspan="3"><b>TOTAL RESTANT A ENCAISSER</b></td><td class="right">${rest.toLocaleString('fr-FR')} Ryos</td></tr>
+</tbody></table>
+<div class="footer">Cachet officiel — Section Police de Konoha — Ninja Road FiveM — ${today}</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(pdfHtml);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 500);
+  } else {
+    alert('Veuillez autoriser les popups pour générer le PDF.');
+  }
 }
 </script></body></html>
