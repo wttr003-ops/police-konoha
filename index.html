@@ -9578,11 +9578,43 @@ async function renderImpotsContent(g) {
 
   if (isDir) {
     html += '<div style="padding:10px 14px;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button onclick="impotsRecuperer()" style="padding:7px 14px;background:rgba(196,154,26,0.15);color:#c49a1a;border:1px solid rgba(196,154,26,0.35);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💰 Impôts récupérés</button>'
       + '<button onclick="impotsReset()" style="padding:7px 14px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">🔄 Remettre à zéro</button>'
       + '<button onclick="impotsGenPDF()" style="padding:7px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📄 Générer rapport PDF</button>'
       + '</div>';
   }
   html += '</div></div>';
+
+  // Historique des récupérations direction
+  if (isDir) {
+    const histo = JSON.parse(localStorage.getItem('konoha_impots_histo') || '[]');
+    html += '<div class="dash-block" style="padding:0;overflow:hidden;margin-bottom:1rem">'
+      + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📋 Historique — Récupérations direction</div>';
+    if (histo.length === 0) {
+      html += '<div style="padding:16px 14px;font-size:13px;color:var(--muted);text-align:center">Aucune récupération enregistrée.</div>';
+    } else {
+      let grandTotal = 0;
+      histo.slice().reverse().forEach(function(h, i) {
+        grandTotal += h.total || 0;
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--border)">'
+          + '<div style="display:flex;align-items:center;gap:10px">'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:rgba(196,154,26,0.15);border:1px solid rgba(196,154,26,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#c49a1a;flex-shrink:0">'
+          + h.agent.split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2)
+          + '</div>'
+          + '<div>'
+          + '<div style="font-size:13px;font-weight:600;color:var(--text)">' + h.agent + '</div>'
+          + '<div style="font-size:11px;color:var(--muted)">' + h.date + ' — ' + (h.nb||0) + ' ninja(s) collecté(s)</div>'
+          + '</div></div>'
+          + '<strong style="font-size:14px;color:#27ae60">' + (h.total||0).toLocaleString('fr-FR') + ' Ryos</strong>'
+          + '</div>';
+      });
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(196,154,26,0.06);border-top:1px solid rgba(196,154,26,0.2)">'
+        + '<span style="font-size:12px;font-weight:700;color:#c49a1a;text-transform:uppercase;letter-spacing:1px">TOTAL CUMULÉ</span>'
+        + '<strong style="font-size:16px;color:#c49a1a">' + grandTotal.toLocaleString('fr-FR') + ' Ryos</strong>'
+        + '</div>';
+    }
+    html += '</div>';
+  }
 
   el.innerHTML = html;
   if (data.length > 0) await impotsRenderTable(g);
@@ -9823,6 +9855,52 @@ async function impotsAdd() {
   if (f) f.style.display = 'none';
   renderImpotsContent(state.currentUser.grade);
 }
+
+async function impotsRecuperer() {
+  const u = state.currentUser;
+  const dirName = state.users[u.username]?.fullname || u.username;
+
+  // Charger les données actuelles
+  const data = await impotsLoad();
+  const payes = data.filter(function(r){ return r.s === 'paye'; });
+  if (payes.length === 0) {
+    konohaAlert('Aucun impôt collecté à récupérer pour le moment.', 'ℹ️');
+    return;
+  }
+  const total = payes.reduce(function(s,r){ return s + (IMPOTS_MONTANTS[r.grade]||0); }, 0);
+  const nb = payes.length;
+
+  konohaConfirm(
+    'Confirmer la récupération des impôts ?<br><br>'
+    + '<strong>' + dirName + '</strong><br>'
+    + nb + ' ninja(s) payé(s)<br>'
+    + '<span style="font-size:18px;font-weight:800;color:#c49a1a">' + total.toLocaleString('fr-FR') + ' Ryos</span><br><br>'
+    + 'Les statuts seront remis à zéro après récupération.',
+    async function() {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+      // Enregistrer dans l'historique
+      const histo = JSON.parse(localStorage.getItem('konoha_impots_histo') || '[]');
+      histo.push({ agent: dirName, date: dateStr, total: total, nb: nb });
+      localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
+
+      // Remettre à zéro
+      try {
+        await fetch(SB_URL + '/rest/v1/impots', {
+          method: 'PATCH',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ statut: 'non', collecteur: '' })
+        });
+      } catch(e) { console.warn('impots recuperer reset:', e); }
+
+      konohaAlert('✓ ' + total.toLocaleString('fr-FR') + ' Ryos récupérés et enregistrés dans l\'historique !', '✅');
+      await renderImpotsContent(state.currentUser.grade);
+    },
+    { icon: '💰', label: 'Confirmer la récupération', danger: false }
+  );
+}
+
 async function impotsReset() {
   konohaConfirm('Remettre tous les statuts à <strong>Non payé</strong> et effacer les collecteurs ?<br><br>Cette action est irréversible.', async () => {
     try {
