@@ -6013,11 +6013,28 @@ async function restoreOpenItems() {
 
 // Auto-init on page load + restore session
 async function initApp() {
-  // Charger les données Supabase
   await syncFromSupabase();
 
-  // Pas d'auto-reconnexion — l'agent doit se connecter manuellement à chaque fois
-  localStorage.removeItem('konoha_session');
+  // Restaurer la session si elle existe
+  const saved = localStorage.getItem('konoha_session');
+  if (saved) {
+    try {
+      const session = JSON.parse(saved);
+      if (session && session.username && state.users[session.username]) {
+        const fresh = state.users[session.username];
+        state.currentUser = {
+          username: session.username,
+          grade: fresh.grade,
+          fullname: fresh.fullname || session.fullname,
+          matricule: fresh.matricule || session.matricule,
+          isAgent: fresh.isAgent
+        };
+        localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
+        showPage('dashboard');
+        startRealtime();
+      }
+    } catch(e) {}
+  }
 
   updateNav();
   setTimeout(initKaede, 600);
@@ -9437,7 +9454,7 @@ async function renderImpotsContent(g) {
 
   // Collecteurs
   const byCol = {};
-  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; }});
+  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0}); }});
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
 
   let html = '<h2 class="dash-section-title">🏯 Registre des Impôts</h2>';
@@ -9537,6 +9554,8 @@ async function renderImpotsContent(g) {
       const init = agent.split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);
       const safeId = 'col_' + i;
       const ninjas = d.ninjas || [];
+      const totalAgent = d.t || 0;
+      const safeAgent = JSON.stringify(agent);
       const ninjasHtml = ninjas.map(function(n){
         const col = IMPOTS_COLORS[n.grade]||'#64748b';
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px 5px 20px;border-bottom:0.5px solid rgba(59,130,246,0.06)">'
@@ -9547,6 +9566,13 @@ async function renderImpotsContent(g) {
           + '<span style="font-size:12px;font-weight:700;color:#27ae60">'+n.montant.toLocaleString('fr-FR')+' Ryos</span>'
           + '</div>';
       }).join('');
+      const btnRecup = isDir
+        ? '<div style="padding:8px 14px;border-top:0.5px solid rgba(59,130,246,0.15);background:rgba(39,174,96,0.04)">'
+          + '<button onclick="impotsRecupererAgent(' + safeAgent + ',' + totalAgent + ')" '
+          + 'style="width:100%;padding:7px;background:rgba(196,154,26,0.12);color:#c49a1a;border:1px solid rgba(196,154,26,0.3);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">'
+          + '💰 Récupérer ' + totalAgent.toLocaleString('fr-FR') + ' Ryos sur ' + agent
+          + '</button></div>'
+        : '';
       const onclick = 'impColToggle(' + JSON.stringify(safeId) + ')';
       html += '<div style="border-bottom:0.5px solid var(--border)">'
         + '<div onclick="' + onclick + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">'
@@ -9558,7 +9584,7 @@ async function renderImpotsContent(g) {
         + '<div style="font-size:11px;color:var(--muted)">'+d.c+' ninja'+(d.c>1?'s':'')+'</div></div>'
         + '<span id="arrow_'+safeId+'" style="font-size:11px;color:var(--muted)">▼</span>'
         + '</div>'
-        + (ninjas.length ? '<div id="detail_'+safeId+'" style="display:none;background:rgba(0,0,0,0.08)">'+ninjasHtml+'</div>' : '')
+        + (ninjas.length ? '<div id="detail_'+safeId+'" style="display:none;background:rgba(0,0,0,0.08)">'+ninjasHtml+btnRecup+'</div>' : '')
         + '</div>';
     });
   }
@@ -9856,6 +9882,44 @@ async function impotsAdd() {
   renderImpotsContent(state.currentUser.grade);
 }
 
+
+async function impotsRecupererAgent(agentName, totalAgent) {
+  const u = state.currentUser;
+  const dirName = state.users[u.username]?.fullname || u.username;
+
+  konohaConfirm(
+    'Récupérer les impôts de <strong>' + agentName + '</strong> ?<br><br>'
+    + '<span style="font-size:18px;font-weight:800;color:#c49a1a">' + totalAgent.toLocaleString('fr-FR') + ' Ryos</span><br><br>'
+    + 'Les statuts de cet agent seront remis à zéro.',
+    async function() {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+      // Enregistrer dans l'historique
+      const histo = JSON.parse(localStorage.getItem('konoha_impots_histo') || '[]');
+      // Compter les ninjas de cet agent
+      let res = [];
+      try { res = await sbGet('impots', '?collecteur=eq.' + encodeURIComponent(agentName) + '&statut=eq.paye'); } catch(e){}
+      const nb = Array.isArray(res) ? res.length : 0;
+      histo.push({ agent: dirName, collecteur: agentName, date: dateStr, total: totalAgent, nb: nb });
+      localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
+
+      // Remettre à zéro UNIQUEMENT les impôts de cet agent
+      try {
+        await fetch(SB_URL + '/rest/v1/impots?collecteur=eq.' + encodeURIComponent(agentName), {
+          method: 'PATCH',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ statut: 'non', collecteur: '' })
+        });
+      } catch(e) { console.warn('impotsRecupererAgent:', e); }
+
+      konohaAlert('✓ ' + totalAgent.toLocaleString('fr-FR') + ' Ryos récupérés sur ' + agentName + ' !', '💰');
+      await renderImpotsContent(state.currentUser.grade);
+    },
+    { icon: '💰', label: 'Confirmer', danger: false }
+  );
+}
+
 async function impotsRecuperer() {
   const u = state.currentUser;
   const dirName = state.users[u.username]?.fullname || u.username;
@@ -9926,7 +9990,7 @@ async function impotsGenPDF() {
 
   // Collecteurs stats
   const byCol = {};
-  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; }});
+  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0}); }});
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
 
   // Build HTML for PDF (via print)
