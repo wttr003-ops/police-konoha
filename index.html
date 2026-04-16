@@ -9268,7 +9268,7 @@ async function renderImpotsContent(g) {
     + '<button id="imp-f-paye" onclick="impotsSetFilterById(this)" data-f="paye" style="padding:5px 13px;border-radius:20px;background:var(--panel);color:#27ae60;border:1px solid rgba(39,174,96,0.3);font-size:12px;cursor:pointer;font-family:sans-serif">Payés ('+payes.length+')</button>'
     + '<button id="imp-f-non" onclick="impotsSetFilterById(this)" data-f="non" style="padding:5px 13px;border-radius:20px;background:var(--panel);color:#c0392b;border:1px solid rgba(192,57,43,0.3);font-size:12px;cursor:pointer;font-family:sans-serif">Non payés ('+nons.length+')</button>'
     + '</div>';
-  if (isDir) html += '<button onclick="impotsToggleAdd()" style="padding:6px 14px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">➕ Ninja</button>';
+  if (canEdit) html += '<button onclick="impotsToggleAdd()" style="padding:6px 14px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">➕ Ninja</button>';
   html += '</div>';
 
   // Formulaire ajout
