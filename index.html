@@ -8809,10 +8809,7 @@ function renderSalairesContent(g) {
   const el = document.getElementById('salaires-content');
   if (!el) return;
 
-  if (gradeRank(g) > 1) {
-    el.innerHTML = noAccess('Directeur ou Directeur Adjoint uniquement');
-    return;
-  }
+  // Tous les agents ont accès aux impôts
 
   const grades = [
     { grade: 'Directeur',         icon: '🏛', color: '#f0c040', rank: 0 },
@@ -9206,7 +9203,8 @@ function impotsSort(arr) {
 async function renderImpotsContent(g) {
   const el = document.getElementById('impots-content');
   if (!el) return;
-  const isDir = gradeRank(g) <= 1;
+  const isDir = gradeRank(g) <= 1;   // Directeur / Directeur Adjoint
+  const canEdit = g !== 'Hokage' && gradeRank(g) <= 6; // Tous les agents sauf Hokage
 
   // Charger depuis Supabase — afficher l'interface même si vide
   let data = [];
@@ -9365,6 +9363,7 @@ async function impotsRenderTable(g) {
   const tbody = document.getElementById('imp-tbody');
   if (!tbody) return;
   const isDir = g ? gradeRank(g) <= 1 : false;
+  const canEdit = g ? (g !== 'Hokage' && gradeRank(g) <= 6) : false;
   const data = await impotsLoad();
   const q = (document.getElementById('imp-search')?.value||'').toLowerCase();
   const filtered = impotsSort(data).filter(r => {
@@ -9380,12 +9379,12 @@ async function impotsRenderTable(g) {
     const init = r.nom.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const montant = IMPOTS_MONTANTS[r.grade]||0;
 
-    const gradePart = isDir
+    const gradePart = canEdit
       ? '<select onchange="impotsChange(\'grade\','+r.id+',this.value,this)" style="border:1px solid '+gc+'44;border-radius:6px;background:'+gc+'12;color:'+gc+';font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:130px">'
         + IMPOTS_GRADES_ORDER.map(gr=>'<option'+(r.grade===gr?' selected':'')+'>'+gr+'</option>').join('')+'</select>'
       : '<span style="font-size:11px;padding:2px 7px;border-radius:10px;background:'+gc+'18;color:'+gc+'">'+r.grade+'</span>';
 
-    const statutPart = isDir
+    const statutPart = canEdit
       ? '<select onchange="impotsChange(\'s\','+r.id+',this.value,this)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;color:'+(r.s==='paye'?'#27ae60':'#c0392b')+'">'
         + '<option value="paye"'+(r.s==='paye'?' selected':'')+'>Payé</option>'
         + '<option value="non"'+(r.s==='non'?' selected':'')+'>Non payé</option></select>'
@@ -9396,7 +9395,7 @@ async function impotsRenderTable(g) {
     Object.values(state.users).filter(u=>u.isAgent).sort((a,b)=>(a.fullname||'').localeCompare(b.fullname||'')).forEach(u=>{ if(u.fullname) allCols.push(u.fullname); });
     // Keep current col even if agent was deleted
     if (r.col && !allCols.includes(r.col)) allCols.push(r.col);
-    const colPart = isDir
+    const colPart = canEdit
       ? '<select onchange="impotsChange(\'col\','+r.id+',this.value,this)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:115px">'
         + allCols.map(c=>'<option value="'+c+'"'+(r.col===c?' selected':'')+'>'+( c||'— aucun')+'</option>').join('')+'</select>'
       : '<span style="font-size:12px;color:var(--muted)">'+( r.col||'—')+'</span>';
