@@ -2780,7 +2780,66 @@ span.footer-logo svg { width: 40px; height: 40px; }
 </div>
 
 <script src="app.js"></script>
-<script>// ============================================================
+<script>
+// ============================================================
+// MODALS NATIFS — remplace konohaAlert() et confirm()
+// ============================================================
+function konohaAlert(msg, icon) {
+  const existing = document.getElementById('_kAlert');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = '_kAlert';
+  el.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)';
+  el.innerHTML = `<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem 2.25rem;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+    <div style="font-size:32px;margin-bottom:10px">${icon||'ℹ️'}</div>
+    <div style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:1.5rem">${msg}</div>
+    <button onclick="document.getElementById('_kAlert').remove()" style="padding:9px 28px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:sans-serif">OK</button>
+  </div>`;
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+  document.body.appendChild(el);
+}
+
+function konohaConfirm(msg, onConfirm, opts) {
+  opts = opts || {};
+  const existing = document.getElementById('_kConfirm');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = '_kConfirm';
+  el.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)';
+  const btnColor = opts.danger ? '#c0392b' : 'var(--accent)';
+  el.innerHTML = `<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem 2.25rem;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+    <div style="font-size:32px;margin-bottom:10px">${opts.icon||'⚠️'}</div>
+    <div style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:1.5rem">${msg}</div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="document.getElementById('_kConfirm').remove()" style="padding:9px 22px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:sans-serif">Annuler</button>
+      <button id="_kConfirmBtn" style="padding:9px 22px;background:${btnColor};color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">${opts.label||'Confirmer'}</button>
+    </div>
+  </div>`;
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+  document.body.appendChild(el);
+  document.getElementById('_kConfirmBtn').onclick = () => { el.remove(); onConfirm(); };
+}
+
+
+// ── Override confirm() and konohaAlert() ──────────────────────────
+// Remplace les boîtes natives par des modals centrés stylés
+(function() {
+  const _origAlert = window.alert.bind(window);
+  const _origConfirm = window.confirm.bind(window);
+
+  window.alert = function(msg) {
+    konohaAlert(String(msg), msg && String(msg).includes('✓') ? '✅' : msg && String(msg).includes('⚠') ? '⚠️' : 'ℹ️');
+  };
+
+  // confirm() override — returns true immediately and shows modal
+  // Functions using confirm() are async, so we wrap them
+  window.confirm = function(msg) {
+    // Show styled modal but also return true for inline if (!confirm()) return; patterns
+    // We intercept at function level instead
+    return _origConfirm(msg);
+  };
+})();
+// ============================================================
 // SUPABASE — Base de données en ligne
 // ============================================================
 const SB_URL = 'https://tbzmqoxnsniknpqgcqrh.supabase.co';
@@ -3320,7 +3379,7 @@ async function submitPlainte() {
   const ty = document.getElementById('pl-type').value;
   const de = document.getElementById('pl-desc').value.trim();
   const da = document.getElementById('pl-date').value.trim();
-  if (!ps || !su || !ty || !de) { alert('Veuillez remplir tous les champs obligatoires (*)'); return; }
+  if (!ps || !su || !ty || !de) { konohaAlert('Veuillez remplir tous les champs obligatoires (*)', '⚠️'); return; }
 
   const currentAuthor = state.currentUser ? state.currentUser.username : ps;
   // Save to Supabase
@@ -3359,8 +3418,8 @@ async function submitPostuler() {
   const se = document.getElementById('post-section').value;
   const or = document.getElementById('post-orphelin').value;
 
-  if (!ps || !nv || !mo || !ca || !se || !or) { alert('Veuillez remplir tous les champs obligatoires (*).'); return; }
-  if (ca === 'oui') { alert('Désolé, un casier judiciaire in-game disqualifie automatiquement la candidature.'); return; }
+  if (!ps || !nv || !mo || !ca || !se || !or) { konohaAlert('Veuillez remplir tous les champs obligatoires (*).', '⚠️'); return; }
+  if (ca === 'oui') { konohaAlert('Désolé, un casier judiciaire in-game disqualifie automatiquement la candidature.', '⚠️'); return; }
 
   // Vérifier dans la base de données casier judiciaire
   function normStr2(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[-_]/g,' ').trim(); }
@@ -3376,7 +3435,7 @@ async function submitPostuler() {
     return false;
   });
   if (ficheC) {
-    alert('⚠ Candidature refusée automatiquement\n\nBonjour ' + ps + ',\n\nVotre candidature à la Police de Konoha est automatiquement refusée.\n\nVous faites l\'objet d\'une fiche au casier judiciaire de Konoha pour les faits suivants :\n\n• Infraction : ' + (ficheC.type||'—') + '\n• Motif : ' + (ficheC.motif||'—') + '\n\nToute personne fichée au casier judiciaire ne peut rejoindre les sections officielles de Konoha.\n\nCordialement,\nLa Direction de la Police de Konoha');
+    konohaAlert('⚠ Candidature refusée automatiquement\n\nBonjour ' + ps + ',\n\nVotre candidature à la Police de Konoha est automatiquement refusée.\n\nVous faites l\'objet d\'une fiche au casier judiciaire de Konoha pour les faits suivants :\n\n• Infraction : ' + (ficheC.type||'—') + '\n• Motif : ' + (ficheC.motif||'—') + '\n\nToute personne fichée au casier judiciaire ne peut rejoindre les sections officielles de Konoha.\n\nCordialement,\nLa Direction de la Police de Konoha');
     return;
   }
 
@@ -3419,7 +3478,7 @@ async function submitPostuler() {
 
   } catch(e) {
     console.error('Erreur candidature:', e);
-    alert('Erreur lors de l\'envoi. Vérifiez votre connexion.');
+    konohaAlert('Erreur lors de l\'envoi. Vérifiez votre connexion.');
     return;
   }
 
@@ -4183,7 +4242,7 @@ async function publishJournal() {
   const titre=document.getElementById('journal-titre')?.value.trim();
   const contenu=document.getElementById('journal-contenu')?.value.trim();
   const type=document.getElementById('journal-type')?.value;
-  if (!titre||!contenu){alert('Remplissez le titre et le contenu.');return;}
+  if (!titre||!contenu){konohaAlert('Remplissez le titre et le contenu.');return;}
   const u=state.currentUser;
   if (!state.journal) state.journal=[];
   await sbPost('journal', {
@@ -4196,11 +4255,13 @@ async function publishJournal() {
 }
 
 async function deleteJournal(id) {
-  if (!confirm('Supprimer cet article ?')) return;
+  konohaConfirm('Supprimer cet article ?', async () => {
+
   await sbDelete('journal', `?id=eq.${id}`);
   await syncFromSupabase();
   renderJournal(true);
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 // ============================================================
 // LOGS DES COMPTES (Directeur & Directeur Adjoint uniquement)
@@ -4439,7 +4500,7 @@ function addRecherchee() {
   const motif  = document.getElementById('rech-motif')?.value.trim();
   const danger = document.getElementById('rech-danger')?.value;
   const photo  = document.getElementById('rech-photo')?.value.trim();
-  if (!nom || !motif) { alert('Nom et motif obligatoires.'); return; }
+  if (!nom || !motif) { konohaAlert('Nom et motif obligatoires.', '⚠️'); return; }
   const u = state.currentUser;
   const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
   list.push({ nom, grade, section, motif, danger, photo, auteur: u?.fullname || u?.username || 'Inconnu', date: new Date().toLocaleDateString('fr-FR') });
@@ -4448,12 +4509,14 @@ function addRecherchee() {
 }
 
 async function removeRecherchee(index) {
-  if (!confirm('Retirer cet avis de recherche ?')) return;
+  konohaConfirm('Retirer cet avis de recherche ?', async () => {
+
   const list = JSON.parse(localStorage.getItem('konoha_recherchees') || '[]');
   list.splice(index, 1);
   localStorage.setItem('konoha_recherchees', JSON.stringify(list));
   renderRecherchees();
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 
 // ============================================================
@@ -4732,10 +4795,12 @@ async function toggleCasier(id) {
 
 async function deleteCasierById(id) {
   if (!id) return;
-  if (!confirm('Supprimer cette infraction définitivement ?')) return;
+  konohaConfirm('Supprimer cette infraction définitivement ?', async () => {
+
   try { await sbDelete('casiers', '?id=eq.'+id); } catch(e) {}
   renderCasierContent(state.currentUser.grade);
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 async function addSuiviCasier(casierDbId, safeComboId) {
   const formEl = document.getElementById('suivi-form-'+safeComboId);
@@ -4766,7 +4831,7 @@ async function saveSuiviById(casierDbId, safeComboId) {
   const type    = document.getElementById('sv-type-'+safeComboId)?.value;
   const montant = document.getElementById('sv-montant-'+safeComboId)?.value.trim();
   const desc    = document.getElementById('sv-desc-'+safeComboId)?.value.trim();
-  if (!desc) { alert('Description obligatoire.'); return; }
+  if (!desc) { konohaAlert('Description obligatoire.', '⚠️'); return; }
   const suivi = { type, montant, desc, agent: state.currentUser?.fullname||state.currentUser?.username, date: new Date().toLocaleDateString('fr-FR') };
   if (casierDbId) {
     try {
@@ -4783,7 +4848,7 @@ async function saveSuiviById(casierDbId, safeComboId) {
       }
     } catch(e) { console.warn(e); }
   }
-  alert('✓ Suivi enregistré !');
+  konohaAlert('✓ Suivi enregistré !', '✅');
   renderCasierContent(state.currentUser.grade);
 }
 
@@ -4820,7 +4885,7 @@ async function saveCasier() {
   const sanction= document.getElementById('cas-sanction')?.value;
   const agent   = document.getElementById('cas-agent')?.value;
 
-  if (!nom||!type||!motif) { alert('Nom, type infraction et motif sont obligatoires.'); return; }
+  if (!nom||!type||!motif) { konohaAlert('Nom, type infraction et motif sont obligatoires.', '⚠️'); return; }
 
   const entry = { nom, grade, type, danger, motif, sanction, agent, date: new Date().toLocaleDateString('fr-FR') };
 
@@ -4869,7 +4934,8 @@ async function saveCasier() {
 }
 
 async function deleteCasier(idx) {
-  if (!confirm('Supprimer cette fiche de casier judiciaire ?')) return;
+  konohaConfirm('Supprimer cette fiche de casier judiciaire ?', async () => {
+
   const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
   const casier = list[idx];
   if (casier?.id) {
@@ -4878,7 +4944,8 @@ async function deleteCasier(idx) {
   list.splice(idx, 1);
   localStorage.setItem('konoha_casiers', JSON.stringify(list));
   renderCasierContent(state.currentUser.grade);
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 async function addSuiviCasier(idx) {
   const casiers = await loadCasiers();
@@ -4946,7 +5013,7 @@ async function saveSuiviCasier(idx) {
   const type    = document.getElementById('suivi-type-'+idx)?.value;
   const montant = document.getElementById('suivi-montant-'+idx)?.value.trim();
   const desc    = document.getElementById('suivi-desc-'+idx)?.value.trim();
-  if (!desc) { alert('Description obligatoire.'); return; }
+  if (!desc) { konohaAlert('Description obligatoire.', '⚠️'); return; }
 
   const suivi = { type, montant, desc, agent: state.currentUser?.fullname||state.currentUser?.username, date: new Date().toLocaleDateString('fr-FR') };
 
@@ -4972,7 +5039,7 @@ async function saveSuiviCasier(idx) {
     localStorage.setItem('konoha_casiers', JSON.stringify(list));
   }
 
-  alert('✓ Suivi enregistré !');
+  konohaAlert('✓ Suivi enregistré !', '✅');
   renderCasierContent(state.currentUser.grade);
 }
 
@@ -5229,7 +5296,7 @@ async function submitRapport() {
   const type      = document.getElementById('rap-type')?.value;
   const desc      = document.getElementById('rap-desc')?.value.trim();
 
-  if (!nom||!gradePol||!gradeNinj||!type||!desc) { alert('Tous les champs sont obligatoires.'); return; }
+  if (!nom||!gradePol||!gradeNinj||!type||!desc) { konohaAlert('Tous les champs sont obligatoires.', '⚠️'); return; }
 
   const agentsPresents = rapGetSelectedAgents();
 
@@ -5271,7 +5338,7 @@ async function submitRapport() {
   }
 
   if (!savedOk) {
-    alert('⚠️ Erreur lors de la sauvegarde du rapport :\n' + saveError + '\n\nVérifiez la console et la table Supabase.');
+    konohaAlert('⚠️ Erreur lors de la sauvegarde du rapport :\n' + saveError + '\n\nVérifiez la console et la table Supabase.');
   }
 
   // Local backup
@@ -5293,12 +5360,14 @@ async function submitRapport() {
 }
 
 async function deleteRapport(id) {
-  if (!confirm('Supprimer ce rapport définitivement ?')) return;
+  konohaConfirm('Supprimer ce rapport définitivement ?', async () => {
+
   try {
     await sbDelete('rapports', '?id=eq.' + id);
   } catch(e) {}
   renderRapportsContent(state.currentUser.grade);
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 function toggleRapport(id) {
   const body = document.getElementById('rap-body-' + id);
@@ -5608,7 +5677,7 @@ async function actPlainte(id, status) {
 
   await syncFromSupabase();
   renderPlaintesContent(state.currentUser.grade);
-  alert('✓ Plainte ' + (status === 'ok' ? 'traitée' : 'rejetée') + ' avec succès.');
+  konohaAlert('✓ Plainte ' + (status === 'ok' ? 'traitée' : 'rejetée') + ' avec succès.');
 }
 
 async function actCandid(id, status) {
@@ -5646,7 +5715,7 @@ async function actCandid(id, status) {
         });
       } catch(e) { console.warn('message candid:', e); }
 
-      alert('✓ Candidature acceptée ! Un message automatique a été enregistré.');
+      konohaAlert('✓ Candidature acceptée ! Un message automatique a été enregistré.', '✅');
     } else {
       // Message automatique de refus
       const cand2 = state.candidatures.find(c => c.id === id);
@@ -5667,7 +5736,7 @@ async function actCandid(id, status) {
           candid_id: id
         });
       } catch(e) { console.warn('message refus:', e); }
-      alert('✓ Candidature refusée. Un message a été enregistré.');
+      konohaAlert('✓ Candidature refusée. Un message a été enregistré.', '✅');
     }
 
   } catch(e) { console.warn('actCandid:', e); }
@@ -5687,18 +5756,22 @@ async function setMsgDot(hasNew) {
 }
 
 async function deletePlainte(id) {
-  if (!confirm('Supprimer cette plainte définitivement ?')) return;
+  konohaConfirm('Supprimer cette plainte définitivement ?', async () => {
+
   try { await sbDelete('plaintes', '?id=eq.' + id); } catch(e) {}
   state.plaintes = state.plaintes.filter(p => p.id !== id);
   renderPlaintesContent(state.currentUser.grade);
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 async function deleteCandid(id) {
-  if (!confirm('Supprimer cette candidature définitivement ?')) return;
+  konohaConfirm('Supprimer cette candidature définitivement ?', async () => {
+
   try { await sbDelete('candidatures', '?id=eq.' + id); } catch(e) {}
   state.candidatures = state.candidatures.filter(c => c.id !== id);
   renderCandidContent(state.currentUser.grade);
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 // ============================================================
 // CONTACTER UN AGENT (citoyen → agent)
@@ -5761,7 +5834,7 @@ async function sendContactAgent() {
   const objet    = document.getElementById('contact-objet')?.value.trim();
   const msg      = document.getElementById('contact-msg')?.value.trim();
 
-  if (!agentKey || !objet || !msg) { alert('Tous les champs sont obligatoires.'); return; }
+  if (!agentKey || !objet || !msg) { konohaAlert('Tous les champs sont obligatoires.', '⚠️'); return; }
 
   const u = state.currentUser;
   const agentData = state.users[agentKey];
@@ -5910,12 +5983,12 @@ async function addAgent() {
   const mat   = document.getElementById('aj-mat')?.value.trim();
   const pass  = document.getElementById('aj-pass')?.value.trim();
 
-  if (!nom)  { alert('Le nom et prénom sont obligatoires.'); return; }
-  if (!pass) { alert('Le mot de passe est obligatoire.'); return; }
-  if (!grade){ alert('Le grade est obligatoire.'); return; }
+  if (!nom)  { konohaAlert('Le nom et prénom sont obligatoires.', '⚠️'); return; }
+  if (!pass) { konohaAlert('Le mot de passe est obligatoire.', '⚠️'); return; }
+  if (!grade){ konohaAlert('Le grade est obligatoire.', '⚠️'); return; }
 
   const username = nom.replace(/\s+/g, '_');
-  if (state.users[username]) { alert('Cet agent existe déjà.'); return; }
+  if (state.users[username]) { konohaAlert('Cet agent existe déjà.', '⚠️'); return; }
 
   const inscription = new Date().toLocaleDateString('fr-FR');
   const newAgent = { password: pass, grade, fullname: nom, isAgent: true, matricule: mat||'', inscription };
@@ -6567,7 +6640,8 @@ async function closeCitizenConversation(threadId) {
   const popup = document.getElementById('citizen-menu-popup');
   if (popup) popup.remove();
 
-  if (!confirm('Fermer définitivement cette conversation ?\n\nElle sera archivée et vous ne pourrez plus y répondre.')) return;
+  konohaConfirm('Fermer définitivement cette conversation ?\n\nElle sera archivée et vous ne pourrez plus y répondre.', async () => {
+
 
   // Mark lastSeen to current max ID so no more notifications for this thread
   try {
@@ -6603,7 +6677,8 @@ async function closeCitizenConversation(threadId) {
 
   stopConvPolling();
   renderCitizenMessages();
-}
+}, { icon: '🔒', label: 'Fermer', danger: false });
+
 
 async function showCitizenMenu(threadId) {
   const existing = document.getElementById('citizen-menu-popup');
@@ -6658,7 +6733,7 @@ async function requestCasierCheck(threadId) {
     });
   } catch(e) { console.warn(e); }
 
-  alert('✓ Demande envoyée ! L\'agent va traiter votre demande.');
+  konohaAlert('✓ Demande envoyée ! L\'agent va traiter votre demande.');
   openCitizenConversation(threadId);
 }
 
@@ -6847,13 +6922,15 @@ async function stopConvPolling() {
 }
 
 async function closeConversation(threadId, fromUser) {
-  if (!confirm('Fermer et supprimer cette conversation pour les deux parties ?')) return;
+  konohaConfirm('Fermer et supprimer cette conversation pour les deux parties ?', async () => {
+
   try {
     await sbDelete('messages', '?thread_id=eq.' + encodeURIComponent(threadId));
   } catch(e) { console.warn(e); }
   stopConvPolling();
   renderAgentMessages();
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 // ============================================================
 // GALERIE DE L'ÉQUIPE — Photos + commentaires
@@ -6960,7 +7037,7 @@ async function galFileSelected(input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) {
-    alert('Image trop grande — maximum 5 Mo.');
+    konohaAlert('Image trop grande — maximum 5 Mo.');
     input.value = '';
     return;
   }
@@ -6986,7 +7063,7 @@ async function galFileSelected(input) {
 }
 
 async function publishPhoto() {
-  if (!window._galTempImage) { alert('Selectionnez une photo.'); return; }
+  if (!window._galTempImage) { konohaAlert('Selectionnez une photo.', '⚠️'); return; }
   const desc = document.getElementById('gal-desc')?.value.trim() || '';
   const u = state.currentUser;
 
@@ -7038,14 +7115,15 @@ async function publishPhoto() {
 }
 
 async function deletePhoto(id) {
-  if (!confirm('Supprimer cette photo définitivement ?')) return;
-  try {
-    await fetch(SB_URL + '/rest/v1/galerie?id=eq.' + id, {
-      method: 'DELETE',
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-    });
-  } catch(e) { alert('Erreur lors de la suppression : ' + e.message); return; }
-  renderGalerie();
+  konohaConfirm('Supprimer cette photo définitivement ?', async () => {
+    try {
+      await fetch(SB_URL + '/rest/v1/galerie?id=eq.' + id, {
+        method: 'DELETE',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+    } catch(e) { konohaAlert('Erreur : ' + e.message, '❌'); return; }
+    renderGalerie();
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
 }
 
 async function galOpenPhoto(idx) {
@@ -8317,9 +8395,9 @@ async function emettrAmende() {
   const chipEls = document.querySelectorAll('#am-chips [data-idx]');
 
   // Validations
-  if (!nom) { alert('Le nom du contrevenant est obligatoire.'); return; }
-  if (chipEls.length === 0) { alert('Veuillez sélectionner au moins une infraction.'); return; }
-  if (!montant || montant <= 0) { alert('Le montant est obligatoire.'); return; }
+  if (!nom) { konohaAlert('Le nom du contrevenant est obligatoire.', '⚠️'); return; }
+  if (chipEls.length === 0) { konohaAlert('Veuillez sélectionner au moins une infraction.', '⚠️'); return; }
+  if (!montant || montant <= 0) { konohaAlert('Le montant est obligatoire.', '⚠️'); return; }
 
   // Construire infraction et palier depuis les chips
   const selectedInfractions = [...chipEls].map(c => ({
@@ -8354,7 +8432,7 @@ async function emettrAmende() {
     });
   } catch(e) {
     console.error('Erreur Supabase amendes:', e);
-    alert('Erreur lors de l\'enregistrement. Vérifiez votre connexion.');
+    konohaAlert('Erreur lors de l\'enregistrement. Vérifiez votre connexion.');
     return;
   }
 
@@ -8414,7 +8492,8 @@ async function emettrAmende() {
 }
 
 async function payerAmende(id, safeId) {
-  if (!confirm('Confirmer : vous avez bien encaissé le montant de cette amende ?')) return;
+  konohaConfirm('Confirmer : vous avez bien encaissé le montant de cette amende ?', async () => {
+
   const u = state.currentUser;
   const agentName = state.users[u.username]?.fullname || u.username;
   try {
@@ -8429,13 +8508,16 @@ async function payerAmende(id, safeId) {
     });
   } catch(e){console.warn(e);}
   renderAmendesContent(state.currentUser.grade);
-}
+}, { icon: '💰', label: 'Confirmer', danger: false });
+
 
 async function supprimerAmende(id) {
-  if (!confirm('Supprimer cette amende définitivement ?')) return;
+  konohaConfirm('Supprimer cette amende définitivement ?', async () => {
+
   try { await sbDelete('amendes','?id=eq.'+id); } catch(e){}
   renderAmendesContent(state.currentUser.grade);
-}
+}, { icon: '🗑️', label: 'Supprimer', danger: true });
+
 
 async function resetAmendes(fullname, totalDu) {
   const dirUser = state.currentUser;
@@ -8459,7 +8541,7 @@ async function resetAmendes(fullname, totalDu) {
     });
   } catch(e){console.warn(e);}
 
-  alert('✓ Amendes de '+fullname+' marquées comme récupérées !');
+  konohaAlert('✓ Amendes de '+fullname+' marquées comme récupérées !');
   await renderAmendesContent(state.currentUser.grade);
 }
 
@@ -8476,7 +8558,7 @@ async function resetAmendesAgent(agentKey, agentName) {
     });
   } catch(e) { console.warn(e); }
 
-  alert('✓ Amendes récupérées avec succès !');
+  konohaAlert('✓ Amendes récupérées avec succès !', '✅');
   await renderAmendesContent(state.currentUser.grade);
 }
 
@@ -8542,7 +8624,7 @@ async function recupererAgentAmendes(agentKey, agentName, totalEncaisse) {
     });
   } catch(e) { console.warn('recupererAgentAmendes:', e); }
 
-  alert('✓ ' + totalEncaisse.toLocaleString() + ' Ryos récupérés sur ' + agentName + ' par ' + dirName + ' !');
+  konohaAlert('✓ ' + totalEncaisse.toLocaleString() + ' Ryos récupérés sur ' + agentName + ' par ' + dirName + ' !');
   await renderAmendesContent(state.currentUser.grade);
 }
 
@@ -8601,7 +8683,7 @@ async function resetSemaineAmendes() {
     });
   } catch(e) { console.warn(e); }
 
-  alert('✓ Semaine réinitialisée ! Toutes les amendes ont été marquées comme récupérées par '+dirName+'.');
+  konohaAlert('✓ Semaine réinitialisée ! Toutes les amendes ont été marquées comme récupérées par '+dirName+'.');
   // Force reload depuis Supabase
   await renderAmendesContent(state.currentUser.grade);
 }
@@ -8638,7 +8720,7 @@ async function payerSalaire(username, fullname, totalRyos) {
     });
   } catch(e) { console.warn(e); }
 
-  alert('✓ Salaire de ' + fullname + ' payé !\n' + totalRyos.toLocaleString() + ' Ryos versés par ' + dirName);
+  konohaAlert('✓ Salaire de ' + fullname + ' payé !\n' + totalRyos.toLocaleString() + ' Ryos versés par ' + dirName);
   // Force reload from Supabase to get fresh data
   await renderPresencesContent(state.currentUser.grade);
 }
@@ -8772,7 +8854,7 @@ async function saveDocument() {
   const desc  = document.getElementById('doc-desc') ? document.getElementById('doc-desc').value.trim() : '';
   const url   = document.getElementById('doc-url') ? document.getElementById('doc-url').value.trim() : '';
 
-  if (!titre) { alert('Le titre est obligatoire.'); return; }
+  if (!titre) { konohaAlert('Le titre est obligatoire.', '⚠️'); return; }
 
   showConfirmModal({
     title: 'Publier ce document ?',
@@ -9092,7 +9174,7 @@ function openEditSalaire(grade, color) {
   document.getElementById('sal-save').onclick = function() {
     const newVal = parseInt(document.getElementById('sal-new-value').value);
     if (isNaN(newVal) || newVal < 1 || newVal > 9999) {
-      alert('Valeur invalide. Entrez un nombre entre 1 et 9999.');
+      konohaAlert('Valeur invalide. Entrez un nombre entre 1 et 9999.');
       return;
     }
     overlay.remove();
@@ -9233,9 +9315,9 @@ async function ouvrirRetraitSalaire(username, fullname, totalRyos) {
     const montant = parseInt(document.getElementById('retrait-montant').value) || 0;
     const motif = document.getElementById('retrait-motif').value;
 
-    if (montant <= 0) { alert('Entrez un montant valide.'); return; }
-    if (montant > totalRyos) { alert('Le montant dépasse le solde disponible.'); return; }
-    if (!motif) { alert('Sélectionnez un motif.'); return; }
+    if (montant <= 0) { konohaAlert('Entrez un montant valide.', '⚠️'); return; }
+    if (montant > totalRyos) { konohaAlert('Le montant dépasse le solde disponible.', '⚠️'); return; }
+    if (!motif) { konohaAlert('Sélectionnez un motif.', '⚠️'); return; }
 
     overlay.remove();
 
@@ -9304,12 +9386,12 @@ async function executerRetrait(username, fullname, montant, totalRyos, motif) {
     } else {
       const errText = await res.text();
       console.error('Retrait error:', errText);
-      alert('⚠️ Erreur lors du retrait : ' + errText.substring(0, 150));
+      konohaAlert('⚠️ Erreur lors du retrait : ' + errText.substring(0, 150));
       return;
     }
   } catch(e) {
     console.error('Retrait exception:', e);
-    alert('⚠️ Erreur réseau : ' + e.message);
+    konohaAlert('⚠️ Erreur réseau : ' + e.message);
     return;
   }
 
@@ -9727,15 +9809,16 @@ async function impotsSetFilter(f, btn) {
 async function impotsDelete(id) {
   const cached = _impotsCache.find(d=>d.id===id);
   const nom = cached ? cached.nom : 'ce ninja';
-  if (!confirm('Supprimer ' + nom + ' du registre des impôts ?')) return;
-  try {
-    await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
-      method: 'DELETE',
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-    });
-  } catch(e) { console.warn('impots delete:', e); }
-  _impotsCache = _impotsCache.filter(d=>d.id!==id);
-  await renderImpotsContent(state.currentUser.grade);
+  konohaConfirm('Supprimer <strong>' + nom + '</strong> du registre des impôts ?', async () => {
+    try {
+      await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
+        method: 'DELETE',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+    } catch(e) { console.warn('impots delete:', e); }
+    _impotsCache = _impotsCache.filter(d=>d.id!==id);
+    await renderImpotsContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
 }
 
 function impotsHideAdd() { const f = document.getElementById('imp-add-form'); if(f) f.style.display='none'; }
@@ -9746,30 +9829,31 @@ function impotsToggleAdd() {
 async function impotsAdd() {
   const nom = document.getElementById('imp-new-nom')?.value.trim();
   const grade = document.getElementById('imp-new-grade')?.value;
-  if (!nom) { alert('Entrez un nom.'); return; }
+  if (!nom) { konohaAlert('Entrez un nom.', '⚠️'); return; }
   try {
     const res = await fetch(SB_URL + '/rest/v1/impots', {
       method: 'POST',
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
       body: JSON.stringify({ nom, grade, statut: 'non', collecteur: '' })
     });
-    if (!res.ok) { const e = await res.text(); alert('Erreur : ' + e.substring(0,100)); return; }
-  } catch(e) { alert('Erreur réseau : ' + e.message); return; }
+    if (!res.ok) { const e = await res.text(); konohaAlert('Erreur : ' + e.substring(0,100)); return; }
+  } catch(e) { konohaAlert('Erreur réseau : ' + e.message); return; }
   if (document.getElementById('imp-new-nom')) document.getElementById('imp-new-nom').value = '';
   const f = document.getElementById('imp-add-form');
   if (f) f.style.display = 'none';
   renderImpotsContent(state.currentUser.grade);
 }
 async function impotsReset() {
-  if (!confirm('Remettre tous les statuts à "Non payé" et effacer les collecteurs ?\n\nCette action est irréversible.')) return;
-  try {
-    await fetch(SB_URL + '/rest/v1/impots', {
-      method: 'PATCH',
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ statut: 'non', collecteur: '' })
-    });
-  } catch(e) { console.warn('impots reset:', e); }
-  await renderImpotsContent(state.currentUser.grade);
+  konohaConfirm('Remettre tous les statuts à <strong>Non payé</strong> et effacer les collecteurs ?<br><br>Cette action est irréversible.', async () => {
+    try {
+      await fetch(SB_URL + '/rest/v1/impots', {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ statut: 'non', collecteur: '' })
+      });
+    } catch(e) { console.warn('impots reset:', e); }
+    await renderImpotsContent(state.currentUser.grade);
+  }, { icon: '🔄', label: 'Remettre à zéro', danger: true });
 }
 
 function impotsSort(arr) {
@@ -9856,7 +9940,7 @@ ${(()=>{let rows='',lg='',i=0;nons.forEach(r=>{if(r.grade!==lg){lg=r.grade;rows+
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 500);
   } else {
-    alert('Veuillez autoriser les popups pour générer le PDF.');
+    konohaAlert('Veuillez autoriser les popups pour générer le PDF.');
   }
 }
 
@@ -10018,7 +10102,7 @@ async function planConfirm() {
   const dateKey = document.getElementById('plan-day')?.value;
   const debut = document.getElementById('plan-debut')?.value;
   const fin = document.getElementById('plan-fin')?.value;
-  if (!agent||!dateKey||!debut||!fin) { alert('Remplissez tous les champs.'); return; }
+  if (!agent||!dateKey||!debut||!fin) { konohaAlert('Remplissez tous les champs.', '⚠️'); return; }
   const u = state.currentUser;
   const found = Object.entries(state.users).find(([k,v])=>v.fullname===agent);
   const agentUsername = found ? found[0] : u.username;
@@ -10029,20 +10113,33 @@ async function planConfirm() {
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
       body:JSON.stringify({date:dateKey,heure_debut:debut,heure_fin:fin,username:agentUsername,agent:agent,grade:agentGrade})
     });
-    if (!res.ok) { const e=await res.text(); alert('Erreur : '+e.substring(0,100)); return; }
-  } catch(e) { alert('Erreur réseau : '+e.message); return; }
+    if (!res.ok) { const e=await res.text(); konohaAlert('Erreur : '+e.substring(0,100)); return; }
+  } catch(e) { konohaAlert('Erreur réseau : '+e.message); return; }
   planCloseModal();
   renderPlanningContent(state.currentUser.grade);
 }
 
 async function planDel(id) {
-  if (!confirm('Supprimer ce créneau ?')) return;
-  try {
-    await fetch(SB_URL+'/rest/v1/planning?id=eq.'+id, {
-      method:'DELETE',
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
-    });
-  } catch(e) { console.warn(e); }
-  renderPlanningContent(state.currentUser.grade);
+  konohaConfirm('Supprimer ce créneau du planning ?', async () => {
+    try {
+      await fetch(SB_URL+'/rest/v1/planning?id=eq.'+id, {
+        method:'DELETE',
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+      });
+    } catch(e) { console.warn(e); }
+    renderPlanningContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
+
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
 }
 </script></body></html>
