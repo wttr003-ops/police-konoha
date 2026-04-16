@@ -9311,7 +9311,8 @@ async function renderImpotsContent(g) {
 
   // Historique agents
   html += '<div class="dash-block" style="padding:0;overflow:hidden">'
-    + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Historique collectes — agents</div>';
+    + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Historique collectes — agents</div>'
+    + '<div id="imp-hist-agents">';
   if (colList.length === 0) {
     html += '<div style="padding:16px 14px;font-size:13px;color:var(--muted);text-align:center">'
       + '<div style="font-size:24px;margin-bottom:6px">📋</div>'
@@ -9376,12 +9377,12 @@ async function impotsRenderTable(g) {
     const montant = IMPOTS_MONTANTS[r.grade]||0;
 
     const gradePart = isDir
-      ? '<select onchange="impotsChange(\'grade\','+r.id+',this.value)" style="border:1px solid '+gc+'44;border-radius:6px;background:'+gc+'12;color:'+gc+';font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:130px">'
+      ? '<select onchange="impotsChange(\'grade\','+r.id+',this.value,this)" style="border:1px solid '+gc+'44;border-radius:6px;background:'+gc+'12;color:'+gc+';font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:130px">'
         + IMPOTS_GRADES_ORDER.map(gr=>'<option'+(r.grade===gr?' selected':'')+'>'+gr+'</option>').join('')+'</select>'
       : '<span style="font-size:11px;padding:2px 7px;border-radius:10px;background:'+gc+'18;color:'+gc+'">'+r.grade+'</span>';
 
     const statutPart = isDir
-      ? '<select onchange="impotsChange(\'s\','+r.id+',this.value)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;color:'+(r.s==='paye'?'#27ae60':'#c0392b')+'">'
+      ? '<select onchange="impotsChange(\'s\','+r.id+',this.value,this)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;color:'+(r.s==='paye'?'#27ae60':'#c0392b')+'">'
         + '<option value="paye"'+(r.s==='paye'?' selected':'')+'>Payé</option>'
         + '<option value="non"'+(r.s==='non'?' selected':'')+'>Non payé</option></select>'
       : '<span style="font-size:11px;padding:2px 7px;border-radius:10px;'+(r.s==='paye'?'background:rgba(39,174,96,0.1);color:#27ae60':'background:rgba(192,57,43,0.1);color:#c0392b')+'">'+( r.s==='paye'?'Payé':'Non payé')+'</span>';
@@ -9392,7 +9393,7 @@ async function impotsRenderTable(g) {
     // Keep current col even if agent was deleted
     if (r.col && !allCols.includes(r.col)) allCols.push(r.col);
     const colPart = isDir
-      ? '<select onchange="impotsChange(\'col\','+r.id+',this.value)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:115px">'
+      ? '<select onchange="impotsChange(\'col\','+r.id+',this.value,this)" style="border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:115px">'
         + allCols.map(c=>'<option value="'+c+'"'+(r.col===c?' selected':'')+'>'+( c||'— aucun')+'</option>').join('')+'</select>'
       : '<span style="font-size:12px;color:var(--muted)">'+( r.col||'—')+'</span>';
 
@@ -9410,7 +9411,7 @@ async function impotsRenderTable(g) {
   }).join('');
 }
 
-async function impotsChange(type, id, val) {
+async function impotsChange(type, id, val, sel) {
   try {
     const patch = {};
     if (type === 'grade') patch.grade = val;
@@ -9421,25 +9422,70 @@ async function impotsChange(type, id, val) {
       headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify(patch)
     });
-  } catch(e) { console.warn('impots change:', e); }
-  renderImpotsContent(state.currentUser.grade);
-}
-function impotsDelete(id) {
-  showConfirmModal({
-    title: 'Supprimer ce ninja ?',
-    message: 'Cette personne sera retirée du registre des impôts.',
-    icon: '🗑️', color: '#c0392b', confirmLabel: 'Supprimer',
-    onConfirm: async function() {
-      try {
-        await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
-          method: 'DELETE',
-          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-        });
-      } catch(e) { console.warn('impots delete:', e); }
-      renderImpotsContent(state.currentUser.grade);
+  } catch(e) { console.warn('impots change:', e); return; }
+
+  // Update UI in place - no scroll jump
+  if (sel) {
+    const row = sel.closest('tr');
+    if (type === 's') {
+      sel.style.color = val==='paye' ? '#27ae60' : '#c0392b';
+      if (val === 'non') {
+        // Clear collecteur in same row
+        const selects = row ? row.querySelectorAll('select') : [];
+        selects.forEach(s => { if (s !== sel && s.querySelector('option[value=""]')) s.value = ''; });
+      }
+    } else if (type === 'grade') {
+      const gc = IMPOTS_COLORS[val] || '#64748b';
+      sel.style.color = gc; sel.style.borderColor = gc+'44'; sel.style.background = gc+'12';
+      if (row) {
+        const montantCell = row.cells[3];
+        if (montantCell) montantCell.textContent = (IMPOTS_MONTANTS[val]||0).toLocaleString('fr-FR');
+      }
     }
-  });
+  }
+  // Refresh KPIs and hist quietly
+  impotsRefreshStats();
 }
+
+async function impotsRefreshStats() {
+  try {
+    const data = await impotsLoad();
+    const payes = data.filter(r=>r.s==='paye');
+    const nons  = data.filter(r=>r.s==='non');
+    const enc   = payes.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
+    const rest  = nons.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
+    const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+    set('imp-k1', payes.length);
+    set('imp-k2', nons.length);
+    set('imp-k3', enc.toLocaleString('fr-FR')+' Ryos');
+    set('imp-k4', rest.toLocaleString('fr-FR')+' Ryos');
+
+    // Refresh hist agents
+    const byCol={};
+    payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; }});
+    const colList=Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
+    const histEl=document.getElementById('imp-hist-agents');
+    if (histEl && colList.length) {
+      histEl.innerHTML = colList.map(([agent,d],i)=>{
+        const pct=enc>0?Math.round(d.t/enc*100):0;
+        const init=agent.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border)">'
+          +'<span style="font-size:11px;color:var(--muted);width:16px;flex-shrink:0">'+(i+1)+'.</span>'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+agent+'</div>'
+          +'<div style="margin-top:3px;height:3px;background:var(--mid);border-radius:2px"><div style="height:3px;background:#27ae60;border-radius:2px;width:'+pct+'%"></div></div></div>'
+          +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:#27ae60">'+d.t.toLocaleString('fr-FR')+' Ryos</div><div style="font-size:11px;color:var(--muted)">'+d.c+' collecte'+(d.c>1?'s':'')+'</div></div></div>';
+      }).join('');
+    }
+    const nb=payes.length; const tot=data.length; const pct2=tot>0?Math.round(nb/tot*100):0;
+    set('imp-bilan-enc', enc.toLocaleString('fr-FR')+' Ryos');
+    set('imp-bilan-pct', nb+' / '+tot+' ('+pct2+'%)');
+    const bar=document.getElementById('imp-bilan-bar');
+    if(bar) bar.style.width=pct2+'%';
+  } catch(e) {}
+}
+
+
 async function impotsFilter() { await impotsRenderTable(state.currentUser.grade); }
 async function impotsSetFilterById(btn) {
   await impotsSetFilter(btn.dataset.f, btn);
