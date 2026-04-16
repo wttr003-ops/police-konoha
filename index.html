@@ -2639,6 +2639,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
           🏯 Impôts
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('planning',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          📅 Planning
+        </button>
       </nav>
 </nav></div>
       <!-- SIDEBAR CITOYEN -->
@@ -2757,6 +2761,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
       <div class="dash-tab" id="dash-impots">
         <div id="impots-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-planning">
+        <div id="planning-content"></div>
       </div>
 
       <!-- TABS CITOYEN -->
@@ -3510,6 +3518,7 @@ async function switchDashTab(name, btn) {
   if (name === 'documents')     await renderDocumentsContent(g);
   if (name === 'salaires')      renderSalairesContent(g);
   if (name === 'impots')        renderImpotsContent(g);
+  if (name === 'planning')      renderPlanningContent(g);
   if (name === 'ajout')         renderAjoutContent(g);
   if (name === 'citoyens')      renderCitoyensContent(g);
   if (name === 'messages-agent') renderAgentMessages();
@@ -9845,5 +9854,209 @@ ${(()=>{let rows='',lg='',i=0;nons.forEach(r=>{if(r.grade!==lg){lg=r.grade;rows+
   } else {
     alert('Veuillez autoriser les popups pour générer le PDF.');
   }
+}
+
+// ============================================================
+// PLANNING HEBDOMADAIRE
+// ============================================================
+
+async function renderPlanningContent(g) {
+  const el = document.getElementById('planning-content');
+  if (!el) return;
+  const u = state.currentUser;
+  const isDir = gradeRank(g) <= 1;
+
+  // Semaine courante (lundi = jour 0)
+  if (!window._planningWeekOffset) window._planningWeekOffset = 0;
+  const offset = window._planningWeekOffset;
+  const today = new Date();
+  const monday = new Date(today);
+  const day = monday.getDay();
+  monday.setDate(monday.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
+  monday.setHours(0,0,0,0);
+
+  const DAYS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const days = DAYS.map((d,i) => {
+    const dt = new Date(monday);
+    dt.setDate(monday.getDate() + i);
+    return { label: d, date: dt, key: dt.toISOString().slice(0,10) };
+  });
+
+  const semLabel = days[0].date.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})
+    + ' – ' + days[6].date.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  // Load slots from Supabase
+  let slots = [];
+  try {
+    const firstKey = days[0].key;
+    const lastKey  = days[6].key;
+    const res = await sbGet('planning', '?date=gte.' + firstKey + '&date=lte.' + lastKey + '&order=heure_debut.asc');
+    if (Array.isArray(res)) slots = res;
+  } catch(e) { console.warn('planning load:', e); }
+
+  // Group by date
+  const byDay = {};
+  days.forEach(d => byDay[d.key] = []);
+  slots.forEach(s => { if (byDay[s.date]) byDay[s.date].push(s); });
+
+  // Agent color map
+  const agentColors = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#c0392b','#ec4899','#06b6d4','#84cc16'];
+  const colorMap = {};
+  let colorIdx = 0;
+  Object.values(state.users).filter(u=>u.isAgent).forEach(u => {
+    if (!colorMap[u.fullname]) { colorMap[u.fullname] = agentColors[colorIdx % agentColors.length]; colorIdx++; }
+  });
+
+  // Stats
+  const totalSlots = slots.length;
+  const activeAgents = new Set(slots.map(s=>s.agent)).size;
+  const emptyDays = days.filter(d=>byDay[d.key].length===0).length;
+  const mySlots = slots.filter(s=>s.username===u.username);
+
+  let html = '<h2 class="dash-section-title">📅 Planning hebdomadaire</h2>';
+
+  // Header nav
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">'
+    + '<div><span style="font-size:14px;font-weight:600;color:var(--text)">Semaine du '+semLabel+'</span></div>'
+    + '<div style="display:flex;gap:6px">'
+    + '<button onclick="planningWeek(-1)" style="padding:5px 12px;border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:12px;cursor:pointer;font-family:sans-serif">◀ Préc.</button>'
+    + '<button onclick="planningWeek(0)" style="padding:5px 12px;border:0.5px solid var(--accent);border-radius:6px;background:rgba(59,130,246,0.1);color:var(--accent);font-size:12px;cursor:pointer;font-family:sans-serif">Aujourd\'hui</button>'
+    + '<button onclick="planningWeek(1)" style="padding:5px 12px;border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:12px;cursor:pointer;font-family:sans-serif">Suiv. ▶</button>'
+    + '</div></div>';
+
+  // Grid
+  const todayKey = new Date().toISOString().slice(0,10);
+  html += '<div class="dash-block" style="padding:0;overflow:hidden;margin-bottom:1rem">'
+    + '<div style="display:flex">';
+
+  days.forEach((d,i) => {
+    const isToday = d.key === todayKey;
+    const daySlots = byDay[d.key];
+    html += '<div style="flex:1;min-width:0;'+(i>0?'border-left:0.5px solid var(--border)':'')+'">'
+      + '<div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:'+(isToday?'700':'500')+';color:'+(isToday?'var(--accent)':'var(--muted)')+';border-bottom:0.5px solid var(--border);background:'+(isToday?'rgba(59,130,246,0.05)':'transparent')+'">'
+      + d.label + '<br><span style="font-size:12px">' + d.date.getDate() + '</span></div>'
+      + '<div style="padding:4px 3px;min-height:60px">';
+
+    daySlots.forEach(s => {
+      const gc = colorMap[s.agent] || '#64748b';
+      const isMine = s.username === u.username;
+      const init = (s.agent||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+      html += '<div style="margin:2px 0;border-radius:5px;padding:4px 5px;background:'+gc+'12;border:1px solid '+gc+'33;font-size:10px;color:var(--text)">'
+        + '<div style="display:flex;align-items:center;gap:3px;margin-bottom:1px">'
+        + '<div style="width:16px;height:16px;border-radius:50%;background:'+gc+'25;color:'+gc+';display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">'+init+'</div>'
+        + '<span style="font-weight:600;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+s.agent.split(' ')[0]+'</span>'
+        + (isMine||isDir ? '<button onclick="planningDelete('+s.id+')" style="margin-left:auto;border:none;background:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 1px;line-height:1">×</button>' : '')
+        + '</div>'
+        + '<div style="color:var(--muted);font-size:9px">'+s.heure_debut+' – '+s.heure_fin+'</div>'
+        + '</div>';
+    });
+
+    html += '<div onclick="planningOpenAdd(\''+d.key+'\')" style="margin:2px 0;border-radius:5px;padding:4px 5px;border:1px dashed var(--border);font-size:10px;color:var(--muted);text-align:center;cursor:pointer;opacity:0.6" onmouseover="this.style.opacity=1;this.style.background=\'var(--mid)\'" onmouseout="this.style.opacity=0.6;this.style.background=\'transparent\'">+ Ajouter</div>'
+      + '</div></div>';
+  });
+
+  html += '</div></div>';
+
+  // Stats
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem">'
+    + '<div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--text)">'+totalSlots+'</div><div style="font-size:11px;color:var(--muted)">Créneaux planifiés</div></div>'
+    + '<div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:#27ae60">'+activeAgents+'</div><div style="font-size:11px;color:var(--muted)">Agents actifs</div></div>'
+    + '<div style="background:var(--mid);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:'+(emptyDays>0?'#c0392b':'#27ae60')+'">'+emptyDays+'</div><div style="font-size:11px;color:var(--muted)">Jours sans agent</div></div>'
+    + '</div>';
+
+  // My slots this week
+  html += '<div class="dash-block" style="padding:1rem">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Mes créneaux cette semaine</div>';
+  if (mySlots.length === 0) {
+    html += '<p style="font-size:13px;color:var(--muted)">Vous n\'avez aucun créneau planifié cette semaine. Cliquez sur "+ Ajouter" dans la grille !</p>';
+  } else {
+    html += '<div style="display:flex;flex-direction:column;gap:6px">';
+    mySlots.forEach(s => {
+      const dayLabel = DAYS[new Date(s.date+'T12:00:00').getDay()===0?6:new Date(s.date+'T12:00:00').getDay()-1];
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--mid);border-radius:7px">'
+        + '<span style="font-size:13px;font-weight:600;min-width:30px;color:var(--accent)">'+dayLabel+'</span>'
+        + '<span style="font-size:13px;color:var(--text)">'+s.heure_debut+' – '+s.heure_fin+'</span>'
+        + '<button onclick="planningDelete('+s.id+')" style="margin-left:auto;padding:3px 10px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);border-radius:5px;font-size:11px;cursor:pointer">Supprimer</button>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Modal add (hidden)
+  html += '<div id="planning-add-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(3px)">'
+    + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:2rem;max-width:360px;width:92%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">'
+    + '<div style="font-size:36px;margin-bottom:10px">📅</div>'
+    + '<div style="font-size:17px;font-weight:700;color:var(--accent);margin-bottom:6px">Ajouter un créneau</div>'
+    + '<div id="planning-add-date-label" style="font-size:13px;color:var(--muted);margin-bottom:1.25rem"></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">'
+    + '<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-align:left">Heure de début</div>'
+    + '<input type="time" id="planning-heure-debut" value="20:00" style="width:100%;padding:8px;border:0.5px solid var(--border);border-radius:7px;background:var(--mid);color:var(--text);font-size:14px"/></div>'
+    + '<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-align:left">Heure de fin</div>'
+    + '<input type="time" id="planning-heure-fin" value="23:00" style="width:100%;padding:8px;border:0.5px solid var(--border);border-radius:7px;background:var(--mid);color:var(--text);font-size:14px"/></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;justify-content:center">'
+    + '<button onclick="planningCloseAdd()" style="padding:9px 20px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:sans-serif">Annuler</button>'
+    + '<button onclick="planningConfirmAdd()" style="padding:9px 20px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">✓ Confirmer</button>'
+    + '</div></div></div>';
+
+  el.innerHTML = html;
+}
+
+let _planningSelectedDate = '';
+
+function planningWeek(dir) {
+  if (dir === 0) window._planningWeekOffset = 0;
+  else window._planningWeekOffset = (window._planningWeekOffset||0) + dir;
+  renderPlanningContent(state.currentUser.grade);
+}
+
+function planningOpenAdd(dateKey) {
+  _planningSelectedDate = dateKey;
+  const dt = new Date(dateKey+'T12:00:00');
+  const DAYS_FR = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+  const dayIdx = dt.getDay()===0?6:dt.getDay()-1;
+  const lbl = document.getElementById('planning-add-date-label');
+  if (lbl) lbl.textContent = DAYS_FR[dayIdx] + ' ' + dt.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+  const modal = document.getElementById('planning-add-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function planningCloseAdd() {
+  const modal = document.getElementById('planning-add-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function planningConfirmAdd() {
+  const debut = document.getElementById('planning-heure-debut')?.value;
+  const fin   = document.getElementById('planning-heure-fin')?.value;
+  if (!debut || !fin) { alert('Entrez les heures.'); return; }
+  if (debut >= fin && !(fin < '06:00' && debut > '18:00')) {
+    // Allow overnight (e.g. 22:00 → 01:00)
+    if (debut <= fin) { alert('L\'heure de fin doit être après l\'heure de début.'); return; }
+  }
+  const u = state.currentUser;
+  const agent = state.users[u.username]?.fullname || u.username;
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/planning', {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({ date: _planningSelectedDate, heure_debut: debut, heure_fin: fin, username: u.username, agent: agent, grade: u.grade })
+    });
+    if (!res.ok) { const e = await res.text(); alert('Erreur : ' + e.substring(0,100)); return; }
+  } catch(e) { alert('Erreur réseau : ' + e.message); return; }
+  planningCloseAdd();
+  renderPlanningContent(state.currentUser.grade);
+}
+
+async function planningDelete(id) {
+  if (!confirm('Supprimer ce créneau ?')) return;
+  try {
+    await fetch(SB_URL + '/rest/v1/planning?id=eq.' + id, {
+      method: 'DELETE',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+  } catch(e) { console.warn(e); }
+  renderPlanningContent(state.currentUser.grade);
 }
 </script></body></html>
