@@ -2964,7 +2964,182 @@ async function stopRealtime() {
 // ============================================================
 // SYNC STATE FROM SUPABASE
 // ============================================================
+
+async function _loadUsersFromSupabase() {
+  // Load users from supabase
+  // Blacklist — toujours charger en premier
+  let blacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/deleted_users?select=username', {
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    if (res.ok) {
+    const deleted = await res.json();
+    if (Array.isArray(deleted)) {
+      const sbBl = deleted.map(d => d.username);
+      blacklist = [...new Set([...blacklist, ...sbBl])];
+      localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
+    }
+    }
+  } catch(e) {}
+
+  const users = await sbGet('users', '');
+  if (Array.isArray(users)) {
+    users.forEach(u => {
+    if (blacklist.includes(u.username)) return; // BLOQUÉ — ne revient jamais
+    state.users[u.username] = {
+      password: u.password,
+      grade: u.grade || 'Citoyen',
+      fullname: u.fullname || u.username,
+      section: u.section || 'aucune',
+      isAgent: u.is_agent || false,
+      matricule: u.matricule || '',
+      casier: u.casier || 'non',
+      connu: u.connu || 'non',
+      genre: u.genre || 'homme',
+      inscription: u.inscription || ''
+    };
+    });
+  }
+
+  // Load grade overrides
+  const overrides = await sbGet('grade_overrides', '');
+  if (Array.isArray(overrides)) {
+    overrides.forEach(o => {
+    if (state.users[o.username]) state.users[o.username].grade = o.grade;
+    });
+  }
+
+  // Auto-check casier: if a user has entries in casiers table, mark them
+  try {
+    const casierEntries = await sbGet('casiers', '?select=nom');
+    if (Array.isArray(casierEntries)) {
+    Object.entries(state.users).forEach(([username, userData]) => {
+      if (userData.casier === 'oui') return; // Already marked
+      const fullname = (userData.fullname || username.replace(/_/g,' ')).toLowerCase().trim();
+      const hasCasier = casierEntries.some(c => {
+      const cn = (c.nom||'').toLowerCase().trim();
+      return cn === fullname || cn === fullname.split(' ').reverse().join(' ');
+      });
+      if (hasCasier) {
+      state.users[username].casier = 'oui';
+      // Auto-update Supabase silently
+      sbPatch('users', '?username=eq.' + encodeURIComponent(username), { casier: 'oui' });
+      }
+    });
+    }
+  } catch(e) {}
+}
+
+
+/* ============================================================
+   POLICE DE KONOHA — NINJA ROAD FiveM
+   app.js — Logique complète
+   ============================================================ */
+
+// ---- CONSTANTES ----
+const GRADES = ['Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Stagiaire', 'Recrue'];
+
+const GRADE_RANK = {
+  'Hokage': -1,
+  'Directeur': 0,
+  'Directeur Adjoint': 1,
+  'Lieutenant': 2,
+  'Sergent': 3,
+  'Officier': 4,
+  'Stagiaire': 5,
+  'Recrue': 6,
+  'Citoyen': 9
+};
+
+const GRADE_CLASS = {
+  'Hokage':       'gp-hokage',
+  'Directeur':    'gp-s',
+  'Directeur Adjoint':'gp-s',
+  'Lieutenant':     'gp-a',
+  'Sergent':      'gp-b',
+  'Officier':     'gp-c',
+  'Stagiaire':    'gp-d',
+  'Recrue':       'gp-d',
+  'Citoyen':      'gp-d'
+};
+
+const PERMS = {
+  0: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
+  1: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
+  2: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
+  3: ['Voir les plaintes', 'Voir les candidatures'],
+  4: ['Voir les plaintes', 'Voir les candidatures'],
+  5: ['Accès espace agent uniquement']
+};
+
+const ALL_PERMS = ['Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'];
+
+
+// ============================================================
+// PERSISTANCE — Supabase (remplace localStorage)
+// ============================================================
+function saveState() { /* handled by Supabase directly */ }
+function loadState() {
+  // Restore session from localStorage
+  const saved = localStorage.getItem('konoha_session');
+  if (saved) {
+  try {
+    const session = JSON.parse(saved);
+    if (session && session.username) {
+    state.currentUser = session;
+    }
+  } catch(e) {}
+  }
+}
+function resetState() { if(!confirm('Réinitialiser ?')) return; location.reload(); }
+
+function saveGradeOverride(username, grade) {
+  sbPatch('grade_overrides', `?username=eq.${username}`, { grade, updated_at: new Date().toISOString() })
+  .then(ok => {
+    if (!ok) sbPost('grade_overrides', { username, grade });
+  });
+  // Also update users table
+  sbPatch('users', `?username=eq.${username}`, { grade });
+}
+
+function loadGradeOverrides() { /* handled by syncFromSupabase */ }
+
+// ---- ÉTAT GLOBAL ----
+const state = {
+  currentUser: null,
+  users: {},
+  plaintes: [],
+  candidatures: [],
+  messages: {},
+  journal: [],
+  openPlainte: null,
+  openCandid: null
+};
+
+// ============================================================
+// HELPERS MANQUANTS
+// ============================================================
+function noAccess(msg) {
+  return '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">🔒 Accès restreint — ' + (msg||'Permissions insuffisantes') + '</div>';
+}
+
+function isConnuFDO(username, fullname) {
+  try {
+    const casiers = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
+    if (!casiers.length) return false;
+    const name = (fullname || username.replace(/_/g,' ')).toLowerCase().trim();
+    return casiers.some(c => {
+      const cn = (c.nom||'').toLowerCase().trim();
+      return cn === name || cn.includes(name) || name.includes(cn);
+    });
+  } catch(e) { return false; }
+}
+
 async function syncFromSupabase() {
+  // Users loading is ALWAYS done first, independently
+  await _loadUsersFromSupabase();
+  
   try {
     // Load plaintes
     const plaintes = await sbGet('plaintes', '?order=id.asc');
@@ -3015,175 +3190,7 @@ async function syncFromSupabase() {
       }));
     }
 
-    // Load users from supabase
-    // Blacklist — toujours charger en premier
-    let blacklist = JSON.parse(localStorage.getItem('konoha_deleted') || '[]');
-    try {
-      const res = await fetch(SB_URL + '/rest/v1/deleted_users?select=username', {
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-      });
-      if (res.ok) {
-        const deleted = await res.json();
-        if (Array.isArray(deleted)) {
-          const sbBl = deleted.map(d => d.username);
-          blacklist = [...new Set([...blacklist, ...sbBl])];
-          localStorage.setItem('konoha_deleted', JSON.stringify(blacklist));
-        }
-      }
-    } catch(e) {}
-
-    const users = await sbGet('users', '');
-    if (Array.isArray(users)) {
-      users.forEach(u => {
-        if (blacklist.includes(u.username)) return; // BLOQUÉ — ne revient jamais
-        state.users[u.username] = {
-          password: u.password,
-          grade: u.grade || 'Citoyen',
-          fullname: u.fullname || u.username,
-          section: u.section || 'aucune',
-          isAgent: u.is_agent || false,
-          matricule: u.matricule || '',
-          casier: u.casier || 'non',
-          connu: u.connu || 'non',
-          genre: u.genre || 'homme',
-          inscription: u.inscription || ''
-        };
-      });
-    }
-
-    // Load grade overrides
-    const overrides = await sbGet('grade_overrides', '');
-    if (Array.isArray(overrides)) {
-      overrides.forEach(o => {
-        if (state.users[o.username]) state.users[o.username].grade = o.grade;
-      });
-    }
-
-    // Auto-check casier: if a user has entries in casiers table, mark them
-    try {
-      const casierEntries = await sbGet('casiers', '?select=nom');
-      if (Array.isArray(casierEntries)) {
-        Object.entries(state.users).forEach(([username, userData]) => {
-          if (userData.casier === 'oui') return; // Already marked
-          const fullname = (userData.fullname || username.replace(/_/g,' ')).toLowerCase().trim();
-          const hasCasier = casierEntries.some(c => {
-            const cn = (c.nom||'').toLowerCase().trim();
-            return cn === fullname || cn === fullname.split(' ').reverse().join(' ');
-          });
-          if (hasCasier) {
-            state.users[username].casier = 'oui';
-            // Auto-update Supabase silently
-            sbPatch('users', '?username=eq.' + encodeURIComponent(username), { casier: 'oui' });
-          }
-        });
-      }
-    } catch(e) {}
-
-  } catch(e) { console.warn('syncFromSupabase error', e); }
-}
-
-/* ============================================================
-   POLICE DE KONOHA — NINJA ROAD FiveM
-   app.js — Logique complète
-   ============================================================ */
-
-// ---- CONSTANTES ----
-const GRADES = ['Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Stagiaire', 'Recrue'];
-
-const GRADE_RANK = {
-  'Hokage': -1,
-  'Directeur': 0,
-  'Directeur Adjoint': 1,
-  'Lieutenant': 2,
-  'Sergent': 3,
-  'Officier': 4,
-  'Stagiaire': 5,
-  'Recrue': 6,
-  'Citoyen': 9
-};
-
-const GRADE_CLASS = {
-  'Hokage':           'gp-hokage',
-  'Directeur':        'gp-s',
-  'Directeur Adjoint':'gp-s',
-  'Lieutenant':       'gp-a',
-  'Sergent':          'gp-b',
-  'Officier':         'gp-c',
-  'Stagiaire':        'gp-d',
-  'Recrue':           'gp-d',
-  'Citoyen':          'gp-d'
-};
-
-const PERMS = {
-  0: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
-  1: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
-  2: ['Toutes les permissions', 'Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'],
-  3: ['Voir les plaintes', 'Voir les candidatures'],
-  4: ['Voir les plaintes', 'Voir les candidatures'],
-  5: ['Accès espace agent uniquement']
-};
-
-const ALL_PERMS = ['Voir les plaintes', 'Voir les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades'];
-
-
-// ============================================================
-// PERSISTANCE — Supabase (remplace localStorage)
-// ============================================================
-function saveState() { /* handled by Supabase directly */ }
-function loadState() {
-  // Restore session from localStorage
-  const saved = localStorage.getItem('konoha_session');
-  if (saved) {
-    try {
-      const session = JSON.parse(saved);
-      if (session && session.username) {
-        state.currentUser = session;
-      }
-    } catch(e) {}
-  }
-}
-function resetState() { if(!confirm('Réinitialiser ?')) return; location.reload(); }
-
-function saveGradeOverride(username, grade) {
-  sbPatch('grade_overrides', `?username=eq.${username}`, { grade, updated_at: new Date().toISOString() })
-    .then(ok => {
-      if (!ok) sbPost('grade_overrides', { username, grade });
-    });
-  // Also update users table
-  sbPatch('users', `?username=eq.${username}`, { grade });
-}
-
-function loadGradeOverrides() { /* handled by syncFromSupabase */ }
-
-// ---- ÉTAT GLOBAL ----
-const state = {
-  currentUser: null,
-  users: {},
-  plaintes: [],
-  candidatures: [],
-  messages: {},
-  journal: [],
-  openPlainte: null,
-  openCandid: null
-};
-
-// ============================================================
-// HELPERS MANQUANTS
-// ============================================================
-function noAccess(msg) {
-  return '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">🔒 Accès restreint — ' + (msg||'Permissions insuffisantes') + '</div>';
-}
-
-function isConnuFDO(username, fullname) {
-  // Check if person appears in casiers (criminal record)
-  try {
-    const casiers = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
-    if (!casiers.length) return false;
-    const name = (fullname || username.replace(/_/g,' ')).toLowerCase().trim();
-    return casiers.some(c => {
-      const cn = (c.nom||'').toLowerCase().trim();
-      return cn === name || cn.includes(name) || name.includes(cn);
-    });
+    // Users loaded separately in _loadUsersFromSupabase()
   } catch(e) { return false; }
 }
 
