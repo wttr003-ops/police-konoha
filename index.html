@@ -5720,6 +5720,7 @@ async function deleteCandid(id) {
       state.candidatures = state.candidatures.filter(c => c.id !== id);
       renderCandidContent(state.currentUser.grade);
   }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
 
 
 // ============================================================
@@ -6849,7 +6850,6 @@ async function stopConvPolling() {
   currentOpenSide = null;
 }
 
-}
 async function closeConversation(threadId, fromUser) {
   konohaConfirm('Fermer et supprimer cette conversation pour les deux parties ?', async () => {
       try {
