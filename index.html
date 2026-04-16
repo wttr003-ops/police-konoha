@@ -7326,11 +7326,13 @@ async function renderPresencesContent(g) {
     </button>`;
   } else {
     const priseAt = new Date(serviceData.prise);
-    const diffMins = Math.floor((new Date() - priseAt) / 60000);
+    const diffMins = Math.max(0, Math.floor((new Date() - priseAt) / 60000));
     const h = Math.floor(diffMins/60), m = diffMins%60;
     const salaireEnCours = Math.round((diffMins/60)*taux);
+    // Use stored heureLocale for display (always correct Paris time)
+    const heureAffichee = serviceData.heureLocale || priseAt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
     html += `<div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.25);border-radius:8px;padding:1rem;margin-bottom:1rem;text-align:center">
-      <div style="font-size:12px;color:var(--muted)">En service depuis <strong style="color:var(--text)">${priseAt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</strong></div>
+      <div style="font-size:12px;color:var(--muted)">En service depuis <strong style="color:var(--text)">${heureAffichee}</strong></div>
       <div style="font-size:36px;font-weight:700;color:#27ae60;margin:8px 0;font-variant-numeric:tabular-nums" id="service-timer">${h}h${String(m).padStart(2,'0')}</div>
       <div style="font-size:13px;color:var(--muted)">Salaire en cours : <strong style="color:#27ae60">${salaireEnCours} Ryos</strong></div>
     </div>
@@ -7614,7 +7616,10 @@ async function _doPriseDeService() {
     if (Array.isArray(data) && data[0]) {
       presenceId = data[0].id;
       // Use server created_at as the authoritative prise time
-      serverPrise = data[0].created_at || data[0].prise_service;
+      // Ensure it has timezone info — add Z if missing to prevent local-time misparse
+      let sp = data[0].created_at || data[0].prise_service || now.toISOString();
+      if (sp && !sp.includes('Z') && !sp.includes('+')) sp = sp + 'Z';
+      serverPrise = sp;
     }
   } catch(e) { console.warn('prise service:', e); }
 
