@@ -3766,7 +3766,7 @@ async function renderMembresContent(g) {
   // Find Hokage
   const hokageUser = Object.entries(state.users).find(([,u]) => u.grade === 'Hokage');
 
-  let html = '<div class="dash-block">'
+  let html = '<div class="dash-block">';
 
   // Hokage banner at very top
   if (hokageUser) {
@@ -6468,11 +6468,13 @@ async function renderCitizenMessages() {
     }
   } catch(e) { console.warn(e); }
 
-  let html = `<h2 class="dash-section-title">Mes messages avec les agents</h2>`;
+  let html = `<h2 class="dash-section-title">Mes messages</h2>`;
 
   if (myThreads.length === 0) {
     html += `<div class="dash-block" style="padding:2rem;text-align:center">
-      <p style="color:var(--muted);font-size:13px">Aucun échange pour le moment.<br>Utilisez "Contacter un agent" pour envoyer un message.</p>
+      <div style="font-size:32px;margin-bottom:10px">💬</div>
+      <p style="color:var(--muted);font-size:14px;font-weight:600;margin-bottom:6px">Aucun message en attente</p>
+      <p style="color:var(--muted);font-size:13px">Vous n'avez pas encore échangé avec un agent.<br>Utilisez l'onglet <strong style="color:var(--text)">Contacter un agent</strong> pour envoyer une demande.</p>
     </div>`;
     el.innerHTML = html;
     return;
@@ -6480,9 +6482,10 @@ async function renderCitizenMessages() {
 
   html += '<div class="dash-block">';
   myThreads.forEach(({ tid, msgs }) => {
+    if (!msgs || msgs.length === 0) return;
     const firstMsg = msgs[msgs.length-1];
     const agentReply = msgs.find(m => m.role === 'agent');
-    const lastMsg = msgs[0];
+    const lastMsg = msgs[0] || firstMsg;
     const isClosed = msgs.some(m => m.status === 'closed' || m.role === 'system');
     const status = isClosed ? 'closed' : (agentReply ? 'answered' : 'pending');
     const preview = (lastMsg.text||'').replace(/^\[DEMANDE\] /,'').substring(0,50) + '...';
