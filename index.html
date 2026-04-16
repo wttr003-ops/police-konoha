@@ -8306,10 +8306,23 @@ async function renderAmendesContent(g) {
 
               ${data.amendes.filter(a=>a.recupere_par).length > 0 ? `
               <div style="margin-top:8px;padding:8px 10px;background:rgba(39,174,96,0.05);border:1px solid rgba(39,174,96,0.15);border-radius:6px;font-size:11px;color:var(--muted)">
-                ${[...new Set(data.amendes.filter(a=>a.recupere_par).map(a=>
-                  '✓ Récupéré par <strong style="color:var(--text)">' + a.recupere_par + '</strong>' +
-                  (a.recupere_le ? ' le ' + new Date(a.recupere_le).toLocaleDateString('fr-FR') : '')
-                ))].join(' &nbsp;|&nbsp; ')}
+                ${(() => {
+                // Grouper par session de récupération (même personne + même jour)
+                const recupMap = {};
+                data.amendes.filter(a=>a.recupere_par).forEach(a => {
+                  const dateKey = a.recupere_le ? new Date(a.recupere_le).toLocaleDateString('fr-FR') : (a.date||'—');
+                  const key = (a.recupere_par||'') + '_' + dateKey;
+                  if (!recupMap[key]) recupMap[key] = { par: a.recupere_par, le: a.recupere_le, date: dateKey, total: 0 };
+                  recupMap[key].total += (a.montant||0);
+                });
+                return Object.values(recupMap).map(r =>
+                  '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">' +
+                  '<span>✓ Récupéré par <strong style="color:var(--text)">' + r.par + '</strong>' +
+                  (r.le ? ' — le ' + new Date(r.le).toLocaleDateString('fr-FR') : '') + '</span>' +
+                  '<strong style="color:#27ae60;margin-left:8px">' + r.total.toLocaleString() + ' Ryos</strong>' +
+                  '</div>'
+                ).join('');
+              })()}
               </div>` : ''}
             </div>
           </div>`;
