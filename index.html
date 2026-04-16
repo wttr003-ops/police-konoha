@@ -7290,7 +7290,7 @@ async function renderPresencesContent(g) {
   // Seulement les présences non payées dans les compteurs
   const unpaidPresences = myPresences.filter(p => p.statut_paye !== 'paye');
   const weekTotal = unpaidPresences
-    .filter(p => new Date(p.created_at) >= weekStart)
+    .filter(p => { let ca = p.created_at||''; if(ca && !ca.includes('Z') && !ca.includes('+')) ca+='Z'; return new Date(ca) >= weekStart; })
     .reduce((sum, p) => sum + (p.salaire||0), 0);
   const allTimeTotal = unpaidPresences.reduce((sum, p) => sum + (p.salaire||0), 0);
   const totalMins = unpaidPresences.reduce((sum, p) => sum + (p.duree_minutes||0), 0);
@@ -7387,7 +7387,10 @@ async function renderPresencesContent(g) {
       html += '<p style="color:var(--muted);font-size:13px">Aucun agent en service actuellement.</p>';
     } else {
       enService.forEach(p => {
-        const priseAt = new Date(p.prise_service);
+        // Fix timezone: ensure UTC parsing
+        let psRaw = p.created_at || p.prise_service || '';
+        if (psRaw && !psRaw.includes('Z') && !psRaw.includes('+')) psRaw = psRaw + 'Z';
+        const priseAt = new Date(psRaw);
         const now = new Date();
         const diffMins = Math.floor((now - priseAt) / 60000);
         const h = Math.floor(diffMins/60), m = diffMins%60;
@@ -7693,7 +7696,10 @@ async function _doFinDeService(serviceData, priseClient, finClient, diffMinsClie
     try {
       const res = await sbGet('presences', '?id=eq.' + presenceId);
       if (Array.isArray(res) && res[0]) {
-        const serverPrise = new Date(res[0].created_at || res[0].prise_service);
+        // Fix timezone: add Z if no timezone indicator to prevent local-time misparse
+        let spRaw = res[0].created_at || res[0].prise_service || '';
+        if (spRaw && !spRaw.includes('Z') && !spRaw.includes('+')) spRaw = spRaw + 'Z';
+        const serverPrise = new Date(spRaw);
         const serverFin = new Date();
         finISO = serverFin.toISOString();
         heureFinLocale = localTimeStr(serverFin);
