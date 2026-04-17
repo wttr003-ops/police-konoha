@@ -2671,6 +2671,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           Mes messages
         </button>
+        <button class="dash-nav-btn" onclick="switchCitizenTab('impots',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.86 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.04c.1 1.7 1.37 2.66 2.86 2.97V19h2.34v-1.67c1.52-.29 2.72-1.16 2.73-2.77-.01-2.2-1.9-2.96-3.66-3.42z"/></svg>
+          Mes impôts
+        </button>
       </nav></div>
     </aside>
 
@@ -2773,6 +2777,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
       <div class="dash-tab" id="dash-citizen-candid"></div>
       <div class="dash-tab" id="dash-citizen-contact"></div>
       <div class="dash-tab" id="dash-citizen-mes-messages"></div>
+      <div class="dash-tab" id="dash-citizen-impots"></div>
       <div class="dash-tab" id="dash-citizen-journal"></div>
 
     </main>
@@ -3378,6 +3383,23 @@ async function doRegister() {
     is_agent: false, casier: 'non', connu: 'non', genre: genre||'homme',
     inscription: new Date().toLocaleDateString('fr-FR')
   });
+  // Auto-ajout dans la liste des impôts (si grade imposable et pas déjà présent)
+  const montant = (typeof IMPOTS_MONTANTS !== 'undefined') ? (IMPOTS_MONTANTS[grade] || 0) : 0;
+  if (montant > 0) {
+    try {
+      // Vérifier si déjà dans la liste
+      const existing = await sbGet('impots', '?nom=eq.' + encodeURIComponent(user));
+      if (!Array.isArray(existing) || existing.length === 0) {
+        // Pas encore dans la liste → ajouter
+        await fetch(SB_URL + '/rest/v1/impots', {
+          method: 'POST',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ nom: user, grade: grade, statut: 'non', collecteur: '' })
+        });
+      }
+    } catch(e) { console.warn('impots auto-add:', e); }
+  }
+
   ok.style.display = 'block';
   setTimeout(() => showPage('login'), 1800);
 }
@@ -3979,6 +4001,96 @@ function switchCitizenTab(name, btn) {
   if (name === 'journal')   renderJournal(false);
   if (name === 'contact')     renderContactAgent();
   if (name === 'mes-messages') renderCitizenMessages();
+  if (name === 'impots') renderCitizenImpots();
+}
+
+
+async function renderCitizenImpots() {
+  const el = document.getElementById('dash-citizen-impots');
+  if (!el) return;
+  const u = state.currentUser;
+  if (!u) return;
+
+  el.innerHTML = '<h2 class="dash-section-title">Mes impôts</h2><div style="padding:1rem;color:var(--muted);font-size:13px">Chargement...</div>';
+
+  // Chercher le citoyen dans la table impôts par son nom complet
+  const fullname = state.users[u.username]?.fullname || u.username;
+  let entry = null;
+  try {
+    const res = await sbGet('impots', '?nom=eq.' + encodeURIComponent(fullname));
+    if (Array.isArray(res) && res.length > 0) entry = res[0];
+    // Si pas trouvé par fullname, essayer par username
+    if (!entry) {
+      const res2 = await sbGet('impots', '?nom=eq.' + encodeURIComponent(u.username));
+      if (Array.isArray(res2) && res2.length > 0) entry = res2[0];
+    }
+  } catch(e) { console.warn('citoyen impots:', e); }
+
+  const grade = entry?.grade || state.users[u.username]?.grade || 'Citoyen';
+  const montant = (typeof IMPOTS_MONTANTS !== 'undefined') ? (IMPOTS_MONTANTS[grade] || 0) : 0;
+  const statut = entry?.statut || 'non';
+  const collecteur = entry?.collecteur || '';
+
+  let html = '<h2 class="dash-section-title">Mes impôts</h2>';
+
+  if (montant === 0) {
+    // Non imposable
+    html += '<div class="dash-block" style="overflow:hidden">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border)">'
+      + '<div style="display:flex;align-items:center;gap:10px">'
+      + '<div style="width:36px;height:36px;border-radius:50%;background:var(--panel);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px">🏯</div>'
+      + '<div><div style="font-size:14px;font-weight:600;color:var(--text)">Mes impôts</div><div style="font-size:12px;color:var(--muted)">Période en cours</div></div>'
+      + '</div>'
+      + '<span style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--panel);border:1px solid var(--border);color:var(--muted)">Non imposable</span>'
+      + '</div>'
+      + '<div style="padding:14px 16px">'
+      + '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--panel);border:1px solid var(--border);border-radius:8px">'
+      + '<span style="font-size:14px">ℹ️</span>'
+      + '<span style="font-size:13px;color:var(--muted)">Les Génin Simples ne sont pas soumis à l\'imposition. Continuez votre progression pour accéder au grade de Génin Confirmé.</span>'
+      + '</div></div></div>';
+  } else if (statut === 'paye') {
+    // Payé
+    html += '<div class="dash-block" style="overflow:hidden">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border)">'
+      + '<div style="display:flex;align-items:center;gap:10px">'
+      + '<div style="width:36px;height:36px;border-radius:50%;background:rgba(39,174,96,0.12);display:flex;align-items:center;justify-content:center;font-size:16px">🏯</div>'
+      + '<div><div style="font-size:14px;font-weight:600;color:var(--text)">Mes impôts</div><div style="font-size:12px;color:var(--muted)">Période en cours</div></div>'
+      + '</div>'
+      + '<span style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(39,174,96,0.12);color:#27ae60">✓ Payé</span>'
+      + '</div>'
+      + '<div style="padding:14px 16px">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">'
+      + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Grade</div><div style="font-size:13px;font-weight:600;color:var(--text)">' + grade + '</div></div>'
+      + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Montant</div><div style="font-size:13px;font-weight:600;color:#27ae60">' + montant.toLocaleString('fr-FR') + ' Ryos</div></div>'
+      + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Collecteur</div><div style="font-size:13px;font-weight:600;color:var(--text)">' + (collecteur || '—') + '</div></div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.2);border-radius:8px">'
+      + '<span style="font-size:14px">✅</span>'
+      + '<span style="font-size:13px;color:#27ae60">Vos impôts ont été réglés pour cette période. Merci pour votre contribution au Village de Konoha.</span>'
+      + '</div></div></div>';
+  } else {
+    // Non payé
+    html += '<div class="dash-block" style="overflow:hidden">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border)">'
+      + '<div style="display:flex;align-items:center;gap:10px">'
+      + '<div style="width:36px;height:36px;border-radius:50%;background:rgba(192,57,43,0.1);display:flex;align-items:center;justify-content:center;font-size:16px">🏯</div>'
+      + '<div><div style="font-size:14px;font-weight:600;color:var(--text)">Mes impôts</div><div style="font-size:12px;color:var(--muted)">Période en cours</div></div>'
+      + '</div>'
+      + '<span style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(192,57,43,0.1);color:var(--red2)">⚠ Non payé</span>'
+      + '</div>'
+      + '<div style="padding:14px 16px">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">'
+      + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Grade</div><div style="font-size:13px;font-weight:600;color:var(--text)">' + grade + '</div></div>'
+      + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Montant dû</div><div style="font-size:13px;font-weight:600;color:var(--red2)">' + montant.toLocaleString('fr-FR') + ' Ryos</div></div>'
+      + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Collecteur</div><div style="font-size:13px;font-weight:600;color:var(--muted)">—</div></div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.2);border-radius:8px">'
+      + '<span style="font-size:14px">⚠️</span>'
+      + '<span style="font-size:13px;color:var(--red2)">Vos impôts ne sont pas encore réglés. Veuillez vous rapprocher d\'un agent de la Police de Konoha.</span>'
+      + '</div></div></div>';
+  }
+
+  el.innerHTML = html;
 }
 
 function renderCitizenOverview() {
@@ -9933,6 +10045,8 @@ async function impotsRecupererAgent(agentName, totalAgent) {
         });
       } catch(e) { console.warn('impotsRecupererAgent:', e); }
 
+      _impotsCache = [];
+      impotsUpdateKPIsFromCache();
       konohaAlert('✓ ' + totalAgent.toLocaleString('fr-FR') + ' Ryos récupérés sur ' + agentName + ' !', '💰');
       await renderImpotsContent(state.currentUser.grade);
     },
@@ -9978,6 +10092,8 @@ async function impotsRecuperer() {
         });
       } catch(e) { console.warn('impots recuperer reset:', e); }
 
+      _impotsCache = [];
+      impotsUpdateKPIsFromCache();
       konohaAlert('✓ ' + total.toLocaleString('fr-FR') + ' Ryos récupérés et enregistrés dans l\'historique !', '✅');
       await renderImpotsContent(state.currentUser.grade);
     },
@@ -9986,16 +10102,37 @@ async function impotsRecuperer() {
 }
 
 async function impotsReset() {
-  konohaConfirm('Remettre tous les statuts à <strong>Non payé</strong> et effacer les collecteurs ?<br><br>Cette action est irréversible.', async () => {
-    try {
-      await fetch(SB_URL + '/rest/v1/impots', {
-        method: 'PATCH',
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ statut: 'non', collecteur: '' })
-      });
-    } catch(e) { console.warn('impots reset:', e); }
-    await renderImpotsContent(state.currentUser.grade);
-  }, { icon: '🔄', label: 'Remettre à zéro', danger: true });
+  const total = _impotsCache ? _impotsCache.length : '?';
+  konohaConfirm(
+    'Remettre <strong>tous les impôts à zéro</strong> ?<br><br>'
+    + '• Tous les statuts passent à <strong>Non payé</strong><br>'
+    + '• Le nom du collecteur est effacé sur chaque ligne<br>'
+    + '• Les citoyens verront leur statut réinitialisé<br><br>'
+    + 'Cette action est irréversible.',
+    async () => {
+      try {
+        // PATCH avec filtre id>=0 pour forcer Supabase à accepter le PATCH global
+        await fetch(SB_URL + '/rest/v1/impots?id=gte.0', {
+          method: 'PATCH',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ statut: 'non', collecteur: '' })
+        });
+      } catch(e) { console.warn('impots reset:', e); }
+
+      // Vider le cache local pour forcer un rechargement complet depuis Supabase
+      _impotsCache = [];
+      impotsUpdateKPIsFromCache();
+
+      konohaAlert('✓ Tous les impôts ont été réinitialisés. Les citoyens voient maintenant le statut Non payé.', '🔄');
+      await renderImpotsContent(state.currentUser.grade);
+    },
+    { icon: '🔄', label: 'Remettre à zéro', danger: true }
+  );
 }
 
 // ── Génération PDF ────────────────────────────────────────────
