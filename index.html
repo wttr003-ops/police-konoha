@@ -5458,6 +5458,215 @@ function generateMatricule() {
 // ============================================================
 // KAEDE MIZUNARA — SECRÉTAIRE & AIDE
 // ============================================================
+
+// ============================================================
+// TUTORIEL PREMIÈRE CONNEXION — Kaede guide l'utilisateur
+// ============================================================
+const KAEDE_TUTORIAL_AGENT = [
+  { tab: "overview",     label: "Tableau de bord",     desc: "Vue d'ensemble : KPIs, permissions selon votre grade, et état du village." },
+  { tab: "plaintes",     label: "Plaintes",             desc: "Consultez et traitez les plaintes des citoyens. Marquez-les comme traitées ou rejetées." },
+  { tab: "candidatures", label: "Candidatures",        desc: "Demandes pour rejoindre la Police. Acceptez ou refusez les candidats selon leur profil." },
+  { tab: "membres",      label: "Liste des membres",   desc: "Tous les agents de votre section avec leur grade et matricule." },
+  { tab: "annuaire",     label: "Gestion des membres", desc: "Direction uniquement : promouvoir, rétrograder ou supprimer un agent." },
+  { tab: "rapports",     label: "Rapports de mission", desc: "Rédigez et consultez les rapports de mission. Obligatoires pour progresser en grade." },
+  { tab: "casier",       label: "Casier judiciaire",   desc: "Gérez les dossiers judiciaires : infractions, amendes et historique des citoyens." },
+  { tab: "amendes",      label: "Amendes",             desc: "Émettez et suivez les amendes. Récupérez les montants encaissés par chaque agent." },
+  { tab: "impots",       label: "Registre des impôts", desc: "Gérez la collecte des impôts des ninjas. Chaque grade a un montant défini à payer." },
+  { tab: "journal",      label: "Journal officiel",    desc: "Annonces officielles de la Police de Konoha visibles par tous les citoyens." },
+];
+
+const KAEDE_TUTORIAL_CITOYEN = [
+  { tab: "overview",     label: "Mon profil",          desc: "Votre fiche : nom, grade, section, casier judiciaire et statut." },
+  { tab: "impots",       label: "Mes impôts",          desc: "Statut de vos impôts : payé ou non payé, montant selon votre grade de ninja." },
+  { tab: "plaintes",     label: "Mes plaintes",        desc: "Suivez vos plaintes déposées auprès de la Police de Konoha." },
+  { tab: "candid",       label: "Ma candidature",      desc: "Suivez votre dossier de candidature pour rejoindre la Police." },
+  { tab: "contact",      label: "Contacter un agent",  desc: "Envoyez un message privé à un agent pour vos demandes de révision de casier." },
+  { tab: "mes-messages", label: "Mes messages",        desc: "Consultez les réponses des agents. Vous pouvez continuer la conversation." },
+  { tab: "journal",      label: "Journal officiel",    desc: "Annonces et nouvelles officielles publiées par la Police de Konoha." },
+];
+
+let _tutorialStep = 0;
+let _tutorialList = [];
+let _tutorialArrow = null;
+
+function startKaedeTutorial() {
+  const u = state.currentUser;
+  if (!u) return;
+  const isAgent = state.users[u.username]?.isAgent;
+  _tutorialList = isAgent ? KAEDE_TUTORIAL_AGENT : KAEDE_TUTORIAL_CITOYEN;
+  _tutorialStep = 0;
+  _showTutorialStep();
+}
+
+function _showTutorialStep() {
+  const step = _tutorialList[_tutorialStep];
+  if (!step) { _endTutorial(); return; }
+
+  const total = _tutorialList.length;
+  const num = _tutorialStep + 1;
+
+  // Supprimer ancienne flèche
+  if (_tutorialArrow) { _tutorialArrow.remove(); _tutorialArrow = null; }
+
+  // Créer overlay tutoriel
+  let overlay = document.getElementById('_tuto_overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '_tuto_overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:88888;pointer-events:none';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = '';
+
+  // Trouver le bouton de l'onglet
+  const isAgent = state.users[state.currentUser?.username]?.isAgent;
+  const navSelector = isAgent ? '#agent-sidebar-nav .dash-nav-btn' : '#citizen-sidebar-nav .dash-nav-btn';
+  const btns = document.querySelectorAll(navSelector);
+  let targetBtn = null;
+  btns.forEach(function(b) {
+    const oc = b.getAttribute('onclick') || '';
+    if (oc.includes("'" + step.tab + "'")) targetBtn = b;
+  });
+
+  if (targetBtn) {
+    const rect = targetBtn.getBoundingClientRect();
+    const cx = rect.right + 18;
+    const cy = rect.top + rect.height / 2;
+
+    // Flèche pointant vers le bouton
+    const arrow = document.createElement('div');
+    arrow.style.cssText = 'position:fixed;left:' + cx + 'px;top:' + (cy - 24) + 'px;z-index:99999;pointer-events:none;animation:kaedeArrow 0.7s ease infinite alternate';
+    arrow.innerHTML = '<svg width="36" height="48" viewBox="0 0 36 48"><path d="M4 24 L28 24 L20 14 M28 24 L20 34" stroke="#c49a1a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+    document.body.appendChild(arrow);
+    _tutorialArrow = arrow;
+
+    // Highlight du bouton
+    targetBtn.style.outline = '2px solid #c49a1a';
+    targetBtn.style.outlineOffset = '2px';
+    setTimeout(function() { if(targetBtn) { targetBtn.style.outline=''; targetBtn.style.outlineOffset=''; } }, 3500);
+  }
+
+  // Popup Kaede tutoriel
+  const popup = document.getElementById('kaede-popup');
+  const body  = document.getElementById('kaede-popup-body');
+  const btnsEl = document.getElementById('kaede-popup-btns');
+  if (!popup || !body || !btnsEl) return;
+
+  body.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">ÉTAPE ' + num + ' / ' + total + '</div>'
+    + '<strong style="font-size:15px;color:var(--accent)">' + step.label + '</strong><br><br>'
+    + step.desc;
+  body.style.borderLeftColor = '#c49a1a';
+
+  btnsEl.innerHTML = '<div style="display:flex;gap:8px;width:100%">'
+    + (_tutorialStep > 0 ? '<button onclick="_tutoPrev()" style="padding:10px 14px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">← Précédent</button>' : '')
+    + (_tutorialStep < total - 1
+        ? '<button onclick="_tutoNext()" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Suivant →</button>'
+        : '<button onclick="_endTutorial()" style="flex:1;padding:10px;background:#27ae60;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">✅ Lu et approuvé — Accéder au site</button>'
+      )
+    + '</div>'
+    + '<div style="text-align:center;margin-top:8px">'
+    + _tutorialList.map(function(_,i) { return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (i===_tutorialStep?'#c49a1a':'var(--border)') + ';margin:0 2px"></span>'; }).join('')
+    + '</div>';
+
+  popup.style.display = 'flex';
+  popup.style.alignItems = 'center';
+  popup.style.justifyContent = 'center';
+}
+
+function _tutoNext() { _tutorialStep++; _showTutorialStep(); }
+function _tutoPrev() { _tutorialStep = Math.max(0, _tutorialStep-1); _showTutorialStep(); }
+
+function _endTutorial() {
+  if (_tutorialArrow) { _tutorialArrow.remove(); _tutorialArrow = null; }
+  const overlay = document.getElementById('_tuto_overlay');
+  if (overlay) overlay.remove();
+  closeKaedePopup();
+  const u = state.currentUser;
+  if (u) localStorage.setItem('konoha_tutorial_done_' + u.username, '1');
+  // Après tutoriel, vérifier message impôts
+  setTimeout(function() { checkImpotsNotice(); }, 400);
+  setTimeout(function() { checkMissives(); }, 1200);
+}
+
+// ============================================================
+// NOTICE IMPÔTS — Tous les dimanches à partir de 20h
+// ============================================================
+const IMPOTS_TARIFS = [
+  { grade: 'Hokage',             montant: 8400 },
+  { grade: 'Commandant-Jonin',   montant: 7800 },
+  { grade: 'Jonin',              montant: 7200 },
+  { grade: 'Tokubetsu-Jonin',    montant: 6000 },
+  { grade: 'Kakunin',            montant: 4800 },
+  { grade: 'Chunin',             montant: 3600 },
+  { grade: 'Tokubetsu-Chunin',   montant: 2400 },
+  { grade: 'Génin Confirmé',     montant: 1200 },
+  { grade: 'Génin Simple',       montant: 0,    note: 'Non imposable' },
+];
+
+function checkImpotsNotice() {
+  const now = new Date();
+  const day = now.getDay(); // 0=dim
+  const hour = now.getHours();
+
+  // Dimanche à partir de 20h
+  if (day !== 0 || hour < 20) return;
+
+  // Clé unique par semaine (année + numéro semaine ISO)
+  const jan4 = new Date(now.getFullYear(), 0, 4);
+  const weekNum = Math.ceil(((now - jan4) / 86400000 + jan4.getDay() + 1) / 7);
+  const weekKey = 'konoha_impots_notice_' + now.getFullYear() + '_' + weekNum;
+  const u = state.currentUser;
+  const userKey = weekKey + '_' + (u?.username || 'anon');
+
+  if (localStorage.getItem(userKey)) return; // Déjà lu cette semaine
+
+  showImpotsNotice(userKey, u);
+}
+
+function showImpotsNotice(storageKey, u) {
+  const prenom = u?.fullname?.split(' ')[0] || u?.username || 'Ninja';
+
+  const tarifRows = IMPOTS_TARIFS.map(function(t) {
+    return '<tr style="border-bottom:0.5px solid var(--border)">'
+      + '<td style="padding:5px 8px;font-size:12px;color:var(--text)">' + t.grade + '</td>'
+      + '<td style="padding:5px 8px;font-size:12px;text-align:right;font-weight:700;color:' + (t.montant > 0 ? '#c49a1a' : 'var(--muted)') + '">'
+      + (t.montant > 0 ? t.montant.toLocaleString('fr-FR') + ' Ryos' : (t.note || '0 Ryos')) + '</td>'
+      + '</tr>';
+  }).join('');
+
+  const popup = document.getElementById('kaede-popup');
+  const body  = document.getElementById('kaede-popup-body');
+  const btnsEl = document.getElementById('kaede-popup-btns');
+  if (!popup || !body || !btnsEl) return;
+
+  body.style.borderLeftColor = '#c49a1a';
+  body.innerHTML = '<strong style="color:var(--accent)">📜 Avis officiel — Collecte des impôts</strong><br><br>'
+    + 'Bonjour <strong>' + prenom + '</strong>,<br><br>'
+    + "Je vous informe qu'à partir de ce <strong>lundi</strong>, la collecte des impôts du Village de Konoha sera ouverte. "
+    + "Chaque ninja imposable est tenu de s'en acquitter auprès d'un agent collecteur désigné.<br><br>"
+    + '<strong style="color:var(--red2)">⚠ Sanction automatique</strong>'
+    + " — Tout ninja n'ayant pas réglé ses impôts dans les délais "
+    + '<strong>ne sera pas autorisé à passer ses examens de grade</strong>.<br><br>'
+    + '<div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:8px">'
+    + '<div style="padding:7px 10px;background:rgba(196,154,26,0.1);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:#c49a1a;letter-spacing:1px">BARÈME DES IMPOSITIONS</div>'
+    + '<table style="width:100%;border-collapse:collapse">' + tarifRows + '</table>'
+    + '</div>';
+
+  btnsEl.innerHTML = '<button id="_impots_notice_btn" onclick="impotsNoticeLu(\'' + storageKey + '\')" '
+    + 'style="width:100%;padding:12px;background:#c49a1a;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">'
+    + '✅ Lu et approuvé</button>';
+
+  popup.style.display = 'flex';
+  popup.style.alignItems = 'center';
+  popup.style.justifyContent = 'center';
+}
+
+function impotsNoticeLu(storageKey) {
+  localStorage.setItem(storageKey, '1');
+  closeKaedePopup();
+  konohaAlert('Merci ! N\'oubliez pas de régler vos impôts à partir de lundi. 🏯', '✅');
+}
+
 function initKaede() {
   // Check if user has account
   const session = JSON.parse(localStorage.getItem('konoha_session') || 'null');
@@ -5545,8 +5754,16 @@ function initKaede() {
     localStorage.removeItem('kaede_new_account');
     setTimeout(() => showKaedePopup('newaccount'), 500);
   } else if (hasAccount) {
-    // Check for unread missives
-    setTimeout(() => checkMissives(), 1500);
+    // Vérifier tutoriel première connexion
+    const tutorialDone = localStorage.getItem('konoha_tutorial_done_' + (session?.username||''));
+    if (!tutorialDone) {
+      setTimeout(() => startKaedeTutorial(), 800);
+    } else {
+      // Vérifier message dimanche impôts
+      setTimeout(() => checkImpotsNotice(), 600);
+      // Check for unread missives
+      setTimeout(() => checkMissives(), 1500);
+    }
   }
 }
 
