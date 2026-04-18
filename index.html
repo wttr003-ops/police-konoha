@@ -5464,27 +5464,31 @@ function generateMatricule() {
 // ============================================================
 // TUTORIEL PREMIÈRE CONNEXION — Kaede guide l'utilisateur
 // ============================================================
-const KAEDE_TUTORIAL_AGENT = [
-  { tab: "overview",     label: "Tableau de bord",     desc: "Vue d'ensemble : KPIs, permissions selon votre grade, et état du village." },
-  { tab: "plaintes",     label: "Plaintes",             desc: "Consultez et traitez les plaintes des citoyens. Marquez-les comme traitées ou rejetées." },
-  { tab: "candidatures", label: "Candidatures",        desc: "Demandes pour rejoindre la Police. Acceptez ou refusez les candidats selon leur profil." },
-  { tab: "membres",      label: "Liste des membres",   desc: "Tous les agents de votre section avec leur grade et matricule." },
-  { tab: "annuaire",     label: "Gestion des membres", desc: "Direction uniquement : promouvoir, rétrograder ou supprimer un agent." },
-  { tab: "rapports",     label: "Rapports de mission", desc: "Rédigez et consultez les rapports de mission. Obligatoires pour progresser en grade." },
-  { tab: "casier",       label: "Casier judiciaire",   desc: "Gérez les dossiers judiciaires : infractions, amendes et historique des citoyens." },
-  { tab: "amendes",      label: "Amendes",             desc: "Émettez et suivez les amendes. Récupérez les montants encaissés par chaque agent." },
-  { tab: "impots",       label: "Registre des impôts", desc: "Gérez la collecte des impôts des ninjas. Chaque grade a un montant défini à payer." },
-  { tab: "journal",      label: "Journal officiel",    desc: "Annonces officielles de la Police de Konoha visibles par tous les citoyens." },
+const KAEDE_TUTORIAL_CITOYEN = [
+  { tab: 'overview',     label: 'Accueil',           desc: 'Votre tableau de bord : casier, impôts, messages et profil en un coup d\'œil.',
+    mini: '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">📋</div><div style="height:6px;border-radius:3px;background:var(--mid)"></div></div><div style="background:rgba(192,57,43,0.08);border:0.5px solid rgba(192,57,43,0.2);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">🏯</div><div style="height:6px;border-radius:3px;background:rgba(192,57,43,0.15)"></div></div><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">⚖️</div><div style="height:6px;border-radius:3px;background:rgba(39,174,96,0.15)"></div></div><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">📩</div><div style="height:6px;border-radius:3px;background:rgba(59,130,246,0.1)"></div></div></div>' },
+  { tab: 'impots',       label: 'Mes impôts',        desc: 'Statut de vos impôts : payé ✓ ou non payé ⚠. Le montant dépend de votre grade ninja.',
+    mini: '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(192,57,43,0.06);border:0.5px solid rgba(192,57,43,0.2);border-radius:6px;margin-bottom:6px"><div style="font-size:11px;color:var(--text)">🏯 Mes impôts</div><div style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(192,57,43,0.1);color:#c0392b">⚠ Non payé</div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"><div style="background:var(--mid);border-radius:5px;padding:5px;text-align:center"><div style="font-size:9px;color:var(--muted)">Grade</div><div style="font-size:10px;font-weight:600">Chunin</div></div><div style="background:var(--mid);border-radius:5px;padding:5px;text-align:center"><div style="font-size:9px;color:var(--muted)">Montant</div><div style="font-size:10px;font-weight:600;color:#c0392b">3 600</div></div><div style="background:var(--mid);border-radius:5px;padding:5px;text-align:center"><div style="font-size:9px;color:var(--muted)">Collecteur</div><div style="font-size:10px;color:var(--muted)">—</div></div></div>' },
+  { tab: 'plaintes',     label: 'Mes plaintes',      desc: 'Déposez une plainte officielle et suivez son statut : en attente, traitée ou rejetée.',
+    mini: '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px;background:var(--mid);border-radius:5px;margin-bottom:4px"><div style="flex:1"><div style="height:6px;width:80px;border-radius:3px;background:var(--border);margin-bottom:3px"></div><div style="height:5px;width:50px;border-radius:3px;background:var(--border)"></div></div><div style="font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:#e67e22">⏳ En attente</div></div><div style="display:flex;align-items:center;justify-content:space-between;padding:6px;background:var(--mid);border-radius:5px"><div style="flex:1"><div style="height:6px;width:60px;border-radius:3px;background:var(--border);margin-bottom:3px"></div><div style="height:5px;width:40px;border-radius:3px;background:var(--border)"></div></div><div style="font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(39,174,96,0.15);color:#27ae60">✓ Traité</div></div>' },
+  { tab: 'candid',       label: 'Ma candidature',    desc: 'Soumettez votre candidature pour rejoindre la Police. Attention : un casier judiciaire disqualifie automatiquement.',
+    mini: '<div style="padding:8px;background:rgba(59,130,246,0.06);border:0.5px solid rgba(59,130,246,0.2);border-radius:6px;text-align:center;margin-bottom:6px"><div style="font-size:20px;margin-bottom:4px">👮</div><div style="height:6px;width:100px;border-radius:3px;background:rgba(59,130,246,0.15);margin:0 auto 3px"></div><div style="height:5px;width:60px;border-radius:3px;background:rgba(59,130,246,0.1);margin:0 auto"></div></div><div style="padding:5px 8px;background:rgba(255,165,0,0.08);border-radius:5px;display:flex;align-items:center;justify-content:space-between"><div style="font-size:10px;color:var(--muted)">Candidature #3</div><div style="font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:#e67e22">⏳ En attente</div></div>' },
+  { tab: 'mes-messages', label: 'Mes messages',      desc: 'Consultez les réponses des agents à vos demandes. Un point rouge indique un nouveau message.',
+    mini: '<div style="display:flex;align-items:center;gap:8px;padding:6px;background:rgba(26,42,74,0.06);border-radius:5px"><div style="width:28px;height:28px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">👮</div><div style="flex:1"><div style="height:6px;width:80px;border-radius:3px;background:var(--border);margin-bottom:3px"></div><div style="height:5px;width:120px;border-radius:3px;background:var(--border)"></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><div style="height:5px;width:25px;border-radius:3px;background:var(--border)"></div><div style="width:7px;height:7px;border-radius:50%;background:#e74c3c"></div></div></div>' },
+  { tab: 'contact',      label: 'Contacter un agent', desc: 'Sélectionnez un agent et envoyez-lui un message privé pour vos demandes de révision de casier ou autres.',
+    mini: '<div style="height:26px;border-radius:5px;background:var(--mid);margin-bottom:5px;display:flex;align-items:center;padding:0 8px"><div style="font-size:9px;color:var(--muted)">-- Sélectionner un agent --</div></div><div style="height:14px;border-radius:3px;background:var(--mid);margin-bottom:4px"></div><div style="height:34px;border-radius:3px;background:var(--mid);margin-bottom:6px"></div><div style="height:22px;border-radius:5px;background:#0f1923;display:flex;align-items:center;justify-content:center"><div style="font-size:9px;color:#c49a1a;font-weight:600">📨 Envoyer la demande</div></div>' },
+  { tab: 'journal',      label: 'Journal officiel',  desc: 'Annonces et nouvelles officielles de la Police de Konoha. Consultez-le régulièrement.',
+    mini: '<div style="padding:6px;border-left:2px solid #c49a1a;margin-bottom:5px"><div style="height:7px;border-radius:3px;background:rgba(196,154,26,0.2);margin-bottom:3px"></div><div style="height:5px;width:70%;border-radius:3px;background:var(--mid)"></div></div><div style="padding:6px;border-left:2px solid #c49a1a"><div style="height:7px;border-radius:3px;background:rgba(196,154,26,0.2);margin-bottom:3px"></div><div style="height:5px;width:55%;border-radius:3px;background:var(--mid)"></div></div>' },
 ];
 
-const KAEDE_TUTORIAL_CITOYEN = [
-  { tab: "overview",     label: "Mon profil",          desc: "Votre fiche : nom, grade, section, casier judiciaire et statut." },
-  { tab: "impots",       label: "Mes impôts",          desc: "Statut de vos impôts : payé ou non payé, montant selon votre grade de ninja." },
-  { tab: "plaintes",     label: "Mes plaintes",        desc: "Suivez vos plaintes déposées auprès de la Police de Konoha." },
-  { tab: "candid",       label: "Ma candidature",      desc: "Suivez votre dossier de candidature pour rejoindre la Police." },
-  { tab: "contact",      label: "Contacter un agent",  desc: "Envoyez un message privé à un agent pour vos demandes de révision de casier." },
-  { tab: "mes-messages", label: "Mes messages",        desc: "Consultez les réponses des agents. Vous pouvez continuer la conversation." },
-  { tab: "journal",      label: "Journal officiel",    desc: "Annonces et nouvelles officielles publiées par la Police de Konoha." },
+const KAEDE_TUTORIAL_AGENT = [
+  { tab: 'overview',     label: 'Tableau de bord',   desc: 'Vue d\'ensemble : KPI, plaintes, candidatures, vos permissions selon votre grade.', mini: '' },
+  { tab: 'membres',      label: 'Mes collègues',      desc: 'Liste des agents de votre section. Les directeurs voient tous les agents.', mini: '' },
+  { tab: 'casier',       label: 'Casiers',            desc: 'Gérez les casiers judiciaires des citoyens. Officier minimum requis.', mini: '' },
+  { tab: 'amendes',      label: 'Amendes',            desc: 'Émettez et suivez les amendes. Barème officiel en paliers 1, 2 et 3.', mini: '' },
+  { tab: 'presences',    label: 'Présences',          desc: 'Prise et fin de service avec calcul automatique du salaire en Ryos.', mini: '' },
+  { tab: 'impots',       label: 'Impôts',             desc: 'Registre des impôts des ninjas. Cochez payé/non payé et gérez les collecteurs.', mini: '' },
+  { tab: 'messages-agent', label: 'Messages',         desc: 'Messages des citoyens. Répondez directement depuis votre espace.', mini: '' },
 ];
 
 let _tutorialStep = 0;
@@ -5520,7 +5524,7 @@ function _showTutorialStep() {
   }
   overlay.innerHTML = '';
 
-  // Trouver le bouton de l'onglet
+  // Highlight du bouton dans la sidebar
   const isAgent = state.users[state.currentUser?.username]?.isAgent;
   const navSelector = isAgent ? '#agent-sidebar-nav .dash-nav-btn' : '#citizen-sidebar-nav .dash-nav-btn';
   const btns = document.querySelectorAll(navSelector);
@@ -5531,44 +5535,69 @@ function _showTutorialStep() {
   });
 
   if (targetBtn) {
-    const rect = targetBtn.getBoundingClientRect();
-    const cx = rect.right + 18;
-    const cy = rect.top + rect.height / 2;
-
-    // Flèche pointant vers le bouton
-    const arrow = document.createElement('div');
-    arrow.style.cssText = 'position:fixed;left:' + cx + 'px;top:' + (cy - 24) + 'px;z-index:99999;pointer-events:none;animation:kaedeArrow 0.7s ease infinite alternate';
-    arrow.innerHTML = '<svg width="36" height="48" viewBox="0 0 36 48"><path d="M4 24 L28 24 L20 14 M28 24 L20 34" stroke="#c49a1a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
-    document.body.appendChild(arrow);
-    _tutorialArrow = arrow;
-
-    // Highlight du bouton
     targetBtn.style.outline = '2px solid #c49a1a';
     targetBtn.style.outlineOffset = '2px';
     setTimeout(function() { if(targetBtn) { targetBtn.style.outline=''; targetBtn.style.outlineOffset=''; } }, 3500);
   }
 
-  // Popup Kaede tutoriel
+  // Construire la barre de progression
+  var stepsHtml = '<div style="display:flex;align-items:flex-start;gap:0;margin-bottom:14px">';
+  for (var i = 0; i < total; i++) {
+    var cStyle, cText;
+    if (i < num - 1) {
+      cStyle = 'width:24px;height:24px;border-radius:50%;background:#27ae60;border:2px solid #27ae60;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;flex-shrink:0;position:relative;z-index:1';
+      cText = '✓';
+    } else if (i === num - 1) {
+      cStyle = 'width:24px;height:24px;border-radius:50%;background:#0f1923;border:2px solid #c49a1a;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#c49a1a;flex-shrink:0;position:relative;z-index:1';
+      cText = (i+1).toString();
+    } else {
+      cStyle = 'width:24px;height:24px;border-radius:50%;background:var(--panel);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);flex-shrink:0;position:relative;z-index:1';
+      cText = (i+1).toString();
+    }
+    stepsHtml += '<div onclick="_tutorialStep=' + i + ';_showTutorialStep()" style="display:flex;flex-direction:column;align-items:center;flex:1;cursor:pointer">';
+    stepsHtml += '<div style="' + cStyle + '">' + cText + '</div>';
+    stepsHtml += '<div style="font-size:9px;margin-top:3px;text-align:center;max-width:50px;color:' + (i < num ? '#27ae60' : i === num-1 ? 'var(--text)' : 'var(--muted)') + ';font-weight:' + (i === num-1 ? '600' : '400') + '">' + _tutorialList[i].label + '</div>';
+    stepsHtml += '</div>';
+    if (i < total - 1) {
+      stepsHtml += '<div style="flex:1;height:3px;margin-top:10px;border-radius:2px;background:' + (i < num-1 ? '#27ae60' : 'var(--border)') + '"></div>';
+    }
+  }
+  stepsHtml += '</div>';
+
+  // Mini aperçu de l'onglet
+  var miniHtml = '';
+  if (step.mini) {
+    miniHtml = '<div style="background:var(--mid);border-radius:8px;overflow:hidden;margin-top:10px">'
+      + '<div style="background:#0f1923;padding:5px 10px;display:flex;align-items:center;gap:6px">'
+      + '<div style="width:5px;height:5px;border-radius:50%;background:#c49a1a"></div>'
+      + '<span style="font-size:9px;color:#64748b">' + step.label + ' — Police de Konoha</span>'
+      + '</div>'
+      + '<div style="padding:10px">' + step.mini + '</div>'
+      + '</div>';
+  }
+
+  // Popup
   const popup = document.getElementById('kaede-popup');
   const body  = document.getElementById('kaede-popup-body');
   const btnsEl = document.getElementById('kaede-popup-btns');
   if (!popup || !body || !btnsEl) return;
 
-  body.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">ÉTAPE ' + num + ' / ' + total + '</div>'
-    + '<strong style="font-size:15px;color:var(--accent)">' + step.label + '</strong><br><br>'
-    + step.desc;
+  body.innerHTML = stepsHtml
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Étape ' + num + ' / ' + total + ' — <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(196,154,26,0.1);color:#c49a1a;font-weight:600">← ' + step.label + '</span></div>'
+    + '<div style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:2px">' + step.desc + '</div>'
+    + miniHtml;
   body.style.borderLeftColor = '#c49a1a';
 
-  btnsEl.innerHTML = '<div style="display:flex;gap:8px;width:100%">'
-    + (_tutorialStep > 0 ? '<button onclick="_tutoPrev()" style="padding:10px 14px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">← Précédent</button>' : '')
-    + (_tutorialStep < total - 1
-        ? '<button onclick="_tutoNext()" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Suivant →</button>'
-        : '<button onclick="_endTutorial()" style="flex:1;padding:10px;background:#27ae60;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">✅ Lu et approuvé — Accéder au site</button>'
-      )
-    + '</div>'
-    + '<div style="text-align:center;margin-top:8px">'
-    + _tutorialList.map(function(_,i) { return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (i===_tutorialStep?'#c49a1a':'var(--border)') + ';margin:0 2px"></span>'; }).join('')
-    + '</div>';
+  // Boutons navigation
+  var prevBtn = num > 1
+    ? '<button onclick="_tutoPrev()" style="padding:10px 14px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">← Précédent</button>'
+    : '';
+
+  var nextOrFinish = num < total
+    ? '<button onclick="_tutoNext()" style="flex:1;padding:10px;background:#0f1923;color:#c49a1a;border:1px solid rgba(196,154,26,0.3);border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Suivant →</button>'
+    : '<button onclick="_endTutorial()" style="flex:1;padding:10px;background:#27ae60;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">✅ Lu et approuvé — Accéder au site</button>';
+
+  btnsEl.innerHTML = '<div style="display:flex;gap:8px;width:100%">' + prevBtn + nextOrFinish + '</div>';
 
   popup.style.display = 'flex';
   popup.style.alignItems = 'center';
@@ -5585,10 +5614,10 @@ function _endTutorial() {
   closeKaedePopup();
   const u = state.currentUser;
   if (u) localStorage.setItem('konoha_tutorial_done_' + u.username, '1');
-  // Après tutoriel, vérifier message impôts
   setTimeout(function() { checkImpotsNotice(); }, 400);
   setTimeout(function() { checkMissives(); }, 1200);
 }
+
 
 // ============================================================
 // NOTICE IMPÔTS — Tous les dimanches à partir de 20h
