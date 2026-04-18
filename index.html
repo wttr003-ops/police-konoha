@@ -5613,7 +5613,7 @@ function _endTutorial() {
   if (overlay) overlay.remove();
   closeKaedePopup();
   const u = state.currentUser;
-  if (u) localStorage.setItem('konoha_tutorial_done_' + u.username, '1');
+  if (u) localStorage.setItem('konoha_tutorial_done_' + u.username, 'v2');
   setTimeout(function() { checkImpotsNotice(); }, 400);
   setTimeout(function() { checkMissives(); }, 1200);
 }
@@ -5785,9 +5785,9 @@ function initKaede() {
     localStorage.removeItem('kaede_new_account');
     setTimeout(() => showKaedePopup('newaccount'), 500);
   } else if (hasAccount) {
-    // Vérifier tutoriel première connexion
+    // Vérifier tutoriel — version v2 : tous les utilisateurs voient le tutoriel une fois
     const tutorialDone = localStorage.getItem('konoha_tutorial_done_' + (session?.username||''));
-    if (!tutorialDone) {
+    if (!tutorialDone || tutorialDone !== 'v2') {
       setTimeout(() => startKaedeTutorial(), 800);
     } else {
       // Vérifier message dimanche impôts
