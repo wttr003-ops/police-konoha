@@ -12,25 +12,42 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --navy:    #080d1c;
-  --dark:    #0d1530;
-  --mid:     #111f3d;
-  --panel:   #162040;
-  --accent:  #3b82f6;
-  --accent2: #2563eb;
-  --gold:    #d4a017;
-  --lgold:   #f0c040;
+  --navy:    #0a0a0a;
+  --dark:    #111111;
+  --mid:     #1a1a1a;
+  --panel:   #222222;
+  --accent:  #c49a1a;
+  --accent2: #a07c10;
+  --gold:    #c49a1a;
+  --lgold:   #e8c547;
   --red:     #c0392b;
   --red2:    #e74c3c;
-  --green:   #10b981;
-  --text:    #e8eaf6;
-  --muted:   #8892a4;
-  --border:  rgba(59,130,246,0.2);
-  --border2: rgba(59,130,246,0.35);
+  --green:   #27ae60;
+  --text:    #f0e8d0;
+  --muted:   #8a7a60;
+  --border:  rgba(196,154,26,0.2);
+  --border2: rgba(196,154,26,0.4);
 }
 
 html { scroll-behavior: smooth; }
-body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 15px; line-height: 1.6; }
+
+/* ---- SCROLLBAR OR & NOIR ---- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: rgba(196,154,26,0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(196,154,26,0.7); }
+
+/* ---- SÉLECTION TEXTE ---- */
+::selection { background: rgba(196,154,26,0.3); color: #e8c547; }
+
+/* ---- GRADIENT TITRE OR ---- */
+.gold-title {
+  background: linear-gradient(135deg, #e8c547 0%, #c49a1a 40%, #f0e8d0 70%, #c49a1a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 15px; line-height: 1.6; background-image: radial-gradient(ellipse at 20% 0%, rgba(196,154,26,0.04) 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, rgba(196,154,26,0.03) 0%, transparent 50%); }
 
 /* ---- PAGES ---- */
 .page { display: none; }
@@ -54,7 +71,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
   position: sticky;
   top: 0;
   z-index: 200;
-  background: rgba(8,13,28,0.97);
+  background: rgba(10,10,10,0.98);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -111,7 +128,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
 }
-.btn-outline:hover { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+.btn-outline:hover { border-color: var(--accent); background: rgba(196,154,26,0.08); }
 
 .btn-danger {
   background: transparent;
@@ -151,7 +168,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
 .avatar {
   width: 32px; height: 32px;
   border-radius: 50%;
-  background: rgba(59,130,246,0.25);
+  background: rgba(196,154,26,0.25);
   border: 1px solid var(--accent);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700; color: var(--accent);
@@ -169,7 +186,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
 }
 .gp-s  { background: rgba(212,160,23,0.2);   color: var(--lgold); border: 1px solid rgba(212,160,23,0.4); }
 .gp-a  { background: rgba(192,57,43,0.2);    color: var(--red2);  border: 1px solid rgba(192,57,43,0.4); }
-.gp-b  { background: rgba(59,130,246,0.2);   color: var(--accent); border: 1px solid rgba(59,130,246,0.4); }
+.gp-b  { background: rgba(196,154,26,0.2);   color: var(--accent); border: 1px solid rgba(196,154,26,0.4); }
 .gp-c  { background: rgba(16,185,129,0.2);   color: var(--green); border: 1px solid rgba(16,185,129,0.4); }
 .gp-d  { background: rgba(100,116,139,0.2);  color: #94a3b8;      border: 1px solid rgba(100,116,139,0.4); }
 
@@ -183,22 +200,32 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
   text-align: center;
   padding: 4rem 2rem;
   overflow: hidden;
-  background: var(--navy);
+  background: #050500;
 }
 
 .hero::before {
   content: '';
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(26,42,110,0.9) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 40% at 50% 100%, rgba(192,57,43,0.08) 0%, transparent 60%);
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(180,60,0,0.35) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 50% 80%, rgba(220,100,0,0.2) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 30% at 50% 0%, rgba(10,8,0,0.95) 0%, transparent 80%);
+  z-index: 1;
 }
 
 .hero::after {
   content: '';
   position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(59,130,246,0.08) 1px, transparent 1px);
-  background-size: 38px 38px;
+  background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(196,154,26,0.04) 0%, transparent 70%);
+  z-index: 1;
+}
+
+#fire-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
 
 .hero-bg-overlay { display: none; }
@@ -209,7 +236,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
   height: 110px;
   object-fit: contain;
   margin-bottom: 1.5rem;
-  filter: drop-shadow(0 0 20px rgba(192,57,43,0.4)) drop-shadow(0 0 40px rgba(59,130,246,0.2));
+  filter: drop-shadow(0 0 20px rgba(192,57,43,0.4)) drop-shadow(0 0 40px rgba(196,154,26,0.2));
   animation: float 4s ease-in-out infinite;
 }
 
@@ -234,7 +261,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
   color: #fff;
   line-height: 1.1;
   margin-bottom: 0.5rem;
-  text-shadow: 0 0 40px rgba(59,130,246,0.3);
+  text-shadow: 0 0 40px rgba(196,154,26,0.3);
 }
 
 .hero-subtitle {
@@ -321,7 +348,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 0.9rem;
 }
-.icon-blue  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); }
+.icon-blue  { background: rgba(196,154,26,0.12); border: 1px solid rgba(196,154,26,0.3); }
 .icon-gold  { background: rgba(212,160,23,0.12);  border: 1px solid rgba(212,160,23,0.3); }
 .icon-red   { background: rgba(192,57,43,0.12);   border: 1px solid rgba(192,57,43,0.3); }
 .icon-green { background: rgba(16,185,129,0.12);  border: 1px solid rgba(16,185,129,0.3); }
@@ -351,7 +378,7 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
 }
 .badge-s { background: rgba(212,160,23,0.2);  color: var(--lgold); border: 1px solid rgba(212,160,23,0.4); }
 .badge-a { background: rgba(192,57,43,0.2);   color: var(--red2);  border: 1px solid rgba(192,57,43,0.4); }
-.badge-b { background: rgba(59,130,246,0.2);  color: var(--accent); border: 1px solid rgba(59,130,246,0.4); }
+.badge-b { background: rgba(196,154,26,0.2);  color: var(--accent); border: 1px solid rgba(196,154,26,0.4); }
 .badge-c { background: rgba(16,185,129,0.2);  color: var(--green); border: 1px solid rgba(16,185,129,0.4); }
 .badge-d { background: rgba(100,116,139,0.2); color: #94a3b8;      border: 1px solid rgba(100,116,139,0.4); }
 .grade-icon { margin: 0.5rem auto; }
@@ -364,14 +391,14 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
   display: flex;
   gap: 1.25rem;
   padding: 1rem 0;
-  border-bottom: 1px solid rgba(59,130,246,0.08);
+  border-bottom: 1px solid rgba(196,154,26,0.08);
   align-items: flex-start;
 }
 .rule-n {
   font-family: 'Cinzel', serif;
   font-size: 22px;
   font-weight: 700;
-  color: rgba(59,130,246,0.25);
+  color: rgba(196,154,26,0.25);
   min-width: 38px;
   line-height: 1;
   flex-shrink: 0;
@@ -384,8 +411,8 @@ body { background: var(--navy); color: var(--text); font-family: 'Rajdhani', san
 .recruit-desc { font-size: 15px; color: var(--muted); max-width: 560px; margin: 0 auto 1.5rem; line-height: 1.7; }
 .req-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; list-style: none; margin-bottom: 2rem; }
 .req-chips li {
-  background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.25);
+  background: rgba(196,154,26,0.1);
+  border: 1px solid rgba(196,154,26,0.25);
   color: var(--text);
   font-size: 12px;
   padding: 5px 14px;
@@ -488,7 +515,7 @@ footer {
   align-items: center;
   gap: 1rem;
   padding: 0.9rem 2rem;
-  background: rgba(8,13,28,0.97);
+  background: rgba(10,10,10,0.98);
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 100;
 }
@@ -500,7 +527,7 @@ footer {
 
 /* ---- DASHBOARD ---- */
 .dash-topbar {
-  background: rgba(8,13,28,0.97);
+  background: rgba(10,10,10,0.98);
   border-bottom: 1px solid var(--border);
   padding: 0.75rem 2rem;
   display: flex;
@@ -541,8 +568,8 @@ footer {
   text-align: left;
   transition: color 0.2s, background 0.2s, border-color 0.2s;
 }
-.dash-nav-btn:hover { color: var(--text); background: rgba(59,130,246,0.05); }
-.dash-nav-btn.active { color: var(--accent); border-left-color: var(--accent); background: rgba(59,130,246,0.08); }
+.dash-nav-btn:hover { color: var(--text); background: rgba(196,154,26,0.05); }
+.dash-nav-btn.active { color: var(--accent); border-left-color: var(--accent); background: rgba(196,154,26,0.08); }
 
 .dash-main { flex: 1; padding: 2rem; background: var(--navy); overflow-x: auto; }
 .dash-tab { display: none; }
@@ -572,7 +599,7 @@ footer {
   display: flex; align-items: center; gap: 8px;
   font-size: 13px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(59,130,246,0.07);
+  border-bottom: 1px solid rgba(196,154,26,0.07);
   color: var(--muted);
 }
 .perm-item:last-child { border-bottom: none; }
@@ -600,9 +627,9 @@ table.dtable th {
   border-bottom: 1px solid var(--border);
   font-weight: 500;
 }
-table.dtable td { padding: 10px 14px; border-bottom: 1px solid rgba(59,130,246,0.06); vertical-align: middle; }
+table.dtable td { padding: 10px 14px; border-bottom: 1px solid rgba(196,154,26,0.06); vertical-align: middle; }
 table.dtable tr:last-child td { border-bottom: none; }
-table.dtable tr:hover td { background: rgba(59,130,246,0.04); }
+table.dtable tr:hover td { background: rgba(196,154,26,0.04); }
 
 .status-badge { padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; }
 .s-wait   { background: rgba(212,160,23,0.2);  color: var(--lgold); }
@@ -615,7 +642,7 @@ table.dtable tr:hover td { background: rgba(59,130,246,0.04); }
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(59,130,246,0.06);
+  border-bottom: 1px solid rgba(196,154,26,0.06);
   flex-wrap: wrap;
 }
 .membre-row:last-child { border-bottom: none; }
@@ -700,8 +727,8 @@ span.footer-logo svg { width: 40px; height: 40px; }
 }
 
 .agent-login-box {
-  background: rgba(59,130,246,0.06);
-  border: 1px solid rgba(59,130,246,0.2);
+  background: rgba(196,154,26,0.06);
+  border: 1px solid rgba(196,154,26,0.2);
   border-radius: 8px;
   padding: 1rem;
   text-align: left;
@@ -721,7 +748,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
 /* ---- DETAIL CARDS (plaintes & candidatures) ---- */
 .detail-card {
-  border-bottom: 1px solid rgba(59,130,246,0.08);
+  border-bottom: 1px solid rgba(196,154,26,0.08);
 }
 .detail-card:last-child { border-bottom: none; }
 
@@ -734,7 +761,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   transition: background 0.15s;
   gap: 1rem;
 }
-.detail-card-header:hover { background: rgba(59,130,246,0.05); }
+.detail-card-header:hover { background: rgba(196,154,26,0.05); }
 
 .detail-card-left {
   display: flex;
@@ -789,7 +816,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
 .detail-card-body {
   padding: 0 1.25rem 1.25rem 1.25rem;
-  border-top: 1px solid rgba(59,130,246,0.08);
+  border-top: 1px solid rgba(196,154,26,0.08);
   background: rgba(0,0,0,0.15);
 }
 
@@ -811,7 +838,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   font-size: 13px;
   color: var(--text);
   line-height: 1.7;
-  background: rgba(59,130,246,0.05);
+  background: rgba(196,154,26,0.05);
   border-left: 3px solid var(--accent);
   border-radius: 0 4px 4px 0;
   padding: 0.75rem 1rem;
@@ -850,7 +877,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   display: flex;
   gap: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid rgba(59,130,246,0.08);
+  border-top: 1px solid rgba(196,154,26,0.08);
   flex-wrap: wrap;
 }
 
@@ -875,7 +902,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
 .history-block {
   margin-bottom: 2.5rem;
   padding-bottom: 2.5rem;
-  border-bottom: 1px solid rgba(59,130,246,0.1);
+  border-bottom: 1px solid rgba(196,154,26,0.1);
 }
 .history-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
@@ -886,8 +913,8 @@ span.footer-logo svg { width: 40px; height: 40px; }
   letter-spacing: 2.5px;
   text-transform: uppercase;
   color: var(--accent);
-  background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.2);
+  background: rgba(196,154,26,0.1);
+  border: 1px solid rgba(196,154,26,0.2);
   border-radius: 3px;
   padding: 3px 10px;
   margin-bottom: 0.75rem;
@@ -1052,14 +1079,14 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
 .penal-table td {
   padding: 9px 12px;
-  border-bottom: 1px solid rgba(59,130,246,0.06);
+  border-bottom: 1px solid rgba(196,154,26,0.06);
   color: var(--text);
   vertical-align: middle;
   line-height: 1.5;
 }
 
 .penal-table tr:last-child td { border-bottom: none; }
-.penal-table tr:hover td { background: rgba(59,130,246,0.04); }
+.penal-table tr:hover td { background: rgba(196,154,26,0.04); }
 
 .penal-table td:nth-child(2),
 .penal-table td:nth-child(3),
@@ -1106,8 +1133,8 @@ span.footer-logo svg { width: 40px; height: 40px; }
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--accent);
-  background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.2);
+  background: rgba(196,154,26,0.1);
+  border: 1px solid rgba(196,154,26,0.2);
   border-radius: 3px;
   padding: 2px 8px;
   display: inline-block;
@@ -1154,7 +1181,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   color: var(--accent);
   padding: 0.5rem 0.9rem;
   border-bottom: 1px solid var(--border);
-  background: rgba(59,130,246,0.06);
+  background: rgba(196,154,26,0.06);
   font-weight: 600;
 }
 .msg-list {
@@ -1180,8 +1207,8 @@ span.footer-logo svg { width: 40px; height: 40px; }
 }
 .msg-me {
   align-self: flex-end;
-  background: rgba(59,130,246,0.2);
-  border: 1px solid rgba(59,130,246,0.3);
+  background: rgba(196,154,26,0.2);
+  border: 1px solid rgba(196,154,26,0.3);
 }
 .msg-other {
   align-self: flex-start;
@@ -1225,7 +1252,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   margin-bottom: 1rem;
   transition: border-color 0.2s;
 }
-.journal-article:hover { border-color: rgba(59,130,246,0.4); }
+.journal-article:hover { border-color: rgba(196,154,26,0.4); }
 .journal-article-header {
   display: flex;
   align-items: center;
@@ -1278,7 +1305,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   align-items: center;
   gap: 7px;
   padding: 0.6rem 1rem;
-  background: rgba(59,130,246,0.08);
+  background: rgba(196,154,26,0.08);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
   font-weight: 700;
@@ -1353,7 +1380,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   font-weight: 700;
   flex-shrink: 0;
 }
-.msg-avatar-agent  { background: rgba(59,130,246,0.25); color: var(--accent); border: 1px solid rgba(59,130,246,0.4); }
+.msg-avatar-agent  { background: rgba(196,154,26,0.25); color: var(--accent); border: 1px solid rgba(196,154,26,0.4); }
 .msg-avatar-citizen { background: rgba(100,116,139,0.25); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
 
 .msg-content-block { flex: 1; min-width: 0; }
@@ -1381,7 +1408,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.grade-agent  { background: rgba(59,130,246,0.15); color: var(--accent); border: 1px solid rgba(59,130,246,0.3); }
+.grade-agent  { background: rgba(196,154,26,0.15); color: var(--accent); border: 1px solid rgba(196,154,26,0.3); }
 .grade-citizen { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
 
 .msg-time {
@@ -1400,8 +1427,8 @@ span.footer-logo svg { width: 40px; height: 40px; }
   word-break: break-word;
 }
 .bubble-me {
-  background: rgba(59,130,246,0.18);
-  border: 1px solid rgba(59,130,246,0.3);
+  background: rgba(196,154,26,0.18);
+  border: 1px solid rgba(196,154,26,0.3);
   border-top-right-radius: 2px;
   color: var(--text);
 }
@@ -1640,6 +1667,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
         <button class="btn-outline btn-lg" onclick="showPage('plainte')">Porter plainte</button>
       </div>
     </div>
+    <canvas id="fire-canvas"></canvas>
     <div class="hero-bg-overlay"></div>
   </section>
 
@@ -2785,7 +2813,184 @@ span.footer-logo svg { width: 40px; height: 40px; }
 </div>
 
 <script src="app.js"></script>
-<script>
+<script>// ============================================================
+// FEU — PARTICULES HERO
+// ============================================================
+(function() {
+  function initFire() {
+    const canvas = document.getElementById('fire-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Particules de feu
+    const particles = [];
+    const EMITTERS = 14; // Nombre de sources de flammes
+
+    function rand(min, max) { return Math.random() * (max - min) + min; }
+
+    function Particle(x) {
+      this.reset(x);
+    }
+    Particle.prototype.reset = function(x) {
+      this.x = x !== undefined ? x : rand(0, canvas.width);
+      this.y = canvas.height + rand(0, 40);
+      this.vx = rand(-0.6, 0.6);
+      this.vy = rand(-2.8, -1.4);
+      this.life = 0;
+      this.maxLife = rand(80, 160);
+      this.size = rand(4, 18);
+      this.wobble = rand(0, Math.PI * 2);
+      this.wobbleSpeed = rand(0.04, 0.1);
+      // Type: 0=flamme vive, 1=braise, 2=étincelle
+      this.type = Math.random() < 0.65 ? 0 : Math.random() < 0.6 ? 1 : 2;
+      if (this.type === 2) {
+        this.size = rand(1.5, 4);
+        this.vy = rand(-4, -2);
+        this.maxLife = rand(30, 70);
+      }
+    };
+
+    // Créer les particules initiales
+    const emitterX = [];
+    for (let i = 0; i < EMITTERS; i++) {
+      emitterX.push(rand(canvas.width * 0.05, canvas.width * 0.95));
+    }
+    for (let i = 0; i < 180; i++) {
+      const p = new Particle(emitterX[i % EMITTERS] + rand(-30, 30));
+      p.life = rand(0, p.maxLife); // démarrer à des stades variés
+      particles.push(p);
+    }
+
+    function getColor(p) {
+      const t = p.life / p.maxLife; // 0 = naissance, 1 = mort
+      if (p.type === 2) {
+        // Étincelle — blanc/jaune brillant puis disparaît
+        const a = (1 - t) * 0.9;
+        return 'rgba(255,' + Math.floor(220 + 35 * (1-t)) + ',100,' + a + ')';
+      }
+      if (p.type === 1) {
+        // Braise — orange profond → rouge sombre
+        const r = 220;
+        const g = Math.floor(80 * (1 - t));
+        const a = (1 - t * 0.8) * 0.55;
+        return 'rgba(' + r + ',' + g + ',0,' + a + ')';
+      }
+      // Flamme vive — cœur blanc-jaune → orange → rouge → transparent
+      if (t < 0.2) {
+        // Naissance : blanc-jaune intense
+        const mix = t / 0.2;
+        const r = 255;
+        const g = Math.floor(255 - mix * 80);
+        const b = Math.floor(200 - mix * 200);
+        return 'rgba(' + r + ',' + g + ',' + b + ',0.9)';
+      } else if (t < 0.5) {
+        // Milieu : orange vif
+        const mix = (t - 0.2) / 0.3;
+        const r = 255;
+        const g = Math.floor(175 - mix * 120);
+        return 'rgba(' + r + ',' + g + ',0,0.75)';
+      } else {
+        // Fin : rouge sombre → disparition
+        const mix = (t - 0.5) / 0.5;
+        const r = Math.floor(255 - mix * 100);
+        const a = (1 - mix) * 0.5;
+        return 'rgba(' + r + ',20,0,' + a + ')';
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Lueur de base au sol
+      const grd = ctx.createLinearGradient(0, canvas.height * 0.6, 0, canvas.height);
+      grd.addColorStop(0, 'rgba(180,50,0,0)');
+      grd.addColorStop(1, 'rgba(180,50,0,0.18)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      particles.forEach(function(p) {
+        p.life++;
+        p.wobble += p.wobbleSpeed;
+        p.x += p.vx + Math.sin(p.wobble) * 0.5;
+        p.y += p.vy;
+        p.size *= 0.992; // rétrécit légèrement
+
+        // Réinitialiser quand mort ou sorti
+        if (p.life >= p.maxLife || p.y < -20 || p.size < 0.5) {
+          const src = emitterX[Math.floor(Math.random() * EMITTERS)];
+          p.reset(src + rand(-40, 40));
+          return;
+        }
+
+        const color = getColor(p);
+        const t = p.life / p.maxLife;
+        const size = p.size * (p.type === 0 ? (1 + Math.sin(p.wobble * 2) * 0.15) : 1);
+
+        if (p.type === 2) {
+          // Étincelle : petit point lumineux
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+        } else {
+          // Flamme : forme effilée vers le haut
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          const h = size * (p.type === 0 ? 3.5 : 2.5);
+          const w = size * 0.85;
+
+          // Lueur externe douce
+          const glowR = size * 2.5;
+          const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, glowR);
+          const alpha = p.type === 0 ? 0.12 * (1 - t) : 0.07 * (1 - t);
+          glow.addColorStop(0, 'rgba(255,120,0,' + alpha + ')');
+          glow.addColorStop(1, 'rgba(200,40,0,0)');
+          ctx.beginPath();
+          ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+          ctx.fillStyle = glow;
+          ctx.fill();
+
+          // Corps de la flamme (forme petal/larme)
+          ctx.beginPath();
+          ctx.moveTo(0, h * 0.5);
+          ctx.bezierCurveTo(-w, 0, -w * 0.7, -h * 0.4, 0, -h * 0.5);
+          ctx.bezierCurveTo( w * 0.7, -h * 0.4, w, 0, 0, h * 0.5);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.restore();
+        }
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    // Démarrer seulement quand la page home est visible
+    function startIfVisible() {
+      const homePage = document.getElementById('page-home');
+      if (homePage && homePage.classList.contains('active')) {
+        draw();
+      } else {
+        setTimeout(startIfVisible, 500);
+      }
+    }
+    startIfVisible();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFire);
+  } else {
+    setTimeout(initFire, 100);
+  }
+})();
+
+
 // ============================================================
 // MODALS NATIFS — remplace konohaAlert() et confirm()
 // ============================================================
@@ -3740,7 +3945,7 @@ function renderCandidContent(g) {
           <div>
             <div class="detail-title">${c.pseudo}</div>
             <div class="detail-meta">
-              <span class="detail-type-badge" style="color:var(--accent);background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2)">${c.niveau}</span>
+              <span class="detail-type-badge" style="color:var(--accent);background:rgba(196,154,26,0.08);border:1px solid rgba(196,154,26,0.2)">${c.niveau}</span>
               ${casierBadge}
             </div>
           </div>
@@ -3890,7 +4095,7 @@ async function renderCitoyensContent(g) {
           <div class="membre-name">${displayName}</div>
           <div style="font-size:10px;color:var(--muted)">
             Inscrit le ${u.inscription||'—'}
-            ${gradeNinja ? `<span style="margin-left:6px;background:rgba(59,130,246,0.1);color:var(--accent);padding:1px 7px;border-radius:8px;font-size:10px">${gradeNinja}</span>` : ''}
+            ${gradeNinja ? `<span style="margin-left:6px;background:rgba(196,154,26,0.1);color:var(--accent);padding:1px 7px;border-radius:8px;font-size:10px">${gradeNinja}</span>` : ''}
           </div>
         </div>
         ${u.casier === 'oui' ? '<span style="font-size:10px;background:rgba(192,57,43,0.15);color:#e74c3c;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0">⚖ Casier</span>' : ''}
@@ -4175,7 +4380,7 @@ function renderCitizenPlaintes() {
         <div><div style="font-size:14px;font-weight:600;color:white">Plainte #${p.id} - ${p.type}</div><div style="font-size:11px;color:var(--muted)">${p.date}</div></div>
         <span class="status-badge ${sc}">${sl}</span>
       </div>
-      <div style="font-size:13px;color:var(--muted);background:rgba(59,130,246,0.05);border-left:3px solid var(--accent);padding:0.6rem 0.9rem;border-radius:0 4px 4px 0;margin-bottom:1rem">${p.desc}</div>
+      <div style="font-size:13px;color:var(--muted);background:rgba(196,154,26,0.05);border-left:3px solid var(--accent);padding:0.6rem 0.9rem;border-radius:0 4px 4px 0;margin-bottom:1rem">${p.desc}</div>
       ${buildThread('plainte_'+p.id, u.username, name, 'Plainte #'+p.id+' — '+p.type)}
     </div>`;
   });
@@ -4200,7 +4405,7 @@ function renderCitizenCandid() {
         <div><div style="font-size:14px;font-weight:600;color:white">Candidature #${c.id} - ${c.niveau}</div></div>
         <span class="status-badge ${sc}">${sl}</span>
       </div>
-      <div style="font-size:13px;color:var(--muted);background:rgba(59,130,246,0.05);border-left:3px solid var(--accent);padding:0.6rem 0.9rem;border-radius:0 4px 4px 0;margin-bottom:1rem">${c.motiv}</div>
+      <div style="font-size:13px;color:var(--muted);background:rgba(196,154,26,0.05);border-left:3px solid var(--accent);padding:0.6rem 0.9rem;border-radius:0 4px 4px 0;margin-bottom:1rem">${c.motiv}</div>
       ${buildThread('candid_'+c.id, u.username, name, 'Candidature #'+c.id+' — '+c.niveau)}
     </div>`;
   });
@@ -4603,7 +4808,7 @@ function renderRecherchees() {
           <div style="padding:1rem">
             <div style="font-size:16px;font-weight:700;color:white;font-family:Georgia,serif;margin-bottom:0.4rem">${r.nom}</div>
             <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem">
-              ${r.grade ? `<span style="font-size:10px;color:var(--accent);background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);padding:2px 8px;border-radius:3px">${r.grade}</span>` : ''}
+              ${r.grade ? `<span style="font-size:10px;color:var(--accent);background:rgba(196,154,26,0.1);border:1px solid rgba(196,154,26,0.2);padding:2px 8px;border-radius:3px">${r.grade}</span>` : ''}
               ${r.section ? `<span style="font-size:10px;color:var(--muted);background:var(--mid);border:1px solid var(--border);padding:2px 8px;border-radius:3px">${r.section}</span>` : ''}
             </div>
             <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Motif</div>
@@ -4816,7 +5021,7 @@ async function renderCasierContent(g) {
         </div>
       </div>
       <button class="btn-primary" onclick="saveCasier()">📋 Enregistrer l'infraction</button>
-      <div id="cas-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.2);border-radius:6px;font-size:13px">✓ Infraction enregistrée dans le dossier !</div>
+      <div id="cas-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.2);border-radius:6px;font-size:13px">✓ Infraction enregistrée dans le dossier !</div>
     </div>
 
     <!-- Liste des dossiers groupés par personne -->
@@ -4886,7 +5091,7 @@ async function renderCasierContent(g) {
             </div>` : ''}
             <div style="margin-top:0.75rem;font-size:11px;color:var(--muted)">Réf. CJ-${String(c.id||i+1).padStart(4,'0')} — ${c.date||'—'}</div>
             <div style="margin-top:0.5rem;display:flex;gap:8px">
-              <button onclick="addSuiviCasier(${c.id||0},'${safeId}-${i}')" style="background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.2);padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer">➕ Suivi / Amende</button>
+              <button onclick="addSuiviCasier(${c.id||0},'${safeId}-${i}')" style="background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.2);padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer">➕ Suivi / Amende</button>
               ${gradeRank(g) <= 2 ? `<button onclick="deleteCasierById(${c.id||0})" style="background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);padding:4px 12px;border-radius:4px;font-size:11px;cursor:pointer">🗑 Supprimer</button>` : ''}
             </div>
             <div id="suivi-form-${safeId}-${i}" style="display:none;margin-top:0.75rem"></div>
@@ -5239,7 +5444,7 @@ async function renderRapportsContent(g) {
         <textarea id="rap-desc" class="form-input" rows="5" placeholder="Décrivez de A à Z : déroulement, personnes impliquées, actions menées, résultat..."></textarea>
       </div>
       <button class="btn-primary" onclick="submitRapport()">📋 Soumettre le rapport</button>
-      <div id="rap-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.2);border-radius:6px;font-size:13px">✓ Rapport soumis avec succès !</div>
+      <div id="rap-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.2);border-radius:6px;font-size:13px">✓ Rapport soumis avec succès !</div>
     </div>
 
     <div id="rap-panel-list" style="display:none">`;
@@ -5293,7 +5498,7 @@ async function renderRapportsContent(g) {
               <div class="detail-title">${r.type_mission||r.type||'Mission'}</div>
               <div class="detail-meta">
                 <span style="font-size:11px;color:var(--muted)">${r.date||'—'}</span>
-                <span style="font-size:11px;background:rgba(59,130,246,0.1);color:var(--accent);padding:1px 7px;border-radius:8px">${r.grade_police||'—'}</span>
+                <span style="font-size:11px;background:rgba(196,154,26,0.1);color:var(--accent);padding:1px 7px;border-radius:8px">${r.grade_police||'—'}</span>
               </div>
             </div>
             <span class="detail-toggle-icon" id="rap-icon-${safeId}-${i}">▼</span>
@@ -5466,17 +5671,17 @@ function generateMatricule() {
 // ============================================================
 const KAEDE_TUTORIAL_CITOYEN = [
   { tab: 'overview',     label: 'Accueil',           desc: 'Votre tableau de bord : casier, impôts, messages et profil en un coup d\'œil.',
-    mini: '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">📋</div><div style="height:6px;border-radius:3px;background:var(--mid)"></div></div><div style="background:rgba(192,57,43,0.08);border:0.5px solid rgba(192,57,43,0.2);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">🏯</div><div style="height:6px;border-radius:3px;background:rgba(192,57,43,0.15)"></div></div><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">⚖️</div><div style="height:6px;border-radius:3px;background:rgba(39,174,96,0.15)"></div></div><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">📩</div><div style="height:6px;border-radius:3px;background:rgba(59,130,246,0.1)"></div></div></div>' },
+    mini: '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">📋</div><div style="height:6px;border-radius:3px;background:var(--mid)"></div></div><div style="background:rgba(192,57,43,0.08);border:0.5px solid rgba(192,57,43,0.2);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">🏯</div><div style="height:6px;border-radius:3px;background:rgba(192,57,43,0.15)"></div></div><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">⚖️</div><div style="height:6px;border-radius:3px;background:rgba(39,174,96,0.15)"></div></div><div style="background:var(--panel);border-radius:6px;padding:8px;text-align:center"><div style="font-size:16px;margin-bottom:3px">📩</div><div style="height:6px;border-radius:3px;background:rgba(196,154,26,0.1)"></div></div></div>' },
   { tab: 'impots',       label: 'Mes impôts',        desc: 'Statut de vos impôts : payé ✓ ou non payé ⚠. Le montant dépend de votre grade ninja.',
     mini: '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(192,57,43,0.06);border:0.5px solid rgba(192,57,43,0.2);border-radius:6px;margin-bottom:6px"><div style="font-size:11px;color:var(--text)">🏯 Mes impôts</div><div style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(192,57,43,0.1);color:#c0392b">⚠ Non payé</div></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"><div style="background:var(--mid);border-radius:5px;padding:5px;text-align:center"><div style="font-size:9px;color:var(--muted)">Grade</div><div style="font-size:10px;font-weight:600">Chunin</div></div><div style="background:var(--mid);border-radius:5px;padding:5px;text-align:center"><div style="font-size:9px;color:var(--muted)">Montant</div><div style="font-size:10px;font-weight:600;color:#c0392b">3 600</div></div><div style="background:var(--mid);border-radius:5px;padding:5px;text-align:center"><div style="font-size:9px;color:var(--muted)">Collecteur</div><div style="font-size:10px;color:var(--muted)">—</div></div></div>' },
   { tab: 'plaintes',     label: 'Mes plaintes',      desc: 'Déposez une plainte officielle et suivez son statut : en attente, traitée ou rejetée.',
     mini: '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px;background:var(--mid);border-radius:5px;margin-bottom:4px"><div style="flex:1"><div style="height:6px;width:80px;border-radius:3px;background:var(--border);margin-bottom:3px"></div><div style="height:5px;width:50px;border-radius:3px;background:var(--border)"></div></div><div style="font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:#e67e22">⏳ En attente</div></div><div style="display:flex;align-items:center;justify-content:space-between;padding:6px;background:var(--mid);border-radius:5px"><div style="flex:1"><div style="height:6px;width:60px;border-radius:3px;background:var(--border);margin-bottom:3px"></div><div style="height:5px;width:40px;border-radius:3px;background:var(--border)"></div></div><div style="font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(39,174,96,0.15);color:#27ae60">✓ Traité</div></div>' },
   { tab: 'candid',       label: 'Ma candidature',    desc: 'Soumettez votre candidature pour rejoindre la Police. Attention : un casier judiciaire disqualifie automatiquement.',
-    mini: '<div style="padding:8px;background:rgba(59,130,246,0.06);border:0.5px solid rgba(59,130,246,0.2);border-radius:6px;text-align:center;margin-bottom:6px"><div style="font-size:20px;margin-bottom:4px">👮</div><div style="height:6px;width:100px;border-radius:3px;background:rgba(59,130,246,0.15);margin:0 auto 3px"></div><div style="height:5px;width:60px;border-radius:3px;background:rgba(59,130,246,0.1);margin:0 auto"></div></div><div style="padding:5px 8px;background:rgba(255,165,0,0.08);border-radius:5px;display:flex;align-items:center;justify-content:space-between"><div style="font-size:10px;color:var(--muted)">Candidature #3</div><div style="font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:#e67e22">⏳ En attente</div></div>' },
+    mini: '<div style="padding:8px;background:rgba(196,154,26,0.06);border:0.5px solid rgba(196,154,26,0.2);border-radius:6px;text-align:center;margin-bottom:6px"><div style="font-size:20px;margin-bottom:4px">👮</div><div style="height:6px;width:100px;border-radius:3px;background:rgba(196,154,26,0.15);margin:0 auto 3px"></div><div style="height:5px;width:60px;border-radius:3px;background:rgba(196,154,26,0.1);margin:0 auto"></div></div><div style="padding:5px 8px;background:rgba(255,165,0,0.08);border-radius:5px;display:flex;align-items:center;justify-content:space-between"><div style="font-size:10px;color:var(--muted)">Candidature #3</div><div style="font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(255,165,0,0.15);color:#e67e22">⏳ En attente</div></div>' },
   { tab: 'mes-messages', label: 'Mes messages',      desc: 'Consultez les réponses des agents à vos demandes. Un point rouge indique un nouveau message.',
-    mini: '<div style="display:flex;align-items:center;gap:8px;padding:6px;background:rgba(26,42,74,0.06);border-radius:5px"><div style="width:28px;height:28px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">👮</div><div style="flex:1"><div style="height:6px;width:80px;border-radius:3px;background:var(--border);margin-bottom:3px"></div><div style="height:5px;width:120px;border-radius:3px;background:var(--border)"></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><div style="height:5px;width:25px;border-radius:3px;background:var(--border)"></div><div style="width:7px;height:7px;border-radius:50%;background:#e74c3c"></div></div></div>' },
+    mini: '<div style="display:flex;align-items:center;gap:8px;padding:6px;background:rgba(30,25,0,0.06);border-radius:5px"><div style="width:28px;height:28px;border-radius:50%;background:rgba(30,25,0,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">👮</div><div style="flex:1"><div style="height:6px;width:80px;border-radius:3px;background:var(--border);margin-bottom:3px"></div><div style="height:5px;width:120px;border-radius:3px;background:var(--border)"></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><div style="height:5px;width:25px;border-radius:3px;background:var(--border)"></div><div style="width:7px;height:7px;border-radius:50%;background:#e74c3c"></div></div></div>' },
   { tab: 'contact',      label: 'Contacter un agent', desc: 'Sélectionnez un agent et envoyez-lui un message privé pour vos demandes de révision de casier ou autres.',
-    mini: '<div style="height:26px;border-radius:5px;background:var(--mid);margin-bottom:5px;display:flex;align-items:center;padding:0 8px"><div style="font-size:9px;color:var(--muted)">-- Sélectionner un agent --</div></div><div style="height:14px;border-radius:3px;background:var(--mid);margin-bottom:4px"></div><div style="height:34px;border-radius:3px;background:var(--mid);margin-bottom:6px"></div><div style="height:22px;border-radius:5px;background:#0f1923;display:flex;align-items:center;justify-content:center"><div style="font-size:9px;color:#c49a1a;font-weight:600">📨 Envoyer la demande</div></div>' },
+    mini: '<div style="height:26px;border-radius:5px;background:var(--mid);margin-bottom:5px;display:flex;align-items:center;padding:0 8px"><div style="font-size:9px;color:var(--muted)">-- Sélectionner un agent --</div></div><div style="height:14px;border-radius:3px;background:var(--mid);margin-bottom:4px"></div><div style="height:34px;border-radius:3px;background:var(--mid);margin-bottom:6px"></div><div style="height:22px;border-radius:5px;background:#0f0f00;display:flex;align-items:center;justify-content:center"><div style="font-size:9px;color:#c49a1a;font-weight:600">📨 Envoyer la demande</div></div>' },
   { tab: 'journal',      label: 'Journal officiel',  desc: 'Annonces et nouvelles officielles de la Police de Konoha. Consultez-le régulièrement.',
     mini: '<div style="padding:6px;border-left:2px solid #c49a1a;margin-bottom:5px"><div style="height:7px;border-radius:3px;background:rgba(196,154,26,0.2);margin-bottom:3px"></div><div style="height:5px;width:70%;border-radius:3px;background:var(--mid)"></div></div><div style="padding:6px;border-left:2px solid #c49a1a"><div style="height:7px;border-radius:3px;background:rgba(196,154,26,0.2);margin-bottom:3px"></div><div style="height:5px;width:55%;border-radius:3px;background:var(--mid)"></div></div>' },
 ];
@@ -5548,7 +5753,7 @@ function _showTutorialStep() {
       cStyle = 'width:24px;height:24px;border-radius:50%;background:#27ae60;border:2px solid #27ae60;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;flex-shrink:0;position:relative;z-index:1';
       cText = '✓';
     } else if (i === num - 1) {
-      cStyle = 'width:24px;height:24px;border-radius:50%;background:#0f1923;border:2px solid #c49a1a;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#c49a1a;flex-shrink:0;position:relative;z-index:1';
+      cStyle = 'width:24px;height:24px;border-radius:50%;background:#0f0f00;border:2px solid #c49a1a;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#c49a1a;flex-shrink:0;position:relative;z-index:1';
       cText = (i+1).toString();
     } else {
       cStyle = 'width:24px;height:24px;border-radius:50%;background:var(--panel);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);flex-shrink:0;position:relative;z-index:1';
@@ -5568,7 +5773,7 @@ function _showTutorialStep() {
   var miniHtml = '';
   if (step.mini) {
     miniHtml = '<div style="background:var(--mid);border-radius:8px;overflow:hidden;margin-top:10px">'
-      + '<div style="background:#0f1923;padding:5px 10px;display:flex;align-items:center;gap:6px">'
+      + '<div style="background:#0f0f00;padding:5px 10px;display:flex;align-items:center;gap:6px">'
       + '<div style="width:5px;height:5px;border-radius:50%;background:#c49a1a"></div>'
       + '<span style="font-size:9px;color:#64748b">' + step.label + ' — Police de Konoha</span>'
       + '</div>'
@@ -5594,7 +5799,7 @@ function _showTutorialStep() {
     : '';
 
   var nextOrFinish = num < total
-    ? '<button onclick="_tutoNext()" style="flex:1;padding:10px;background:#0f1923;color:#c49a1a;border:1px solid rgba(196,154,26,0.3);border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Suivant →</button>'
+    ? '<button onclick="_tutoNext()" style="flex:1;padding:10px;background:#0f0f00;color:#c49a1a;border:1px solid rgba(196,154,26,0.3);border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Suivant →</button>'
     : '<button onclick="_endTutorial()" style="flex:1;padding:10px;background:#27ae60;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">✅ Lu et approuvé — Accéder au site</button>';
 
   btnsEl.innerHTML = '<div style="display:flex;gap:8px;width:100%">' + prevBtn + nextOrFinish + '</div>';
@@ -6607,10 +6812,10 @@ async function renderAgentMessages() {
 
     html += `<div onclick="openAgentConversation('${tid}','${senderName}','${fromUser}')"
       style="display:flex;align-items:center;gap:12px;padding:12px 1rem;cursor:pointer;border-bottom:0.5px solid var(--border);
-      ${isUnread ? 'background:rgba(26,42,74,0.06);' : ''}">
-      <div style="width:42px;height:42px;border-radius:50%;background:${isUnread?'rgba(26,42,74,0.15)':'var(--panel)'};
+      ${isUnread ? 'background:rgba(30,25,0,0.06);' : ''}">
+      <div style="width:42px;height:42px;border-radius:50%;background:${isUnread?'rgba(30,25,0,0.15)':'var(--panel)'};
         display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;
-        color:${isUnread?'#1a2a4a':'var(--muted)'};flex-shrink:0">${init}</div>
+        color:${isUnread?'#1a1600':'var(--muted)'};flex-shrink:0">${init}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:${isUnread?'700':'400'};color:var(--text)">${senderName}</div>
         <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${preview}</div>
@@ -6644,7 +6849,7 @@ async function openAgentConversation(threadId, senderName, fromUser) {
   let html = `
     <div style="display:flex;align-items:center;gap:10px;padding:0 0 1rem;border-bottom:0.5px solid var(--border);margin-bottom:1rem">
       <button onclick="stopConvPolling(); renderAgentMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
-      <div style="width:38px;height:38px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#1a2a4a">${init}</div>
+      <div style="width:38px;height:38px;border-radius:50%;background:rgba(30,25,0,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#1a1600">${init}</div>
       <div style="flex:1">
         <div style="font-size:15px;font-weight:600;color:var(--text)">${senderName}</div>
         <div style="font-size:11px;color:var(--muted)">Citoyen de Konoha</div>
@@ -6669,10 +6874,10 @@ async function openAgentConversation(threadId, senderName, fromUser) {
       if (isAgent) {
         html += `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end">
           <div>
-            <div style="background:#1a2a4a;color:#e8f4ff;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:280px;line-height:1.5">${text}</div>
+            <div style="background:#1a1600;color:#f0e8d0;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:280px;line-height:1.5">${text}</div>
             <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">${agentName} · ${time}</div>
           </div>
-          <div style="width:32px;height:32px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">${agentInit}</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:#1a1600;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#f0e8d0;flex-shrink:0">${agentInit}</div>
         </div>`;
       } else if (m.role === 'citizen_casier_request') {
         // Special: casier verification request
@@ -6681,7 +6886,7 @@ async function openAgentConversation(threadId, senderName, fromUser) {
         const reqGenre = parts[1] || 'homme';
         const civ = reqGenre === 'femme' ? 'Madame' : reqGenre === 'autre' ? '' : 'Monsieur';
         html += `<div style="display:flex;gap:8px;align-items:flex-start">
-          <div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">${init}</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(30,25,0,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a1600;flex-shrink:0">${init}</div>
           <div style="background:rgba(212,149,0,0.08);border:1px solid rgba(212,149,0,0.3);border-radius:10px;padding:12px;max-width:280px">
             <div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:6px">⚖️ Demande de vérification de casier</div>
             <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${senderName} souhaite consulter son casier judiciaire.</div>
@@ -6700,7 +6905,7 @@ async function openAgentConversation(threadId, senderName, fromUser) {
         </div>`;
       } else {
         html += `<div style="display:flex;gap:8px;align-items:flex-end">
-          <div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">${init}</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(30,25,0,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a1600;flex-shrink:0">${init}</div>
           <div>
             <div style="background:var(--panel);border:0.5px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;max-width:280px;line-height:1.5;color:var(--text)">${text}</div>
             <div style="font-size:10px;color:var(--muted);margin-top:3px">${senderName} · ${time}</div>
@@ -6716,8 +6921,8 @@ async function openAgentConversation(threadId, senderName, fromUser) {
         style="flex:1;padding:10px 16px;border:0.5px solid var(--border);border-radius:20px;font-size:13px;background:var(--panel);color:var(--text)"
         onkeydown="if(event.key==='Enter') sendAgentReply('${threadId}','${fromUser}','${senderName}')"/>
       <button onclick="sendAgentReply('${threadId}','${fromUser}','${senderName}')"
-        style="width:40px;height:40px;border-radius:50%;background:#1a2a4a;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8f4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        style="width:40px;height:40px;border-radius:50%;background:#1a1600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f0e8d0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>`;
 
@@ -6810,7 +7015,7 @@ async function renderCitizenMessages() {
 
     html += `<div onclick="openCitizenConversation('${tid}')"
       style="display:flex;align-items:center;gap:12px;padding:12px 1rem;cursor:pointer;border-bottom:0.5px solid var(--border)">
-      <div style="width:40px;height:40px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👮</div>
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(30,25,0,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👮</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text)">Police de Konoha</div>
         <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
@@ -6844,7 +7049,7 @@ async function openCitizenConversation(threadId) {
   let html = `
     <div style="display:flex;align-items:center;gap:10px;padding:0 0 1rem;border-bottom:0.5px solid var(--border);margin-bottom:1rem">
       <button onclick="stopConvPolling(); renderCitizenMessages()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:0;line-height:1">←</button>
-      <div style="width:38px;height:38px;border-radius:50%;background:rgba(26,42,74,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👮</div>
+      <div style="width:38px;height:38px;border-radius:50%;background:rgba(30,25,0,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👮</div>
       <div>
         <div style="font-size:15px;font-weight:600;color:var(--text)">Police de Konoha</div>
         <div style="font-size:11px;color:var(--muted)">Agent officiel</div>
@@ -6860,14 +7065,14 @@ async function openCitizenConversation(threadId) {
     if (isMine) {
       html += `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end">
         <div>
-          <div style="background:#1a2a4a;color:#e8f4ff;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:260px;line-height:1.5">${text}</div>
+          <div style="background:#1a1600;color:#f0e8d0;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:260px;line-height:1.5">${text}</div>
           <div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">${citizenFullname} · ${time}</div>
         </div>
-        <div style="width:30px;height:30px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">${myInit}</div>
+        <div style="width:30px;height:30px;border-radius:50%;background:#1a1600;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#f0e8d0;flex-shrink:0">${myInit}</div>
       </div>`;
     } else {
       html += `<div style="display:flex;gap:8px;align-items:flex-end">
-        <div style="width:30px;height:30px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👮</div>
+        <div style="width:30px;height:30px;border-radius:50%;background:rgba(30,25,0,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👮</div>
         <div>
           <div style="background:var(--panel);border:0.5px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;max-width:260px;line-height:1.5;color:var(--text)">${text}</div>
           <div style="font-size:10px;color:var(--muted);margin-top:3px">${m.sender_name||'Agent'} · ${time}</div>
@@ -6895,8 +7100,8 @@ async function openCitizenConversation(threadId) {
         <span style="width:14px;height:2px;background:var(--muted);border-radius:1px;display:block"></span>
       </button>
       <button onclick="sendCitizenReply('${threadId}')"
-        style="width:40px;height:40px;border-radius:50%;background:#1a2a4a;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8f4ff" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        style="width:40px;height:40px;border-radius:50%;background:#1a1600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f0e8d0" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>`;
   }
@@ -7161,7 +7366,7 @@ async function startConvPolling(threadId, side, senderName, fromUser, initialCou
           const reqUser = parts[0] || fromUser;
           const reqGenre = parts[1] || 'homme';
           div.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-start">'
-            + '<div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">' + (senderName||'?').slice(0,2).toUpperCase() + '</div>'
+            + '<div style="width:32px;height:32px;border-radius:50%;background:rgba(30,25,0,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a1600;flex-shrink:0">' + (senderName||'?').slice(0,2).toUpperCase() + '</div>'
             + '<div style="background:rgba(212,149,0,0.08);border:1px solid rgba(212,149,0,0.3);border-radius:10px;padding:12px;max-width:280px">'
             + '<div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:6px">⚖️ Demande de vérification de casier</div>'
             + '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">' + (senderName||'Citoyen') + ' souhaite consulter son casier judiciaire.</div>'
@@ -7176,16 +7381,16 @@ async function startConvPolling(threadId, side, senderName, fromUser, initialCou
           const agentInit = (u.fullname||u.username).slice(0,2).toUpperCase();
           div.innerHTML = '<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end">'
             + '<div>'
-            + '<div style="background:#1a2a4a;color:#e8f4ff;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:280px;line-height:1.5">' + rawText + '</div>'
+            + '<div style="background:#1a1600;color:#f0e8d0;padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:13px;max-width:280px;line-height:1.5">' + rawText + '</div>'
             + '<div style="font-size:10px;color:var(--muted);text-align:right;margin-top:3px">Vous · ' + time + '</div>'
             + '</div>'
-            + '<div style="width:32px;height:32px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#e8f4ff;flex-shrink:0">' + agentInit + '</div>'
+            + '<div style="width:32px;height:32px;border-radius:50%;background:#1a1600;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#f0e8d0;flex-shrink:0">' + agentInit + '</div>'
             + '</div>';
 
         } else if (m.role === 'citizen' && currentOpenSide === 'agent') {
           const citInit = (senderName||'?').slice(0,2).toUpperCase();
           div.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end">'
-            + '<div style="width:32px;height:32px;border-radius:50%;background:rgba(26,42,74,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a2a4a;flex-shrink:0">' + citInit + '</div>'
+            + '<div style="width:32px;height:32px;border-radius:50%;background:rgba(30,25,0,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a1600;flex-shrink:0">' + citInit + '</div>'
             + '<div>'
             + '<div style="background:var(--panel);border:0.5px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;font-size:13px;max-width:280px;line-height:1.5;color:var(--text)">' + rawText + '</div>'
             + '<div style="font-size:10px;color:var(--muted);margin-top:3px">' + (m.sender_name||senderName) + ' · ' + time + '</div>'
@@ -7199,14 +7404,14 @@ async function startConvPolling(threadId, side, senderName, fromUser, initialCou
           if (isMine) {
             div.innerHTML = '<div style="display:flex;justify-content:flex-end;gap:6px;align-items:flex-end">'
               + '<div>'
-              + '<div style="background:#0f2d52;color:#e8f4ff;padding:9px 13px;border-radius:14px 14px 3px 14px;font-size:12px;max-width:220px;line-height:1.5">' + rawText + '</div>'
+              + '<div style="background:#1a1400;color:#f0e8d0;padding:9px 13px;border-radius:14px 14px 3px 14px;font-size:12px;max-width:220px;line-height:1.5">' + rawText + '</div>'
               + '<div style="font-size:10px;color:var(--muted);text-align:right;margin-top:2px">Vous · ' + time + '</div>'
               + '</div>'
-              + '<div style="width:28px;height:28px;border-radius:50%;background:#0f2d52;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#e8f4ff;flex-shrink:0">' + myInit + '</div>'
+              + '<div style="width:28px;height:28px;border-radius:50%;background:#1a1400;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#f0e8d0;flex-shrink:0">' + myInit + '</div>'
               + '</div>';
           } else {
             div.innerHTML = '<div style="display:flex;gap:6px;align-items:flex-end">'
-              + '<div style="width:28px;height:28px;border-radius:50%;background:rgba(15,45,82,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👮</div>'
+              + '<div style="width:28px;height:28px;border-radius:50%;background:rgba(30,25,0,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👮</div>'
               + '<div>'
               + '<div style="background:var(--panel);border:0.5px solid var(--border);padding:9px 13px;border-radius:14px 14px 14px 3px;font-size:12px;max-width:220px;line-height:1.5;color:var(--text);white-space:pre-wrap">' + rawText + '</div>'
               + '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + (m.sender_name||'Agent') + ' · ' + time + '</div>'
@@ -7327,7 +7532,7 @@ async function renderGalerie() {
           ${p.desc ? `<p style="font-size:13px;color:var(--text);margin:0 0 10px;line-height:1.5">${p.desc}</p>` : ''}
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div style="display:flex;align-items:center;gap:7px">
-              <div style="width:28px;height:28px;border-radius:50%;background:#1a2a4a;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#e8f4ff;flex-shrink:0">${init}</div>
+              <div style="width:28px;height:28px;border-radius:50%;background:#1a1600;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#f0e8d0;flex-shrink:0">${init}</div>
               <div>
                 <div style="font-size:11px;font-weight:600;color:var(--text)">${p.authorName||'—'}</div>
                 <div style="font-size:10px;color:var(--muted)">${p.date||'—'}</div>
@@ -7519,7 +7724,7 @@ function rapToggleAgent(agentId) {
   chip.setAttribute('data-selected', newState);
   const icon = chip.querySelector('.rap-check-icon');
   if (newState) {
-    chip.style.background = 'rgba(59,130,246,0.12)';
+    chip.style.background = 'rgba(196,154,26,0.12)';
     chip.style.borderColor = 'var(--accent)';
     chip.style.color = 'var(--accent)';
     if (icon) { icon.style.background = 'var(--accent)'; icon.style.borderColor = 'var(--accent)'; icon.textContent = '✓'; icon.style.color = 'white'; }
@@ -7539,7 +7744,7 @@ function rapToggleAll(select) {
     chip.setAttribute('data-selected', select);
     const icon = chip.querySelector('.rap-check-icon');
     if (select) {
-      chip.style.background = 'rgba(59,130,246,0.12)';
+      chip.style.background = 'rgba(196,154,26,0.12)';
       chip.style.borderColor = 'var(--accent)';
       chip.style.color = 'var(--accent)';
       if (icon) { icon.style.background = 'var(--accent)'; icon.style.borderColor = 'var(--accent)'; icon.textContent = '✓'; icon.style.color = 'white'; }
@@ -7664,7 +7869,7 @@ async function renderPresencesContent(g) {
       const priseStr = p.heure_prise || (p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}) : '—');
       const finStr = p.heure_fin || (p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}) : '—');
       html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⏱</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(196,154,26,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⏱</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--text)">${p.date||'—'}</div>
           <div style="font-size:11px;color:var(--muted)">${priseStr} → ${finStr} • ${h2}h${String(m2).padStart(2,'0')} • ${p.grade||g}</div>
@@ -8125,7 +8330,7 @@ async function forceFinService(presenceId, username, fullname, grade) {
     + '<div id="cloture-recap" style="background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.15);border-radius:8px;padding:10px;margin-bottom:1.25rem;font-size:13px;display:none"></div>'
     + '<div style="display:flex;gap:10px;justify-content:center">'
     + '<button id="cloture-cancel" style="padding:10px 20px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:sans-serif">Annuler</button>'
-    + '<button id="cloture-preview" style="padding:10px 20px;background:rgba(59,130,246,0.12);color:var(--accent);border:1px solid rgba(59,130,246,0.3);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">🔍 Calculer</button>'
+    + '<button id="cloture-preview" style="padding:10px 20px;background:rgba(196,154,26,0.12);color:var(--accent);border:1px solid rgba(196,154,26,0.3);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">🔍 Calculer</button>'
     + '<button id="cloture-confirm" style="padding:10px 20px;background:#e74c3c;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif;display:none">✓ Clôturer</button>'
     + '</div>'
     + '</div>';
@@ -8370,7 +8575,7 @@ async function renderAmendesContent(g) {
         </div>
       </div>
       <button class="btn-primary" onclick="emettrAmende()">💰 Émettre l'amende</button>
-      <div id="am-ok" style="display:none;margin-top:0.5rem;padding:8px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border-radius:6px;font-size:13px">✓ Amende émise !</div>
+      <div id="am-ok" style="display:none;margin-top:0.5rem;padding:8px 14px;background:rgba(196,154,26,0.1);color:var(--accent);border-radius:6px;font-size:13px">✓ Amende émise !</div>
     </div>`;
   }
 
@@ -9111,7 +9316,7 @@ async function renderDocumentsContent(g) {
   }
 
   const categories = ['Tous', 'Cours', 'Impôts', 'Procédures', 'Règlements', 'Divers'];
-  const catColors = { 'Cours':'#3b82f6','Impôts':'#f59e0b','Procédures':'#10b981','Règlements':'#8b5cf6','Divers':'#64748b' };
+  const catColors = { 'Cours':'#c49a1a','Impôts':'#f59e0b','Procédures':'#10b981','Règlements':'#8b5cf6','Divers':'#64748b' };
   const catIcons  = { 'Cours':'📘','Impôts':'💰','Procédures':'📋','Règlements':'⚖️','Divers':'📄' };
 
   let html = '<h2 class="dash-section-title">📚 Documents & Ressources</h2>';
@@ -9198,7 +9403,7 @@ async function saveDocument() {
       + (desc ? '<br><span style="font-size:12px;color:var(--muted)">' + desc + '</span>' : '')
       + '<br><br>Ce document sera visible par tous les agents.',
     icon: '📎',
-    color: '#3b82f6',
+    color: '#c49a1a',
     confirmLabel: '✓ Publier',
     cancelLabel: 'Annuler',
     onConfirm: async function() { await _doSaveDocument(titre, cat, desc, url); }
@@ -9280,7 +9485,7 @@ async function renderAjoutContent(g) {
         <div style="display:flex;gap:8px;align-items:center">
           <input type="text" id="aj-password" class="form-input" placeholder="Ex: ABC12345" style="flex:1"/>
           <button type="button" onclick="genererMotDePasse()" title="Générer un mot de passe aléatoire"
-            style="padding:9px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.25);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            style="padding:9px 14px;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.25);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
             🎲 Générer
           </button>
         </div>
@@ -9297,7 +9502,7 @@ async function renderAjoutContent(g) {
         </select>
       </div>
 
-      <div style="margin-top:0.5rem;margin-bottom:1rem;padding:10px 14px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:8px;font-size:12px;color:var(--muted)">
+      <div style="margin-top:0.5rem;margin-bottom:1rem;padding:10px 14px;background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.15);border-radius:8px;font-size:12px;color:var(--muted)">
         💡 Le matricule sera généré automatiquement. L'agent pourra se connecter avec son nom complet et son mot de passe.
       </div>
 
@@ -9332,7 +9537,7 @@ async function ajouterAgent() {
       + '<span style="font-size:12px;color:var(--muted)">Grade : ' + grade + '</span><br>'
       + '<span style="font-size:12px;color:var(--muted)">Matricule : ' + matricule + '</span>',
     icon: '👮',
-    color: '#3b82f6',
+    color: '#c49a1a',
     confirmLabel: '✓ Ajouter',
     cancelLabel: 'Annuler',
     onConfirm: async function() {
@@ -9399,7 +9604,7 @@ function renderSalairesContent(g) {
   const grades = [
     { grade: 'Directeur',         icon: '🏛', color: '#f0c040', rank: 0 },
     { grade: 'Directeur Adjoint', icon: '🏛', color: '#e0b030', rank: 1 },
-    { grade: 'Lieutenant',        icon: '⭐', color: '#3b82f6', rank: 2 },
+    { grade: 'Lieutenant',        icon: '⭐', color: '#c49a1a', rank: 2 },
     { grade: 'Sergent',           icon: '⭐', color: '#6366f1', rank: 3 },
     { grade: 'Officier',          icon: '🔵', color: '#10b981', rank: 4 },
     { grade: 'Stagiaire',         icon: '🔘', color: '#64748b', rank: 5 },
@@ -9409,7 +9614,7 @@ function renderSalairesContent(g) {
   let html = '<h2 class="dash-section-title">💰 Gestion des Salaires</h2>';
 
   // Info box
-  html += '<div style="padding:10px 14px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:8px;font-size:13px;color:var(--muted);margin-bottom:1.25rem">'
+  html += '<div style="padding:10px 14px;background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.15);border-radius:8px;font-size:13px;color:var(--muted);margin-bottom:1.25rem">'
     + 'ℹ️ Les salaires sont exprimés en <strong>Ryos par heure</strong> de service. Toute modification est appliquée immédiatement pour les prochaines prises de service.'
     + '</div>';
 
@@ -9435,7 +9640,7 @@ function renderSalairesContent(g) {
       + '<div style="font-size:10px;color:var(--muted)">Ryos/h</div>'
       + '</div>'
       + '<button onclick="openEditSalaireByIndex(' + grades.indexOf(g_item) + ')"'
-      + ' style="padding:7px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">✏️ Modifier</button>'
+      + ' style="padding:7px 14px;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">✏️ Modifier</button>'
       + '</div>'
       + '</div>';
   });
@@ -9554,7 +9759,7 @@ function openEditSalaire(grade, color) {
 const _salairesGrades = [
   { grade: 'Directeur',         color: '#f0c040' },
   { grade: 'Directeur Adjoint', color: '#e0b030' },
-  { grade: 'Lieutenant',        color: '#3b82f6' },
+  { grade: 'Lieutenant',        color: '#c49a1a' },
   { grade: 'Sergent',           color: '#6366f1' },
   { grade: 'Officier',          color: '#10b981' },
   { grade: 'Stagiaire',         color: '#64748b' },
@@ -9757,7 +9962,7 @@ async function executerRetrait(username, fullname, montant, totalRyos, motif) {
 
 const IMPOTS_GRADES_ORDER = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Génin Confirmé','Génin Simple'];
 const IMPOTS_MONTANTS = {'Hokage':8400,'Commandant-Jonin':7800,'Jonin':7200,'Tokubetsu-Jonin':6000,'Kakunin':4800,'Chunin':3600,'Tokubetsu-Chunin':2400,'Génin Confirmé':1200,'Génin Simple':0};
-const IMPOTS_COLORS = {'Hokage':'#c49a1a','Commandant-Jonin':'#c0392b','Jonin':'#8b5cf6','Tokubetsu-Jonin':'#3b82f6','Kakunin':'#10b981','Chunin':'#f59e0b','Tokubetsu-Chunin':'#6366f1','Génin Confirmé':'#64748b','Génin Simple':'#94a3b8'};
+const IMPOTS_COLORS = {'Hokage':'#c49a1a','Commandant-Jonin':'#c0392b','Jonin':'#8b5cf6','Tokubetsu-Jonin':'#c49a1a','Kakunin':'#10b981','Chunin':'#f59e0b','Tokubetsu-Chunin':'#6366f1','Génin Confirmé':'#64748b','Génin Simple':'#94a3b8'};
 // Collecteurs = agents réels du site (state.users)
 
 // ── Chargement / sauvegarde locale ──────────────────────────
@@ -9923,7 +10128,7 @@ async function renderImpotsContent(g) {
       const safeAgent = JSON.stringify(agent);
       const ninjasHtml = ninjas.map(function(n){
         const col = IMPOTS_COLORS[n.grade]||'#64748b';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px 5px 20px;border-bottom:0.5px solid rgba(59,130,246,0.06)">'
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px 5px 20px;border-bottom:0.5px solid rgba(196,154,26,0.06)">'
           + '<div style="display:flex;align-items:center;gap:8px">'
           + '<span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:6px;background:'+col+'18;color:'+col+'">'+n.grade+'</span>'
           + '<span style="font-size:12px;color:var(--text)">'+n.nom+'</span>'
@@ -9933,7 +10138,7 @@ async function renderImpotsContent(g) {
       }).join('');
       const agentEsc = agent.replace(/'/g, "\\'");
       const btnRecup = isDir
-        ? '<div style="padding:8px 14px;border-top:0.5px solid rgba(59,130,246,0.15);background:rgba(39,174,96,0.04)">'
+        ? '<div style="padding:8px 14px;border-top:0.5px solid rgba(196,154,26,0.15);background:rgba(39,174,96,0.04)">'
           + '<button onclick="impotsRecupererAgent(\'' + agentEsc + '\',' + totalAgent + ')" '
           + 'style="width:100%;padding:7px;background:rgba(196,154,26,0.12);color:#c49a1a;border:1px solid rgba(196,154,26,0.3);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">'
           + '💰 Récupérer ' + totalAgent.toLocaleString('fr-FR') + ' Ryos sur ' + agent
@@ -9943,7 +10148,7 @@ async function renderImpotsContent(g) {
       html += '<div style="border-bottom:0.5px solid var(--border)">'
         + '<div onclick="' + onclick + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">'
         + '<span style="font-size:11px;color:var(--muted);width:16px;flex-shrink:0">'+(i+1)+'.</span>'
-        + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
+        + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(196,154,26,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
         + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+agent+'</div>'
         + '<div style="margin-top:4px;height:3px;background:var(--mid);border-radius:2px"><div style="height:3px;background:#27ae60;border-radius:2px;width:'+pct+'%"></div></div></div>'
         + '<div style="text-align:right;flex-shrink:0;margin-right:8px"><div style="font-size:13px;font-weight:700;color:#27ae60">'+d.t.toLocaleString('fr-FR')+' Ryos</div>'
@@ -9972,7 +10177,7 @@ async function renderImpotsContent(g) {
     html += '<div style="padding:10px 14px;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">'
       + '<button onclick="impotsRecuperer()" style="padding:7px 14px;background:rgba(196,154,26,0.15);color:#c49a1a;border:1px solid rgba(196,154,26,0.35);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💰 Impôts récupérés</button>'
       + '<button onclick="impotsReset()" style="padding:7px 14px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">🔄 Remettre à zéro</button>'
-      + '<button onclick="impotsGenPDF()" style="padding:7px 14px;background:rgba(59,130,246,0.1);color:var(--accent);border:1px solid rgba(59,130,246,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📄 Générer rapport PDF</button>'
+      + '<button onclick="impotsGenPDF()" style="padding:7px 14px;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📄 Générer rapport PDF</button>'
       + '</div>';
   }
   html += '</div></div>';
@@ -10160,7 +10365,7 @@ function impotsUpdateKPIsFromCache() {
         const init=agent.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border)">'
           +'<span style="font-size:11px;color:var(--muted);width:16px;flex-shrink:0">'+(i+1)+'.</span>'
-          +'<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:rgba(196,154,26,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
           +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+agent+'</div>'
           +'<div style="margin-top:3px;height:3px;background:var(--mid);border-radius:2px"><div style="height:3px;background:#27ae60;border-radius:2px;width:'+pct+'%"></div></div></div>'
           +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:#27ae60">'+d.t.toLocaleString('fr-FR')+' Ryos</div><div style="font-size:11px;color:var(--muted)">'+d.c+' collecte'+(d.c>1?'s':'')+'</div></div></div>';
@@ -10202,7 +10407,7 @@ async function impotsRefreshStats() {
         const init=agent.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border)">'
           +'<span style="font-size:11px;color:var(--muted);width:16px;flex-shrink:0">'+(i+1)+'.</span>'
-          +'<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:rgba(196,154,26,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">'+init+'</div>'
           +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+agent+'</div>'
           +'<div style="margin-top:3px;height:3px;background:var(--mid);border-radius:2px"><div style="height:3px;background:#27ae60;border-radius:2px;width:'+pct+'%"></div></div></div>'
           +'<div style="text-align:right;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:#27ae60">'+d.t.toLocaleString('fr-FR')+' Ryos</div><div style="font-size:11px;color:var(--muted)">'+d.c+' collecte'+(d.c>1?'s':'')+'</div></div></div>';
@@ -10408,7 +10613,7 @@ async function impotsGenPDF() {
 <style>
   @page { size: A4; margin: 1.5cm; }
   body { font-family: Arial, sans-serif; font-size: 11px; color: #1a1a2e; background: white; }
-  .header { background: #0f1923; color: white; padding: 18px 20px; border-radius: 8px; margin-bottom: 14px; text-align: center; }
+  .header { background: #0f0f00; color: white; padding: 18px 20px; border-radius: 8px; margin-bottom: 14px; text-align: center; }
   .header h1 { font-size: 20px; color: #c49a1a; margin: 0 0 4px; }
   .header p { font-size: 11px; color: #94a3b8; margin: 0; }
   .kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px; }
@@ -10421,18 +10626,18 @@ async function impotsGenPDF() {
   h2 { font-size: 12px; font-weight: 700; margin: 14px 0 4px; padding-bottom: 4px; }
   h2.green { color: #1a6e3c; border-bottom: 1.5px solid #27ae60; }
   h2.red { color: #8b1a1a; border-bottom: 1.5px solid #c0392b; }
-  h2.blue { color: #1a3a6e; border-bottom: 1.5px solid #3b82f6; }
+  h2.blue { color: #1a1600; border-bottom: 1.5px solid #c49a1a; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10px; }
-  th { background: #0f1923; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
+  th { background: #0f0f00; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
   th.right { text-align: right; }
   td { padding: 5px 8px; border-bottom: 0.5px solid #e2e8f0; }
   td.right { text-align: right; font-weight: 700; }
-  tr.grade-row td { background: #e8eef8; color: #1a3a6e; font-weight: 700; font-size: 10px; }
+  tr.grade-row td { background: #e8eef8; color: #1a1600; font-weight: 700; font-size: 10px; }
   tr.paye td { background: white; }
   tr.paye:nth-child(even) td { background: #f0faf4; }
   tr.non td { background: white; }
   tr.non:nth-child(even) td { background: #fff5f5; }
-  tr.total-row td { background: #0f1923; color: white; font-weight: 700; }
+  tr.total-row td { background: #0f0f00; color: white; font-weight: 700; }
   .footer { text-align: center; font-size: 9px; color: #94a3b8; margin-top: 16px; border-top: 0.5px solid #e2e8f0; padding-top: 8px; }
 </style></head><body>
 <div class="header"><h1>🏯 VILLAGE DE KONOHA — REGISTRE DES IMPOTS</h1><p>Document officiel — Police de Konoha — Généré le ${today}</p></div>
@@ -10519,7 +10724,7 @@ async function renderPlanningContent(g) {
   slots.forEach(s => { if (byDay[s.date]) byDay[s.date].push(s); });
 
   // Colors per agent
-  const COLS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#c0392b','#ec4899','#06b6d4','#84cc16'];
+  const COLS = ['#c49a1a','#10b981','#f59e0b','#8b5cf6','#c0392b','#ec4899','#06b6d4','#84cc16'];
   const cmap = {};
   let ci = 0;
   slots.forEach(s => { if (!cmap[s.agent]) cmap[s.agent] = COLS[ci++ % COLS.length]; });
@@ -10531,7 +10736,7 @@ async function renderPlanningContent(g) {
     + '<span style="font-size:13px;color:var(--muted)">Semaine du ' + semLabel + '</span>'
     + '<div style="display:flex;gap:6px;align-items:center">'
     + '<button onclick="planWeek(-1)" style="padding:6px 12px;border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:12px;cursor:pointer;font-family:sans-serif">◀</button>'
-    + '<button onclick="planWeek(0)" style="padding:6px 12px;border:0.5px solid var(--accent);border-radius:6px;background:rgba(59,130,246,0.08);color:var(--accent);font-size:12px;cursor:pointer;font-family:sans-serif">Auj.</button>'
+    + '<button onclick="planWeek(0)" style="padding:6px 12px;border:0.5px solid var(--accent);border-radius:6px;background:rgba(196,154,26,0.08);color:var(--accent);font-size:12px;cursor:pointer;font-family:sans-serif">Auj.</button>'
     + '<button onclick="planWeek(1)" style="padding:6px 12px;border:0.5px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);font-size:12px;cursor:pointer;font-family:sans-serif">▶</button>'
     + (canAdd ? '<button onclick="planOpenModal()" style="padding:7px 18px;background:#27ae60;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif;margin-left:6px">➕ Ajouter un créneau</button>' : '')
     + '</div></div>';
@@ -10541,7 +10746,7 @@ async function renderPlanningContent(g) {
   days.forEach((d,i) => {
     const isToday = d.key === todayKey;
     html += '<div style="flex:1;min-width:0;' + (i>0?'border-left:0.5px solid var(--border)':'') + '">'
-      + '<div style="text-align:center;padding:7px 2px;font-size:11px;font-weight:' + (isToday?'700':'400') + ';color:' + (isToday?'var(--accent)':'var(--muted)') + ';border-bottom:0.5px solid var(--border);background:' + (isToday?'rgba(59,130,246,0.04)':'transparent') + '">'
+      + '<div style="text-align:center;padding:7px 2px;font-size:11px;font-weight:' + (isToday?'700':'400') + ';color:' + (isToday?'var(--accent)':'var(--muted)') + ';border-bottom:0.5px solid var(--border);background:' + (isToday?'rgba(196,154,26,0.04)':'transparent') + '">'
       + d.label + '<br><strong>' + d.num + '</strong></div>'
       + '<div style="padding:3px;min-height:50px">';
 
