@@ -3400,6 +3400,8 @@ async function doRegister() {
     } catch(e) { console.warn('impots auto-add:', e); }
   }
 
+  // Marquer comme nouveau compte → déclenchera le message de bienvenue + tutoriel à la connexion
+  localStorage.setItem('kaede_new_account', '1');
   ok.style.display = 'block';
   setTimeout(() => showPage('login'), 1800);
 }
@@ -5836,16 +5838,21 @@ function showKaedePopup(type, data) {
       </div>`;
     localStorage.setItem('kaede_welcomed', '1');
   } else if (type === 'newaccount') {
-    body.innerHTML = `<strong>Bienvenue parmi les citoyens de Konoha ! 👋</strong><br><br>
-      Votre dossier a bien été enregistré. Vous pouvez désormais :<br><br>
-      ✓ Porter plainte contre une personne<br>
-      ✓ Candidater pour rejoindre la Police<br>
-      ✓ Suivre vos dossiers depuis votre espace`;
+    const prenom = state.currentUser?.fullname?.split(' ')[0] || state.currentUser?.username || 'Ninja';
+    body.innerHTML = '<strong style="color:var(--accent)">Bienvenue sur le portail de la Police de Konoha, ' + prenom + ' ! 👋</strong><br><br>'
+      + 'Votre dossier citoyen a bien été créé. Je suis <strong>Kaede</strong>, secrétaire de la Police de Konoha.<br><br>'
+      + 'Sur ce portail, vous pouvez :<br><br>'
+      + '🏯 Consulter le <strong>Journal officiel</strong><br>'
+      + '📋 Déposer une <strong>plainte</strong><br>'
+      + '👮 Postuler pour <strong>rejoindre la Police</strong><br>'
+      + '💰 Suivre vos <strong>impôts</strong><br>'
+      + '✉️ Contacter un <strong>agent directement</strong><br><br>'
+      + 'Je vais maintenant vous faire visiter votre espace en quelques étapes.';
     body.style.borderLeftColor = '#27ae60';
     btns.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:8px;width:100%">
-        <button onclick="closeKaedePopup()" style="width:100%;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Accéder à mon espace →</button>
-        <button onclick="closeKaedePopup()" style="width:100%;padding:7px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;opacity:0.6">— Fermer cette lettre —</button>
+        <button onclick="closeKaedePopup(); setTimeout(startKaedeTutorial, 400);" style="width:100%;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Découvrir mon espace →</button>
+        <button onclick="closeKaedePopup(); setTimeout(startKaedeTutorial, 400);" style="width:100%;padding:7px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;opacity:0.6">— Fermer cette lettre —</button>
       </div>`;
   }
 
