@@ -10200,7 +10200,7 @@ async function renderImpotsContent(g) {
           + '</div>'
           + '<div>'
           + '<div style="font-size:13px;font-weight:600;color:var(--text)">' + h.agent + '</div>'
-          + '<div style="font-size:11px;color:var(--muted)">' + h.date + ' — ' + (h.nb||0) + ' ninja(s) collecté(s)</div>'
+          + '<div style="font-size:11px;color:var(--muted)">' + h.date + (h.collecteur ? ' — Sur : <strong style=\"color:var(--text)\">' + h.collecteur + '</strong>' : '') + ' — ' + (h.nb||0) + ' ninja(s)</div>'
           + '</div></div>'
           + '<strong style="font-size:14px;color:#27ae60">' + (h.total||0).toLocaleString('fr-FR') + ' Ryos</strong>'
           + '</div>';
@@ -10494,12 +10494,19 @@ async function impotsRecupererAgent(agentName, totalAgent) {
       histo.push({ agent: dirName, collecteur: agentName, date: dateStr, total: totalAgent, nb: nb });
       localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
 
-      // Remettre à zéro UNIQUEMENT les impôts de cet agent
+      // Remettre à zéro UNIQUEMENT les ninjas PAYÉS par cet agent
+      // Filtre double : collecteur + statut=paye → ne touche pas les non-payés
+      const nowIso = new Date().toISOString();
       try {
-        await fetch(SB_URL + '/rest/v1/impots?collecteur=eq.' + encodeURIComponent(agentName), {
+        await fetch(SB_URL + '/rest/v1/impots?collecteur=eq.' + encodeURIComponent(agentName) + '&statut=eq.paye', {
           method: 'PATCH',
           headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ statut: 'non', collecteur: '' })
+          body: JSON.stringify({
+            statut: 'non',
+            collecteur: '',
+            recupere_par: dirName,
+            recupere_le: dateStr
+          })
         });
       } catch(e) { console.warn('impotsRecupererAgent:', e); }
 
@@ -10546,7 +10553,7 @@ async function impotsRecuperer() {
         await fetch(SB_URL + '/rest/v1/impots', {
           method: 'PATCH',
           headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ statut: 'non', collecteur: '' })
+          body: JSON.stringify({ statut: 'non', collecteur: '', recupere_par: dirName, recupere_le: dateStr })
         });
       } catch(e) { console.warn('impots recuperer reset:', e); }
 
