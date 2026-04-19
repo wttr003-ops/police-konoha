@@ -9966,12 +9966,29 @@ const IMPOTS_COLORS = {'Hokage':'#c49a1a','Commandant-Jonin':'#c0392b','Jonin':'
 // Collecteurs = agents réels du site (state.users)
 
 // ── Chargement / sauvegarde locale ──────────────────────────
+
+function supprimerHistoImpots(index) {
+  const histo = JSON.parse(localStorage.getItem('konoha_impots_histo') || '[]');
+  if (index < 0 || index >= histo.length) return;
+  const entry = histo[index];
+  konohaConfirm(
+    'Supprimer cet historique ?<br><br><strong>' + entry.agent + '</strong><br>' + entry.date + '<br>' + (entry.total||0).toLocaleString('fr-FR') + ' Ryos',
+    function() {
+      histo.splice(index, 1);
+      localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
+      renderImpotsContent(state.currentUser.grade);
+    },
+    { icon: '🗑️', label: 'Supprimer', danger: true }
+  );
+}
+
 async function impotsLoad() {
   try {
     const res = await sbGet('impots', '?order=id.asc');
     if (Array.isArray(res)) {
       const mapped = res.map(r => ({
-        id: r.id, nom: r.nom, grade: r.grade, s: r.statut||'non', col: r.collecteur||''
+        id: r.id, nom: r.nom, grade: r.grade, s: r.statut||'non', col: r.collecteur||'',
+        recupere_le: r.recupere_le||'', recupere_par: r.recupere_par||''
       }));
       _impotsCache = mapped; // Populate cache
       return mapped;
@@ -10023,8 +10040,22 @@ async function renderImpotsContent(g) {
   const rest  = nons.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
 
   // Collecteurs
-  const byCol = {};
-  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0}); }});
+  // byCol : ninjas payés mais PAS encore récupérés (recupere_le vide)
+  const byColNonRecup = {};
+  // byColAll : tous les payés incluant récupérés (pour afficher l'historique complet)
+  const byColAll = {};
+  payes.forEach(r=>{ if(r.col){
+    // Tous payés (pour affichage historique)
+    if(!byColAll[r.col])byColAll[r.col]={c:0,t:0,ninjas:[]};
+    byColAll[r.col].c++; byColAll[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
+    byColAll[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0,recupere:!!r.recupere_le});
+    // Non récupérés seulement (pour bouton Récupérer)
+    if(!r.recupere_le){
+      if(!byColNonRecup[r.col])byColNonRecup[r.col]={c:0,t:0};
+      byColNonRecup[r.col].c++; byColNonRecup[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
+    }
+  }});
+  const byCol = byColAll;
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
 
   let html = '<h2 class="dash-section-title">🏯 Registre des Impôts</h2>';
@@ -10137,13 +10168,17 @@ async function renderImpotsContent(g) {
           + '</div>';
       }).join('');
       const agentEsc = agent.replace(/'/g, "\\'");
-      const btnRecup = isDir
+      const nonRecup = byColNonRecup[agent] || {t:0,c:0};
+      const totalNonRecup = nonRecup.t;
+      const btnRecup = (isDir && totalNonRecup > 0)
         ? '<div style="padding:8px 14px;border-top:0.5px solid rgba(196,154,26,0.15);background:rgba(39,174,96,0.04)">'
-          + '<button onclick="impotsRecupererAgent(\'' + agentEsc + '\',' + totalAgent + ')" '
+          + '<button onclick="impotsRecupererAgent(\'' + agentEsc + '\',' + totalNonRecup + ')" '
           + 'style="width:100%;padding:7px;background:rgba(196,154,26,0.12);color:#c49a1a;border:1px solid rgba(196,154,26,0.3);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">'
-          + '💰 Récupérer ' + totalAgent.toLocaleString('fr-FR') + ' Ryos sur ' + agent
+          + '💰 Récupérer ' + totalNonRecup.toLocaleString('fr-FR') + ' Ryos sur ' + agent
           + '</button></div>'
-        : '';
+        : (isDir && totalNonRecup === 0 && totalAgent > 0)
+          ? '<div style="padding:6px 14px;border-top:0.5px solid rgba(39,174,96,0.15);background:rgba(39,174,96,0.04);font-size:11px;color:#27ae60">✓ Impôts récupérés</div>'
+          : '';
       const onclick = "impColToggle('" + safeId + "')";
       html += '<div style="border-bottom:0.5px solid var(--border)">'
         + '<div onclick="' + onclick + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">'
@@ -10202,8 +10237,7 @@ async function renderImpotsContent(g) {
           + '<div style="font-size:13px;font-weight:600;color:var(--text)">' + h.agent + '</div>'
           + '<div style="font-size:11px;color:var(--muted)">' + h.date + (h.collecteur ? ' — Sur : <strong style=\"color:var(--text)\">' + h.collecteur + '</strong>' : '') + ' — ' + (h.nb||0) + ' ninja(s)</div>'
           + '</div></div>'
-          + '<strong style="font-size:14px;color:#27ae60">' + (h.total||0).toLocaleString('fr-FR') + ' Ryos</strong>'
-          + '</div>';
+          + '<div style="display:flex;align-items:center;gap:10px">'          + '<strong style="font-size:14px;color:#27ae60">' + (h.total||0).toLocaleString('fr-FR') + ' Ryos</strong>'          + '<button onclick="supprimerHistoImpots(' + (histo.length - 1 - i) + ')" title="Supprimer cet historique" style="background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.2);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;line-height:1">×</button>'          + '</div>'          + '</div>';
       });
       html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(196,154,26,0.06);border-top:1px solid rgba(196,154,26,0.2)">'
         + '<span style="font-size:12px;font-weight:700;color:#c49a1a;text-transform:uppercase;letter-spacing:1px">TOTAL CUMULÉ</span>'
@@ -10503,16 +10537,14 @@ async function impotsRecupererAgent(agentName, totalAgent) {
       histo.push({ agent: dirName, collecteur: agentName, date: dateStr, total: totalAgent, nb: nb });
       localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
 
-      // Remettre à zéro UNIQUEMENT les ninjas PAYÉS par cet agent
-      // Filtre double : collecteur + statut=paye → ne touche pas les non-payés
-      const nowIso = new Date().toISOString();
+      // Marquer comme récupéré SANS toucher au statut ni au collecteur
+      // → les ninjas restent "payé" avec le nom de l'agent visible dans le tableau
+      // → seul recupere_le est ajouté pour indiquer que c'est récupéré
       try {
         await fetch(SB_URL + '/rest/v1/impots?collecteur=eq.' + encodeURIComponent(agentName) + '&statut=eq.paye', {
           method: 'PATCH',
           headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify({
-            statut: 'non',
-            collecteur: '',
             recupere_par: dirName,
             recupere_le: dateStr
           })
@@ -10562,7 +10594,7 @@ async function impotsRecuperer() {
         await fetch(SB_URL + '/rest/v1/impots', {
           method: 'PATCH',
           headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ statut: 'non', collecteur: '', recupere_par: dirName, recupere_le: dateStr })
+          body: JSON.stringify({ recupere_par: dirName, recupere_le: dateStr })
         });
       } catch(e) { console.warn('impots recuperer reset:', e); }
 
@@ -10620,8 +10652,22 @@ async function impotsGenPDF() {
   const today = new Date().toLocaleDateString('fr-FR');
 
   // Collecteurs stats
-  const byCol = {};
-  payes.forEach(r=>{ if(r.col){ if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]}; byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0; byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0}); }});
+  // byCol : ninjas payés mais PAS encore récupérés (recupere_le vide)
+  const byColNonRecup = {};
+  // byColAll : tous les payés incluant récupérés (pour afficher l'historique complet)
+  const byColAll = {};
+  payes.forEach(r=>{ if(r.col){
+    // Tous payés (pour affichage historique)
+    if(!byColAll[r.col])byColAll[r.col]={c:0,t:0,ninjas:[]};
+    byColAll[r.col].c++; byColAll[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
+    byColAll[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0,recupere:!!r.recupere_le});
+    // Non récupérés seulement (pour bouton Récupérer)
+    if(!r.recupere_le){
+      if(!byColNonRecup[r.col])byColNonRecup[r.col]={c:0,t:0};
+      byColNonRecup[r.col].c++; byColNonRecup[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
+    }
+  }});
+  const byCol = byColAll;
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
 
   // Build HTML for PDF (via print)
