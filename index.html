@@ -10059,7 +10059,7 @@ async function renderImpotsContent(g) {
     + '</div>';
 
   // Toolbar + tableau
-  html += '<div class="dash-block" style="padding:0;overflow:hidden;margin-bottom:1rem">'
+  html += '<div class="dash-block" style="padding:0;margin-bottom:1rem">'
     + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + '<input type="text" id="imp-search" placeholder="Rechercher un ninja..." oninput="impotsFilter()" style="flex:1;min-width:140px;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--panel);color:var(--text)"/>'
     + '<div style="display:flex;gap:5px">'
@@ -10452,7 +10452,16 @@ async function impotsDelete(id) {
 function impotsHideAdd() { const f = document.getElementById('imp-add-form'); if(f) f.style.display='none'; }
 function impotsToggleAdd() {
   const f = document.getElementById('imp-add-form');
-  if (f) f.style.display = f.style.display==='none' ? 'flex' : 'none';
+  if (f) {
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  } else {
+    // Formulaire absent → forcer le rechargement complet de l'onglet
+    renderImpotsContent(state.currentUser?.grade || 'Recrue');
+    setTimeout(function() {
+      const f2 = document.getElementById('imp-add-form');
+      if (f2) f2.style.display = 'block';
+    }, 300);
+  }
 }
 async function impotsAdd() {
   const nom = document.getElementById('imp-new-nom')?.value.trim();
