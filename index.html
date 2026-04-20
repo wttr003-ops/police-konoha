@@ -10046,9 +10046,10 @@ async function renderImpotsContent(g) {
   const rest  = nons.reduce((s,r)=>s+(IMPOTS_MONTANTS[r.grade]||0),0);
 
   // Collecteurs
-  // byCol : tous les ninjas payés avec un collecteur
+  // byCol : ninjas payés SAUF agents déjà récupérés ce cycle
+  const _agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
   const byCol = {};
-  payes.forEach(r=>{ if(r.col){
+  payes.forEach(r=>{ if(r.col && !_agentsRecup.includes(r.col)){
     if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]};
     byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
     byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0});
@@ -10551,14 +10552,14 @@ async function impotsRecupererAgent(agentName, totalAgent) {
       histo.push({ agent: dirName, collecteur: agentName, date: dateStr, total: totalAgent, nb: nb, ninjas: ninjasList });
       localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
 
-      // Récupérer = effacer statut et collecteur → ninja revient à zéro dans le tableau
-      try {
-        await fetch(SB_URL + '/rest/v1/impots?collecteur=eq.' + encodeURIComponent(agentName) + '&statut=eq.paye', {
-          method: 'PATCH',
-          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ statut: 'non', collecteur: '' })
-        });
-      } catch(e) { console.warn('impotsRecupererAgent:', e); }
+      // NE RIEN CHANGER dans Supabase → le tableau garde statut='paye' et collecteur intact
+      // On marque juste cet agent comme "récupéré" en localStorage
+      // → il disparaît de la liste collecteurs jusqu'au prochain reset global
+      const agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
+      if (!agentsRecup.includes(agentName)) {
+        agentsRecup.push(agentName);
+        localStorage.setItem('konoha_impots_recup_agents', JSON.stringify(agentsRecup));
+      }
 
       _impotsCache = [];
       impotsUpdateKPIsFromCache();
@@ -10643,6 +10644,8 @@ async function impotsReset() {
       _impotsCache = [];
       impotsUpdateKPIsFromCache();
 
+      // Vider aussi la liste des agents récupérés → nouveau cycle complet
+      localStorage.removeItem('konoha_impots_recup_agents');
       konohaAlert('✓ Tous les impôts ont été réinitialisés. Les citoyens voient maintenant le statut Non payé.', '🔄');
       await renderImpotsContent(state.currentUser.grade);
     },
@@ -10661,9 +10664,10 @@ async function impotsGenPDF() {
   const today = new Date().toLocaleDateString('fr-FR');
 
   // Collecteurs stats
-  // byCol : tous les ninjas payés avec un collecteur
+  // byCol : ninjas payés SAUF agents déjà récupérés ce cycle
+  const _agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
   const byCol = {};
-  payes.forEach(r=>{ if(r.col){
+  payes.forEach(r=>{ if(r.col && !_agentsRecup.includes(r.col)){
     if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]};
     byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
     byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0});
