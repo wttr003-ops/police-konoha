@@ -10689,7 +10689,8 @@ async function impotsRecupererAgent(agentName, totalAgent) {
         localStorage.setItem('konoha_impots_recup_agents', JSON.stringify(agentsRecup));
       }
 
-      _impotsCache = [];
+      // Ne pas vider le cache → le tableau garde les données intactes
+      // byCol filtre via konoha_impots_recup_agents pour masquer l'agent récupéré
       impotsUpdateKPIsFromCache();
       konohaAlert('✓ ' + totalAgent.toLocaleString('fr-FR') + ' Ryos récupérés sur ' + agentName + ' !', '💰');
       await renderImpotsContent(state.currentUser.grade);
@@ -10702,7 +10703,6 @@ async function impotsRecuperer() {
   const u = state.currentUser;
   const dirName = state.users[u.username]?.fullname || u.username;
 
-  // Charger les données actuelles
   const data = await impotsLoad();
   const payes = data.filter(function(r){ return r.s === 'paye'; });
   if (payes.length === 0) {
@@ -10713,32 +10713,30 @@ async function impotsRecuperer() {
   const nb = payes.length;
 
   konohaConfirm(
-    'Confirmer la récupération des impôts ?<br><br>'
+    'Confirmer la récupération globale des impôts ?<br><br>'
     + '<strong>' + dirName + '</strong><br>'
     + nb + ' ninja(s) payé(s)<br>'
     + '<span style="font-size:18px;font-weight:800;color:#c49a1a">' + total.toLocaleString('fr-FR') + ' Ryos</span><br><br>'
-    + 'Les statuts seront remis à zéro après récupération.',
+    + 'Les statuts restent intacts — seul l\'historique est mis à jour.',
     async function() {
       const now = new Date();
       const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
       // Enregistrer dans l'historique
       const histo = JSON.parse(localStorage.getItem('konoha_impots_histo') || '[]');
-      histo.push({ agent: dirName, date: dateStr, total: total, nb: nb });
+      const ninjasList = payes.map(r => ({ nom: r.nom, grade: r.grade, montant: IMPOTS_MONTANTS[r.grade]||0 }));
+      histo.push({ agent: dirName, collecteur: null, date: dateStr, total, nb, ninjas: ninjasList });
       localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
 
-      // Remettre à zéro
-      try {
-        await fetch(SB_URL + '/rest/v1/impots', {
-          method: 'PATCH',
-          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ statut: 'non', collecteur: '' })
-        });
-      } catch(e) { console.warn('impots recuperer reset:', e); }
+      // Marquer tous les agents payés comme récupérés en localStorage
+      const agents = [...new Set(payes.filter(r=>r.col).map(r=>r.col))];
+      const agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
+      agents.forEach(a => { if (!agentsRecup.includes(a)) agentsRecup.push(a); });
+      localStorage.setItem('konoha_impots_recup_agents', JSON.stringify(agentsRecup));
 
-      _impotsCache = [];
+      // NE PAS toucher Supabase — le tableau garde statut et collecteur intacts
       impotsUpdateKPIsFromCache();
-      konohaAlert('✓ ' + total.toLocaleString('fr-FR') + ' Ryos récupérés et enregistrés dans l\'historique !', '✅');
+      konohaAlert('✓ ' + total.toLocaleString('fr-FR') + ' Ryos récupérés — ' + nb + ' ninja(s) !', '💰');
       await renderImpotsContent(state.currentUser.grade);
     },
     { icon: '💰', label: 'Confirmer la récupération', danger: false }
