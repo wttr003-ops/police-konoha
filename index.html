@@ -4220,16 +4220,33 @@ async function renderCitizenImpots() {
 
   el.innerHTML = '<h2 class="dash-section-title">Mes impôts</h2><div style="padding:1rem;color:var(--muted);font-size:13px">Chargement...</div>';
 
-  // Chercher le citoyen dans la table impôts par son nom complet
-  const fullname = state.users[u.username]?.fullname || u.username;
+  // Chercher le citoyen dans la table impôts
+  const fullname = (state.users[u.username]?.fullname || u.username).trim();
   let entry = null;
   try {
+    // 1. Recherche exacte par nom complet
     const res = await sbGet('impots', '?nom=eq.' + encodeURIComponent(fullname));
     if (Array.isArray(res) && res.length > 0) entry = res[0];
-    // Si pas trouvé par fullname, essayer par username
+
+    // 2. Si pas trouvé, essayer par username
     if (!entry) {
       const res2 = await sbGet('impots', '?nom=eq.' + encodeURIComponent(u.username));
       if (Array.isArray(res2) && res2.length > 0) entry = res2[0];
+    }
+
+    // 3. Si toujours pas trouvé, chercher toutes les lignes et comparer
+    //    de façon souple (insensible à la casse + ordre prénom/nom inversé)
+    if (!entry) {
+      const allRes = await sbGet('impots', '?select=id,nom,grade,statut,collecteur');
+      if (Array.isArray(allRes)) {
+        const normalize = s => s.toLowerCase().replace(/\s+/g,' ').trim();
+        const parts = normalize(fullname).split(' ');
+        const inversed = parts.length >= 2 ? parts.slice(1).join(' ') + ' ' + parts[0] : '';
+        entry = allRes.find(r => {
+          const n = normalize(r.nom || '');
+          return n === normalize(fullname) || (inversed && n === normalize(inversed));
+        }) || null;
+      }
     }
   } catch(e) { console.warn('citoyen impots:', e); }
 
@@ -10608,18 +10625,42 @@ async function impotsSetFilter(f, btn) {
   await impotsRenderTable(state.currentUser.grade);
 }
 async function impotsDelete(id) {
+  // Vérification de grade — UNIQUEMENT Directeur (rank 0) ou Directeur Adjoint (rank 1)
+  const g = state.currentUser?.grade || '';
+  if (gradeRank(g) > 1) {
+    konohaAlert('Action non autorisée. Seule la Direction peut supprimer une ligne du registre.', '🚫');
+    return;
+  }
   const cached = _impotsCache.find(d=>d.id===id);
   const nom = cached ? cached.nom : 'ce ninja';
-  konohaConfirm('Supprimer <strong>' + nom + '</strong> du registre des impôts ?', async () => {
-    try {
-      await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
-        method: 'DELETE',
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-      });
-    } catch(e) { console.warn('impots delete:', e); }
-    _impotsCache = _impotsCache.filter(d=>d.id!==id);
-    await renderImpotsContent(state.currentUser.grade);
-  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+  konohaConfirm(
+    '⚠️ Supprimer <strong style="color:#c0392b">' + nom + '</strong> du registre des impôts ?<br><br>'
+    + '<div style="background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:6px;padding:8px 12px;font-size:12px;color:#7B241C;margin-top:4px">'
+    + 'ID ligne : <strong>#' + id + '</strong><br>'
+    + 'Cette action est <strong>irréversible</strong>. La ligne sera définitivement supprimée de Supabase.'
+    + '</div>',
+    async () => {
+      // Vérification finale : s'assurer que l'ID correspond bien au bon ninja
+      try {
+        const check = await sbGet('impots', '?id=eq.' + id + '&select=id,nom');
+        if (!Array.isArray(check) || check.length === 0) {
+          konohaAlert('Erreur : ligne introuvable dans la base de données.', '❌');
+          return;
+        }
+        if (check[0].nom !== nom && nom !== 'ce ninja') {
+          konohaAlert('Erreur de correspondance : l\'ID #' + id + ' ne correspond pas à ' + nom + '. Suppression annulée.', '❌');
+          return;
+        }
+        await fetch(SB_URL + '/rest/v1/impots?id=eq.' + id, {
+          method: 'DELETE',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+        });
+      } catch(e) { console.warn('impots delete:', e); }
+      _impotsCache = _impotsCache.filter(d=>d.id!==id);
+      await renderImpotsContent(state.currentUser.grade);
+    },
+    { icon: '🗑️', label: 'Supprimer définitivement', danger: true }
+  );
 }
 
 function impotsHideAdd() { const f = document.getElementById('imp-add-form'); if(f) f.style.display='none'; }
@@ -10640,6 +10681,12 @@ async function impotsAdd() {
   const nom = document.getElementById('imp-new-nom')?.value.trim();
   const grade = document.getElementById('imp-new-grade')?.value;
   if (!nom) { konohaAlert('Entrez un nom.', '⚠️'); return; }
+  // Vérifier si ce ninja existe déjà dans le registre
+  const existing = _impotsCache.find(d => d.nom.toLowerCase().trim() === nom.toLowerCase().trim());
+  if (existing) {
+    konohaAlert('⚠️ ' + nom + ' est déjà dans le registre des impôts (ligne #' + existing.id + ').', '⚠️');
+    return;
+  }
   try {
     const res = await fetch(SB_URL + '/rest/v1/impots', {
       method: 'POST',
