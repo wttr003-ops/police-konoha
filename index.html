@@ -10447,6 +10447,7 @@ async function impotsRenderTable(g) {
 
 // Cache local des données impôts pour calculs instantanés
 let _impotsCache = [];
+let _impotsFilter = 'tous';
 
 async function impotsToggle(id) {
   const cached = _impotsCache.find(function(d){ return d.id === id; });
