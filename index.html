@@ -9991,7 +9991,6 @@ function toggleHistoDetail(id) {
 
 function impotsGenDoc() {
   const data = _impotsCache || [];
-  // Uniquement non-payés ET imposables (montant > 0, donc pas Génin Simple)
   const nonPayes = data.filter(r => r.s === 'non' && (IMPOTS_MONTANTS[r.grade] || 0) > 0);
 
   if (nonPayes.length === 0) {
@@ -10000,82 +9999,119 @@ function impotsGenDoc() {
   }
 
   const ordre = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Génin Confirmé'];
-  const grouped = {};
-  ordre.forEach(g => { grouped[g] = []; });
-  nonPayes.forEach(r => { if (grouped[r.grade] !== undefined) grouped[r.grade].push(r.nom); });
-
   const now = new Date();
-  const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const dateStr = now.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
 
-  let lignes = '';
-  let num = 1;
-  ordre.forEach(grade => {
-    if (!grouped[grade] || grouped[grade].length === 0) return;
-    lignes += `<tr class="grade-header"><td colspan="3">${grade}</td></tr>`;
-    grouped[grade].forEach(nom => {
-      lignes += `<tr><td class="num">${num++}</td><td class="nom">${nom}</td><td class="gr">${grade}</td></tr>`;
-    });
-  });
+  // Construire les données JSON pour la page
+  const dataJson = JSON.stringify(nonPayes.map(r => ({ nom: r.nom, grade: r.grade })));
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Impôts Non-Payés — Police de Konoha</title>
 <style>
-  @page { size: A4; margin: 18mm 15mm 18mm 15mm; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Georgia, serif; color: #1a1a1a; font-size: 12pt; background: #fff; }
-  .header { border-bottom: 3px solid #c49a1a; padding-bottom: 10px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end; }
-  .header-left h1 { font-size: 20pt; color: #c49a1a; letter-spacing: 1px; }
-  .header-left p { font-size: 10pt; color: #666; margin-top: 4px; }
-  .header-right { font-size: 9pt; color: #888; text-align: right; }
-  .subtitle { font-size: 13pt; font-weight: bold; color: #1a1a1a; margin-bottom: 6px; }
-  .meta { font-size: 10pt; color: #555; margin-bottom: 18px; font-style: italic; }
-  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-  th { background: #1a1a1a; color: #c49a1a; font-size: 10pt; padding: 7px 10px; text-align: left; letter-spacing: 0.5px; }
-  td { padding: 6px 10px; font-size: 11pt; border-bottom: 0.5px solid #e0d8c0; }
-  tr:nth-child(even) td { background: #faf7f0; }
-  .num { width: 40px; color: #999; font-size: 10pt; text-align: center; }
-  .nom { font-weight: bold; color: #1a1a1a; }
-  .gr { color: #666; font-size: 10pt; font-style: italic; }
-  tr.grade-header td { background: #f0e8d0; color: #7a5a00; font-weight: bold; font-size: 10pt; padding: 5px 10px; letter-spacing: 0.5px; border-bottom: 1px solid #c49a1a; }
-  .footer { margin-top: 22px; border-top: 1px solid #c49a1a; padding-top: 8px; font-size: 9pt; color: #999; display: flex; justify-content: space-between; }
-  .badge { display: inline-block; background: #c0392b18; color: #c0392b; border: 1px solid #c0392b40; border-radius: 20px; padding: 3px 14px; font-size: 10pt; font-weight: bold; margin-bottom: 14px; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,serif;background:#f5f0e8;color:#1a1a1a;min-height:100vh;padding:16px}
+  .toolbar{background:#1a1a1a;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .toolbar-title{color:#c49a1a;font-size:12pt;font-weight:bold;flex:1;min-width:120px}
+  .fbtn{padding:5px 13px;border-radius:20px;border:1px solid rgba(196,154,26,0.4);background:transparent;color:#c49a1a;font-size:10pt;cursor:pointer;font-family:inherit;transition:all 0.15s}
+  .fbtn:hover{background:rgba(196,154,26,0.15)}
+  .fbtn.active{background:#c49a1a;color:#1a1a1a;font-weight:bold;border-color:#c49a1a}
+  .page{background:#fff;border:1px solid rgba(196,154,26,0.2);border-radius:10px;padding:24px;max-width:860px;margin:0 auto}
+  .dh{border-bottom:3px solid #c49a1a;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end}
+  .dh h1{font-size:18pt;color:#c49a1a;letter-spacing:1px}
+  .dh p{font-size:9pt;color:#aaa;margin-top:4px}
+  .dh-right{font-size:8pt;color:#bbb;text-align:right}
+  .subtitle{font-size:12pt;font-weight:bold;margin-bottom:4px}
+  .meta{font-size:9pt;color:#888;font-style:italic;margin-bottom:10px}
+  .badge{display:inline-block;background:rgba(192,57,43,0.08);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:20px;padding:3px 14px;font-size:9pt;font-weight:bold;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1a1a1a;color:#c49a1a;font-size:9pt;padding:7px 12px;text-align:left;letter-spacing:0.5px}
+  td{padding:6px 12px;font-size:10pt;border-bottom:0.5px solid #e8e0cc}
+  tr:nth-child(even) td{background:#faf7f0}
+  .num{width:36px;color:#ccc;font-size:9pt;text-align:center}
+  .nom{font-weight:bold;color:#1a1a1a}
+  .gr{color:#888;font-size:9pt;font-style:italic}
+  tr.gh td{background:#f0e8d0;color:#7a5a00;font-weight:bold;font-size:9pt;padding:5px 12px;border-bottom:1px solid #c49a1a;letter-spacing:0.5px}
+  .empty{text-align:center;padding:30px;color:#aaa;font-size:11pt;font-style:italic}
+  .df{margin-top:18px;border-top:1px solid #c49a1a;padding-top:8px;font-size:8pt;color:#ccc;display:flex;justify-content:space-between}
+  @media print{body{background:#fff;padding:0}.toolbar{display:none}.page{border:none;padding:16px}}
 </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-left">
-      <h1>POLICE DE KONOHA</h1>
-      <p>Registre des impôts — Ninja Road FiveM</p>
-    </div>
-    <div class="header-right">
-      police-konoha.vercel.app<br/>
-      Généré le ${dateStr}
-    </div>
+<div class="toolbar">
+  <span class="toolbar-title">🎌 Filtrer par grade</span>
+  <button class="fbtn active" onclick="doFilter('tous',this)">Tous</button>
+  <button class="fbtn" onclick="doFilter('Hokage',this)">Hokage</button>
+  <button class="fbtn" onclick="doFilter('Commandant-Jonin',this)">Cmd-Jonin</button>
+  <button class="fbtn" onclick="doFilter('Jonin',this)">Jonin</button>
+  <button class="fbtn" onclick="doFilter('Tokubetsu-Jonin',this)">Toku-Jonin</button>
+  <button class="fbtn" onclick="doFilter('Kakunin',this)">Kakunin</button>
+  <button class="fbtn" onclick="doFilter('Chunin',this)">Chunin</button>
+  <button class="fbtn" onclick="doFilter('Tokubetsu-Chunin',this)">Toku-Chunin</button>
+  <button class="fbtn" onclick="doFilter('Génin Confirmé',this)">Génin Conf.</button>
+</div>
+<div class="page">
+  <div class="dh">
+    <div><h1>POLICE DE KONOHA</h1><p>Registre des impôts — Ninja Road FiveM</p></div>
+    <div class="dh-right">police-konoha.vercel.app<br/>${dateStr}</div>
   </div>
-  <div class="subtitle">Liste des ninjas n'ayant pas réglé leurs impôts</div>
-  <div class="meta">Période en cours — Grades imposables uniquement (Génin Simple exclu)</div>
-  <span class="badge">${nonPayes.length} ninja${nonPayes.length > 1 ? 's' : ''} en attente de paiement</span>
-  <table>
-    <thead><tr><th class="num">#</th><th>Nom et Prénom</th><th>Grade ninja</th></tr></thead>
-    <tbody>${lignes}</tbody>
-  </table>
-  <div class="footer">
+  <div class="subtitle">Ninjas n'ayant pas réglé leurs impôts</div>
+  <div class="meta" id="meta-text">Tous grades imposables — Génin Simple exclu</div>
+  <span class="badge" id="badge-count">… ninjas en attente</span>
+  <div id="doc-body"></div>
+  <div class="df">
     <span>Document confidentiel — Usage interne Police de Konoha</span>
-    <span>${nonPayes.length} ninja${nonPayes.length > 1 ? 's' : ''} concerné${nonPayes.length > 1 ? 's' : ''}</span>
+    <span id="footer-count"></span>
   </div>
+</div>
+<script>
+var DATA = ${dataJson};
+var ORDRE = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Génin Confirmé'];
+
+function doFilter(grade, btn) {
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  var filtered = grade === 'tous' ? DATA : DATA.filter(r => r.grade === grade);
+  var grouped = {};
+  ORDRE.forEach(g => { grouped[g] = []; });
+  filtered.forEach(r => { if (grouped[r.grade] !== undefined) grouped[r.grade].push(r.nom); });
+  var html = '';
+  var num = 1;
+  if (filtered.length === 0) {
+    html = '<div class="empty">Aucun ninja de ce grade en attente de paiement.</div>';
+  } else {
+    html += '<table><thead><tr><th class="num">#</th><th>Nom et Prénom</th><th>Grade ninja</th></tr></thead><tbody>';
+    ORDRE.forEach(function(g) {
+      if (!grouped[g] || grouped[g].length === 0) return;
+      html += '<tr class="gh"><td colspan="3">' + g + '</td></tr>';
+      grouped[g].forEach(function(nom) {
+        html += '<tr><td class="num">' + (num++) + '</td><td class="nom">' + nom + '</td><td class="gr">' + g + '</td></tr>';
+      });
+    });
+    html += '</tbody></table>';
+  }
+  document.getElementById('doc-body').innerHTML = html;
+  var label = grade === 'tous' ? 'Tous grades imposables — Génin Simple exclu' : 'Grade filtré : ' + grade;
+  document.getElementById('meta-text').textContent = label;
+  var n = filtered.length;
+  document.getElementById('badge-count').textContent = n + ' ninja' + (n > 1 ? 's' : '') + ' en attente';
+  document.getElementById('footer-count').textContent = n + ' ninja' + (n > 1 ? 's' : '') + ' concerné' + (n > 1 ? 's' : '');
+}
+doFilter('tous', document.querySelector('.fbtn'));
+<\/script>
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'impots-non-payes-konoha.html';
-  a.click();
-  URL.revokeObjectURL(url);
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  } else {
+    konohaAlert('Veuillez autoriser les popups pour ce site afin d\'ouvrir le document.', '⚠️');
+  }
 }
 
 async function impotsLoad() {
