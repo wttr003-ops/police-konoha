@@ -2651,6 +2651,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           Messages citoyens
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('portes',this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+          Portes du village
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('logs',this)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           Logs comptes
@@ -3816,6 +3820,7 @@ async function switchDashTab(name, btn) {
   if (name === 'annuaire')      renderAnnuaireContent(g);
 
   if (name === 'journal')       renderJournal(true);
+  if (name === 'portes')        renderPortesContent(g);
   if (name === 'logs')          renderLogsContent(g);
   if (name === 'amendes')       renderAmendesContent(g);
   if (name === 'casier')        renderCasierContent(g);
@@ -10085,6 +10090,7 @@ function impotsGenDoc() {
     <span id="footer-count"></span>
   </div>
 </div>
+<div class="dash-tab" id="dash-portes"></div>
 <script>
 var DATA = ${dataJson};
 var ORDRE = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Génin Confirmé'];
@@ -11119,5 +11125,279 @@ async function planDel(id) {
     } catch(e) { console.warn(e); }
     renderPlanningContent(state.currentUser.grade);
   }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
+
+
+// ============================================================
+// PORTES DU VILLAGE — Contrôle entrées/sorties
+// ============================================================
+const SB_URL_POLICE = typeof SB_URL !== 'undefined' ? SB_URL : '';
+const SB_KEY_POLICE = typeof SB_KEY !== 'undefined' ? SB_KEY : '';
+
+async function renderPortesContent(g) {
+  const el = document.getElementById('dash-portes');
+  if (!el) return;
+
+  let ninjas = [], groupes = [];
+  try {
+    const rN = await sbGet('village_ninjas', '?order=nom.asc');
+    if (Array.isArray(rN)) ninjas = rN;
+    const rG = await sbGet('village_groupes', '?statut=eq.sorti&order=created_at.desc');
+    if (Array.isArray(rG)) groupes = rG;
+  } catch(e) { console.warn('portes load:', e); }
+
+  const cntPresent  = ninjas.filter(n => n.statut === 'present').length;
+  const cntSorti    = ninjas.filter(n => n.statut === 'sorti').length;
+  const cntGroupe   = ninjas.filter(n => n.statut === 'groupe').length;
+  const cntGrpActif = groupes.length;
+
+  let html = '<h2 class="dash-section-title">\uD83C\uDFEF Portes du village de Konoha</h2>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem">'
+    + kpiPorte('Dans le village', cntPresent, '#27ae60')
+    + kpiPorte('Sortis', cntSorti, '#c0392b')
+    + kpiPorte('En groupe', cntGroupe, '#c49a1a')
+    + kpiPorte('Groupes actifs', cntGrpActif, '#2563eb')
+    + '</div>';
+
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap">'
+    + '<input type="text" id="portes-search" placeholder="\uD83D\uDD0D Rechercher un ninja..." oninput="portesFilter()" style="flex:1;min-width:140px;padding:7px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--panel);color:var(--text)"/>'
+    + '<button onclick="portesShowAdd()" style="padding:6px 14px;background:rgba(196,154,26,0.12);color:var(--accent);border:1px solid rgba(196,154,26,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">\u2795 Ninja</button>'
+    + '<button onclick="portesShowGroupe()" style="padding:6px 14px;background:rgba(37,99,235,0.12);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">\uD83D\uDC65 Cr\u00e9er groupe</button>'
+    + '</div>';
+
+  const gradesOpts = ['G\u00e9nin Simple','G\u00e9nin Confirm\u00e9','Tokubetsu-Chunin','Chunin','Kakunin','Tokubetsu-Jonin','Jonin','Commandant-Jonin','Hokage']
+    .map(function(gr) { return '<option>' + gr + '</option>'; }).join('');
+
+  html += '<div id="portes-add-form" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Enregistrer un ninja</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'
+    + '<div style="flex:2;min-width:140px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Nom et Pr\u00e9nom *</label><input id="portes-new-nom" type="text" placeholder="Ex: Naruto Uzumaki" style="width:100%;padding:7px 10px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--mid);color:var(--text)"/></div>'
+    + '<div style="flex:1;min-width:120px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Grade</label><select id="portes-new-grade" style="width:100%;padding:7px 8px;border:0.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--mid);color:var(--text)">' + gradesOpts + '</select></div>'
+    + '<button onclick="portesAddNinja()" style="padding:7px 16px;background:var(--accent);color:#0a0a0a;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">Enregistrer</button>'
+    + '<button onclick="portesHideAdd()" style="padding:7px 12px;background:none;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer">\u00d7</button>'
+    + '</div></div>';
+
+  html += '<div id="portes-grp-form" style="display:none;background:var(--panel);border:1px solid rgba(37,99,235,0.3);border-radius:10px;padding:1rem;margin-bottom:1rem">'
+    + '<div style="font-size:11px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Cr\u00e9er un groupe de sortie</div>'
+    + '<div style="display:flex;gap:10px;margin-bottom:10px">'
+    + '<input id="portes-grp-nom" type="text" placeholder="Nom du groupe (ex: Mission For\u00eat)" style="flex:1;padding:7px 10px;border:0.5px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:var(--mid);color:var(--text)"/>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px">'
+    + '<input id="portes-grp-membre" type="text" placeholder="Ajouter un ninja au groupe..." style="flex:1;padding:7px 10px;border:0.5px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:var(--mid);color:var(--text)" onkeydown="portesGrpKeydown(event)"/>'
+    + '<button onclick="portesGrpAddMembre()" style="padding:7px 14px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">\u2795</button>'
+    + '</div>'
+    + '<div id="portes-grp-membres-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:30px;margin-bottom:10px"></div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="portesCreerGroupe()" style="padding:7px 16px;background:rgba(37,99,235,0.2);color:#93c5fd;border:1px solid rgba(37,99,235,0.4);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">Confirmer la sortie du groupe</button>'
+    + '<button onclick="portesHideGrp()" style="padding:7px 12px;background:none;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer">Annuler</button>'
+    + '</div></div>';
+
+  if (groupes.length > 0) {
+    html += '<div style="background:var(--mid);border:1px solid rgba(37,99,235,0.25);border-radius:12px;overflow:hidden;margin-bottom:1rem">'
+      + '<div style="padding:10px 16px;border-bottom:1px solid rgba(37,99,235,0.2);font-size:11px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:1px">\uD83D\uDC65 Groupes sortis</div>';
+    groupes.forEach(function(grp) {
+      var membres = [];
+      try { membres = JSON.parse(grp.membres || '[]'); } catch(e2) {}
+      var heure = grp.created_at ? new Date(grp.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '--:--';
+      html += '<div style="padding:12px 16px;border-bottom:0.5px solid rgba(37,99,235,0.1)">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+        + '<div><div style="font-size:13px;font-weight:700;color:#93c5fd">' + grp.nom + '</div>'
+        + '<div style="font-size:11px;color:var(--muted)">' + (grp.agent||'--') + ' \u00b7 ' + membres.length + ' membre(s) \u00b7 ' + heure + '</div></div>'
+        + '<button onclick="portesRentrerGroupe(' + grp.id + ',this)" style="padding:5px 14px;background:rgba(39,174,96,0.12);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">\u2713 Tous rentr\u00e9s</button>'
+        + '</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:5px">'
+        + membres.map(function(m) { return '<span style="background:rgba(37,99,235,0.1);color:#93c5fd;border:1px solid rgba(37,99,235,0.25);padding:3px 10px;border-radius:20px;font-size:11px">' + m + '</span>'; }).join('')
+        + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div style="background:var(--mid);border:1px solid var(--border);border-radius:12px;overflow:hidden">'
+    + '<div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Registre des ninjas (' + ninjas.length + ')</div>';
+
+  if (ninjas.length === 0) {
+    html += '<div style="padding:2rem;text-align:center;color:var(--muted)"><div style="font-size:28px;margin-bottom:8px">\uD83C\uDFEF</div><div>Aucun ninja enregistr\u00e9. Cliquez sur \u2795 Ninja pour commencer.</div></div>';
+  } else {
+    html += '<div id="portes-ninja-rows">';
+    ninjas.forEach(function(n) {
+      var init = n.nom.split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);
+      var isPresent = n.statut === 'present';
+      var isGroupe  = n.statut === 'groupe';
+      var dotColor  = isPresent ? '#27ae60' : isGroupe ? '#c49a1a' : '#e74c3c';
+      var shadow    = isPresent ? '#27ae6055' : isGroupe ? '#c49a1a55' : '#e74c3c55';
+      var statusLabel = isPresent ? 'Dans le village' : isGroupe ? 'En groupe' : 'Sorti';
+      var statusBg = isPresent
+        ? 'rgba(39,174,96,0.12);color:#27ae60;border:1px solid rgba(39,174,96,0.3)'
+        : isGroupe
+          ? 'rgba(196,154,26,0.12);color:var(--accent);border:1px solid rgba(196,154,26,0.3)'
+          : 'rgba(192,57,43,0.12);color:#e74c3c;border:1px solid rgba(192,57,43,0.3)';
+
+      var btnSortir  = '<button onclick="portesToggle(' + n.id + ',0)" style="padding:4px 12px;background:rgba(192,57,43,0.12);color:#e74c3c;border:1px solid rgba(192,57,43,0.3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Sortir</button>';
+      var btnRentrer = '<button onclick="portesToggle(' + n.id + ',1)" style="padding:4px 12px;background:rgba(39,174,96,0.12);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Rentr\u00e9</button>';
+      var btnHtml = isGroupe ? '' : isPresent ? btnSortir : btnRentrer;
+      var sortieInfo = (!isPresent && !isGroupe && n.heure_sortie) ? ' \u00b7 ' + n.heure_sortie : '';
+
+      html += '<div class="portes-ninja-row" data-name="' + n.nom.toLowerCase() + '" style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:0.5px solid var(--border)">'
+        + '<div style="width:8px;height:8px;border-radius:50%;background:' + dotColor + ';box-shadow:0 0 6px ' + shadow + ';flex-shrink:0"></div>'
+        + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(196,154,26,0.12);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent);flex-shrink:0">' + init + '</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--text)">' + n.nom + '</div>'
+        + '<div style="font-size:11px;color:var(--muted)">' + (n.grade||'--') + sortieInfo + '</div>'
+        + '</div>'
+        + '<span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:' + statusBg + '">' + statusLabel + '</span>'
+        + btnHtml
+        + '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+
+function kpiPorte(label, val, color) {
+  return '<div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">'
+    + '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px">' + label + '</div>'
+    + '<div style="font-size:24px;font-weight:700;color:' + color + ';font-family:Georgia,serif">' + val + '</div>'
+    + '</div>';
+}
+
+function portesFilter() {
+  const q = (document.getElementById('portes-search')?.value || '').toLowerCase().trim();
+  document.querySelectorAll('.portes-ninja-row').forEach(row => {
+    const name = row.getAttribute('data-name') || '';
+    row.style.display = (!q || name.includes(q)) ? 'flex' : 'none';
+  });
+}
+
+function portesShowAdd() {
+  const f = document.getElementById('portes-add-form');
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('portes-grp-form').style.display = 'none';
+}
+
+function portesShowGroupe() {
+  const f = document.getElementById('portes-grp-form');
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('portes-add-form').style.display = 'none';
+  document.getElementById('portes-grp-membres-list').innerHTML = '';
+  window._portesGrpMembres = [];
+}
+
+function portesGrpAddMembre() {
+  const input = document.getElementById('portes-grp-membre');
+  const val = input?.value.trim();
+  if (!val) return;
+  if (!window._portesGrpMembres) window._portesGrpMembres = [];
+  if (window._portesGrpMembres.includes(val)) { input.value = ''; return; }
+  window._portesGrpMembres.push(val);
+  const list = document.getElementById('portes-grp-membres-list');
+  const span = document.createElement('span');
+  span.style.cssText = 'background:rgba(37,99,235,0.1);color:#93c5fd;border:1px solid rgba(37,99,235,0.25);padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer';
+  span.textContent = val + ' ×';
+  span.onclick = () => { 
+    window._portesGrpMembres = window._portesGrpMembres.filter(m => m !== val);
+    span.remove();
+  };
+  list.appendChild(span);
+  input.value = '';
+}
+
+async function portesCreerGroupe() {
+  const nom = document.getElementById('portes-grp-nom')?.value.trim();
+  const membres = window._portesGrpMembres || [];
+  if (!nom) { konohaAlert('Donnez un nom au groupe.', '⚠️'); return; }
+  if (membres.length === 0) { konohaAlert('Ajoutez au moins un ninja au groupe.', '⚠️'); return; }
+
+  const agent = state.currentUser ? (state.users[state.currentUser.username]?.fullname || state.currentUser.username) : '—';
+  const now = new Date();
+  const heure = now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+  try {
+    // Créer le groupe
+    const res = await sbPost('village_groupes', {
+      nom, membres: JSON.stringify(membres), statut: 'sorti', agent
+    });
+    const grpId = Array.isArray(res) && res[0] ? res[0].id : null;
+
+    // Mettre les ninjas du groupe en statut "groupe"
+    for (const membreNom of membres) {
+      const ninja = await sbGet('village_ninjas', '?nom=ilike.' + encodeURIComponent(membreNom));
+      if (Array.isArray(ninja) && ninja.length > 0) {
+        await fetch(SB_URL + '/rest/v1/village_ninjas?id=eq.' + ninja[0].id, {
+          method:'PATCH',
+          headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+          body: JSON.stringify({ statut: 'groupe', groupe_id: grpId, heure_sortie: heure })
+        });
+      }
+    }
+  } catch(e) { console.warn('creer groupe:', e); }
+
+  document.getElementById('portes-grp-form').style.display = 'none';
+  window._portesGrpMembres = [];
+  konohaAlert('Groupe "' + nom + '" créé — ' + membres.length + ' ninja(s) sortis !', '👥');
+  await renderPortesContent(state.currentUser?.grade);
+}
+
+async function portesRentrerGroupe(grpId, btn) {
+  if (!confirm('Confirmer le retour de tous les membres du groupe ?')) return;
+  try {
+    // Mettre le groupe en statut rentre
+    await fetch(SB_URL + '/rest/v1/village_groupes?id=eq.' + grpId, {
+      method:'PATCH',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({ statut: 'rentre' })
+    });
+    // Remettre les ninjas du groupe à "present"
+    await fetch(SB_URL + '/rest/v1/village_ninjas?groupe_id=eq.' + grpId, {
+      method:'PATCH',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({ statut: 'present', groupe_id: null, heure_sortie: null })
+    });
+  } catch(e) { console.warn('rentrer groupe:', e); }
+  konohaAlert('✓ Tous les membres du groupe sont rentrés dans le village !', '✅');
+  await renderPortesContent(state.currentUser?.grade);
+}
+
+async function portesToggle(id, action) {
+  var newStatut = action === 0 ? 'sorti' : 'present';
+  var now = new Date();
+  var heure = now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  try {
+    await fetch(SB_URL + '/rest/v1/village_ninjas?id=eq.' + id, {
+      method:'PATCH',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({ statut: newStatut, heure_sortie: action === 0 ? heure : null })
+    });
+  } catch(e) { console.warn('portes toggle:', e); }
+  await renderPortesContent(state.currentUser ? state.currentUser.grade : '');
+}
+
+async function portesAddNinja() {
+  const nom   = document.getElementById('portes-new-nom')?.value.trim();
+  const grade = document.getElementById('portes-new-grade')?.value || 'Génin Simple';
+  if (!nom) { konohaAlert('Entrez le nom du ninja.', '⚠️'); return; }
+  try {
+    await sbPost('village_ninjas', { nom, grade, statut: 'present' });
+  } catch(e) { console.warn('portes add:', e); }
+  if (document.getElementById('portes-new-nom')) document.getElementById('portes-new-nom').value = '';
+  document.getElementById('portes-add-form').style.display = 'none';
+  konohaAlert('✓ ' + nom + ' enregistré dans le registre des portes !', '✅');
+  await renderPortesContent(state.currentUser?.grade);
+}
+
+
+function portesHideAdd() {
+  var f = document.getElementById('portes-add-form');
+  if (f) f.style.display = 'none';
+}
+function portesHideGrp() {
+  var f = document.getElementById('portes-grp-form');
+  if (f) f.style.display = 'none';
+}
+
+function portesGrpKeydown(e) {
+  if (e.key === 'Enter') portesGrpAddMembre();
 }
 </script></body></html>
