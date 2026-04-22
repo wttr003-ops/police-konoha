@@ -10192,30 +10192,16 @@ async function renderImpotsContent(g) {
 
   // Collecteurs
   // byCol : ninjas payés SAUF agents déjà récupérés ce cycle
-  const _agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
+  // IDs des ninjas déjà récupérés → on les exclut de byCol
+  const _recupIds = new Set(JSON.parse(localStorage.getItem('konoha_impots_recup_ids') || '[]'));
   const byCol = {};
-  // Un agent récupéré peut réapparaître si de nouveaux ninjas ont payé APRÈS sa récupération
-  // On vérifie : si tous ses ninjas sont dans la liste récupérée → masqué. Sinon → visible.
-  payes.forEach(r=>{ if(r.col){
-    if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[],allRecup:true};
-    byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
-    byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0});
-  }});
-  // Retirer de byCol les agents dont TOUS les ninjas ont été récupérés ce cycle
-  // Un agent est "récupéré" si son nom est dans _agentsRecup ET qu'aucun ninja n'a payé depuis
-  // Simple : si l'agent est dans _agentsRecup → on cache son entrée dans byCol
-  // SAUF si son total a changé depuis la récupération (nouveaux payeurs)
-  // Pour détecter les nouveaux payeurs : on stocke le total au moment de la récupération
-  const recupTotaux = JSON.parse(localStorage.getItem('konoha_impots_recup_totaux') || '{}');
-  Object.keys(byCol).forEach(agent => {
-    if (_agentsRecup.includes(agent)) {
-      const totalAuMomentRecup = recupTotaux[agent] || 0;
-      const totalActuel = byCol[agent].t;
-      // Si le total actuel = total au moment récup → rien de nouveau → masquer
-      // Si le total actuel > total au moment récup → nouveaux payeurs → afficher
-      if (totalActuel <= totalAuMomentRecup) {
-        delete byCol[agent];
-      }
+  // byCol ne compte QUE les ninjas non encore récupérés
+  payes.forEach(r => {
+    if (r.col && !_recupIds.has(r.id)) {
+      if (!byCol[r.col]) byCol[r.col] = {c:0, t:0, ninjas:[]};
+      byCol[r.col].c++;
+      byCol[r.col].t += IMPOTS_MONTANTS[r.grade] || 0;
+      byCol[r.col].ninjas.push({nom:r.nom, grade:r.grade, montant:IMPOTS_MONTANTS[r.grade]||0});
     }
   });
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
@@ -10753,16 +10739,13 @@ async function impotsRecupererAgent(agentName, totalAgent) {
       histo.push({ agent: dirName, collecteur: agentName, date: dateStr, total: totalAgent, nb: nb, ninjas: ninjasList });
       localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
 
-      // Marquer cet agent comme récupéré + stocker le total récupéré
-      const agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
-      if (!agentsRecup.includes(agentName)) agentsRecup.push(agentName);
-      localStorage.setItem('konoha_impots_recup_agents', JSON.stringify(agentsRecup));
-      // Stocker le total au moment de la récupération
-      // → si de nouveaux ninjas paient chez cet agent (total augmente), le bouton réapparaît
-      const recupTotaux = JSON.parse(localStorage.getItem('konoha_impots_recup_totaux') || '{}');
-      recupTotaux[agentName] = totalAgent;
-      localStorage.setItem('konoha_impots_recup_totaux', JSON.stringify(recupTotaux));
-      // Vider le cache → recharge depuis Supabase
+      // Stocker les IDs des ninjas récupérés → byCol les exclura au prochain calcul
+      const recupIds = JSON.parse(localStorage.getItem('konoha_impots_recup_ids') || '[]');
+      if (Array.isArray(res)) {
+        res.forEach(r => { if (r.id && !recupIds.includes(r.id)) recupIds.push(r.id); });
+      }
+      localStorage.setItem('konoha_impots_recup_ids', JSON.stringify(recupIds));
+      // Vider le cache → recharge depuis Supabase avec les nouvelles données
       _impotsCache = [];
       impotsUpdateKPIsFromCache();
       konohaAlert('✓ ' + totalAgent.toLocaleString('fr-FR') + ' Ryos récupérés sur ' + agentName + ' !', '💰');
@@ -10851,6 +10834,7 @@ async function impotsReset() {
       // Vider aussi la liste des agents récupérés → nouveau cycle complet
       localStorage.removeItem('konoha_impots_recup_agents');
       localStorage.removeItem('konoha_impots_recup_totaux');
+      localStorage.removeItem('konoha_impots_recup_ids');
       konohaAlert('✓ Tous les impôts ont été réinitialisés. Les citoyens voient maintenant le statut Non payé.', '🔄');
       await renderImpotsContent(state.currentUser.grade);
     },
@@ -10870,30 +10854,16 @@ async function impotsGenPDF() {
 
   // Collecteurs stats
   // byCol : ninjas payés SAUF agents déjà récupérés ce cycle
-  const _agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
+  // IDs des ninjas déjà récupérés → on les exclut de byCol
+  const _recupIds = new Set(JSON.parse(localStorage.getItem('konoha_impots_recup_ids') || '[]'));
   const byCol = {};
-  // Un agent récupéré peut réapparaître si de nouveaux ninjas ont payé APRÈS sa récupération
-  // On vérifie : si tous ses ninjas sont dans la liste récupérée → masqué. Sinon → visible.
-  payes.forEach(r=>{ if(r.col){
-    if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[],allRecup:true};
-    byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
-    byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0});
-  }});
-  // Retirer de byCol les agents dont TOUS les ninjas ont été récupérés ce cycle
-  // Un agent est "récupéré" si son nom est dans _agentsRecup ET qu'aucun ninja n'a payé depuis
-  // Simple : si l'agent est dans _agentsRecup → on cache son entrée dans byCol
-  // SAUF si son total a changé depuis la récupération (nouveaux payeurs)
-  // Pour détecter les nouveaux payeurs : on stocke le total au moment de la récupération
-  const recupTotaux = JSON.parse(localStorage.getItem('konoha_impots_recup_totaux') || '{}');
-  Object.keys(byCol).forEach(agent => {
-    if (_agentsRecup.includes(agent)) {
-      const totalAuMomentRecup = recupTotaux[agent] || 0;
-      const totalActuel = byCol[agent].t;
-      // Si le total actuel = total au moment récup → rien de nouveau → masquer
-      // Si le total actuel > total au moment récup → nouveaux payeurs → afficher
-      if (totalActuel <= totalAuMomentRecup) {
-        delete byCol[agent];
-      }
+  // byCol ne compte QUE les ninjas non encore récupérés
+  payes.forEach(r => {
+    if (r.col && !_recupIds.has(r.id)) {
+      if (!byCol[r.col]) byCol[r.col] = {c:0, t:0, ninjas:[]};
+      byCol[r.col].c++;
+      byCol[r.col].t += IMPOTS_MONTANTS[r.grade] || 0;
+      byCol[r.col].ninjas.push({nom:r.nom, grade:r.grade, montant:IMPOTS_MONTANTS[r.grade]||0});
     }
   });
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
