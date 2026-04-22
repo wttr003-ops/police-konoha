@@ -8497,6 +8497,7 @@ async function renderAmendesContent(g) {
   const u = state.currentUser;
   const canEdit = gradeRank(g) <= 6 && g !== 'Hokage'; // Tous sauf Hokage (lecture seule)
   const isDir = gradeRank(g) <= 1;
+  const canRecup = gradeRank(g) <= 3; // Directeur, Adj, Lieutenant, Sergent
 
   let amendes = [];
   try {
@@ -8746,7 +8747,7 @@ async function renderAmendesContent(g) {
   }
 
   // === FICHES AGENTS — Amendes émises ===
-  if (isDir) {
+  if (canRecup) {
     const byAgent = {};
     amendes.forEach(a => {
       const agentKey = a.agent || 'inconnu';
@@ -10169,6 +10170,7 @@ async function renderImpotsContent(g) {
   const el = document.getElementById('impots-content');
   if (!el) return;
   const isDir = gradeRank(g) <= 1;   // Directeur / Directeur Adjoint
+  const canRecup = gradeRank(g) <= 3; // Directeur, Adj, Lieutenant, Sergent
   const canEdit = g !== 'Hokage' && gradeRank(g) <= 6; // Tous les agents sauf Hokage
 
   // Charger depuis Supabase — afficher l'interface même si vide
@@ -10192,11 +10194,30 @@ async function renderImpotsContent(g) {
   // byCol : ninjas payés SAUF agents déjà récupérés ce cycle
   const _agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
   const byCol = {};
-  payes.forEach(r=>{ if(r.col && !_agentsRecup.includes(r.col)){
-    if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]};
+  // Un agent récupéré peut réapparaître si de nouveaux ninjas ont payé APRÈS sa récupération
+  // On vérifie : si tous ses ninjas sont dans la liste récupérée → masqué. Sinon → visible.
+  payes.forEach(r=>{ if(r.col){
+    if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[],allRecup:true};
     byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
     byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0});
   }});
+  // Retirer de byCol les agents dont TOUS les ninjas ont été récupérés ce cycle
+  // Un agent est "récupéré" si son nom est dans _agentsRecup ET qu'aucun ninja n'a payé depuis
+  // Simple : si l'agent est dans _agentsRecup → on cache son entrée dans byCol
+  // SAUF si son total a changé depuis la récupération (nouveaux payeurs)
+  // Pour détecter les nouveaux payeurs : on stocke le total au moment de la récupération
+  const recupTotaux = JSON.parse(localStorage.getItem('konoha_impots_recup_totaux') || '{}');
+  Object.keys(byCol).forEach(agent => {
+    if (_agentsRecup.includes(agent)) {
+      const totalAuMomentRecup = recupTotaux[agent] || 0;
+      const totalActuel = byCol[agent].t;
+      // Si le total actuel = total au moment récup → rien de nouveau → masquer
+      // Si le total actuel > total au moment récup → nouveaux payeurs → afficher
+      if (totalActuel <= totalAuMomentRecup) {
+        delete byCol[agent];
+      }
+    }
+  });
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
 
   let html = '<h2 class="dash-section-title">🏯 Registre des Impôts</h2>';
@@ -10310,7 +10331,7 @@ async function renderImpotsContent(g) {
       }).join('');
       const agentEsc = agent.replace(/'/g, "\\'");
       // totalAgent = montant de cet agent dans byCol (déjà filtré = non récupérés seulement)
-      const btnRecup = (isDir && totalAgent > 0)
+      const btnRecup = (canRecup && totalAgent > 0)
         ? '<div style="padding:8px 14px;border-top:0.5px solid rgba(196,154,26,0.15);background:rgba(39,174,96,0.04)">'
           + '<button onclick="impotsRecupererAgent(\'' + agentEsc + '\',' + totalAgent + ')" '
           + 'style="width:100%;padding:7px;background:rgba(196,154,26,0.12);color:#c49a1a;border:1px solid rgba(196,154,26,0.3);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">'
@@ -10346,7 +10367,7 @@ async function renderImpotsContent(g) {
     + '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>0%</span><span>50%</span><span>100%</span></div>'
     + '</div>';
 
-  if (isDir) {
+  if (canRecup) {
     html += '<div style="padding:10px 14px;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">'
       + '<button onclick="impotsRecuperer()" style="padding:7px 14px;background:rgba(196,154,26,0.15);color:#c49a1a;border:1px solid rgba(196,154,26,0.35);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💰 Impôts récupérés</button>'
       + '<button onclick="impotsReset()" style="padding:7px 14px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.25);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">🔄 Remettre à zéro</button>'
@@ -10357,7 +10378,7 @@ async function renderImpotsContent(g) {
   html += '</div></div>';
 
   // Historique des récupérations direction
-  if (isDir) {
+  if (canRecup) {
     const histo = JSON.parse(localStorage.getItem('konoha_impots_histo') || '[]');
     html += '<div class="dash-block" style="padding:0;overflow:hidden;margin-bottom:1rem">'
       + '<div style="padding:10px 14px;border-bottom:0.5px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📋 Historique — Récupérations direction</div>';
@@ -10705,6 +10726,11 @@ async function impotsAdd() {
 async function impotsRecupererAgent(agentName, totalAgent) {
   const u = state.currentUser;
   const dirName = state.users[u.username]?.fullname || u.username;
+  // Vérification de grade : Sergent minimum requis
+  if (gradeRank(u.grade || '') > 3) {
+    konohaAlert('Action non autorisée. Sergent minimum requis pour récupérer les impôts.', '🚫');
+    return;
+  }
 
   konohaConfirm(
     'Récupérer les impôts de <strong>' + agentName + '</strong> ?<br><br>'
@@ -10727,17 +10753,17 @@ async function impotsRecupererAgent(agentName, totalAgent) {
       histo.push({ agent: dirName, collecteur: agentName, date: dateStr, total: totalAgent, nb: nb, ninjas: ninjasList });
       localStorage.setItem('konoha_impots_histo', JSON.stringify(histo));
 
-      // NE RIEN CHANGER dans Supabase → le tableau garde statut='paye' et collecteur intact
-      // On marque juste cet agent comme "récupéré" en localStorage
-      // → il disparaît de la liste collecteurs jusqu'au prochain reset global
+      // Marquer cet agent comme récupéré + stocker le total récupéré
       const agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
-      if (!agentsRecup.includes(agentName)) {
-        agentsRecup.push(agentName);
-        localStorage.setItem('konoha_impots_recup_agents', JSON.stringify(agentsRecup));
-      }
-
-      // Ne pas vider le cache → le tableau garde les données intactes
-      // byCol filtre via konoha_impots_recup_agents pour masquer l'agent récupéré
+      if (!agentsRecup.includes(agentName)) agentsRecup.push(agentName);
+      localStorage.setItem('konoha_impots_recup_agents', JSON.stringify(agentsRecup));
+      // Stocker le total au moment de la récupération
+      // → si de nouveaux ninjas paient chez cet agent (total augmente), le bouton réapparaît
+      const recupTotaux = JSON.parse(localStorage.getItem('konoha_impots_recup_totaux') || '{}');
+      recupTotaux[agentName] = totalAgent;
+      localStorage.setItem('konoha_impots_recup_totaux', JSON.stringify(recupTotaux));
+      // Vider le cache → recharge depuis Supabase
+      _impotsCache = [];
       impotsUpdateKPIsFromCache();
       konohaAlert('✓ ' + totalAgent.toLocaleString('fr-FR') + ' Ryos récupérés sur ' + agentName + ' !', '💰');
       await renderImpotsContent(state.currentUser.grade);
@@ -10749,6 +10775,11 @@ async function impotsRecupererAgent(agentName, totalAgent) {
 async function impotsRecuperer() {
   const u = state.currentUser;
   const dirName = state.users[u.username]?.fullname || u.username;
+  // Vérification de grade : Sergent minimum requis
+  if (gradeRank(u.grade || '') > 3) {
+    konohaAlert('Action non autorisée. Sergent minimum requis pour récupérer les impôts.', '🚫');
+    return;
+  }
 
   const data = await impotsLoad();
   const payes = data.filter(function(r){ return r.s === 'paye'; });
@@ -10819,6 +10850,7 @@ async function impotsReset() {
 
       // Vider aussi la liste des agents récupérés → nouveau cycle complet
       localStorage.removeItem('konoha_impots_recup_agents');
+      localStorage.removeItem('konoha_impots_recup_totaux');
       konohaAlert('✓ Tous les impôts ont été réinitialisés. Les citoyens voient maintenant le statut Non payé.', '🔄');
       await renderImpotsContent(state.currentUser.grade);
     },
@@ -10840,11 +10872,30 @@ async function impotsGenPDF() {
   // byCol : ninjas payés SAUF agents déjà récupérés ce cycle
   const _agentsRecup = JSON.parse(localStorage.getItem('konoha_impots_recup_agents') || '[]');
   const byCol = {};
-  payes.forEach(r=>{ if(r.col && !_agentsRecup.includes(r.col)){
-    if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[]};
+  // Un agent récupéré peut réapparaître si de nouveaux ninjas ont payé APRÈS sa récupération
+  // On vérifie : si tous ses ninjas sont dans la liste récupérée → masqué. Sinon → visible.
+  payes.forEach(r=>{ if(r.col){
+    if(!byCol[r.col])byCol[r.col]={c:0,t:0,ninjas:[],allRecup:true};
     byCol[r.col].c++; byCol[r.col].t+=IMPOTS_MONTANTS[r.grade]||0;
     byCol[r.col].ninjas.push({nom:r.nom,grade:r.grade,montant:IMPOTS_MONTANTS[r.grade]||0});
   }});
+  // Retirer de byCol les agents dont TOUS les ninjas ont été récupérés ce cycle
+  // Un agent est "récupéré" si son nom est dans _agentsRecup ET qu'aucun ninja n'a payé depuis
+  // Simple : si l'agent est dans _agentsRecup → on cache son entrée dans byCol
+  // SAUF si son total a changé depuis la récupération (nouveaux payeurs)
+  // Pour détecter les nouveaux payeurs : on stocke le total au moment de la récupération
+  const recupTotaux = JSON.parse(localStorage.getItem('konoha_impots_recup_totaux') || '{}');
+  Object.keys(byCol).forEach(agent => {
+    if (_agentsRecup.includes(agent)) {
+      const totalAuMomentRecup = recupTotaux[agent] || 0;
+      const totalActuel = byCol[agent].t;
+      // Si le total actuel = total au moment récup → rien de nouveau → masquer
+      // Si le total actuel > total au moment récup → nouveaux payeurs → afficher
+      if (totalActuel <= totalAuMomentRecup) {
+        delete byCol[agent];
+      }
+    }
+  });
   const colList = Object.entries(byCol).sort((a,b)=>b[1].t-a[1].t);
 
   // Build HTML for PDF (via print)
