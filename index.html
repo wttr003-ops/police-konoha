@@ -1608,6 +1608,12 @@ span.footer-logo svg { width: 40px; height: 40px; }
   border: 1.5px solid #f0c040 !important;
   box-shadow: 0 0 8px rgba(240,192,64,0.5) !important;
 }
+.gp-tkj {
+  background: rgba(139,92,246,0.15) !important;
+  color: #a78bfa !important;
+  border: 1px solid rgba(139,92,246,0.4) !important;
+  font-weight: 700 !important;
+}
 </style></head><body>
 
 
@@ -3268,6 +3274,7 @@ const GRADE_RANK = {
   'Officier': 4,
   'Stagiaire': 5,
   'Recrue': 6,
+  'TKJ': 7,
   'Citoyen': 9
 };
 
@@ -3280,6 +3287,7 @@ const GRADE_CLASS = {
   'Officier':     'gp-c',
   'Stagiaire':    'gp-d',
   'Recrue':       'gp-d',
+  'TKJ':          'gp-tkj',
   'Citoyen':      'gp-d'
 };
 
@@ -3435,6 +3443,14 @@ function showPage(id) {
   updateNav();
 
   // Auth wall pour plainte et postuler
+  // Grade TKJ : masquer tout sauf casier + portes
+  if (id === 'dashboard') {
+    const u = state.currentUser;
+    if (u && u.grade === 'TKJ') {
+      applyTKJRestrictions();
+    }
+  }
+
   if (id === 'plainte' || id === 'postuler') {
     const wall    = document.getElementById(id + '-auth-wall');
     const content = document.getElementById(id + '-form-content');
@@ -4944,6 +4960,7 @@ async function renderCasierContent(g) {
             <optgroup label="Grades Police">
               <option>Stagiaire</option>
               <option>Recrue</option>
+              <option>TKJ</option>
               <option>Officier</option>
               <option>Sergent</option>
               <option>Lieutenant</option>
@@ -10842,6 +10859,12 @@ async function impotsGenPDF() {
   tr.non:nth-child(even) td { background: #fff5f5; }
   tr.total-row td { background: #0f0f00; color: white; font-weight: 700; }
   .footer { text-align: center; font-size: 9px; color: #94a3b8; margin-top: 16px; border-top: 0.5px solid #e2e8f0; padding-top: 8px; }
+.gp-tkj {
+  background: rgba(139,92,246,0.15) !important;
+  color: #a78bfa !important;
+  border: 1px solid rgba(139,92,246,0.4) !important;
+  font-weight: 700 !important;
+}
 </style></head><body>
 <div class="header"><h1>🏯 VILLAGE DE KONOHA — REGISTRE DES IMPOTS</h1><p>Document officiel — Police de Konoha — Généré le ${today}</p></div>
 <div class="kpis">
@@ -11286,6 +11309,95 @@ async function portesAddNinja() {
   var inp = document.getElementById('portes-new-nom'); if(inp) inp.value='';
   konohaAlert('\u2713 '+nom+' enregistr\u00e9 !','&#10003;');
   await renderPortesContent(state.currentUser?.grade);
+}
+
+
+// ============================================================
+// GRADE TKJ — Restrictions dashboard
+// ============================================================
+function applyTKJRestrictions() {
+  // Masquer TOUS les boutons sidebar sauf casier et portes
+  const sidebar = document.getElementById('agent-sidebar-nav');
+  if (!sidebar) return;
+  sidebar.querySelectorAll('.dash-nav-btn').forEach(function(btn) {
+    var onclick = btn.getAttribute('onclick') || '';
+    var isCasier  = onclick.includes("'casier'");
+    var isPortes  = onclick.includes("'portes'");
+    btn.style.display = (isCasier || isPortes) ? 'flex' : 'none';
+  });
+  // Masquer le nav-dash-btn (Espace agent) et montrer version simplifiée
+  var title = document.querySelector('.dash-section-title');
+
+  // Aller directement sur portes par défaut
+  setTimeout(function() {
+    var portesBtn = sidebar.querySelector('[onclick*="portes"]');
+    if (portesBtn) portesBtn.click();
+  }, 100);
+}
+
+// ============================================================
+// HISTORIQUE DES GROUPES — Portes du village
+// ============================================================
+async function renderPortesHistorique() {
+  const el = document.getElementById('dash-portes');
+  if (!el) return;
+
+  let groupes = [];
+  try {
+    const rG = await sbGet('village_groupes', '?order=created_at.desc');
+    if (Array.isArray(rG)) groupes = rG;
+  } catch(e) { console.warn('histo groupes:', e); }
+
+  let html = '<h2 class="dash-section-title">\uD83D\uDCCB Historique des groupes</h2>';
+
+  html += '<button onclick="renderPortesContent(state.currentUser.grade)" style="margin-bottom:1rem;padding:6px 14px;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.3);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">&larr; Retour aux portes</button>';
+
+  if (groupes.length === 0) {
+    html += '<div style="padding:2rem;text-align:center;color:var(--muted)">Aucun groupe dans l\'historique.</div>';
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<div style="background:var(--mid);border:1px solid var(--border);border-radius:12px;overflow:hidden">'
+    + '<div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Tous les groupes ('+groupes.length+')</div>';
+
+  groupes.forEach(function(grp, i) {
+    var mb = []; try { mb = JSON.parse(grp.membres||'[]'); } catch(e2) {}
+    var actif = grp.statut === 'sorti';
+    var date = grp.created_at ? new Date(grp.created_at).toLocaleDateString('fr-FR') : '--';
+    var heure = grp.created_at ? new Date(grp.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '--';
+    var statusBg = actif
+      ? 'background:rgba(37,99,235,0.1);color:#93c5fd;border:1px solid rgba(37,99,235,0.25)'
+      : 'background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.25)';
+    var statusLabel = actif ? 'Actif' : 'Rentr\u00e9';
+    var detailId = 'hgrp-' + grp.id;
+
+    html += '<div style="border-bottom:0.5px solid var(--border)">'
+      + '<div onclick="toggleHistoGrp(\''+detailId+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer">'
+      + '<div>'
+      + '<div style="font-size:13px;font-weight:700;color:'+(actif?'#93c5fd':'var(--muted)')+'">'+grp.nom
+      + ' <span style="font-size:10px;padding:2px 8px;border-radius:10px;'+statusBg+'">'+statusLabel+'</span></div>'
+      + '<div style="font-size:11px;color:var(--muted)">'+(grp.agent||'--')+' &middot; '+date+' &middot; '+heure+' &middot; '+mb.length+' membre(s)</div>'
+      + '</div>'
+      + '<span id="arr-'+detailId+'" style="color:var(--muted);font-size:11px">&#9660;</span>'
+      + '</div>'
+      + '<div id="'+detailId+'" style="display:none;padding:8px 16px 12px;background:rgba(196,154,26,0.02)">'
+      + '<div style="display:flex;flex-wrap:wrap;gap:5px">'
+      + mb.map(function(m){return '<span style="background:rgba(37,99,235,0.1);color:#93c5fd;border:1px solid rgba(37,99,235,0.2);padding:3px 10px;border-radius:20px;font-size:11px">'+m+'</span>';}).join('')
+      + '</div></div></div>';
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function toggleHistoGrp(id) {
+  var el = document.getElementById(id);
+  var arr = document.getElementById('arr-'+id);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (arr) arr.style.transform = open ? '' : 'rotate(180deg)';
 }
 
 </script></body></html>
