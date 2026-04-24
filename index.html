@@ -2586,6 +2586,14 @@ span.footer-logo svg { width: 40px; height: 40px; }
         <div class="dash-topbar-sub">Tableau de bord interne</div>
       </div>
     </div>
+    <!-- CHRONO GLOBAL SERVICE -->
+    <div id="global-service-timer-pol" style="display:none;background:rgba(39,174,96,0.1);border:1px solid rgba(39,174,96,0.35);border-radius:20px;padding:6px 16px;align-items:center;gap:8px">
+      <div style="width:8px;height:8px;border-radius:50%;background:#27ae60;animation:pulse-pol 1.5s infinite"></div>
+      <div>
+        <div style="font-size:10px;color:#27ae60;font-weight:700;text-transform:uppercase;letter-spacing:1px">En service</div>
+        <div id="global-timer-pol" style="font-size:18px;font-weight:700;color:#27ae60;font-family:Georgia,serif;line-height:1">0h00:00</div>
+      </div>
+    </div>
     <div class="dash-topbar-right">
       <div class="avatar" id="dash-avatar">—</div>
       <div>
@@ -3537,6 +3545,7 @@ async function doLogin() {
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   startRealtime();
   showPage('dashboard');
+  startGlobalTimerPol();
 }
 
 
@@ -11651,5 +11660,43 @@ async function portesRetirerDeGroupe(id) {
   // Vérifier aussi au chargement
   checkCoupure2h();
 })();
+
+
+// ============================================================
+// CHRONO GLOBAL EN TOPBAR — POLICE
+// ============================================================
+function startGlobalTimerPol() {
+  if (window._globalTimerPol) clearInterval(window._globalTimerPol);
+
+  function tick() {
+    var u = state.currentUser;
+    if (!u) return;
+    var serviceKey = 'konoha_service_' + u.username;
+    var data = JSON.parse(localStorage.getItem(serviceKey) || 'null');
+    var timerBox = document.getElementById('global-service-timer-pol');
+    var timerEl  = document.getElementById('global-timer-pol');
+    if (!timerBox || !timerEl) return;
+
+    if (data && data.prise && !data.fin) {
+      var elapsed = new Date() - new Date(data.prise);
+      var totalSec = Math.floor(elapsed / 1000);
+      var h = Math.floor(totalSec / 3600);
+      var m = Math.floor((totalSec % 3600) / 60);
+      var s = totalSec % 60;
+      timerEl.textContent = h + 'h' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+      timerBox.style.display = 'flex';
+      var innerTimer = document.getElementById('service-timer');
+      if (innerTimer) innerTimer.textContent = timerEl.textContent;
+      var taux = SALAIRES[u.grade] || 50;
+      var salEl = document.getElementById('salaire-en-cours');
+      if (salEl) salEl.textContent = Math.round((elapsed/3600000)*taux).toLocaleString('fr-FR') + ' Ryos';
+    } else {
+      timerBox.style.display = 'none';
+    }
+  }
+
+  tick();
+  window._globalTimerPol = setInterval(tick, 1000);
+}
 
 </script></body></html>
