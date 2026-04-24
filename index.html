@@ -8039,7 +8039,12 @@ async function renderPresencesContent(g) {
                       style="padding:8px 16px;background:linear-gradient(135deg,#27ae60,#1e8449);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
                       ✓ Payer ${data.totalRyos} Ryos — Remettre à zéro
                     </button>`
-                  : `<span style="font-size:12px;color:#27ae60;font-weight:700">✓ Salaire soldé</span>`
+                  : data.totalRyos < 0
+                  ? `<button onclick="remettreAZeroAgent('${uname}','${data.fullname}')"
+                      style="padding:8px 16px;background:rgba(192,57,43,0.15);color:#c0392b;border:1px solid rgba(192,57,43,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+                      🔄 Remettre à zéro (négatif)
+                    </button>`
+                  : `<span style="font-size:12px;color:#27ae60;font-weight:700">✓ Soldé</span>`
                 }
                 <div style="background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;color:#f0c040">
                     Total : ${data.totalRyos} Ryos
@@ -9277,6 +9282,29 @@ function showGradeWarning(msg) {
 // ============================================================
 // REMISE À ZÉRO GLOBALE DES PRÉSENCES
 // ============================================================
+
+async function remettreAZeroAgent(username, fullname) {
+  konohaConfirm(
+    'Remettre à zéro le solde de <strong>' + fullname + '</strong> ?<br><br>'
+    + 'Son solde négatif sera effacé. Les présences seront marquées comme payées.',
+    async function() {
+      const dirUser = state.currentUser;
+      const dirName = state.users[dirUser?.username]?.fullname || dirUser?.username || 'Direction';
+      const now = new Date();
+      try {
+        await fetch(SB_URL + '/rest/v1/presences?username=eq.' + encodeURIComponent(username) + '&or=(statut_paye.is.null,statut_paye.neq.paye)', {
+          method: 'PATCH',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ statut_paye: 'paye', paye_par: dirName, paye_le: now.toISOString() })
+        });
+      } catch(e) { console.warn('reset agent:', e); }
+      konohaAlert('✓ Solde de ' + fullname + ' remis à zéro !', '🔄');
+      await renderPresencesContent(state.currentUser.grade);
+    },
+    { icon: '🔄', label: 'Remettre à zéro', danger: true }
+  );
+}
+
 async function resetToutesPresences() {
   konohaConfirm(
     'Remettre à zéro <strong style="color:#c0392b">TOUTES</strong> les fiches de paye ?<br><br>'
