@@ -7885,21 +7885,27 @@ async function renderPresencesContent(g) {
   // === MON HISTORIQUE ===
   html += `<div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
     <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Mon historique de présences</div>`;
-  if (myPresences.length === 0) {
+  // Séparer présences non payées (en attente) et payées (historique)
+  const nonPayees = myPresences.filter(p => p.statut_paye !== 'paye');
+  const dejaPayees = myPresences.filter(p => p.statut_paye === 'paye').slice(0, 5);
+  const aAfficher = [...nonPayees, ...dejaPayees].slice(0, 20);
+
+  if (aAfficher.length === 0) {
     html += '<p style="color:var(--muted);font-size:13px">Aucune présence enregistrée pour le moment.</p>';
   } else {
-    myPresences.slice(0,15).forEach(p => {
+    aAfficher.forEach(p => {
+      const estPaye = p.statut_paye === 'paye';
       const h2 = Math.floor((p.duree_minutes||0)/60), m2 = (p.duree_minutes||0)%60;
       const priseStr = p.heure_prise || (p.prise_service ? new Date(p.prise_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}) : '—');
       const finStr = p.heure_fin || (p.fin_service ? new Date(p.fin_service).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'}) : '—');
-      html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border)">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(196,154,26,0.1);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⏱</div>
+      html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border);opacity:${estPaye?'0.5':'1'}">
+        <div style="width:36px;height:36px;border-radius:50%;background:${estPaye?'rgba(100,100,100,0.1)':'rgba(196,154,26,0.1)'};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⏱</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:var(--text)">${p.date||'—'}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${p.date||'—'} ${estPaye?'<span style="font-size:10px;background:rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.2);padding:1px 7px;border-radius:10px;font-weight:600">✓ Payé</span>':''}</div>
           <div style="font-size:11px;color:var(--muted)">${priseStr} → ${finStr} • ${h2}h${String(m2).padStart(2,'0')} • ${p.grade||g}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:15px;font-weight:700;color:#27ae60">+${p.salaire||0}</div>
+          <div style="font-size:15px;font-weight:700;color:${estPaye?'var(--muted)':'#27ae60'}">${estPaye?'':'+'} ${p.salaire||0}</div>
           <div style="font-size:10px;color:var(--muted)">Ryos</div>
         </div>
       </div>`;
@@ -7974,7 +7980,10 @@ async function renderPresencesContent(g) {
     });
 
     html += `<div class="dash-block" style="padding:1.5rem">
-      <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">📋 Fiches de paye — Direction</div>`;
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📋 Fiches de paye — Direction</div>
+        <button onclick="resetToutesPresences()" style="padding:6px 14px;background:rgba(192,57,43,0.1);color:#c0392b;border:1px solid rgba(192,57,43,0.3);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🔄 Remettre tout à zéro</button>
+      </div>`;
 
     if (Object.keys(byAgent).length === 0) {
       html += '<p style="color:var(--muted);font-size:13px">Aucune fiche disponible.</p>';
@@ -9262,6 +9271,34 @@ function showGradeWarning(msg) {
   toast.innerHTML = '<span style="font-size:20px">🚫</span><span>' + msg + '</span>';
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 5000);
+}
+
+
+// ============================================================
+// REMISE À ZÉRO GLOBALE DES PRÉSENCES
+// ============================================================
+async function resetToutesPresences() {
+  konohaConfirm(
+    'Remettre à zéro <strong style="color:#c0392b">TOUTES</strong> les fiches de paye ?<br><br>'
+    + 'Tous les agents passeront à <strong>0 Ryos</strong>, même ceux en négatif.<br>'
+    + 'Les présences seront marquées comme payées.',
+    async function() {
+      const dirUser = state.currentUser;
+      const dirName = state.users[dirUser?.username]?.fullname || dirUser?.username || 'Direction';
+      const now = new Date();
+      try {
+        // Marquer TOUTES les présences non payées comme payées
+        await fetch(SB_URL + '/rest/v1/presences?or=(statut_paye.is.null,statut_paye.neq.paye)', {
+          method: 'PATCH',
+          headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ statut_paye: 'paye', paye_par: dirName, paye_le: now.toISOString() })
+        });
+      } catch(e) { console.warn('reset presences:', e); }
+      konohaAlert('✓ Toutes les fiches ont été remises à zéro !', '🔄');
+      await renderPresencesContent(state.currentUser.grade);
+    },
+    { icon: '🔄', label: 'Remettre à zéro', danger: true }
+  );
 }
 
 async function payerSalaire(username, fullname, totalRyos) {
