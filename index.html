@@ -7889,6 +7889,11 @@ async function renderPresencesContent(g) {
       </div>
       <div style="font-size:52px;font-weight:700;color:#27ae60;font-variant-numeric:tabular-nums;font-family:Georgia,serif;letter-spacing:2px;line-height:1" id="service-timer">${hh}h${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}</div>
       <div style="font-size:13px;color:var(--muted);margin-top:8px">Salaire en cours : <strong id="salaire-en-cours" style="color:#27ae60;font-size:16px">${salaireEnCours.toLocaleString()} Ryos</strong></div>
+      <div style="margin-top:12px;background:rgba(196,154,26,0.08);border:1px solid rgba(196,154,26,0.25);border-radius:8px;padding:8px 14px;display:inline-block">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">⏳ Coupure automatique dans</div>
+        <div id="countdown-2h" style="font-size:22px;font-weight:700;color:var(--accent);font-family:Georgia,serif;font-variant-numeric:tabular-nums">--:--:--</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px">Fin de service obligatoire à 02h00</div>
+      </div>
     </div>
     <button onclick="finDeService()" style="width:100%;padding:13px;background:linear-gradient(135deg,#c0392b,#922b21);color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">
       ■ Fin de service
@@ -8089,14 +8094,39 @@ function startServiceTimer(priseISO, taux) {
   window._serviceTimer = setInterval(() => {
     const timerEl = document.getElementById('service-timer');
     if (!timerEl) { clearInterval(window._serviceTimer); return; }
+
+    // Chrono service (temps écoulé)
     const elapsed = new Date() - new Date(priseISO);
     const totalSec = Math.floor(elapsed/1000);
     const h = Math.floor(totalSec/3600);
     const m = Math.floor((totalSec%3600)/60);
     const s = totalSec%60;
     timerEl.textContent = h + 'h' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+
+    // Salaire en cours
     const salEl = document.getElementById('salaire-en-cours');
     if (salEl) salEl.textContent = Math.round((elapsed/3600000)*taux).toLocaleString('fr-FR') + ' Ryos';
+
+    // Compte à rebours 2h Paris
+    const cdEl = document.getElementById('countdown-2h');
+    if (cdEl) {
+      const paris = new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
+      const cutoff = new Date(paris);
+      cutoff.setHours(2, 0, 0, 0);
+      if (paris >= cutoff) cutoff.setDate(cutoff.getDate() + 1);
+      const diff = cutoff - paris;
+      if (diff <= 0) {
+        cdEl.textContent = '00:00:00';
+        cdEl.style.color = '#c0392b';
+      } else {
+        const rh = Math.floor(diff/3600000);
+        const rm = Math.floor((diff%3600000)/60000);
+        const rs = Math.floor((diff%60000)/1000);
+        cdEl.textContent = String(rh).padStart(2,'0') + 'h' + String(rm).padStart(2,'0') + ':' + String(rs).padStart(2,'0');
+        // Passe au rouge quand moins de 30 minutes
+        cdEl.style.color = diff < 1800000 ? '#c0392b' : 'var(--accent)';
+      }
+    }
   }, 1000);
 }
 
@@ -11690,11 +11720,30 @@ function startGlobalTimerPol() {
       var s = totalSec % 60;
       timerEl.textContent = h + 'h' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
       timerBox.style.display = 'flex';
+
+      // Sync timer interne
       var innerTimer = document.getElementById('service-timer');
       if (innerTimer) innerTimer.textContent = timerEl.textContent;
+
+      // Salaire
       var taux = SALAIRES[u.grade] || 50;
       var salEl = document.getElementById('salaire-en-cours');
       if (salEl) salEl.textContent = Math.round((elapsed/3600000)*taux).toLocaleString('fr-FR') + ' Ryos';
+
+      // Compte à rebours 2h
+      var cdEl = document.getElementById('countdown-2h');
+      if (cdEl) {
+        var paris = new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
+        var cutoff = new Date(paris);
+        cutoff.setHours(2, 0, 0, 0);
+        if (paris >= cutoff) cutoff.setDate(cutoff.getDate() + 1);
+        var diff = cutoff - paris;
+        var rh = Math.floor(diff/3600000);
+        var rm = Math.floor((diff%3600000)/60000);
+        var rs = Math.floor((diff%60000)/1000);
+        cdEl.textContent = String(rh).padStart(2,'0') + 'h' + String(rm).padStart(2,'0') + ':' + String(rs).padStart(2,'0');
+        cdEl.style.color = diff < 1800000 ? '#c0392b' : 'var(--accent)';
+      }
     } else {
       timerBox.style.display = 'none';
     }
