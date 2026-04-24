@@ -7875,15 +7875,20 @@ async function renderPresencesContent(g) {
     </button>`;
   } else {
     const priseAt = new Date(serviceData.prise);
-    const diffMins = Math.max(0, Math.floor((new Date() - priseAt) / 60000));
-    const h = Math.floor(diffMins/60), m = diffMins%60;
-    const salaireEnCours = Math.round((diffMins/60)*taux);
-    // Use stored heureLocale for display (always correct Paris time)
+    const elapsed = Math.max(0, new Date() - priseAt);
+    const totalSec = Math.floor(elapsed / 1000);
+    const hh = Math.floor(totalSec/3600);
+    const mm = Math.floor((totalSec%3600)/60);
+    const ss = totalSec%60;
+    const salaireEnCours = Math.round((elapsed/3600000)*taux);
     const heureAffichee = serviceData.heureLocale || priseAt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
-    html += `<div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.25);border-radius:8px;padding:1.25rem;margin-bottom:1rem;text-align:center">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">🟢 En service depuis <strong style="color:var(--text)">${heureAffichee}</strong></div>
-      <div style="font-size:48px;font-weight:700;color:#27ae60;font-variant-numeric:tabular-nums;font-family:Georgia,serif;letter-spacing:3px;line-height:1.1;margin:8px 0" id="service-timer">${String(Math.floor(totalSecInit/3600)).padStart(1,'0')}h${String(Math.floor((totalSecInit%3600)/60)).padStart(2,'0')}:${String(totalSecInit%60).padStart(2,'0')}</div>
-      <div style="font-size:13px;color:var(--muted)">Salaire en cours : <strong id="salaire-en-cours" style="color:#27ae60">${salaireEnCours} Ryos</strong></div>
+    html += `<div style="background:rgba(39,174,96,0.08);border:2px solid rgba(39,174,96,0.4);border-radius:12px;padding:1.5rem;margin-bottom:1rem;text-align:center">
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#27ae60;animation:pulse 1.5s infinite"></div>
+        <div style="font-size:13px;color:var(--muted)">En service depuis <strong style="color:var(--text)">${heureAffichee}</strong></div>
+      </div>
+      <div style="font-size:52px;font-weight:700;color:#27ae60;font-variant-numeric:tabular-nums;font-family:Georgia,serif;letter-spacing:2px;line-height:1" id="service-timer">${hh}h${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:8px">Salaire en cours : <strong id="salaire-en-cours" style="color:#27ae60;font-size:16px">${salaireEnCours.toLocaleString()} Ryos</strong></div>
     </div>
     <button onclick="finDeService()" style="width:100%;padding:13px;background:linear-gradient(135deg,#c0392b,#922b21);color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">
       ■ Fin de service
