@@ -8075,10 +8075,15 @@ function startServiceTimer(priseISO, taux) {
   window._serviceTimer = setInterval(() => {
     const timerEl = document.getElementById('service-timer');
     if (!timerEl) { clearInterval(window._serviceTimer); return; }
-    const diffMins = Math.floor((new Date() - new Date(priseISO)) / 60000);
-    const h = Math.floor(diffMins/60), m = diffMins%60;
-    timerEl.textContent = h + 'h' + String(m).padStart(2,'0');
-  }, 30000);
+    const elapsed = new Date() - new Date(priseISO);
+    const totalSec = Math.floor(elapsed/1000);
+    const h = Math.floor(totalSec/3600);
+    const m = Math.floor((totalSec%3600)/60);
+    const s = totalSec%60;
+    timerEl.textContent = h + 'h' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    const salEl = document.getElementById('salaire-en-cours');
+    if (salEl) salEl.textContent = Math.round((elapsed/3600000)*taux).toLocaleString('fr-FR') + ' Ryos';
+  }, 1000);
 }
 
 function showPresenceNotif(msg) {
@@ -8141,6 +8146,15 @@ async function _doPriseDeService() {
   const u = state.currentUser;
   const confirmedUser = state.users[u.username];
   const serviceKey = 'konoha_service_' + u.username;
+
+  // Restriction horaire : prise de service uniquement entre 20h et 2h (heure Paris)
+  const parisNow = new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
+  const hParis = parisNow.getHours();
+  if (hParis >= 2 && hParis < 20) {
+    konohaAlert("Prises de service uniquement entre 20h00 et 02h00.", "⚠️");
+    return;
+  }
+
   const now = new Date();
 
   // Store local display time for UI only
