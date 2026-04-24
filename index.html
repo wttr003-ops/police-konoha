@@ -11388,18 +11388,36 @@ async function portesRentrerGroupe(grpId) {
     mb.forEach(function(m){ var sid='st-'+m.replace(/[^a-z0-9]/gi,'_'); var s=document.getElementById(sid); statuts[m]=s?s.value:'present'; });
     var resume = mb.map(function(m){ var s=statuts[m]; return (s==='present'?'Sain':s==='blesse'?'Blessé':'Capturé')+': '+m; }).join(' | ');
     try {
-      await fetch(SB_URL+'/rest/v1/village_groupes?id=eq.'+grpId,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({statut:'rentre',resume_retour:resume})});
+      // D'abord mettre à jour le statut du groupe (sans colonnes optionnelles qui peuvent manquer)
+      await fetch(SB_URL+'/rest/v1/village_groupes?id=eq.'+grpId,{
+        method:'PATCH',
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({statut:'rentre'})
+      });
+      // Essayer d'ajouter le résumé séparément (ignoré si colonne absente)
+      try {
+        await fetch(SB_URL+'/rest/v1/village_groupes?id=eq.'+grpId,{
+          method:'PATCH',
+          headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+          body:JSON.stringify({resume_retour:resume})
+        });
+      } catch(e2){}
       for(var i=0;i<mb.length;i++){
         var m2=mb[i]; var ns=statuts[m2]||'present';
         var rn=await sbGet('village_ninjas','?nom=ilike.'+encodeURIComponent(m2));
         if(Array.isArray(rn)&&rn.length>0){
-          await fetch(SB_URL+'/rest/v1/village_ninjas?id=eq.'+rn[0].id,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({statut:ns==='capture'?'sorti':'present',groupe_id:null,heure_sortie:ns==='capture'?'Capturé':null})});
+          await fetch(SB_URL+'/rest/v1/village_ninjas?id=eq.'+rn[0].id,{
+            method:'PATCH',
+            headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+            body:JSON.stringify({statut:ns==='capture'?'sorti':'present', groupe_id:null})
+          });
         }
       }
     } catch(e){console.warn('rentrer:',e);}
     popup.remove();
-    konohaAlert('Retour du groupe enregistré !','✓');
-    await renderPortesContent(state.currentUser?.grade);
+    konohaAlert('Retour du groupe enregistré !', '✓');
+    // Forcer rechargement complet depuis Supabase
+    await renderPortesContent(state.currentUser ? state.currentUser.grade : '');
   };
 }
 
