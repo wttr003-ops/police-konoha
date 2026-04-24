@@ -11576,4 +11576,66 @@ async function portesRetirerDeGroupe(id) {
   await renderPortesContent(state.currentUser ? state.currentUser.grade : '');
 }
 
+
+// ============================================================
+// COUPURE AUTOMATIQUE 2H00 — POLICE DE KONOHA
+// ============================================================
+(function() {
+  function checkCoupure2h() {
+    var paris = new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
+    var h = paris.getHours(), m = paris.getMinutes();
+    // Entre 2h00 et 2h05 → coupure
+    if (h === 2 && m < 5) {
+      cloturerTousServicesPolice();
+    }
+  }
+
+  async function cloturerTousServicesPolice() {
+    // Trouver tous les services en cours dans localStorage
+    var clotures = 0;
+    for (var key in localStorage) {
+      if (key.startsWith('konoha_service_')) {
+        var data = JSON.parse(localStorage.getItem(key) || 'null');
+        if (data && data.prise && !data.fin) {
+          var username = key.replace('konoha_service_', '');
+          var debut = new Date(data.prise);
+          // Calculer fin = 2h00 Paris → UTC
+          var parisNow = new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
+          var fin2h = new Date(parisNow);
+          fin2h.setHours(2,0,0,0);
+          if (fin2h < debut) fin2h.setDate(fin2h.getDate()+1);
+          var dureeMs = Math.max(60000, Math.min(fin2h - debut, 12*3600000));
+          var grade = state.users[username]?.grade || 'Recrue';
+          var taux = SALAIRES[grade] || 50;
+          var salaire = Math.round((dureeMs/3600000)*taux);
+          try {
+            await fetch(SB_URL+'/rest/v1/presences?username=eq.'+encodeURIComponent(username)+'&fin_service=is.null', {
+              method:'PATCH',
+              headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+              body:JSON.stringify({fin_service:fin2h.toISOString(), duree_minutes:Math.floor(dureeMs/60000), salaire:salaire, note:'Coupure automatique 02h00'})
+            });
+          } catch(e){}
+          localStorage.removeItem(key);
+          clotures++;
+        }
+      }
+    }
+    if (clotures > 0) {
+      console.log('[Konoha] Coupure 2h00 : '+clotures+' service(s) clôturé(s)');
+      // Si l'agent est sur l'onglet présences, recharger
+      if (state.currentUser) {
+        var tabPresences = document.getElementById('dash-presences');
+        if (tabPresences && tabPresences.classList.contains('active')) {
+          renderPresencesContent(state.currentUser.grade);
+        }
+      }
+    }
+  }
+
+  // Vérifier toutes les minutes
+  setInterval(checkCoupure2h, 60000);
+  // Vérifier aussi au chargement
+  checkCoupure2h();
+})();
+
 </script></body></html>
