@@ -11215,6 +11215,12 @@ async function renderPortesContent(g) {
     + '<button onclick="portesGrpAddMembre()" style="padding:7px 14px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">&#10133;</button>'
     + '</div>'
     + '<div id="portes-grp-membres-list" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-bottom:8px"></div>'
+    + '<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Ninjas disponibles — cliquez pour ajouter</div>'
+    + '<div id="portes-grp-disponibles" style="display:flex;flex-wrap:wrap;gap:5px;max-height:100px;overflow-y:auto;padding:4px">'
+    + (ninjas.filter(function(n){return n.statut==='present';}).map(function(n, idx){
+        return '<span class="grp-ninja-chip" data-idx="'+idx+'" style="background:rgba(196,154,26,0.08);color:var(--accent);border:1px solid rgba(196,154,26,0.25);padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer">'+n.nom+'</span>';
+      }).join('') || '<span style="font-size:11px;color:var(--muted);font-style:italic">Aucun ninja disponible</span>')
+    + '</div></div>'
     + '<div style="display:flex;gap:8px">'
     + '<button onclick="portesCreerGroupe()" style="padding:7px 16px;background:rgba(37,99,235,0.2);color:#93c5fd;border:1px solid rgba(37,99,235,0.4);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">Confirmer la sortie</button>'
     + '<button onclick="portesHideGrp()" style="padding:7px 12px;background:none;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer">Annuler</button>'
@@ -11255,7 +11261,8 @@ async function renderPortesContent(g) {
       var sc = ip ? 'rgba(39,174,96,0.12);color:#27ae60;border:1px solid rgba(39,174,96,0.3)'
                : ig ? 'rgba(196,154,26,0.12);color:var(--accent);border:1px solid rgba(196,154,26,0.3)'
                : 'rgba(192,57,43,0.12);color:#e74c3c;border:1px solid rgba(192,57,43,0.3)';
-      var btn = ig ? '' : ip
+      var btnSortir2 = '<button onclick="portesRetirerDeGroupe('+n.id+')" style="padding:4px 12px;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Retirer</button>';
+      var btn = ig ? btnSortir2 : ip
         ? '<button onclick="portesToggle('+n.id+',0)" style="padding:4px 12px;background:rgba(192,57,43,0.12);color:#e74c3c;border:1px solid rgba(192,57,43,0.3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Sortir</button>'
         : '<button onclick="portesToggle('+n.id+',1)" style="padding:4px 12px;background:rgba(39,174,96,0.12);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Rentr\u00e9</button>';
       var si = (!ip && !ig && n.heure_sortie) ? ' &middot; '+n.heure_sortie : '';
@@ -11271,6 +11278,17 @@ async function renderPortesContent(g) {
   }
   html += '</div>';
   el.innerHTML = html;
+
+  // Stocker les ninjas présents pour accès par index
+  window._portesNinjasPresents = ninjas.filter(function(n){return n.statut==='present';}).map(function(n){return n.nom;});
+  // Délégation clic sur les chips ninja dans le formulaire groupe
+  document.querySelectorAll('.grp-ninja-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      var idx2 = parseInt(this.getAttribute('data-idx'));
+      var nom = window._portesNinjasPresents && window._portesNinjasPresents[idx2];
+      if (nom) portesGrpAddFromList(nom);
+    });
+  });
 }
 
 function kpiPorte(lbl, val, col) {
@@ -11529,6 +11547,33 @@ function toggleHistoGrp(id) {
   var open = el.style.display !== 'none';
   el.style.display = open ? 'none' : 'block';
   if (arr) arr.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+
+function portesGrpAddFromList(nom) {
+  if (!window._portesGrpMb) window._portesGrpMb = [];
+  if (window._portesGrpMb.includes(nom)) return;
+  window._portesGrpMb.push(nom);
+  var list = document.getElementById('portes-grp-membres-list');
+  var sp = document.createElement('span');
+  sp.style.cssText = 'background:rgba(37,99,235,0.1);color:#93c5fd;border:1px solid rgba(37,99,235,0.25);padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer';
+  sp.textContent = nom + ' ×';
+  sp.onclick = function() { window._portesGrpMb = window._portesGrpMb.filter(function(m){return m!==nom;}); sp.remove(); };
+  if (list) list.appendChild(sp);
+  // Griser le ninja dans la liste disponibles
+  var chips = document.querySelectorAll('#portes-grp-disponibles span');
+  chips.forEach(function(c){ if(c.textContent.trim()===nom){ c.style.opacity='0.3'; c.style.pointerEvents='none'; } });
+}
+
+async function portesRetirerDeGroupe(id) {
+  try {
+    await fetch(SB_URL+'/rest/v1/village_ninjas?id=eq.'+id,{
+      method:'PATCH',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({statut:'present', groupe_id:null, heure_sortie:null})
+    });
+  } catch(e){ console.warn('retirer groupe:', e); }
+  await renderPortesContent(state.currentUser ? state.currentUser.grade : '');
 }
 
 </script></body></html>
