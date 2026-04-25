@@ -2909,7 +2909,6 @@ span.footer-logo svg { width: 40px; height: 40px; }
   </div>
 </div>
 
-<script src="app.js"></script>
 <script>// ============================================================
 // FEU — PARTICULES HERO
 // ============================================================
@@ -11019,7 +11018,7 @@ function impotsGenDoc() {
     <span id="footer-count"></span>
   </div>
 </div>
-<script>
+\x3cscript>
 var DATA = ${dataJson};
 var ORDRE = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Genin Confirmé'];
 
@@ -13677,6 +13676,19 @@ function jusToggle(id) {
   if (arr) arr.textContent = open ? '▼' : '▲';
 }
 
+function avToggle(id, btn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (btn) {
+    var arr = btn.querySelector('span:last-child');
+    if (arr && (arr.textContent === '▼' || arr.textContent === '▲')) {
+      arr.textContent = open ? '▼' : '▲';
+    }
+  }
+}
+
 async function ajouterMembreJus() {
   var nom  = document.getElementById('jus-new-nom')?.value.trim();
   var user = document.getElementById('jus-new-user')?.value.trim().toLowerCase().replace(/\s/g,'_');
@@ -13882,6 +13894,94 @@ async function renderAvDossiers() {
   el.innerHTML = h;
 }
 
+async function renderAvAmendes() {
+  var el = document.getElementById('av-tab-amendes');
+  if (!el) return;
+  var amendes = [];
+  try { var r = await sbGet('amendes','?order=id.desc'); if(Array.isArray(r)) amendes=r; } catch(e){}
+
+  function getNom(a) { return a.fullname || a.nom || a.citoyen || a.username || '—'; }
+  function getStatut(a) { return a.status || a.statut || ''; }
+
+  var total = amendes.length;
+  var payees   = amendes.filter(function(a){ var s=getStatut(a); return s==='payee'||s==='recuperee'; }).length;
+  var impayees = amendes.filter(function(a){ var s=getStatut(a); return s==='impayee'||s===''; }).length;
+
+  var h = '<div class="av-title">💰 Amendes — plaidoirie</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">';
+  h += '<div style="background:rgba(180,83,9,0.08);border:1px solid rgba(180,83,9,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#fbbf24">'+total+'</div><div style="font-size:10px;color:#92400e">Total</div></div>';
+  h += '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#86efac">'+payees+'</div><div style="font-size:10px;color:#92400e">Payées</div></div>';
+  h += '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#fca5a5">'+impayees+'</div><div style="font-size:10px;color:#92400e">Impayées</div></div>';
+  h += '</div>';
+  h += '<div style="display:flex;gap:8px;margin-bottom:10px">';
+  h += '<input type="text" id="av-am-search" placeholder="🔍 Rechercher..." oninput="avAmFilter()" style="flex:1;padding:8px 12px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7"/>';
+  h += '<select id="av-am-statut" onchange="avAmFilter()" style="padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;background:#1c0a00;color:#fef3c7">';
+  h += '<option value="tous">Tous</option><option value="impayee">Impayées</option><option value="payee">Payées</option></select></div>';
+
+  if (amendes.length === 0) {
+    h += '<div class="av-block" style="padding:1.5rem;text-align:center;color:#92400e">Aucune amende.</div>';
+  } else {
+    h += '<div class="av-block" id="av-am-list" style="padding:0;overflow:hidden">';
+    amendes.forEach(function(a, i) {
+      var nom = getNom(a);
+      var statut = getStatut(a);
+      var isPay = statut==='payee'||statut==='recuperee';
+      var sColor = isPay ? 'rgba(34,197,94,0.12);color:#86efac' : 'rgba(239,68,68,0.12);color:#fca5a5';
+      var sLabel = isPay ? '✓ Payée' : '⚠ Impayée';
+      var palier = a.palier || '';
+      var palierColor = palier==='palier3' ? '#fca5a5' : palier==='palier2' ? '#fde68a' : '#86efac';
+      var detId = 'av-am-det-' + i;
+      var statutData = isPay ? 'payee' : 'impayee';
+      var rowHtml = '<div class="av-am-row" data-nom="' + nom.toLowerCase() + '" data-statut="' + statutData + '" style="border-bottom:0.5px solid rgba(180,83,9,0.1)">';
+      rowHtml += '<div data-det="' + detId + '" onclick="avAmToggle(this)" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">';
+      rowHtml += '<div style="flex:1"><div style="font-weight:700;color:#fef3c7;font-size:13px">' + nom + '</div>';
+      rowHtml += '<div style="font-size:11px;color:#92400e">';
+      if (palier) rowHtml += '<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:rgba(180,83,9,0.1);color:' + palierColor + '">' + palier.replace('palier','Palier ') + '</span> ';
+      rowHtml += (a.infraction||a.motif||'—').substring(0,50) + '</div></div>';
+      rowHtml += '<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:#fbbf24">' + (parseInt(a.montant)||0).toLocaleString() + ' Ryos</div>';
+      rowHtml += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:' + sColor + '">' + sLabel + '</span></div>';
+      rowHtml += '<span style="font-size:10px;color:#92400e;margin-left:6px">▼</span></div>';
+      rowHtml += '<div id="' + detId + '" style="display:none;background:rgba(180,83,9,0.03);border-top:0.5px solid rgba(180,83,9,0.1);padding:12px 14px">';
+      rowHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">';
+      rowHtml += '<div><span style="color:#92400e">Contrevenant :</span> <strong style="color:#fef3c7">' + nom + '</strong></div>';
+      rowHtml += '<div><span style="color:#92400e">Montant :</span> <strong style="color:#fbbf24">' + (parseInt(a.montant)||0).toLocaleString() + ' Ryos</strong></div>';
+      rowHtml += '<div><span style="color:#92400e">Infraction :</span> <span style="color:#fef3c7">' + (a.infraction||a.motif||'—') + '</span></div>';
+      rowHtml += '<div><span style="color:#92400e">Palier :</span> <span style="color:' + palierColor + '">' + (palier||'—') + '</span></div>';
+      rowHtml += '<div><span style="color:#92400e">Agent :</span> <span style="color:#fef3c7">' + (a.agent_name||a.agent||'—') + '</span></div>';
+      rowHtml += '<div><span style="color:#92400e">Date :</span> <span style="color:#fef3c7">' + (a.date||'—') + '</span></div>';
+      if (a.note) rowHtml += '<div style="grid-column:1/-1"><span style="color:#92400e">Note :</span> <span style="color:#fef3c7">' + a.note + '</span></div>';
+      if (isPay && a.encaisse_par) rowHtml += '<div style="grid-column:1/-1"><span style="color:#92400e">Encaissé par :</span> <span style="color:#86efac">' + a.encaisse_par + '</span></div>';
+      if (isPay && a.recupere_par) rowHtml += '<div style="grid-column:1/-1"><span style="color:#92400e">Récupéré par :</span> <span style="color:#86efac">' + a.recupere_par + '</span></div>';
+      rowHtml += '</div></div></div>';
+      h += rowHtml;
+    });
+    h += '</div>';
+  }
+  el.innerHTML = h;
+}
+
+function avAmToggle(btn) {
+  var detId = btn.getAttribute('data-det');
+  if (!detId) return;
+  var det = document.getElementById(detId);
+  if (!det) return;
+  var open = det.style.display !== 'none';
+  det.style.display = open ? 'none' : 'block';
+  var arr = btn.querySelector('span:last-child');
+  if (arr) arr.textContent = open ? '▼' : '▲';
+}
+
+function avAmFilter() {
+  var q = (document.getElementById('av-am-search') ? document.getElementById('av-am-search').value : '').toLowerCase();
+  var st = document.getElementById('av-am-statut') ? document.getElementById('av-am-statut').value : 'tous';
+  document.querySelectorAll('.av-am-row').forEach(function(r) {
+    var matchQ = !q || (r.getAttribute('data-nom')||'').includes(q);
+    var matchS = st==='tous' || r.getAttribute('data-statut')===st;
+    r.style.display = (matchQ && matchS) ? '' : 'none';
+  });
+}
+
+
 async function renderAvCasiers() {
   var el = document.getElementById('av-tab-casiers');
   if (!el) return;
@@ -13976,4 +14076,6 @@ function avCasFilter() {
   });
 }
 
->
+</script>
+</body>
+</html>
