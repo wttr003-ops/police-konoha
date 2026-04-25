@@ -2727,6 +2727,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           Galerie équipe
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('cellules',this)" style="color:var(--red2)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="12" y1="15" x2="12" y2="17"/></svg>
+          Cellules
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('messages-agent',this)" id="nav-messages-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           Messages citoyens
@@ -2860,6 +2864,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
       <!-- LOGS COMPTES -->
       <div class="dash-tab" id="dash-galerie"></div>
+      <div class="dash-tab" id="dash-cellules"><div id="cellules-content"></div></div>
       <div class="dash-tab" id="dash-messages-agent"></div>
 
       <div class="dash-tab" id="dash-logs">
@@ -4145,6 +4150,7 @@ async function switchDashTab(name, btn) {
   if (name === 'messages-agent') renderAgentMessages();
   if (name === 'presences')      renderPresencesContent(g);
   if (name === 'galerie')        renderGalerie();
+  if (name === 'cellules')      renderCellulesContent(g);
 }
 
 function renderOverview(g) {
@@ -12162,6 +12168,427 @@ function gradeRankAv(g) {
 // ============================================================
 // DASHBOARD JUSTICE
 // ============================================================
+
+// ============================================================
+// CELLULES — Mise en cellule & partage Justice/Avocat
+// ============================================================
+
+async function renderCellulesContent(g) {
+  const el = document.getElementById('cellules-content');
+  if (!el) return;
+  const u = state.currentUser;
+  const canAdd = gradeRank(g) <= 4 && g !== 'Hokage';
+  const canDel = gradeRank(g) <= 2;
+
+  let cellules = [];
+  try {
+    const r = await sbGet('cellules', '?order=created_at.desc');
+    if (Array.isArray(r)) cellules = r;
+  } catch(e) {}
+
+  const actives  = cellules.filter(c => c.statut === 'en_cellule');
+  const liberees = cellules.filter(c => c.statut === 'libere');
+
+  let html = '<h2 class="dash-section-title">🔒 Cellules — Mise en détention</h2>';
+
+  // === FORMULAIRE MISE EN CELLULE ===
+  if (canAdd) {
+    html += `<div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
+      <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">⛓ Nouvelle mise en cellule</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group"><label class="form-label">Nom et Prénom du détenu *</label>
+          <input type="text" id="cel-nom" class="form-input" placeholder="Ex: Naruto Uzumaki"/></div>
+        <div class="form-group"><label class="form-label">Grade / Rang</label>
+          <select id="cel-grade" class="form-input">
+            <option value="">-- Sélectionner --</option>
+            <optgroup label="Rangs Ninja">
+              <option>Génin Simple</option><option>Génin Confirmé</option>
+              <option>Chunin</option><option>Jonin</option><option>Jonin Commandant</option>
+            </optgroup>
+            <optgroup label="Autres">
+              <option>Citoyen</option><option>Inconnu</option>
+            </optgroup>
+          </select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group"><label class="form-label">Motif de l'arrestation *</label>
+          <select id="cel-motif-type" class="form-input">
+            <option value="">-- Type d'infraction --</option>
+            <optgroup label="Palier 2 — Grave">
+              <option>Vol ou arnaque</option>
+              <option>Refus d'obtempérer</option>
+              <option>Harcèlement physique ou psychologique</option>
+              <option>Entrave à une intervention de Police</option>
+              <option>Incident entre deux ninjas</option>
+              <option>Insubordination envers la hiérarchie</option>
+              <option>Menace mineure</option>
+            </optgroup>
+            <optgroup label="Palier 3 — Très grave">
+              <option>Menace majeure envers un agent</option>
+              <option>Agression envers un Haut Fonctionnaire</option>
+              <option>Usurpation de grade ou d'identité</option>
+              <option>Tentative d'homicide</option>
+              <option>Tentative de désertion</option>
+              <option>Homicide</option>
+              <option>Kidnapping / Séquestration / Torture</option>
+              <option>Évasion des cellules</option>
+              <option>Acte terroriste</option>
+              <option>Trahison envers Konoha</option>
+            </optgroup>
+          </select></div>
+        <div class="form-group"><label class="form-label">Durée estimée</label>
+          <select id="cel-duree" class="form-input">
+            <option value="indeterminee">Indéterminée</option>
+            <option value="1h">1 heure</option>
+            <option value="2h">2 heures</option>
+            <option value="session">1 session RP complète</option>
+            <option value="jugement">Jusqu'au jugement</option>
+          </select></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label class="form-label">Faits détaillés *</label>
+        <textarea id="cel-faits" class="form-input" rows="3" placeholder="Décrivez précisément les faits : lieu, heure, déroulement, témoins éventuels..."></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div class="form-group"><label class="form-label">Armes / Objets saisis</label>
+          <input type="text" id="cel-objets" class="form-input" placeholder="Ex: Kunai, Shuriken... ou Aucun"/></div>
+        <div class="form-group"><label class="form-label">Agents présents à l'arrestation</label>
+          <input type="text" id="cel-agents" class="form-input" placeholder="Ex: Hazuro Uchiha, Kai Uchiha"/></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <input type="checkbox" id="cel-partage" checked style="width:16px;height:16px;cursor:pointer"/>
+        <label for="cel-partage" style="font-size:13px;color:var(--muted);cursor:pointer">
+          Partager automatiquement avec <strong style="color:#93c5fd">Justice</strong> et <strong style="color:#fbbf24">Cabinet des Avocats</strong>
+        </label>
+      </div>
+      <button class="btn-primary" onclick="saveMiseEnCellule()" style="background:linear-gradient(135deg,#c0392b,#922b21);border:none">
+        ⛓ Mettre en cellule
+      </button>
+      <div id="cel-ok" style="display:none;margin-top:0.75rem;padding:8px 14px;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);border-radius:6px;font-size:13px">
+        ✓ Mise en cellule enregistrée et partagée !
+      </div>
+    </div>`;
+  }
+
+  // === BARRE DE RECHERCHE ===
+  html += `<div style="display:flex;gap:10px;margin-bottom:1rem;align-items:center">
+    <input type="text" id="cel-search" placeholder="🔍 Rechercher un détenu, un motif..." oninput="celFilter()"
+      style="flex:1;padding:9px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--panel);color:var(--text)"/>
+    <select id="cel-filter-statut" onchange="celFilter()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--panel);color:var(--text)">
+      <option value="tous">Tous les statuts</option>
+      <option value="en_cellule">En cellule</option>
+      <option value="libere">Libérés</option>
+    </select>
+  </div>`;
+
+  // === KPIs ===
+  html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem">
+    <div style="background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.25);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:24px;font-weight:700;color:var(--red2)">${actives.length}</div>
+      <div style="font-size:11px;color:var(--muted)">En cellule</div>
+    </div>
+    <div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:24px;font-weight:700;color:#27ae60">${liberees.length}</div>
+      <div style="font-size:11px;color:var(--muted)">Libérés</div>
+    </div>
+    <div style="background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:24px;font-weight:700;color:var(--text)">${cellules.length}</div>
+      <div style="font-size:11px;color:var(--muted)">Total dossiers</div>
+    </div>
+  </div>`;
+
+  // === LISTE DES DOSSIERS ===
+  if (cellules.length === 0) {
+    html += '<div class="dash-block" style="padding:2rem;text-align:center"><p style="color:var(--muted)">Aucune mise en cellule enregistrée.</p></div>';
+  } else {
+    html += '<div class="dash-block" id="cel-list" style="padding:0;overflow:hidden">';
+    cellules.forEach(function(c, i) {
+      const isActive = c.statut === 'en_cellule';
+      const sColor = isActive ? 'rgba(192,57,43,0.12);color:var(--red2);border:1px solid rgba(192,57,43,0.3)' : 'rgba(39,174,96,0.1);color:#27ae60;border:1px solid rgba(39,174,96,0.3)';
+      const sLabel = isActive ? '🔒 En cellule' : '✓ Libéré';
+      const partage = c.partage_jus_av;
+      const detId = 'cel-det-' + i;
+
+      html += `<div class="cel-row" data-nom="${(c.nom||'').toLowerCase()}" data-motif="${(c.motif_type||'').toLowerCase()}" data-statut="${c.statut||''}" style="border-bottom:0.5px solid var(--border)">
+        <div onclick="celToggle('${detId}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer">
+          <div style="width:40px;height:40px;border-radius:50%;background:${isActive?'rgba(192,57,43,0.12)':'rgba(39,174,96,0.1)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${isActive?'⛓':'🔓'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;color:var(--text);font-size:14px">${c.nom||'—'}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">
+              ${c.grade||'—'} — <span style="color:var(--red2)">${c.motif_type||'—'}</span>
+              ${partage ? ' <span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(37,99,235,0.1);color:#93c5fd">⚖ Justice</span> <span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(180,83,9,0.12);color:#fbbf24">🧑‍⚖️ Avocat</span>' : ''}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+            <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:${sColor}">${sLabel}</span>
+            <span style="font-size:10px;color:var(--muted)">${c.date_arrestation||'—'}</span>
+          </div>
+          <span style="font-size:10px;color:var(--muted);margin-left:6px" id="arr-${detId}">▼</span>
+        </div>
+
+        <div id="${detId}" style="display:none;background:rgba(192,57,43,0.03);border-top:0.5px solid var(--border);padding:1rem 1.25rem">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;font-size:13px">
+            <div><span style="color:var(--muted)">Détenu :</span> <strong style="color:var(--text)">${c.nom||'—'}</strong></div>
+            <div><span style="color:var(--muted)">Grade :</span> <span style="color:var(--text)">${c.grade||'—'}</span></div>
+            <div><span style="color:var(--muted)">Motif :</span> <span style="color:var(--red2);font-weight:600">${c.motif_type||'—'}</span></div>
+            <div><span style="color:var(--muted)">Durée :</span> <span style="color:var(--text)">${c.duree||'Indéterminée'}</span></div>
+            <div><span style="color:var(--muted)">Agent responsable :</span> <span style="color:var(--text)">${c.agent_nom||'—'}</span></div>
+            <div><span style="color:var(--muted)">Date d'arrestation :</span> <span style="color:var(--text)">${c.date_arrestation||'—'} à ${c.heure_arrestation||'—'}</span></div>
+            ${c.agents_presents ? `<div style="grid-column:1/-1"><span style="color:var(--muted)">Agents présents :</span> <span style="color:var(--text)">${c.agents_presents}</span></div>` : ''}
+            ${c.objets_saisis ? `<div style="grid-column:1/-1"><span style="color:var(--muted)">Objets saisis :</span> <span style="color:var(--text)">${c.objets_saisis}</span></div>` : ''}
+          </div>
+          <div style="background:rgba(192,57,43,0.05);border:1px solid rgba(192,57,43,0.15);border-radius:8px;padding:12px;margin-bottom:1rem">
+            <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Faits détaillés</div>
+            <div style="font-size:13px;color:var(--text);line-height:1.6">${c.faits||'—'}</div>
+          </div>
+          ${c.note_liberation ? `<div style="background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.2);border-radius:8px;padding:12px;margin-bottom:1rem">
+            <div style="font-size:11px;font-weight:700;color:#27ae60;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Note de libération</div>
+            <div style="font-size:13px;color:var(--text)">${c.note_liberation}</div>
+          </div>` : ''}
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${isActive ? `<button onclick="libererDetenu(${c.id})" style="padding:7px 16px;background:rgba(39,174,96,0.12);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">🔓 Libérer</button>` : ''}
+            ${canDel ? `<button onclick="supprimerCellule(${c.id})" style="padding:7px 14px;background:rgba(192,57,43,0.1);color:var(--red2);border:1px solid rgba(192,57,43,0.2);border-radius:7px;font-size:12px;cursor:pointer">🗑 Supprimer</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+function celToggle(id) {
+  const el = document.getElementById(id);
+  const arr = document.getElementById('arr-' + id);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (arr) arr.textContent = open ? '▼' : '▲';
+}
+
+function celFilter() {
+  const q = (document.getElementById('cel-search')?.value || '').toLowerCase();
+  const statut = document.getElementById('cel-filter-statut')?.value || 'tous';
+  document.querySelectorAll('.cel-row').forEach(function(row) {
+    const nom = row.getAttribute('data-nom') || '';
+    const motif = row.getAttribute('data-motif') || '';
+    const st = row.getAttribute('data-statut') || '';
+    const matchQ = !q || nom.includes(q) || motif.includes(q);
+    const matchS = statut === 'tous' || st === statut;
+    row.style.display = (matchQ && matchS) ? '' : 'none';
+  });
+}
+
+async function saveMiseEnCellule() {
+  const nom    = document.getElementById('cel-nom')?.value.trim();
+  const grade  = document.getElementById('cel-grade')?.value;
+  const motif  = document.getElementById('cel-motif-type')?.value;
+  const faits  = document.getElementById('cel-faits')?.value.trim();
+  const duree  = document.getElementById('cel-duree')?.value;
+  const objets = document.getElementById('cel-objets')?.value.trim();
+  const agents = document.getElementById('cel-agents')?.value.trim();
+  const partage = document.getElementById('cel-partage')?.checked;
+
+  if (!nom || !motif || !faits) { konohaAlert('Nom, motif et faits sont obligatoires.', '⚠️'); return; }
+
+  const u = state.currentUser;
+  const agentNom = state.users[u.username]?.fullname || u.username;
+  const now = new Date();
+  const dateArr = now.toLocaleDateString('fr-FR');
+  const heureArr = now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+  const entry = {
+    nom, grade, motif_type: motif, faits, duree, objets_saisis: objets||'Aucun',
+    agents_presents: agents||agentNom, agent_nom: agentNom, agent_username: u.username,
+    statut: 'en_cellule', partage_jus_av: partage||false,
+    date_arrestation: dateArr, heure_arrestation: heureArr
+  };
+
+  try {
+    await sbPost('cellules', entry);
+  } catch(e) {
+    konohaAlert('Erreur lors de la sauvegarde. Vérifiez la table cellules.', '⚠️');
+    return;
+  }
+
+  // Vider le formulaire
+  ['cel-nom','cel-faits','cel-objets','cel-agents'].forEach(function(id) {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ['cel-grade','cel-motif-type','cel-duree'].forEach(function(id) {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+
+  const ok = document.getElementById('cel-ok');
+  if (ok) { ok.style.display = 'block'; setTimeout(function(){ ok.style.display = 'none'; }, 4000); }
+
+  renderCellulesContent(state.currentUser.grade);
+}
+
+async function libererDetenu(id) {
+  const existing = document.getElementById('liberer-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'liberer-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `<div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:2rem;max-width:380px;width:90%;text-align:center">
+    <div style="font-size:36px;margin-bottom:10px">🔓</div>
+    <div style="font-size:17px;font-weight:700;color:#27ae60;margin-bottom:0.5rem">Libérer le détenu</div>
+    <div class="form-group" style="text-align:left;margin-top:1rem">
+      <label class="form-label">Note de libération (optionnel)</label>
+      <textarea id="lib-note" class="form-input" rows="2" placeholder="Ex: Peine effectuée, libéré sur décision du tribunal..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:1.25rem;justify-content:center">
+      <button onclick="document.getElementById('liberer-modal').remove()" style="padding:9px 20px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">Annuler</button>
+      <button onclick="confirmerLiberation(${id})" style="padding:9px 20px;background:rgba(39,174,96,0.15);color:#27ae60;border:1px solid rgba(39,174,96,0.3);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ Confirmer la libération</button>
+    </div>
+  </div>`;
+  modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+async function confirmerLiberation(id) {
+  const note = document.getElementById('lib-note')?.value.trim() || '';
+  document.getElementById('liberer-modal')?.remove();
+  try {
+    await fetch(SB_URL + '/rest/v1/cellules?id=eq.' + id, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ statut: 'libere', note_liberation: note, date_liberation: new Date().toLocaleDateString('fr-FR') })
+    });
+  } catch(e) { console.warn(e); }
+  konohaAlert('✓ Détenu libéré !', '🔓');
+  renderCellulesContent(state.currentUser.grade);
+}
+
+async function supprimerCellule(id) {
+  konohaConfirm('Supprimer ce dossier de mise en cellule ?', async function() {
+    try { await sbDelete('cellules', '?id=eq.' + id); } catch(e) {}
+    renderCellulesContent(state.currentUser.grade);
+  }, { icon: '🗑️', label: 'Supprimer', danger: true });
+}
+
+// ============================================================
+// CELLULES côté Justice & Avocat (lecture + détails)
+// ============================================================
+async function renderJusCellules() {
+  const el = document.getElementById('jus-tab-cellules');
+  if (!el) return;
+  el.innerHTML = '<div class="jus-title">⛓ Personnes en cellule</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:1rem">'
+    + '<input type="text" id="jus-cel-search" placeholder="🔍 Rechercher..." oninput="jusCelFilter()" style="flex:1;padding:8px 12px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0"/>'
+    + '<select id="jus-cel-statut" onchange="jusCelFilter()" style="padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;background:#0f172a;color:#e2e8f0">'
+    + '<option value="tous">Tous</option><option value="en_cellule">En cellule</option><option value="libere">Libérés</option>'
+    + '</select></div>'
+    + '<div id="jus-cellules-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
+
+  let cellules = [];
+  try {
+    const r = await sbGet('cellules', '?order=created_at.desc');
+    if (Array.isArray(r)) cellules = r.filter(function(c){ return c.partage_jus_av; });
+  } catch(e) {}
+
+  jusCelRender(cellules, 'jus');
+}
+
+async function renderAvCellules() {
+  const el = document.getElementById('av-tab-cellules');
+  if (!el) return;
+  el.innerHTML = '<div class="av-title">⛓ Personnes en cellule</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:1rem">'
+    + '<input type="text" id="av-cel-search" placeholder="🔍 Rechercher..." oninput="avCelFilter()" style="flex:1;padding:8px 12px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7"/>'
+    + '<select id="av-cel-statut" onchange="avCelFilter()" style="padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;background:#1c0a00;color:#fef3c7">'
+    + '<option value="tous">Tous</option><option value="en_cellule">En cellule</option><option value="libere">Libérés</option>'
+    + '</select></div>'
+    + '<div id="av-cellules-list"><div style="color:#92400e;text-align:center;padding:1rem">Chargement...</div></div>';
+
+  let cellules = [];
+  try {
+    const r = await sbGet('cellules', '?order=created_at.desc');
+    if (Array.isArray(r)) cellules = r.filter(function(c){ return c.partage_jus_av; });
+  } catch(e) {}
+
+  jusCelRender(cellules, 'av');
+}
+
+function jusCelRender(cellules, prefix) {
+  const listEl = document.getElementById(prefix + '-cellules-list');
+  if (!listEl) return;
+  const isJus = prefix === 'jus';
+  const blockStyle = isJus ? 'jus-block' : 'av-block';
+  const rowStyle = isJus ? 'jus-row' : 'av-row';
+  const accentColor = isJus ? '#93c5fd' : '#fbbf24';
+  const mutedColor = isJus ? '#64748b' : '#92400e';
+  const textColor = isJus ? '#e2e8f0' : '#fef3c7';
+  const borderActive = isJus ? 'rgba(37,99,235,0.1)' : 'rgba(180,83,9,0.1)';
+
+  if (cellules.length === 0) {
+    listEl.innerHTML = '<div class="' + blockStyle + '" style="padding:1.5rem;text-align:center;color:' + mutedColor + '">Aucun dossier de mise en cellule partagé.</div>';
+    return;
+  }
+  let h = '<div class="' + blockStyle + '" style="padding:0;overflow:hidden">';
+  cellules.forEach(function(c, i) {
+    const isActive = c.statut === 'en_cellule';
+    const detId = prefix + '-cel-det-' + i;
+    const sLabel = isActive ? '🔒 En cellule' : '✓ Libéré';
+    const sColor = isActive ? '#fca5a5' : '#86efac';
+    h += `<div class="${prefix}-cel-row" data-nom="${(c.nom||'').toLowerCase()}" data-statut="${c.statut||''}" style="border-bottom:0.5px solid ${borderActive}">
+      <div onclick="jusToggle('${detId}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">
+        <div style="flex:1">
+          <div style="font-weight:700;color:${textColor};font-size:13px">${c.nom||'—'}</div>
+          <div style="font-size:11px;color:${mutedColor}">${c.grade||'—'} — ${c.motif_type||'—'}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(239,68,68,0.1);color:${sColor}">${sLabel}</span>
+        <span style="font-size:10px;color:${mutedColor}" id="arr-${detId}">▼</span>
+      </div>
+      <div id="${detId}" style="display:none;background:rgba(0,0,0,0.2);border-top:0.5px solid ${borderActive};padding:12px 14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">
+          <div><span style="color:${mutedColor}">Détenu :</span> <strong style="color:${textColor}">${c.nom||'—'}</strong></div>
+          <div><span style="color:${mutedColor}">Grade :</span> <span style="color:${textColor}">${c.grade||'—'}</span></div>
+          <div><span style="color:${mutedColor}">Motif :</span> <span style="color:#fca5a5;font-weight:700">${c.motif_type||'—'}</span></div>
+          <div><span style="color:${mutedColor}">Durée :</span> <span style="color:${textColor}">${c.duree||'Indéterminée'}</span></div>
+          <div><span style="color:${mutedColor}">Agent responsable :</span> <span style="color:${textColor}">${c.agent_nom||'—'}</span></div>
+          <div><span style="color:${mutedColor}">Arrestation :</span> <span style="color:${textColor}">${c.date_arrestation||'—'} à ${c.heure_arrestation||'—'}</span></div>
+          ${c.agents_presents ? `<div style="grid-column:1/-1"><span style="color:${mutedColor}">Agents présents :</span> <span style="color:${textColor}">${c.agents_presents}</span></div>` : ''}
+          ${c.objets_saisis ? `<div style="grid-column:1/-1"><span style="color:${mutedColor}">Objets saisis :</span> <span style="color:${textColor}">${c.objets_saisis}</span></div>` : ''}
+        </div>
+        <div style="padding:10px 12px;background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.2);border-radius:8px;margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:#fca5a5;margin-bottom:5px">Faits détaillés</div>
+          <div style="font-size:12px;color:${textColor};line-height:1.6">${c.faits||'—'}</div>
+        </div>
+        ${c.note_liberation ? `<div style="padding:8px 12px;background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.2);border-radius:8px">
+          <div style="font-size:11px;font-weight:700;color:#86efac;margin-bottom:4px">Note de libération</div>
+          <div style="font-size:12px;color:${textColor}">${c.note_liberation}</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  });
+  h += '</div>';
+  listEl.innerHTML = h;
+}
+
+function jusCelFilter() {
+  const q = (document.getElementById('jus-cel-search')?.value || '').toLowerCase();
+  const st = document.getElementById('jus-cel-statut')?.value || 'tous';
+  document.querySelectorAll('.jus-cel-row').forEach(function(r) {
+    const matchQ = !q || (r.getAttribute('data-nom')||'').includes(q);
+    const matchS = st === 'tous' || r.getAttribute('data-statut') === st;
+    r.style.display = (matchQ && matchS) ? '' : 'none';
+  });
+}
+
+function avCelFilter() {
+  const q = (document.getElementById('av-cel-search')?.value || '').toLowerCase();
+  const st = document.getElementById('av-cel-statut')?.value || 'tous';
+  document.querySelectorAll('.av-cel-row').forEach(function(r) {
+    const matchQ = !q || (r.getAttribute('data-nom')||'').includes(q);
+    const matchS = st === 'tous' || r.getAttribute('data-statut') === st;
+    r.style.display = (matchQ && matchS) ? '' : 'none';
+  });
+}
+
+
 function renderJusticeDashboard() {
   var u = state.currentUser;
   if (!u) return;
@@ -12177,7 +12604,7 @@ function renderJusticeDashboard() {
 }
 
 function switchJusTab(name) {
-  ['dossiers','candidatures','casiers','amendes','membres','ajout','logs'].forEach(function(t){
+  ['dossiers','candidatures','casiers','amendes','cellules','membres','ajout','logs'].forEach(function(t){
     var el = document.getElementById('jus-tab-'+t);
     var btn = document.getElementById('jus-btn-'+t);
     if (el) el.style.display = t===name ? 'block' : 'none';
@@ -12189,6 +12616,7 @@ function switchJusTab(name) {
   if (name==='amendes')      renderJusAmendes();
   if (name==='membres')      renderJusMembres();
   if (name==='ajout')        renderJusAjout();
+  if (name==='cellules')     renderJusCellules();
   if (name==='logs')         renderJusLogs();
 }
 
@@ -13169,6 +13597,7 @@ function logoutAvocat() {
       <div id="av-tab-candidatures" style="display:none"></div>
       <div id="av-tab-casiers" style="display:none"></div>
       <div id="av-tab-amendes" style="display:none"></div>
+      <div id="av-tab-cellules" style="display:none"></div>
       <div id="av-tab-membres" style="display:none"></div>
       <div id="av-tab-ajout" style="display:none"></div>
       <div id="av-tab-logs" style="display:none"></div>
