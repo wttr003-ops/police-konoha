@@ -3537,6 +3537,19 @@ function updateNav() {
     // Update dashboard button label based on account type
     const userData = state.users[u.username];
     const isCitizen = userData && !userData.isAgent;
+  const userService = userData?.service || found?.service || '';
+
+  // Redirection Justice / Avocat
+  if (userService === 'justice') {
+    showPage('justice');
+    setTimeout(renderJusticeDashboard, 100);
+    return;
+  }
+  if (userService === 'avocat') {
+    showPage('avocat');
+    setTimeout(renderAvocatDashboard, 100);
+    return;
+  }
     const dashBtn = document.getElementById('nav-dash-btn');
     if (dashBtn) dashBtn.textContent = isCitizen ? 'Espace citoyen' : 'Espace agent';
     const pill = document.getElementById('nav-grade-pill');
@@ -6681,10 +6694,21 @@ async function initApp() {
           grade: fresh.grade,
           fullname: fresh.fullname || session.fullname,
           matricule: fresh.matricule || session.matricule,
-          isAgent: fresh.isAgent
+          isAgent: fresh.isAgent,
+          service: fresh.service || ''
         };
         localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
-        showPage('dashboard');
+        // Redirection selon service
+        const savedService = fresh.service || '';
+        if (savedService === 'justice') {
+          showPage('justice');
+          setTimeout(renderJusticeDashboard, 200);
+        } else if (savedService === 'avocat') {
+          showPage('avocat');
+          setTimeout(renderAvocatDashboard, 200);
+        } else {
+          showPage('dashboard');
+        }
         startRealtime();
       }
     } catch(e) {}
