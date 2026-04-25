@@ -12059,7 +12059,7 @@ async function ajouterMembreJus() {
   var grade= document.getElementById('jus-new-grade')?.value;
   if (!nom||!user||!pass) { alert('Remplissez tous les champs.'); return; }
   try {
-    await sbPost('users', { username:user, fullname:nom, password:pass, grade, service:'justice', isAgent:true });
+    await sbPost('users', { username:user, fullname:nom, password:pass, grade, service:'justice' });
   } catch(e) { console.warn('ajout jus:', e); alert('Erreur: '+e.message); return; }
   var ok = document.getElementById('jus-ajout-ok');
   if (ok) { ok.style.display='block'; ok.textContent='✓ Compte créé pour '+nom+' ('+grade+')'; }
@@ -12231,7 +12231,7 @@ async function ajouterMembreAv() {
   var grade= document.getElementById('av-new-grade')?.value;
   if (!nom||!user||!pass) { alert('Remplissez tous les champs.'); return; }
   try {
-    await sbPost('users', { username:user, fullname:nom, password:pass, grade, service:'avocat', isAgent:true });
+    await sbPost('users', { username:user, fullname:nom, password:pass, grade, service:'avocat' });
   } catch(e) { alert('Erreur: '+e.message); return; }
   var ok = document.getElementById('av-ajout-ok');
   if (ok) { ok.style.display='block'; ok.textContent='✓ Compte créé pour '+nom+' ('+grade+')'; }
