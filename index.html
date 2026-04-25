@@ -11018,7 +11018,7 @@ function impotsGenDoc() {
     <span id="footer-count"></span>
   </div>
 </div>
-\x3cscript>
+${'<'}script>
 var DATA = ${dataJson};
 var ORDRE = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Genin Confirmé'];
 
@@ -11052,7 +11052,7 @@ function doFilter(grade, btn) {
   document.getElementById('footer-count').textContent = n + ' ninja' + (n > 1 ? 's' : '') + ' concerné' + (n > 1 ? 's' : '');
 }
 doFilter('tous', document.querySelector('.fbtn'));
-<\/script>
+${'<'}/script>
 </body>
 </html>`;
 
