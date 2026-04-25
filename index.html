@@ -10884,33 +10884,36 @@ async function executerRetrait(username, fullname, montant, totalRyos, motif) {
 
 function normalizeGrade(g) {
   if (!g) return '';
-  var s = g.toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g,'')
-    .replace(/[-_]/g,' ').trim();
-  // Alias connus
+  // Normaliser : minuscules, retirer accents, remplacer tirets par espaces
+  var s = (g + '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[-_]/g, ' ').trim();
+  // Alias Genin Simple / Génin Simple → 'genin'
   if (s === 'genin simple' || s === 'genin') return 'genin';
-  if (s === 'genin confirme' || s === 'genin confirme') return 'genin confirme';
+  // Alias Genin Confirmé / Génin Confirmé → 'genin confirme'
+  if (s === 'genin confirme' || s === 'genin confirmed') return 'genin confirme';
   return s;
 }
 
 const IMPOTS_GRADES_ORDER = ['Hokage','Commandant-Jonin','Jonin','Tokubetsu-Jonin','Kakunin','Chunin','Tokubetsu-Chunin','Genin Confirmé','Genin'];
 const IMPOTS_MONTANTS = {
-  'Hokage':8400,'Commandant-Jonin':7800,'Jonin':7200,'Tokubetsu-Jonin':6000,
-  'Kakunin':4800,'Chunin':3600,'Tokubetsu-Chunin':2400,
-  // Toutes les formes possibles pour Genin Confirmé
-  'Genin Confirmé':1200,'Genin Confirme':1200,'Génin Confirmé':1200,'Génin Confirme':1200,
-  'Genin confirmé':1200,'Genin confirme':1200,
-  // Toutes les formes possibles pour Genin
-  'Genin':0,'Génin':0,'Génin Simple':0,'Genin Simple':0,
-  // Autres grades ninja sans impôts
-  'Citoyen':0,'':0
+  'Hokage':8400,
+  'Commandant-Jonin':7800,
+  'Jonin':7200,
+  'Tokubetsu-Jonin':6000,
+  'Kakunin':4800,
+  'Chunin':3600,
+  'Tokubetsu-Chunin':2400,
+  'Genin Confirmé':1200, 'Génin Confirmé':1200, 'Genin confirmé':1200, 'Génin confirmé':1200,
+  'Genin':0, 'Génin':0, 'Génin Simple':0, 'Genin Simple':0,
+  'Citoyen':0, '':0
 };
 const IMPOTS_COLORS = {
-  'Hokage':'#c49a1a','Commandant-Jonin':'#c0392b','Jonin':'#8b5cf6',
-  'Tokubetsu-Jonin':'#c49a1a','Kakunin':'#10b981','Chunin':'#f59e0b','Tokubetsu-Chunin':'#6366f1',
-  'Genin Confirmé':'#64748b','Génin Confirmé':'#64748b','Genin confirme':'#64748b',
-  'Genin':'#94a3b8','Génin Simple':'#94a3b8','Genin Simple':'#94a3b8',
-  'Citoyen':'#94a3b8','':'#94a3b8'
+  'Hokage':'#c49a1a', 'Commandant-Jonin':'#c0392b', 'Jonin':'#8b5cf6',
+  'Tokubetsu-Jonin':'#c49a1a', 'Kakunin':'#10b981', 'Chunin':'#f59e0b', 'Tokubetsu-Chunin':'#6366f1',
+  'Genin Confirmé':'#64748b', 'Génin Confirmé':'#64748b', 'Genin confirmé':'#64748b',
+  'Genin':'#94a3b8', 'Génin':'#94a3b8', 'Génin Simple':'#94a3b8', 'Genin Simple':'#94a3b8',
+  'Citoyen':'#94a3b8', '':'#94a3b8'
 };
 // Collecteurs = agents réels du site (state.users)
 
@@ -11356,9 +11359,14 @@ async function impotsRenderTable(g) {
   let n = 0;
   tbody.innerHTML = filtered.map(r => {
     n++;
-    const gc = IMPOTS_COLORS[r.grade]||'#64748b';
+    const gc = IMPOTS_COLORS[r.grade]
+      || Object.entries(IMPOTS_COLORS).find(([k]) => normalizeGrade(k) === normalizeGrade(r.grade))?.[1]
+      || '#64748b';
     const init = r.nom.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    const montant = IMPOTS_MONTANTS[r.grade]||0;
+    // Chercher montant avec normalisation pour gérer tous les cas d'écriture
+    const _normGrade = normalizeGrade(r.grade);
+    const montant = IMPOTS_MONTANTS[r.grade] !== undefined ? IMPOTS_MONTANTS[r.grade]
+      : Object.entries(IMPOTS_MONTANTS).find(([k]) => normalizeGrade(k) === _normGrade)?.[1] ?? 0;
 
     const gradePart = canEdit
       ? '<select onchange="impotsChange(\'grade\','+r.id+',this.value,this)" style="border:1px solid '+gc+'44;border-radius:6px;background:'+gc+'12;color:'+gc+';font-size:11px;padding:3px 5px;cursor:pointer;font-family:sans-serif;max-width:130px">'
