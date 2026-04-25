@@ -3266,7 +3266,8 @@ async function _loadUsersFromSupabase() {
           casier: u.casier || 'non',
           connu: u.connu || 'non',
           genre: u.genre || 'homme',
-          inscription: u.inscription || ''
+          inscription: u.inscription || '',
+          service: u.service || ''
         };
       });
     }
@@ -3592,7 +3593,7 @@ async function doLogin() {
     const overrides = JSON.parse(localStorage.getItem('konoha_grades') || '{}');
     if (overrides[user]) realGrade = overrides[user];
   } catch(e) {}
-  state.currentUser = { username: user, grade: realGrade, fullname: found.fullname || user };
+  state.currentUser = { username: user, grade: realGrade, fullname: found.fullname || user, service: found.service || '' };
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   startRealtime();
   const userService = found.service || '';
