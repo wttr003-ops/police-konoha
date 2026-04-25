@@ -11066,12 +11066,27 @@ doFilter('tous', document.querySelector('.fbtn'));
   }
 }
 
+// Convertit tout grade vers la forme exacte de IMPOTS_GRADES_ORDER
+function fixImpotsGrade(g) {
+  if (!g) return 'Genin';
+  const s = (g+'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[-_]/g,' ').trim();
+  if (s === 'hokage') return 'Hokage';
+  if (s === 'commandant jonin') return 'Commandant-Jonin';
+  if (s === 'jonin') return 'Jonin';
+  if (s === 'tokubetsu jonin') return 'Tokubetsu-Jonin';
+  if (s === 'kakunin') return 'Kakunin';
+  if (s === 'chunin') return 'Chunin';
+  if (s === 'tokubetsu chunin') return 'Tokubetsu-Chunin';
+  if (s === 'genin confirme') return 'Genin Confirmé';
+  return 'Genin';
+}
+
 async function impotsLoad() {
   try {
     const res = await sbGet('impots', '?order=id.asc');
     if (Array.isArray(res)) {
       const mapped = res.map(r => ({
-        id: r.id, nom: r.nom, grade: r.grade, s: r.statut||'non', col: r.collecteur||'',
+        id: r.id, nom: r.nom, grade: fixImpotsGrade(r.grade), s: r.statut||'non', col: r.collecteur||'',
         recupere_le: r.recupere_le||'', recupere_par: r.recupere_par||''
       }));
       _impotsCache = mapped; // Populate cache
