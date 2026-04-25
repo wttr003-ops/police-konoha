@@ -12486,18 +12486,69 @@ async function renderJusMembres() {
 
   var h = '<div class="jus-title">👥 Membres — Justice de Konoha</div>';
   if (isChef) h += '<button onclick="switchJusTab(\'ajout\')" style="padding:7px 14px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:1rem">+ Ajouter un membre</button>';
-  h += '<div class="jus-block" style="padding:0;overflow:hidden">';
-  if (membres.length === 0) h += '<div style="padding:1.5rem;color:#64748b;text-align:center">Aucun membre.</div>';
-  else membres.forEach(function(m){
-    h += '<div class="jus-row"><div style="width:36px;height:36px;border-radius:50%;background:rgba(37,99,235,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#93c5fd">'+(m.fullname||m.username||'?').slice(0,2).toUpperCase()+'</div>'
-      +'<div style="flex:1"><div style="font-weight:600;color:#e2e8f0">'+(m.fullname||m.username)+'</div>'
-      +'<div style="font-size:11px;color:#64748b">'+m.grade+' &bull; @'+m.username+'</div></div>'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(37,99,235,0.12);color:#93c5fd">'+m.grade+'</span>'
-      +(isChef?'<button onclick="supprimerMembreJus(\''+m.username+'\')" style="padding:3px 8px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:none;font-size:11px;cursor:pointer;color:#fca5a5">✕</button>':'')
-      +'</div>';
-  });
-  h += '</div>';
+
+  if (membres.length === 0) {
+    h += '<div class="jus-block" style="padding:1.5rem;color:#64748b;text-align:center">Aucun membre enregistré.</div>';
+  } else {
+    h += '<div class="jus-block" style="padding:0;overflow:hidden">';
+    membres.forEach(function(m, i) {
+      var init = (m.fullname||m.username||'?').slice(0,2).toUpperCase();
+      var pwdId = 'jus-pwd-'+i;
+      var pwdInpId = 'jus-pwd-inp-'+i;
+      h += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.12);padding:12px 14px">'
+        // Ligne principale
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        + '<div style="width:38px;height:38px;border-radius:50%;background:rgba(37,99,235,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#93c5fd;flex-shrink:0">'+init+'</div>'
+        + '<div style="flex:1">'
+        + '<div style="font-weight:700;color:#e2e8f0;font-size:14px">'+(m.fullname||m.username)+'</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-top:1px">'
+        + '<span style="padding:1px 8px;border-radius:20px;background:rgba(37,99,235,0.12);color:#93c5fd;font-weight:600">'+m.grade+'</span>'
+        + '</div>'
+        + '</div>'
+        + (isChef ? '<button onclick="supprimerMembreJus(\''+m.username+'\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);font-size:11px;cursor:pointer;color:#fca5a5">✕ Supprimer</button>' : '')
+        + '</div>'
+        // Bloc identifiants
+        + '<div style="background:rgba(15,23,42,0.6);border:1px solid rgba(37,99,235,0.15);border-radius:8px;padding:10px 12px">'
+        + '<div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔑 Identifiants de connexion</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+        // Login
+        + '<div>'
+        + '<div style="font-size:10px;color:#64748b;margin-bottom:3px">Identifiant (login)</div>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<code style="flex:1;padding:5px 10px;background:#0f172a;border:1px solid rgba(37,99,235,0.2);border-radius:6px;font-size:12px;color:#93c5fd;letter-spacing:0.5px">'+m.username+'</code>'
+        + '<button onclick="jusCopyText(\''+m.username+'\',this)" style="padding:4px 8px;background:rgba(37,99,235,0.1);color:#64748b;border:1px solid rgba(37,99,235,0.2);border-radius:5px;font-size:10px;cursor:pointer">📋</button>'
+        + '</div></div>'
+        // Mot de passe
+        + '<div>'
+        + '<div style="font-size:10px;color:#64748b;margin-bottom:3px">Mot de passe</div>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<input type="password" id="'+pwdInpId+'" value="'+(m.password||'—')+'" readonly style="flex:1;padding:5px 10px;background:#0f172a;border:1px solid rgba(37,99,235,0.2);border-radius:6px;font-size:12px;color:#93c5fd;letter-spacing:2px;font-family:monospace"/>'
+        + '<button id="'+pwdId+'" onclick="jusPwdToggle(\''+pwdInpId+'\',\''+pwdId+'\')" style="padding:4px 8px;background:rgba(37,99,235,0.1);color:#64748b;border:1px solid rgba(37,99,235,0.2);border-radius:5px;font-size:12px;cursor:pointer">👁</button>'
+        + '<button onclick="jusCopyText(\''+( m.password||'')+'\',this)" style="padding:4px 8px;background:rgba(37,99,235,0.1);color:#64748b;border:1px solid rgba(37,99,235,0.2);border-radius:5px;font-size:10px;cursor:pointer">📋</button>'
+        + '</div></div>'
+        + '</div></div>'
+        + '</div>';
+    });
+    h += '</div>';
+  }
   el.innerHTML = h;
+}
+
+function jusPwdToggle(inputId, btnId) {
+  var inp = document.getElementById(inputId);
+  var btn = document.getElementById(btnId);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  if (btn) btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function jusCopyText(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = '✓';
+    btn.style.color = '#86efac';
+    setTimeout(function(){ btn.textContent = orig; btn.style.color = ''; }, 1500);
+  });
 }
 
 function renderJusAjout() {
@@ -12701,18 +12752,60 @@ async function renderAvMembres() {
 
   var h = '<div class="av-title">👥 Membres — Cabinet des Avocats</div>';
   if (isChef) h += '<button onclick="switchAvTab(\'ajout\')" style="padding:7px 14px;background:rgba(180,83,9,0.15);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:1rem">+ Ajouter un membre</button>';
-  h += '<div class="av-block" style="padding:0;overflow:hidden">';
-  if (membres.length === 0) h += '<div style="padding:1.5rem;color:#92400e;text-align:center">Aucun membre.</div>';
-  else membres.forEach(function(m){
-    h += '<div class="av-row"><div style="width:36px;height:36px;border-radius:50%;background:rgba(180,83,9,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fbbf24">'+(m.fullname||m.username||'?').slice(0,2).toUpperCase()+'</div>'
-      +'<div style="flex:1"><div style="font-weight:600;color:#fef3c7">'+(m.fullname||m.username)+'</div>'
-      +'<div style="font-size:11px;color:#92400e">'+m.grade+' &bull; @'+m.username+'</div></div>'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(180,83,9,0.12);color:#fbbf24">'+m.grade+'</span>'
-      +(isChef?'<button onclick="supprimerMembreAv(\''+m.username+'\')" style="padding:3px 8px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:none;font-size:11px;cursor:pointer;color:#fca5a5">✕</button>':'')
-      +'</div>';
-  });
-  h += '</div>';
+
+  if (membres.length === 0) {
+    h += '<div class="av-block" style="padding:1.5rem;color:#92400e;text-align:center">Aucun membre enregistré.</div>';
+  } else {
+    h += '<div class="av-block" style="padding:0;overflow:hidden">';
+    membres.forEach(function(m, i) {
+      var init = (m.fullname||m.username||'?').slice(0,2).toUpperCase();
+      var pwdId = 'av-pwd-'+i;
+      var pwdInpId = 'av-pwd-inp-'+i;
+      h += '<div style="border-bottom:0.5px solid rgba(180,83,9,0.12);padding:12px 14px">'
+        // Ligne principale
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        + '<div style="width:38px;height:38px;border-radius:50%;background:rgba(180,83,9,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fbbf24;flex-shrink:0">'+init+'</div>'
+        + '<div style="flex:1">'
+        + '<div style="font-weight:700;color:#fef3c7;font-size:14px">'+(m.fullname||m.username)+'</div>'
+        + '<div style="font-size:11px;color:#92400e;margin-top:1px">'
+        + '<span style="padding:1px 8px;border-radius:20px;background:rgba(180,83,9,0.15);color:#fbbf24;font-weight:600">'+m.grade+'</span>'
+        + '</div>'
+        + '</div>'
+        + (isChef ? '<button onclick="supprimerMembreAv(\''+m.username+'\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);font-size:11px;cursor:pointer;color:#fca5a5">✕ Supprimer</button>' : '')
+        + '</div>'
+        // Bloc identifiants
+        + '<div style="background:rgba(28,10,0,0.7);border:1px solid rgba(180,83,9,0.2);border-radius:8px;padding:10px 12px">'
+        + '<div style="font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔑 Identifiants de connexion</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+        // Login
+        + '<div>'
+        + '<div style="font-size:10px;color:#92400e;margin-bottom:3px">Identifiant (login)</div>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<code style="flex:1;padding:5px 10px;background:#1c0a00;border:1px solid rgba(180,83,9,0.25);border-radius:6px;font-size:12px;color:#fbbf24;letter-spacing:0.5px">'+m.username+'</code>'
+        + '<button onclick="jusCopyText(\''+m.username+'\',this)" style="padding:4px 8px;background:rgba(180,83,9,0.1);color:#92400e;border:1px solid rgba(180,83,9,0.2);border-radius:5px;font-size:10px;cursor:pointer">📋</button>'
+        + '</div></div>'
+        // Mot de passe
+        + '<div>'
+        + '<div style="font-size:10px;color:#92400e;margin-bottom:3px">Mot de passe</div>'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<input type="password" id="'+pwdInpId+'" value="'+(m.password||'—')+'" readonly style="flex:1;padding:5px 10px;background:#1c0a00;border:1px solid rgba(180,83,9,0.25);border-radius:6px;font-size:12px;color:#fbbf24;letter-spacing:2px;font-family:monospace"/>'
+        + '<button id="'+pwdId+'" onclick="avPwdToggle(\''+pwdInpId+'\',\''+pwdId+'\')" style="padding:4px 8px;background:rgba(180,83,9,0.1);color:#92400e;border:1px solid rgba(180,83,9,0.2);border-radius:5px;font-size:12px;cursor:pointer">👁</button>'
+        + '<button onclick="jusCopyText(\''+( m.password||'')+'\',this)" style="padding:4px 8px;background:rgba(180,83,9,0.1);color:#92400e;border:1px solid rgba(180,83,9,0.2);border-radius:5px;font-size:10px;cursor:pointer">📋</button>'
+        + '</div></div>'
+        + '</div></div>'
+        + '</div>';
+    });
+    h += '</div>';
+  }
   el.innerHTML = h;
+}
+
+function avPwdToggle(inputId, btnId) {
+  var inp = document.getElementById(inputId);
+  var btn = document.getElementById(btnId);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  if (btn) btn.textContent = inp.type === 'password' ? '👁' : '🙈';
 }
 
 function renderAvAjout() {
