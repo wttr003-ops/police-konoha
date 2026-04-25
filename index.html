@@ -3512,7 +3512,9 @@ function showPage(id) {
   if (target) target.classList.add('active');
   window.scrollTo(0, 0);
   const mainNav = document.getElementById('main-nav');
-  if (mainNav) mainNav.style.display = (id === 'dashboard') ? 'none' : 'flex';
+  // Cacher la nav principale sur les pages privées, l'afficher sur les pages publiques
+  const privatePages = ['dashboard','justice','avocat'];
+  if (mainNav) mainNav.style.display = privatePages.includes(id) ? 'none' : 'flex';
   loadState();
   loadGradeOverrides();
   updateNav();
@@ -3554,37 +3556,51 @@ function updateNav() {
   loadAlertState();
   renderRecherchees();
   const u = state.currentUser;
-  const authEl  = document.getElementById('nav-auth');
-  const userEl  = document.getElementById('nav-user');
+  const authEl = document.getElementById('nav-auth');
+  const userEl = document.getElementById('nav-user');
   if (!authEl || !userEl) return;
 
   if (u) {
     authEl.style.display = 'none';
     userEl.style.display = 'flex';
-    document.getElementById('nav-avatar').textContent = u.username.slice(0, 2).toUpperCase();
-    document.getElementById('nav-username-display').textContent = u.fullname || u.username;
-    // Update dashboard button label based on account type
+
+    // Avatar : initiales du nom complet
+    const displayName = u.fullname || u.username;
+    const navAvatar = document.getElementById('nav-avatar');
+    if (navAvatar) navAvatar.textContent = displayName.slice(0,2).toUpperCase();
+
+    // Nom affiché
+    const navNameEl = document.getElementById('nav-username-display');
+    if (navNameEl) navNameEl.textContent = displayName;
+
+    // Grade pill
+    const pill = document.getElementById('nav-grade-pill');
+    if (pill) { pill.textContent = u.grade; pill.className = 'grade-pill ' + (GRADE_CLASS[u.grade] || 'gp-d'); }
+
+    // Bouton espace — libellé + action selon le service
+    const userService = u.service || state.users[u.username]?.service || '';
     const userData = state.users[u.username];
     const isCitizen = userData && !userData.isAgent;
-  const userService = userData?.service || found?.service || '';
-
-  // Redirection Justice / Avocat
-  if (userService === 'justice') {
-    showPage('justice');
-    setTimeout(renderJusticeDashboard, 100);
-    return;
-  }
-  if (userService === 'avocat') {
-    showPage('avocat');
-    setTimeout(renderAvocatDashboard, 100);
-    return;
-  }
     const dashBtn = document.getElementById('nav-dash-btn');
-    if (dashBtn) dashBtn.textContent = isCitizen ? 'Espace citoyen' : 'Espace agent';
-    const pill = document.getElementById('nav-grade-pill');
-    pill.textContent = u.grade;
-    pill.className = 'grade-pill ' + GRADE_CLASS[u.grade];
-    // Init dot grey on login
+    if (dashBtn) {
+      if (userService === 'justice') {
+        dashBtn.textContent = 'Espace Justice';
+        dashBtn.onclick = function() {
+          showPage('justice');
+          renderJusticeDashboard();
+        };
+      } else if (userService === 'avocat') {
+        dashBtn.textContent = 'Espace Avocat';
+        dashBtn.onclick = function() {
+          showPage('avocat');
+          renderAvocatDashboard();
+        };
+      } else {
+        dashBtn.textContent = isCitizen ? 'Espace Citoyen' : 'Espace Agent';
+        dashBtn.onclick = function() { showPage('dashboard'); };
+      }
+    }
+
     setMsgDot(false);
   } else {
     authEl.style.display = 'flex';
@@ -3625,6 +3641,7 @@ async function doLogin() {
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   startRealtime();
   const userService = found.service || '';
+  updateNav();
   if (userService === 'justice') {
     showPage('justice'); setTimeout(renderJusticeDashboard, 100);
   } else if (userService === 'avocat') {
@@ -3728,6 +3745,7 @@ async function doAgentLogin() {
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   startRealtime();
 
+  updateNav();
   if (userService === 'justice') {
     showPage('justice');
     setTimeout(renderJusticeDashboard, 150);
