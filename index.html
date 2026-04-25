@@ -6006,7 +6006,7 @@ async function saveCasier() {
 
   if (!nom||!type||!motif) { konohaAlert('Nom, type infraction et motif sont obligatoires.', '⚠️'); return; }
 
-  const entry = { nom, grade, type, danger, motif, sanction, agent, date: new Date().toLocaleDateString('fr-FR'), suivis: '[]' };
+  const entry = { nom, grade, type, danger, motif, sanction, agent, date: new Date().toLocaleDateString('fr-FR'), suivis: '[]', statut_justice: 'en_attente', note_justice: '' };
 
   // Save to Supabase
   let saveOk = false;
@@ -13303,11 +13303,16 @@ async function renderJusDossiers() {
 
 async function renderJusCasiers() {
   var el = document.getElementById('jus-tab-casiers');
+  if (!el) return;
   el.innerHTML = '<div class="jus-title">🗂 Casiers judiciaires</div>'
-    + '<div style="font-size:12px;color:#64748b;margin-bottom:1rem">Cliquez sur un dossier pour voir tous les détails</div>'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:1rem">Cliquez sur un dossier pour voir les détails et changer le statut</div>'
     + '<div id="jus-casiers-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
   var casiers = [];
   try { var r = await sbGet('casiers','?order=id.desc'); if(Array.isArray(r)) casiers=r; } catch(e){}
+
+  var dangerColors = { faible:'#86efac', moyen:'#fde68a', eleve:'#fb923c', extreme:'#fca5a5', palier2:'#fde68a', palier3:'#fca5a5' };
+  var sanctionLabels = { amende:'Amende', avertissement:'Avertissement', interdiction:'Interdiction', prison:'Prison (RP)', cellule:'Cellule du Palais', bannissement:'Banni', en_cours:'En instruction' };
+  var jLabels = { en_attente:'⏳ En attente', en_cours:'⚙️ En traitement', traite:'✓ Traité', classe:'📁 Classé' };
 
   // Grouper par personne
   var dossiers = {};
@@ -13317,95 +13322,118 @@ async function renderJusCasiers() {
     dossiers[key].infractions.push(c);
   });
 
-  var dangerColors = { faible:'#86efac', moyen:'#fde68a', eleve:'#fb923c', extreme:'#fca5a5', palier2:'#fde68a', palier3:'#fca5a5' };
-  var sanctionLabels = { amende:'Amende', avertissement:'Avertissement', interdiction:'Interdiction', prison:'Prison (RP)', cellule:'Cellule du Palais', bannissement:'Banni', en_cours:'En instruction' };
+  // Séparer actives vs historique par personne
+  var actifs = {}, historique = {};
+  Object.entries(dossiers).forEach(function(e) {
+    var key = e[0], dos = e[1];
+    var infActives = dos.infractions.filter(function(c){ return c.statut_justice !== 'traite' && c.statut_justice !== 'classe'; });
+    var infHisto   = dos.infractions.filter(function(c){ return c.statut_justice === 'traite' || c.statut_justice === 'classe'; });
+    if (infActives.length > 0) actifs[key] = { nom: dos.nom, grade: dos.grade, infractions: infActives };
+    if (infHisto.length > 0)   historique[key] = { nom: dos.nom, grade: dos.grade, infractions: infHisto };
+  });
 
-  var h = '';
-  if (Object.keys(dossiers).length === 0) {
-    h += '<div class="jus-block" style="padding:1.5rem;text-align:center;color:#64748b">Aucun casier enregistré.</div>';
-  } else {
-    h += '<div class="jus-block" style="padding:0;overflow:hidden">';
-    Object.entries(dossiers).forEach(function(entry, di) {
-      var nomKey = entry[0], dossier = entry[1];
-      var nb = dossier.infractions.length;
-      var detailId = 'jus-cas-dos-' + di;
-      var lastDanger = dossier.infractions[0] ? (dossier.infractions[0].danger||'palier2') : 'palier2';
-      var dc = dangerColors[lastDanger] || '#fca5a5';
+  var nbActifs = Object.values(actifs).reduce(function(s,d){ return s+d.infractions.length; }, 0);
+  var nbHisto  = Object.values(historique).reduce(function(s,d){ return s+d.infractions.length; }, 0);
 
-      h += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.12)">'
-        // En-tête dossier cliquable
-        + '<div onclick="jusToggle(\'' + detailId + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">'
-        + '<div style="width:36px;height:36px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fca5a5;flex-shrink:0">'
-        + (dossier.nom||'?').slice(0,2).toUpperCase()
+  function buildDossierBlock(dossier, di, prefix, isHisto) {
+    var nb = dossier.infractions.length;
+    var detailId = prefix + '-cas-dos-' + di;
+    var lastDanger = dossier.infractions[0] ? (dossier.infractions[0].danger||'palier2') : 'palier2';
+    var dc = dangerColors[lastDanger] || '#fca5a5';
+    var opacity = isHisto ? 'opacity:0.75;' : '';
+
+    var out = '<div class="jus-cas-row" data-nom="'+(dossier.nom||'').toLowerCase()+'" style="border-bottom:0.5px solid rgba(37,99,235,0.12);'+opacity+'">'
+      + '<div onclick="jusToggle(\'' + detailId + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">'
+      + '<div style="width:36px;height:36px;border-radius:50%;background:'+(isHisto?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.12)')+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:'+(isHisto?'#86efac':'#fca5a5')+';flex-shrink:0">'+(dossier.nom||'?').slice(0,2).toUpperCase()+'</div>'
+      + '<div style="flex:1">'
+      + '<div style="font-weight:700;color:#e2e8f0;font-size:13px">'+(dossier.nom||'—')+'</div>'
+      + '<div style="font-size:11px;color:#64748b">'+(dossier.grade||'—')+' — '+nb+' infraction(s)</div>'
+      + '</div>'
+      + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(239,68,68,0.12);color:'+dc+'">'+lastDanger.replace('palier','Palier ')+'</span>'
+      + '<span style="font-size:10px;color:#64748b;margin-left:6px" id="arr-'+detailId+'">▼</span>'
+      + '</div>'
+      + '<div id="'+detailId+'" style="display:none;background:rgba(37,99,235,0.03);border-top:0.5px solid rgba(37,99,235,0.1);padding:0">';
+
+    dossier.infractions.forEach(function(c, ci) {
+      var dColor = dangerColors[c.danger||'palier2'] || '#fde68a';
+      var sl = sanctionLabels[c.sanction] || c.sanction || '—';
+      var jStatut = c.statut_justice || 'en_attente';
+      var jColors = { en_attente:'rgba(234,179,8,0.1);color:#fde68a', en_cours:'rgba(37,99,235,0.12);color:#93c5fd', traite:'rgba(34,197,94,0.1);color:#86efac', classe:'rgba(100,116,139,0.12);color:#94a3b8' };
+      var jColor = jColors[jStatut] || jColors.en_attente;
+      var jLabel = jLabels[jStatut] || jStatut;
+      var infId = prefix+'-cas-inf-'+di+'-'+ci;
+
+      out += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.08);padding:10px 14px">'
+        + '<div onclick="jusToggle(\'' + infId + '\')" style="display:flex;align-items:center;gap:8px;cursor:pointer">'
+        + '<div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fca5a5">'+(c.type||'—')+'</div>'
+        + '<div style="font-size:11px;color:#64748b">'+(c.date||'—')+'</div></div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+jColor+'">'+jLabel+'</span>'
+        + '<span id="arr-'+infId+'" style="font-size:10px;color:#64748b">▼</span>'
         + '</div>'
-        + '<div style="flex:1">'
-        + '<div style="font-weight:700;color:#e2e8f0;font-size:13px">'+(dossier.nom||'—')+'</div>'
-        + '<div style="font-size:11px;color:#64748b">'+(dossier.grade||'—')+' — '+nb+' infraction(s)</div>'
+        + '<div id="'+infId+'" style="display:none;margin-top:10px;padding:10px;background:rgba(15,23,42,0.5);border-radius:8px;border:1px solid rgba(37,99,235,0.15)">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">'
+        + '<div><span style="color:#64748b">Infraction :</span> <strong style="color:#fca5a5">'+(c.type||'—')+'</strong></div>'
+        + '<div><span style="color:#64748b">Palier :</span> <span style="color:'+dColor+'">'+(c.danger||'—').replace('palier','Palier ')+'</span></div>'
+        + '<div><span style="color:#64748b">Sanction :</span> <span style="color:#e2e8f0">'+sl+'</span></div>'
+        + '<div><span style="color:#64748b">Agent rédacteur :</span> <span style="color:#e2e8f0">'+(c.agent||'—')+'</span></div>'
+        + '<div style="grid-column:1/-1"><span style="color:#64748b">Motif :</span> <span style="color:#cbd5e1">'+(c.motif||'—')+'</span></div>'
         + '</div>'
-        + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(239,68,68,0.12);color:'+dc+'">'+lastDanger.replace('palier','Palier ')+'</span>'
-        + '<span style="font-size:10px;color:#64748b;margin-left:6px" id="arr-'+detailId+'">▼</span>'
-        + '</div>'
-        // Corps dépliable
-        + '<div id="'+detailId+'" style="display:none;background:rgba(37,99,235,0.03);border-top:0.5px solid rgba(37,99,235,0.1);padding:0">';
-
-      dossier.infractions.forEach(function(c, ci) {
-        var dColor = dangerColors[c.danger||'palier2'] || '#fde68a';
-        var sl = sanctionLabels[c.sanction] || c.sanction || '—';
-
-        // Statut traitement Justice
-        var jStatut = c.statut_justice || 'en_attente';
-        var jColors = { en_attente: 'rgba(234,179,8,0.1);color:#fde68a', en_cours: 'rgba(37,99,235,0.12);color:#93c5fd', traite: 'rgba(34,197,94,0.1);color:#86efac', classe: 'rgba(100,116,139,0.12);color:#94a3b8' };
-        var jLabels = { en_attente: '⏳ En attente', en_cours: '⚙️ En traitement', traite: '✓ Traité', classe: '📁 Classé' };
-        var jColor = jColors[jStatut] || jColors.en_attente;
-        var jLabel = jLabels[jStatut] || jStatut;
-
-        var infId = 'jus-cas-inf-'+di+'-'+ci;
-        h += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.08);padding:10px 14px">'
-          // Ligne résumé infraction cliquable
-          + '<div onclick="jusToggle(\'' + infId + '\')" style="display:flex;align-items:center;gap:8px;cursor:pointer">'
-          + '<div style="flex:1">'
-          + '<div style="font-size:12px;font-weight:600;color:#fca5a5">'+(c.type||'—')+'</div>'
-          + '<div style="font-size:11px;color:#64748b">'+(c.date||'—')+' — '+(c.agent||'—')+'</div>'
-          + '</div>'
-          + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+jColor+'">'+jLabel+'</span>'
-          + '<span style="font-size:10px;color:#64748b">▼</span>'
-          + '</div>'
-          // Détail complet
-          + '<div id="'+infId+'" style="display:none;margin-top:10px;padding:10px;background:rgba(15,23,42,0.5);border-radius:8px;border:1px solid rgba(37,99,235,0.15)">'
-          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">'
-          + '<div><span style="color:#64748b">Infraction :</span> <strong style="color:#fca5a5">'+(c.type||'—')+'</strong></div>'
-          + '<div><span style="color:#64748b">Palier :</span> <span style="color:'+dColor+'">'+(c.danger||'—').replace('palier','Palier ')+'</span></div>'
-          + '<div><span style="color:#64748b">Sanction :</span> <span style="color:#e2e8f0">'+sl+'</span></div>'
-          + '<div><span style="color:#64748b">Agent rédacteur :</span> <span style="color:#e2e8f0">'+(c.agent||'—')+'</span></div>'
-          + '<div style="grid-column:1/-1"><span style="color:#64748b">Motif :</span> <span style="color:#cbd5e1">'+(c.motif||'—')+'</span></div>'
-          + '</div>'
-          // Statut traitement Justice avec boutons de changement
-          + '<div style="margin-bottom:8px">'
-          + '<div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Statut traitement Justice</div>'
+        + (isHisto ? '' :
+          '<div style="margin-bottom:8px"><div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Statut traitement</div>'
           + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
           + ['en_attente','en_cours','traite','classe'].map(function(st) {
               var active = jStatut===st;
               var stc = { en_attente:'rgba(234,179,8,0.15);color:#fde68a;border-color:rgba(234,179,8,0.4)', en_cours:'rgba(37,99,235,0.15);color:#93c5fd;border-color:rgba(37,99,235,0.4)', traite:'rgba(34,197,94,0.15);color:#86efac;border-color:rgba(34,197,94,0.4)', classe:'rgba(100,116,139,0.15);color:#94a3b8;border-color:rgba(100,116,139,0.4)' }[st];
-              return '<button onclick="jusCasierSetStatut('+c.id+',\'' + st + '\',this)" style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid;'+(active ? stc : 'background:none;color:#64748b;border-color:rgba(37,99,235,0.15)')+'">'+jLabels[st]+'</button>';
+              return '<button onclick="jusCasierSetStatut('+c.id+',\'' + st + '\',this)" style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid;'+(active ? stc : 'background:none;color:#64748b;border-color:rgba(37,99,235,0.15)')+'">'+(jLabels[st])+'</button>';
             }).join('')
-          + '</div></div>'
-          // Notes Justice
-          + '<div>'
-          + '<div style="font-size:11px;color:#64748b;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Notes / Décision du Tribunal</div>'
-          + '<textarea id="jus-note-'+c.id+'" placeholder="Saisir la décision, les notes de traitement..." rows="2" style="width:100%;padding:7px;border:1px solid rgba(37,99,235,0.2);border-radius:6px;font-size:12px;background:#0f172a;color:#e2e8f0;font-family:inherit;resize:vertical;box-sizing:border-box">'+(c.note_justice||'')+'</textarea>'
-          + '<button onclick="jusCasierSaveNote('+c.id+')" style="margin-top:4px;padding:5px 14px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">💾 Enregistrer la note</button>'
-          + '</div>'
-          + '</div>'
-          + '</div>';
-      });
-
-      h += '</div></div>';
+          + '</div></div>')
+        + '<div><div style="font-size:11px;color:#64748b;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Note / Décision</div>'
+        + '<textarea id="jus-note-'+c.id+'" rows="2" style="width:100%;padding:7px;border:1px solid rgba(37,99,235,0.2);border-radius:6px;font-size:12px;background:#0f172a;color:#e2e8f0;font-family:inherit;resize:vertical;box-sizing:border-box">'+(c.note_justice||'')+'</textarea>'
+        + '<button onclick="jusCasierSaveNote('+c.id+')" style="margin-top:4px;padding:5px 14px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">💾 Enregistrer</button>'
+        + '</div></div></div>';
     });
+
+    out += '</div></div>';
+    return out;
+  }
+
+  var h = '';
+
+  // Barre de recherche
+  h += '<div style="display:flex;gap:8px;margin-bottom:10px">'
+    + '<input type="text" id="jus-cas-search" placeholder="🔍 Rechercher un nom..." oninput="jusCasFilter()" style="flex:1;padding:8px 12px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0"/>'
+    + '</div>';
+
+  // Section affaires actives
+  h += '<div style="font-size:11px;font-weight:700;color:#fca5a5;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚠ Affaires à traiter ('+nbActifs+')</div>';
+  if (Object.keys(actifs).length === 0) {
+    h += '<div class="jus-block" style="padding:1rem;color:#64748b;text-align:center;margin-bottom:1rem">Aucune affaire active.</div>';
+  } else {
+    h += '<div class="jus-block" id="jus-cas-actifs" style="padding:0;overflow:hidden;margin-bottom:1.25rem">';
+    Object.entries(actifs).forEach(function(e, di) { h += buildDossierBlock(e[1], di, 'act', false); });
+    h += '</div>';
+  }
+
+  // Section historique
+  h += '<div style="font-size:11px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📁 Historique — Dossiers traités ('+nbHisto+')</div>';
+  if (Object.keys(historique).length === 0) {
+    h += '<div class="jus-block" style="padding:1rem;color:#64748b;text-align:center">Aucun dossier traité pour le moment.</div>';
+  } else {
+    h += '<div class="jus-block" id="jus-cas-histo" style="padding:0;overflow:hidden">';
+    Object.entries(historique).forEach(function(e, di) { h += buildDossierBlock(e[1], di, 'histo', true); });
     h += '</div>';
   }
 
   document.getElementById('jus-casiers-list').innerHTML = h;
 }
+
+function jusCasFilter() {
+  var q = (document.getElementById('jus-cas-search')?.value||'').toLowerCase();
+  document.querySelectorAll('.jus-cas-row').forEach(function(r) {
+    r.style.display = (!q || (r.getAttribute('data-nom')||'').includes(q)) ? '' : 'none';
+  });
+}
+
 
 async function jusCasierSetStatut(id, statut, btn) {
   // Mettre à jour le statut_justice dans Supabase
@@ -13856,284 +13884,96 @@ async function renderAvDossiers() {
 
 async function renderAvCasiers() {
   var el = document.getElementById('av-tab-casiers');
-  el.innerHTML = '<div class="av-title">🗂 Casiers — consultation défense</div><div style="font-size:12px;color:#92400e;margin-bottom:1rem">Données Police — Lecture seule</div><div id="av-casiers-list"><div style="color:#92400e;text-align:center;padding:1rem">Chargement...</div></div>';
+  if (!el) return;
   var casiers = [];
   try { var r = await sbGet('casiers','?order=id.desc'); if(Array.isArray(r)) casiers=r; } catch(e){}
-  var h = '<div class="av-block" style="padding:0;overflow:hidden">';
-  if (casiers.length === 0) h += '<div style="padding:1.5rem;text-align:center;color:#92400e">Aucun casier.</div>';
-  else casiers.slice(0,30).forEach(function(c){
-    h += '<div class="av-row"><div style="flex:1"><div style="font-weight:600;color:#fef3c7">'+c.nom+'</div>'
-      +'<div style="font-size:11px;color:#92400e">'+(c.type||'--')+' &bull; '+(c.danger||'--')+'</div></div></div>';
+
+  var dangerColors = { faible:'#86efac', moyen:'#fde68a', eleve:'#fb923c', extreme:'#fca5a5', palier2:'#fde68a', palier3:'#fca5a5' };
+  var sanctionLabels = { amende:'Amende', avertissement:'Avertissement', interdiction:'Interdiction', prison:'Prison (RP)', cellule:'Cellule du Palais', bannissement:'Banni', en_cours:'En instruction' };
+  var jLabels = { en_attente:'⏳ En attente', en_cours:'⚙️ En traitement', traite:'✓ Traité', classe:'📁 Classé' };
+
+  // Grouper par personne
+  var dossiers = {};
+  casiers.forEach(function(c) {
+    var key = (c.nom||'').toLowerCase().trim();
+    if (!dossiers[key]) dossiers[key] = { nom: c.nom, grade: c.grade, infractions: [] };
+    dossiers[key].infractions.push(c);
   });
-  h += '</div>';
-  document.getElementById('av-casiers-list').innerHTML = h;
-}
 
-async function renderAvAmendes() {
-  var el = document.getElementById('av-tab-amendes');
-  el.innerHTML = '<div class="av-title">💰 Amendes — plaidoirie</div><div style="font-size:12px;color:#92400e;margin-bottom:1rem">Données Police — Lecture seule</div><div id="av-amendes-list"><div style="color:#92400e;text-align:center;padding:1rem">Chargement...</div></div>';
-  var amendes = [];
-  try { var r = await sbGet('amendes','?order=id.desc'); if(Array.isArray(r)) amendes=r; } catch(e){}
-  var h = '<div class="av-block" style="padding:0;overflow:hidden">';
-  if (amendes.length === 0) h += '<div style="padding:1.5rem;text-align:center;color:#92400e">Aucune amende.</div>';
-  else amendes.slice(0,30).forEach(function(a){
-    var payee = a.statut==='payee';
-    h += '<div class="av-row"><div style="flex:1"><div style="font-weight:600;color:#fef3c7">'+(a.nom||a.citoyen||'--')+'</div>'
-      +'<div style="font-size:11px;color:#92400e">'+(a.montant||'--')+' Ryos &bull; '+(a.motif||'--')+'</div></div>'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:'+(payee?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.12)')+';color:'+(payee?'#86efac':'#fca5a5')+'">'+(payee?'Payée':'Impayée')+'</span></div>';
-  });
-  h += '</div>';
-  document.getElementById('av-amendes-list').innerHTML = h;
-}
+  var h = '<div class="av-title">🗂 Casiers — défense</div>';
 
-async function renderAvMembres() {
-  var el = document.getElementById('av-tab-membres');
-  var u = state.currentUser;
-  var isChef = gradeRankAv(u.grade) <= 0;
-  var membres = [];
-  try {
-    var r = await sbGet('users','?service=eq.avocat&order=created_at.asc');
-    if(Array.isArray(r)) membres=r;
-  } catch(e){}
+  // Barre de recherche
+  h += '<div style="display:flex;gap:8px;margin-bottom:10px">'
+    + '<input type="text" id="av-cas-search" placeholder="🔍 Rechercher un nom..." oninput="avCasFilter()" style="flex:1;padding:8px 12px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7"/>'
+    + '</div>';
 
-  var h = '<div class="av-title">👥 Membres — Cabinet des Avocats</div>';
-  if (isChef) h += '<button onclick="switchAvTab(\'ajout\')" style="padding:7px 14px;background:rgba(180,83,9,0.15);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:1rem">+ Ajouter un membre</button>';
-
-  if (membres.length === 0) {
-    h += '<div class="av-block" style="padding:1.5rem;color:#92400e;text-align:center">Aucun membre enregistré.</div>';
+  if (Object.keys(dossiers).length === 0) {
+    h += '<div class="av-block" style="padding:1.5rem;text-align:center;color:#92400e">Aucun casier enregistré.</div>';
   } else {
-    h += '<div class="av-block" style="padding:0;overflow:hidden">';
-    membres.forEach(function(m, i) {
-      var init = (m.fullname||m.username||'?').slice(0,2).toUpperCase();
-      var pwdId = 'av-pwd-'+i;
-      var pwdInpId = 'av-pwd-inp-'+i;
-      h += '<div style="border-bottom:0.5px solid rgba(180,83,9,0.12);padding:12px 14px">'
-        // Ligne principale
-        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
-        + '<div style="width:38px;height:38px;border-radius:50%;background:rgba(180,83,9,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fbbf24;flex-shrink:0">'+init+'</div>'
+    h += '<div class="av-block" id="av-cas-list" style="padding:0;overflow:hidden">';
+    Object.entries(dossiers).forEach(function(entry, di) {
+      var dossier = entry[1];
+      var nb = dossier.infractions.length;
+      var detailId = 'av-cas-dos-' + di;
+      var lastDanger = dossier.infractions[0] ? (dossier.infractions[0].danger||'palier2') : 'palier2';
+      var dc = dangerColors[lastDanger] || '#fca5a5';
+
+      h += '<div class="av-cas-row" data-nom="'+(dossier.nom||'').toLowerCase()+'" style="border-bottom:0.5px solid rgba(180,83,9,0.12)">'
+        + '<div onclick="avToggle(\'' + detailId + '\',this)" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">'
+        + '<div style="width:36px;height:36px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fca5a5;flex-shrink:0">'+(dossier.nom||'?').slice(0,2).toUpperCase()+'</div>'
         + '<div style="flex:1">'
-        + '<div style="font-weight:700;color:#fef3c7;font-size:14px">'+(m.fullname||m.username)+'</div>'
-        + '<div style="font-size:11px;color:#92400e;margin-top:1px">'
-        + '<span style="padding:1px 8px;border-radius:20px;background:rgba(180,83,9,0.15);color:#fbbf24;font-weight:600">'+m.grade+'</span>'
+        + '<div style="font-weight:700;color:#fef3c7;font-size:13px">'+(dossier.nom||'—')+'</div>'
+        + '<div style="font-size:11px;color:#92400e">'+(dossier.grade||'—')+' — '+nb+' infraction(s)</div>'
         + '</div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(239,68,68,0.12);color:'+dc+'">'+lastDanger.replace('palier','Palier ')+'</span>'
+        + '<span style="font-size:10px;color:#92400e;margin-left:6px">▼</span>'
         + '</div>'
-        + (isChef ? '<button onclick="supprimerMembreAv(\''+m.username+'\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);font-size:11px;cursor:pointer;color:#fca5a5">✕ Supprimer</button>' : '')
-        + '</div>'
-        // Bloc identifiants
-        + '<div style="background:rgba(28,10,0,0.7);border:1px solid rgba(180,83,9,0.2);border-radius:8px;padding:10px 12px">'
-        + '<div style="font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔑 Identifiants de connexion</div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-        // Login
-        + '<div>'
-        + '<div style="font-size:10px;color:#92400e;margin-bottom:3px">Identifiant (login)</div>'
-        + '<div style="display:flex;align-items:center;gap:6px">'
-        + '<code style="flex:1;padding:5px 10px;background:#1c0a00;border:1px solid rgba(180,83,9,0.25);border-radius:6px;font-size:12px;color:#fbbf24;letter-spacing:0.5px">'+m.username+'</code>'
-        + '<button onclick="jusCopyText(\''+m.username+'\',this)" style="padding:4px 8px;background:rgba(180,83,9,0.1);color:#92400e;border:1px solid rgba(180,83,9,0.2);border-radius:5px;font-size:10px;cursor:pointer">📋</button>'
-        + '</div></div>'
-        // Mot de passe
-        + '<div>'
-        + '<div style="font-size:10px;color:#92400e;margin-bottom:3px">Mot de passe</div>'
-        + '<div style="display:flex;align-items:center;gap:6px">'
-        + '<input type="password" id="'+pwdInpId+'" value="'+(m.password||'—')+'" readonly style="flex:1;padding:5px 10px;background:#1c0a00;border:1px solid rgba(180,83,9,0.25);border-radius:6px;font-size:12px;color:#fbbf24;letter-spacing:2px;font-family:monospace"/>'
-        + '<button id="'+pwdId+'" onclick="avPwdToggle(\''+pwdInpId+'\',\''+pwdId+'\')" style="padding:4px 8px;background:rgba(180,83,9,0.1);color:#92400e;border:1px solid rgba(180,83,9,0.2);border-radius:5px;font-size:12px;cursor:pointer">👁</button>'
-        + '<button onclick="jusCopyText(\''+( m.password||'')+'\',this)" style="padding:4px 8px;background:rgba(180,83,9,0.1);color:#92400e;border:1px solid rgba(180,83,9,0.2);border-radius:5px;font-size:10px;cursor:pointer">📋</button>'
-        + '</div></div>'
-        + '</div></div>'
-        + '</div>';
+        + '<div id="'+detailId+'" style="display:none;background:rgba(180,83,9,0.03);border-top:0.5px solid rgba(180,83,9,0.1);padding:0">';
+
+      dossier.infractions.forEach(function(c, ci) {
+        var dColor = dangerColors[c.danger||'palier2'] || '#fde68a';
+        var sl = sanctionLabels[c.sanction] || c.sanction || '—';
+        var jStatut = c.statut_justice || 'en_attente';
+        var jColor = { en_attente:'rgba(234,179,8,0.1);color:#fde68a', en_cours:'rgba(180,83,9,0.12);color:#fbbf24', traite:'rgba(34,197,94,0.1);color:#86efac', classe:'rgba(100,116,139,0.12);color:#94a3b8' }[jStatut];
+        var jLabel = jLabels[jStatut] || jStatut;
+        var infId = 'av-cas-inf-'+di+'-'+ci;
+
+        h += '<div style="border-bottom:0.5px solid rgba(180,83,9,0.08);padding:10px 14px">'
+          + '<div onclick="avToggle(\'' + infId + '\',this)" style="display:flex;align-items:center;gap:8px;cursor:pointer">'
+          + '<div style="flex:1">'
+          + '<div style="font-size:12px;font-weight:600;color:#fca5a5">'+(c.type||'—')+'</div>'
+          + '<div style="font-size:11px;color:#92400e">'+(c.date||'—')+'</div>'
+          + '</div>'
+          + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+jColor+'">'+jLabel+'</span>'
+          + '<span style="font-size:10px;color:#92400e">▼</span>'
+          + '</div>'
+          + '<div id="'+infId+'" style="display:none;margin-top:10px;padding:10px;background:rgba(28,10,0,0.5);border-radius:8px;border:1px solid rgba(180,83,9,0.2)">'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">'
+          + '<div><span style="color:#92400e">Infraction :</span> <strong style="color:#fca5a5">'+(c.type||'—')+'</strong></div>'
+          + '<div><span style="color:#92400e">Palier :</span> <span style="color:'+dColor+'">'+(c.danger||'—').replace('palier','Palier ')+'</span></div>'
+          + '<div><span style="color:#92400e">Sanction :</span> <span style="color:#fef3c7">'+sl+'</span></div>'
+          + '<div><span style="color:#92400e">Agent rédacteur :</span> <span style="color:#fef3c7">'+(c.agent||'—')+'</span></div>'
+          + '<div style="grid-column:1/-1"><span style="color:#92400e">Motif :</span> <span style="color:#fef3c7">'+(c.motif||'—')+'</span></div>'
+          + '</div>'
+          + '<div style="padding:6px 10px;background:rgba(180,83,9,0.06);border-radius:6px;font-size:11px">'
+          + '<span style="color:#92400e;font-weight:700">Statut Justice : </span>'
+          + '<span style="color:#fbbf24">'+jLabel+'</span>'
+          + (c.note_justice ? '<div style="color:#fef3c7;margin-top:4px">Note : '+c.note_justice+'</div>' : '')
+          + '</div>'
+          + '</div></div>';
+      });
+      h += '</div></div>';
     });
     h += '</div>';
   }
   el.innerHTML = h;
 }
 
-function avPwdToggle(inputId, btnId) {
-  var inp = document.getElementById(inputId);
-  var btn = document.getElementById(btnId);
-  if (!inp) return;
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  if (btn) btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+function avCasFilter() {
+  var q = (document.getElementById('av-cas-search')?.value||'').toLowerCase();
+  document.querySelectorAll('.av-cas-row').forEach(function(r) {
+    r.style.display = (!q || (r.getAttribute('data-nom')||'').includes(q)) ? '' : 'none';
+  });
 }
 
-function renderAvAjout() {
-  var el = document.getElementById('av-tab-ajout');
-  var grades = GRADES_AVOCAT.map(function(g){return '<option>'+g+'</option>';}).join('');
-  el.innerHTML = '<div class="av-title">➕ Ajouter un membre — Cabinet</div>'
-    +'<div class="av-block">'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Nom et Prénom *</label>'
-    +'<input id="av-new-nom" type="text" placeholder="Ex: Me. Yamato" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box" oninput="avAutoUser()"/></div>'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Identifiant (login) *</label>'
-    +'<input id="av-new-user" type="text" placeholder="Ex: yamato_avocat" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Mot de passe *</label>'
-    +'<div style="display:flex;gap:6px">'
-    +'<input id="av-new-pass" type="text" placeholder="Générez ou saisissez" style="flex:1;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;font-family:monospace;letter-spacing:1px"/>'
-    +'<button onclick="avGenPass()" title="Générer" style="padding:7px 10px;background:rgba(180,83,9,0.15);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🎲 Générer</button>'
-    +'</div>'
-    +'<div id="av-pass-display" style="display:none;margin-top:5px;padding:5px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;font-size:11px;color:#86efac;font-family:monospace;letter-spacing:1px"></div>'
-    +'</div>'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Grade</label>'
-    +'<select id="av-new-grade" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7">'+grades+'</select></div>'
-    +'</div>'
-    +'<div style="margin-bottom:10px;padding:8px 12px;background:rgba(180,83,9,0.05);border:1px solid rgba(180,83,9,0.15);border-radius:8px;font-size:12px;color:#92400e">'
-    +'💡 Identifiant pour se connecter via <strong style="color:#fbbf24">Espace agent → Section Avocat</strong>.'
-    +'</div>'
-    +'<button onclick="ajouterMembreAv()" style="padding:9px 24px;background:rgba(180,83,9,0.2);color:#fbbf24;border:1px solid rgba(180,83,9,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">➕ Créer le compte</button>'
-    +'<div id="av-ajout-ok" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(34,197,94,0.1);color:#86efac;border:1px solid rgba(34,197,94,0.2);border-radius:8px;font-size:13px"></div>'
-    +'<div id="av-ajout-err" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px"></div>'
-    +'</div>';
-}
-
-function avGenPass() {
-  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var pwd = '';
-  for (var i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
-  var inp = document.getElementById('av-new-pass');
-  if (inp) inp.value = pwd;
-  var disp = document.getElementById('av-pass-display');
-  if (disp) { disp.style.display = 'block'; disp.textContent = '✓ Mot de passe : ' + pwd + ' — Notez-le bien !'; }
-}
-
-function avAutoUser() {
-  var nom = document.getElementById('av-new-nom')?.value.trim() || '';
-  var userEl = document.getElementById('av-new-user');
-  if (!userEl || userEl.dataset.touched === 'true') return;
-  var auto = nom.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'') + '_avocat';
-  userEl.value = auto;
-}
-async function ajouterMembreAv() {
-  var nom  = document.getElementById('av-new-nom')?.value.trim();
-  var user = document.getElementById('av-new-user')?.value.trim().toLowerCase().replace(/\s/g,'_');
-  var pass = document.getElementById('av-new-pass')?.value;
-  var grade= document.getElementById('av-new-grade')?.value;
-  if (!nom||!user||!pass) { alert('Remplissez tous les champs.'); return; }
-  try {
-    await sbPost('users', { username:user, fullname:nom, password:pass, grade, service:'avocat' });
-  } catch(e) { alert('Erreur: '+e.message); return; }
-  var ok = document.getElementById('av-ajout-ok');
-  if (ok) { ok.style.display='block'; ok.textContent='✓ Compte créé pour '+nom+' ('+grade+')'; }
-  ['av-new-nom','av-new-user','av-new-pass'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-}
-
-async function supprimerMembreAv(username) {
-  if (!confirm('Supprimer @'+username+' du Cabinet ?')) return;
-  try { await sbDelete('users','?username=eq.'+encodeURIComponent(username)); } catch(e){}
-  renderAvMembres();
-}
-
-async function ouvrirNouveauDossierAv() {
-  var nom = prompt('Nom du client :');
-  if (!nom) return;
-  var type = prompt('Type d\'affaire :');
-  var u = state.currentUser;
-  try {
-    await sbPost('dossiers_avocat', {nom_client:nom, type_affaire:type, avocat:u.fullname||u.username, statut:'En défense'});
-  } catch(e) {}
-  renderAvDossiers();
-}
-
-async function voirDossierAv(id) {
-  var d = null;
-  try { var r=await sbGet('dossiers_avocat','?id=eq.'+id); if(Array.isArray(r)&&r[0]) d=r[0]; } catch(e){}
-  if (!d) return;
-  alert('Dossier #'+d.id+'\nClient: '+d.nom_client+'\nAffaire: '+d.type_affaire+'\nAvocat: '+d.avocat+'\nStatut: '+d.statut);
-}
-
-function logoutAvocat() {
-  state.currentUser = null;
-  localStorage.removeItem('konoha_session');
-  showPage('login');
-}
-
-</script>
-
-<!-- PAGE JUSTICE -->
-<div id="page-justice" class="page">
-  <div style="background:#0f172a;border-bottom:1px solid rgba(37,99,235,0.3);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:12px">
-      <span style="font-size:20px">&#9878;&#65039;</span>
-      <div>
-        <div style="font-size:14px;font-weight:700;color:#e2e8f0">Justice de Konoha</div>
-        <div style="font-size:11px;color:#64748b">Tribunal officiel</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <div style="text-align:right">
-        <div id="jus-username" style="font-size:13px;font-weight:600;color:#e2e8f0"></div>
-        <div id="jus-grade" style="font-size:11px;color:#93c5fd"></div>
-      </div>
-      <button onclick="showPage('home')" style="padding:6px 14px;background:rgba(37,99,235,0.12);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;cursor:pointer">🌐 Site public</button>
-      <button onclick="logoutJustice()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">🔓 Déconnexion</button>
-    </div>
-  </div>
-  <div style="display:flex;min-height:calc(100vh - 56px);background:#0f172a">
-    <div style="width:200px;background:#1e293b;border-right:1px solid rgba(37,99,235,0.2);padding:1rem;flex-shrink:0">
-      <button onclick="switchJusTab('dossiers')" class="jus-nav-btn jus-active" id="jus-btn-dossiers">📋 Dossiers</button>
-      <button onclick="switchJusTab('candidatures')" class="jus-nav-btn" id="jus-btn-candidatures">📨 Candidatures</button>
-      <button onclick="switchJusTab('casiers')" class="jus-nav-btn" id="jus-btn-casiers">🗂 Casiers</button>
-      <button onclick="switchJusTab('amendes')" class="jus-nav-btn" id="jus-btn-amendes">💰 Amendes</button>
-      <button onclick="switchJusTab('discussions')" class="jus-nav-btn" id="jus-btn-discussions">💬 Discussions</button>
-      <button onclick="switchJusTab('cellules')" class="jus-nav-btn" id="jus-btn-cellules">⛓ Cellules</button>
-      <button onclick="switchJusTab('membres')" class="jus-nav-btn" id="jus-btn-membres">👥 Membres</button>
-      <button onclick="switchJusTab('ajout')" class="jus-nav-btn" id="jus-btn-ajout" style="display:none">➕ Ajouter membre</button>
-      <button onclick="switchJusTab('logs')" class="jus-nav-btn" id="jus-btn-logs" style="display:none">🔑 Logs comptes</button>
-    </div>
-    <div style="flex:1;padding:1.5rem;overflow-y:auto">
-      <div id="jus-tab-dossiers"></div>
-      <div id="jus-tab-candidatures" style="display:none"></div>
-      <div id="jus-tab-casiers" style="display:none"></div>
-      <div id="jus-tab-amendes" style="display:none"></div>
-      <div id="jus-tab-discussions" style="display:none"></div>
-      <div id="jus-tab-cellules" style="display:none"></div>
-      <div id="jus-tab-membres" style="display:none"></div>
-      <div id="jus-tab-ajout" style="display:none"></div>
-      <div id="jus-tab-logs" style="display:none"></div>
-    </div>
-  </div>
-</div>
-
-<!-- PAGE AVOCAT -->
-<div id="page-avocat" class="page">
-  <div style="background:#1c0a00;border-bottom:1px solid rgba(180,83,9,0.3);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:12px">
-      <span style="font-size:20px">&#9878;</span>
-      <div>
-        <div style="font-size:14px;font-weight:700;color:#fef3c7">Cabinet des Avocats</div>
-        <div style="font-size:11px;color:#92400e">Konoha &#8212; D&#233;fense juridique</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <div style="text-align:right">
-        <div id="av-username" style="font-size:13px;font-weight:600;color:#fef3c7"></div>
-        <div id="av-grade" style="font-size:11px;color:#fbbf24"></div>
-      </div>
-      <button onclick="showPage('home')" style="padding:6px 14px;background:rgba(180,83,9,0.12);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;cursor:pointer">🌐 Site public</button>
-      <button onclick="logoutAvocat()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">🔓 Déconnexion</button>
-    </div>
-  </div>
-  <div style="display:flex;min-height:calc(100vh - 56px);background:#1c0a00">
-    <div style="width:200px;background:#2d1600;border-right:1px solid rgba(180,83,9,0.25);padding:1rem;flex-shrink:0">
-      <button onclick="switchAvTab('dossiers')" class="av-nav-btn av-active" id="av-btn-dossiers">📋 Dossiers clients</button>
-      <button onclick="switchAvTab('candidatures')" class="av-nav-btn" id="av-btn-candidatures">📨 Candidatures</button>
-      <button onclick="switchAvTab('casiers')" class="av-nav-btn" id="av-btn-casiers">🗂 Casiers</button>
-      <button onclick="switchAvTab('amendes')" class="av-nav-btn" id="av-btn-amendes">💰 Amendes</button>
-      <button onclick="switchAvTab('discussions')" class="av-nav-btn" id="av-btn-discussions">💬 Discussions</button>
-      <button onclick="switchAvTab('cellules')" class="av-nav-btn" id="av-btn-cellules">⛓ Cellules</button>
-      <button onclick="switchAvTab('membres')" class="av-nav-btn" id="av-btn-membres">👥 Membres</button>
-      <button onclick="switchAvTab('ajout')" class="av-nav-btn" id="av-btn-ajout" style="display:none">➕ Ajouter membre</button>
-      <button onclick="switchAvTab('logs')" class="av-nav-btn" id="av-btn-logs" style="display:none">🔑 Logs comptes</button>
-    </div>
-    <div style="flex:1;padding:1.5rem;overflow-y:auto">
-      <div id="av-tab-dossiers"></div>
-      <div id="av-tab-candidatures" style="display:none"></div>
-      <div id="av-tab-casiers" style="display:none"></div>
-      <div id="av-tab-amendes" style="display:none"></div>
-      <div id="av-tab-discussions" style="display:none"></div>
-      <div id="av-tab-cellules" style="display:none"></div>
-      <div id="av-tab-membres" style="display:none"></div>
-      <div id="av-tab-ajout" style="display:none"></div>
-      <div id="av-tab-logs" style="display:none"></div>
-    </div>
-  </div>
-</div>
-
-</body></html>
+>
