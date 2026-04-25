@@ -13287,7 +13287,7 @@ function renderAvocatDashboard() {
 }
 
 function switchAvTab(name) {
-  ['dossiers','candidatures','casiers','amendes','membres','ajout','logs'].forEach(function(t){
+  ['dossiers','candidatures','casiers','amendes','cellules','membres','ajout','logs'].forEach(function(t){
     var el = document.getElementById('av-tab-'+t);
     var btn = document.getElementById('av-btn-'+t);
     if (el) el.style.display = t===name ? 'block' : 'none';
@@ -13299,6 +13299,7 @@ function switchAvTab(name) {
   if (name==='amendes')      renderAvAmendes();
   if (name==='membres')      renderAvMembres();
   if (name==='ajout')        renderAvAjout();
+  if (name==='cellules')     renderAvCellules();
   if (name==='logs')         renderAvLogs();
 }
 
@@ -13547,6 +13548,7 @@ function logoutAvocat() {
       <button onclick="switchJusTab('candidatures')" class="jus-nav-btn" id="jus-btn-candidatures">📨 Candidatures</button>
       <button onclick="switchJusTab('casiers')" class="jus-nav-btn" id="jus-btn-casiers">🗂 Casiers</button>
       <button onclick="switchJusTab('amendes')" class="jus-nav-btn" id="jus-btn-amendes">💰 Amendes</button>
+      <button onclick="switchJusTab('cellules')" class="jus-nav-btn" id="jus-btn-cellules">⛓ Cellules</button>
       <button onclick="switchJusTab('membres')" class="jus-nav-btn" id="jus-btn-membres">👥 Membres</button>
       <button onclick="switchJusTab('ajout')" class="jus-nav-btn" id="jus-btn-ajout" style="display:none">➕ Ajouter membre</button>
       <button onclick="switchJusTab('logs')" class="jus-nav-btn" id="jus-btn-logs" style="display:none">🔑 Logs comptes</button>
@@ -13556,6 +13558,7 @@ function logoutAvocat() {
       <div id="jus-tab-candidatures" style="display:none"></div>
       <div id="jus-tab-casiers" style="display:none"></div>
       <div id="jus-tab-amendes" style="display:none"></div>
+      <div id="jus-tab-cellules" style="display:none"></div>
       <div id="jus-tab-membres" style="display:none"></div>
       <div id="jus-tab-ajout" style="display:none"></div>
       <div id="jus-tab-logs" style="display:none"></div>
@@ -13588,6 +13591,7 @@ function logoutAvocat() {
       <button onclick="switchAvTab('candidatures')" class="av-nav-btn" id="av-btn-candidatures">📨 Candidatures</button>
       <button onclick="switchAvTab('casiers')" class="av-nav-btn" id="av-btn-casiers">🗂 Casiers</button>
       <button onclick="switchAvTab('amendes')" class="av-nav-btn" id="av-btn-amendes">💰 Amendes</button>
+      <button onclick="switchAvTab('cellules')" class="av-nav-btn" id="av-btn-cellules">⛓ Cellules</button>
       <button onclick="switchAvTab('membres')" class="av-nav-btn" id="av-btn-membres">👥 Membres</button>
       <button onclick="switchAvTab('ajout')" class="av-nav-btn" id="av-btn-ajout" style="display:none">➕ Ajouter membre</button>
       <button onclick="switchAvTab('logs')" class="av-nav-btn" id="av-btn-logs" style="display:none">🔑 Logs comptes</button>
