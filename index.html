@@ -2572,8 +2572,28 @@ span.footer-logo svg { width: 40px; height: 40px; }
   <div class="form-page">
     <div class="form-container">
       <p class="section-tag">Recrutement officiel</p>
-      <h2 class="section-title">Candidature <span>Stagiaire</span></h2>
-      <div class="form-msg success" id="post-ok" style="display:none">Candidature envoyée ! Elle sera étudiée par le sergent ou un supérieur.</div>
+      <h2 class="section-title" id="post-main-title">Candidature <span id="post-section-label">Police</span></h2>
+
+      <!-- Sélecteur de section -->
+      <div style="margin-bottom:1.5rem;padding:1rem 1.25rem;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:10px">
+        <label style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#8892a4;display:block;margin-bottom:10px">Je postule pour rejoindre</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label id="post-lbl-police" style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;cursor:pointer;border:2px solid rgba(59,130,246,0.5);background:rgba(59,130,246,0.1)">
+            <input type="radio" name="post-service" value="police" checked onchange="updatePostulerSection()" style="accent-color:#3b82f6"/>
+            <span style="font-size:13px;font-weight:600;color:#93c5fd">👮 Police de Konoha</span>
+          </label>
+          <label id="post-lbl-justice" style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;cursor:pointer;border:2px solid rgba(100,116,139,0.2);background:transparent">
+            <input type="radio" name="post-service" value="justice" onchange="updatePostulerSection()" style="accent-color:#3b82f6"/>
+            <span style="font-size:13px;font-weight:600;color:#64748b">⚖️ Justice de Konoha</span>
+          </label>
+          <label id="post-lbl-avocat" style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;cursor:pointer;border:2px solid rgba(100,116,139,0.2);background:transparent">
+            <input type="radio" name="post-service" value="avocat" onchange="updatePostulerSection()" style="accent-color:#d97706"/>
+            <span style="font-size:13px;font-weight:600;color:#64748b">🧑‍⚖️ Cabinet des Avocats</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-msg success" id="post-ok" style="display:none">Candidature envoyée ! Elle sera étudiée dans les plus brefs délais.</div>
       <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="post-pseudo" placeholder="Ex : Sasuke Uchiha" /></div>
       <div class="form-group">
         <label>Niveau ninja actuel *</label>
@@ -2608,7 +2628,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <option value="strategie">Section Stratégie</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="post-orphelin-row">
         <label>Êtes-vous orphelin ? *</label>
         <select id="post-orphelin">
           <option value="">-- Choisir --</option>
@@ -3824,15 +3844,51 @@ async function submitPlainte() {
   setTimeout(() => { ok.style.display = 'none'; }, 4000);
 }
 
+function updatePostulerSection() {
+  var serviceRadio = document.querySelector('input[name="post-service"]:checked');
+  var service = serviceRadio ? serviceRadio.value : 'police';
+  var labels = { police: 'Police', justice: 'Justice', avocat: 'Avocat' };
+  var colors = { police: '#93c5fd', justice: '#93c5fd', avocat: '#fbbf24' };
+  var lblEl = document.getElementById('post-section-label');
+  if (lblEl) { lblEl.textContent = labels[service]; lblEl.style.color = colors[service]; }
+  // Mettre à jour les styles des radio labels
+  ['police','justice','avocat'].forEach(function(s) {
+    var lbl = document.getElementById('post-lbl-'+s);
+    if (!lbl) return;
+    var active = s === service;
+    if (s === 'avocat') {
+      lbl.style.border = active ? '2px solid rgba(217,119,6,0.6)' : '2px solid rgba(100,116,139,0.2)';
+      lbl.style.background = active ? 'rgba(217,119,6,0.1)' : 'transparent';
+      lbl.querySelector('span').style.color = active ? '#fbbf24' : '#64748b';
+    } else {
+      lbl.style.border = active ? '2px solid rgba(59,130,246,0.5)' : '2px solid rgba(100,116,139,0.2)';
+      lbl.style.background = active ? 'rgba(59,130,246,0.1)' : 'transparent';
+      lbl.querySelector('span').style.color = active ? '#93c5fd' : '#64748b';
+    }
+  });
+  // Masquer/afficher le champ "orphelin" (spécifique police)
+  var orphRow = document.getElementById('post-orphelin-row');
+  if (orphRow) orphRow.style.display = service === 'police' ? 'block' : 'none';
+  // Changer le placeholder de la motivation selon la section
+  var motivEl = document.getElementById('post-motiv');
+  if (motivEl) {
+    var plc = { police: 'Expliquez pourquoi vous souhaitez rejoindre la Police de Konoha...', justice: 'Expliquez pourquoi vous souhaitez rejoindre la Justice de Konoha, vos qualités pour ce rôle...', avocat: 'Expliquez pourquoi vous souhaitez rejoindre le Cabinet des Avocats de Konoha...' };
+    motivEl.placeholder = plc[service] || plc.police;
+  }
+}
+
 async function submitPostuler() {
+  var serviceRadio = document.querySelector('input[name="post-service"]:checked');
+  var service = serviceRadio ? serviceRadio.value : 'police';
+
   const ps = document.getElementById('post-pseudo').value.trim();
   const nv = document.getElementById('post-niveau').value;
   const mo = document.getElementById('post-motiv').value.trim();
   const ca = document.getElementById('post-casier').value;
   const se = document.getElementById('post-section').value;
-  const or = document.getElementById('post-orphelin').value;
+  const or = document.getElementById('post-orphelin')?.value || 'non';
 
-  if (!ps || !nv || !mo || !ca || !se || !or) { konohaAlert('Veuillez remplir tous les champs obligatoires (*).', '⚠️'); return; }
+  if (!ps || !nv || !mo || !ca || !se) { konohaAlert('Veuillez remplir tous les champs obligatoires (*).', '⚠️'); return; }
   if (ca === 'oui') { konohaAlert('Désolé, un casier judiciaire in-game disqualifie automatiquement la candidature.', '⚠️'); return; }
 
   // Vérifier dans la base de données casier judiciaire
@@ -3856,9 +3912,16 @@ async function submitPostuler() {
   const currentAuthorC = state.currentUser ? state.currentUser.username : ps;
   const msgTime = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
+  // Choisir la table selon la section
+  var tableCandid = service === 'justice' ? 'candidatures_justice'
+                  : service === 'avocat'  ? 'candidatures_avocat'
+                  : 'candidatures';
+
+  var serviceLabels = { police: 'Police de Konoha', justice: 'Justice de Konoha', avocat: 'Cabinet des Avocats' };
+
   try {
     // 1. Sauvegarder la candidature dans Supabase
-    const res = await sbPost('candidatures', {
+    const res = await sbPost(tableCandid, {
       pseudo: ps,
       niveau: nv,
       motiv: mo,
@@ -3866,29 +3929,26 @@ async function submitPostuler() {
       section: se,
       orphelin: or,
       status: 'wait',
+      service: service,
       author: currentAuthorC,
       author_display: ps
     });
 
-    // 2. Resynchroniser pour avoir l'ID réel
-    await syncFromSupabase();
-
-    // 3. Trouver l'ID de la candidature qui vient d'être créée
-    const newCandid = state.candidatures.find(c => c.author === currentAuthorC && c.pseudo === ps && c.status === 'wait');
-    const newCId = newCandid ? newCandid.id : Date.now();
-
-    // 4. Sauvegarder le message système dans Supabase
-    await sbPost('messages', {
-      thread_id: 'candid_' + newCId,
-      from_user: 'system',
-      sender_name: 'Systeme',
-      role: 'system',
-      text: 'Votre candidature a bien ete enregistree. Elle sera etudiee par un sergent ou un superieur.',
-      time: msgTime
-    });
-
-    // 5. Resync final
-    await syncFromSupabase();
+    // 2. Resynchroniser pour avoir l'ID réel (uniquement police)
+    if (service === 'police') {
+      await syncFromSupabase();
+      const newCandid = state.candidatures.find(c => c.author === currentAuthorC && c.pseudo === ps && c.status === 'wait');
+      const newCId = newCandid ? newCandid.id : Date.now();
+      await sbPost('messages', {
+        thread_id: 'candid_' + newCId,
+        from_user: 'system',
+        sender_name: 'Systeme',
+        role: 'system',
+        text: 'Votre candidature a bien ete enregistree. Elle sera etudiee par un sergent ou un superieur.',
+        time: msgTime
+      });
+      await syncFromSupabase();
+    }
 
   } catch(e) {
     console.error('Erreur candidature:', e);
@@ -12027,17 +12087,142 @@ function renderJusticeDashboard() {
 }
 
 function switchJusTab(name) {
-  ['dossiers','casiers','amendes','membres','ajout'].forEach(function(t){
+  ['dossiers','candidatures','casiers','amendes','membres','ajout'].forEach(function(t){
     var el = document.getElementById('jus-tab-'+t);
     var btn = document.getElementById('jus-btn-'+t);
     if (el) el.style.display = t===name ? 'block' : 'none';
     if (btn) btn.classList.toggle('jus-active', t===name);
   });
-  if (name==='dossiers') renderJusDossiers();
-  if (name==='casiers')  renderJusCasiers();
-  if (name==='amendes')  renderJusAmendes();
-  if (name==='membres')  renderJusMembres();
-  if (name==='ajout')    renderJusAjout();
+  if (name==='dossiers')     renderJusDossiers();
+  if (name==='candidatures') renderJusCandidatures();
+  if (name==='casiers')      renderJusCasiers();
+  if (name==='amendes')      renderJusAmendes();
+  if (name==='membres')      renderJusMembres();
+  if (name==='ajout')        renderJusAjout();
+}
+
+async function renderJusCandidatures() {
+  var el = document.getElementById('jus-tab-candidatures');
+  var u = state.currentUser;
+  var isChef = gradeRankJus(u.grade) <= 0;
+  el.innerHTML = '<div class="jus-title">📨 Candidatures Justice</div>'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:1rem">Candidatures reçues pour rejoindre la Justice de Konoha</div>'
+    + '<div id="jus-candid-list"><div style="color:#64748b;padding:1rem;text-align:center">Chargement...</div></div>';
+
+  var candids = [];
+  try {
+    var r = await sbGet('candidatures_justice','?order=id.desc');
+    if (Array.isArray(r)) candids = r;
+  } catch(e) {
+    document.getElementById('jus-candid-list').innerHTML = '<div style="color:#fca5a5;padding:1rem">⚠️ Table candidatures_justice introuvable. Exécutez le SQL fourni.</div>';
+    return;
+  }
+
+  var h = '';
+  if (candids.length === 0) {
+    h = '<div class="jus-block" style="padding:1.5rem;text-align:center;color:#64748b">Aucune candidature reçue.</div>';
+  } else {
+    h += '<div class="jus-block" style="padding:0;overflow:hidden">';
+    candids.forEach(function(c, i) {
+      var sc = c.status==='ok' ? 'rgba(34,197,94,0.1);color:#86efac' : c.status==='no' ? 'rgba(239,68,68,0.1);color:#fca5a5' : 'rgba(234,179,8,0.1);color:#fde68a';
+      var sl = c.status==='ok' ? '✓ Accepté' : c.status==='no' ? '✗ Refusé' : '⏳ En attente';
+      var detId = 'jus-cd-'+i;
+      h += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.1)">'
+        + '<div onclick="jusToggle(\'' + detId + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer">'
+        + '<div style="width:34px;height:34px;border-radius:50%;background:rgba(37,99,235,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#93c5fd;flex-shrink:0">'+(c.pseudo||'?').slice(0,2).toUpperCase()+'</div>'
+        + '<div style="flex:1"><div style="font-weight:600;color:#e2e8f0;font-size:13px">'+(c.pseudo||'—')+'</div>'
+        + '<div style="font-size:11px;color:#64748b">'+(c.niveau||'—')+' • Justice</div></div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+sc+'">'+sl+'</span>'
+        + '<span style="font-size:10px;color:#64748b;margin-left:4px">▼</span>'
+        + '</div>'
+        + '<div id="'+detId+'" style="display:none;padding:12px 14px;background:rgba(37,99,235,0.03);border-top:0.5px solid rgba(37,99,235,0.1)">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">'
+        + '<div><span style="color:#64748b">Nom :</span> <strong style="color:#e2e8f0">'+(c.pseudo||'—')+'</strong></div>'
+        + '<div><span style="color:#64748b">Grade ninja :</span> <span style="color:#93c5fd">'+(c.niveau||'—')+'</span></div>'
+        + '<div><span style="color:#64748b">Casier :</span> <span style="color:'+(c.casier==='non'?'#86efac':'#fca5a5')+'">'+(c.casier==='non'?'Vierge ✓':'Chargé ✗')+'</span></div>'
+        + '</div>'
+        + '<div style="margin-bottom:10px;padding:8px;background:rgba(15,23,42,0.5);border-radius:6px;font-size:12px;color:#cbd5e1;line-height:1.6">'+(c.motiv||'—')+'</div>'
+        + (isChef ? '<div style="display:flex;gap:8px">'
+          + '<button onclick="actJusCandid('+c.id+',\'ok\')" style="padding:6px 14px;background:rgba(34,197,94,0.12);color:#86efac;border:1px solid rgba(34,197,94,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">✓ Accepter</button>'
+          + '<button onclick="actJusCandid('+c.id+',\'no\')" style="padding:6px 14px;background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>'
+          + '</div>' : '')
+        + '</div></div>';
+    });
+    h += '</div>';
+  }
+  document.getElementById('jus-candid-list').innerHTML = h;
+}
+
+async function actJusCandid(id, status) {
+  try {
+    await fetch(SB_URL+'/rest/v1/candidatures_justice?id=eq.'+id, {
+      method:'PATCH', headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({status: status})
+    });
+  } catch(e) {}
+  renderJusCandidatures();
+}
+
+async function renderAvCandidatures() {
+  var el = document.getElementById('av-tab-candidatures');
+  var u = state.currentUser;
+  var isChef = gradeRankAv(u.grade) <= 0;
+  el.innerHTML = '<div class="av-title">📨 Candidatures Cabinet</div>'
+    + '<div style="font-size:12px;color:#92400e;margin-bottom:1rem">Candidatures reçues pour rejoindre le Cabinet des Avocats</div>'
+    + '<div id="av-candid-list"><div style="color:#92400e;padding:1rem;text-align:center">Chargement...</div></div>';
+
+  var candids = [];
+  try {
+    var r = await sbGet('candidatures_avocat','?order=id.desc');
+    if (Array.isArray(r)) candids = r;
+  } catch(e) {
+    document.getElementById('av-candid-list').innerHTML = '<div style="color:#fca5a5;padding:1rem">⚠️ Table candidatures_avocat introuvable. Exécutez le SQL fourni.</div>';
+    return;
+  }
+
+  var h = '';
+  if (candids.length === 0) {
+    h = '<div class="av-block" style="padding:1.5rem;text-align:center;color:#92400e">Aucune candidature reçue.</div>';
+  } else {
+    h += '<div class="av-block" style="padding:0;overflow:hidden">';
+    candids.forEach(function(c, i) {
+      var sc = c.status==='ok' ? 'rgba(34,197,94,0.1);color:#86efac' : c.status==='no' ? 'rgba(239,68,68,0.1);color:#fca5a5' : 'rgba(234,179,8,0.1);color:#fde68a';
+      var sl = c.status==='ok' ? '✓ Accepté' : c.status==='no' ? '✗ Refusé' : '⏳ En attente';
+      var detId = 'av-cd-'+i;
+      h += '<div style="border-bottom:0.5px solid rgba(180,83,9,0.1)">'
+        + '<div onclick="jusToggle(\'' + detId + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer">'
+        + '<div style="width:34px;height:34px;border-radius:50%;background:rgba(180,83,9,0.12);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fbbf24;flex-shrink:0">'+(c.pseudo||'?').slice(0,2).toUpperCase()+'</div>'
+        + '<div style="flex:1"><div style="font-weight:600;color:#fef3c7;font-size:13px">'+(c.pseudo||'—')+'</div>'
+        + '<div style="font-size:11px;color:#92400e">'+(c.niveau||'—')+' • Cabinet Avocats</div></div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+sc+'">'+sl+'</span>'
+        + '<span style="font-size:10px;color:#92400e;margin-left:4px">▼</span>'
+        + '</div>'
+        + '<div id="'+detId+'" style="display:none;padding:12px 14px;background:rgba(180,83,9,0.03);border-top:0.5px solid rgba(180,83,9,0.1)">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">'
+        + '<div><span style="color:#92400e">Nom :</span> <strong style="color:#fef3c7">'+(c.pseudo||'—')+'</strong></div>'
+        + '<div><span style="color:#92400e">Grade ninja :</span> <span style="color:#fbbf24">'+(c.niveau||'—')+'</span></div>'
+        + '<div><span style="color:#92400e">Casier :</span> <span style="color:'+(c.casier==='non'?'#86efac':'#fca5a5')+'">'+(c.casier==='non'?'Vierge ✓':'Chargé ✗')+'</span></div>'
+        + '</div>'
+        + '<div style="margin-bottom:10px;padding:8px;background:rgba(28,10,0,0.5);border-radius:6px;font-size:12px;color:#fef3c7;line-height:1.6">'+(c.motiv||'—')+'</div>'
+        + (isChef ? '<div style="display:flex;gap:8px">'
+          + '<button onclick="actAvCandid('+c.id+',\'ok\')" style="padding:6px 14px;background:rgba(34,197,94,0.12);color:#86efac;border:1px solid rgba(34,197,94,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">✓ Accepter</button>'
+          + '<button onclick="actAvCandid('+c.id+',\'no\')" style="padding:6px 14px;background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">✗ Refuser</button>'
+          + '</div>' : '')
+        + '</div></div>';
+    });
+    h += '</div>';
+  }
+  document.getElementById('av-candid-list').innerHTML = h;
+}
+
+async function actAvCandid(id, status) {
+  try {
+    await fetch(SB_URL+'/rest/v1/candidatures_avocat?id=eq.'+id, {
+      method:'PATCH', headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({status: status})
+    });
+  } catch(e) {}
+  renderAvCandidatures();
 }
 
 async function renderJusDossiers() {
@@ -12430,17 +12615,18 @@ function renderAvocatDashboard() {
 }
 
 function switchAvTab(name) {
-  ['dossiers','casiers','amendes','membres','ajout'].forEach(function(t){
+  ['dossiers','candidatures','casiers','amendes','membres','ajout'].forEach(function(t){
     var el = document.getElementById('av-tab-'+t);
     var btn = document.getElementById('av-btn-'+t);
     if (el) el.style.display = t===name ? 'block' : 'none';
     if (btn) btn.classList.toggle('av-active', t===name);
   });
-  if (name==='dossiers') renderAvDossiers();
-  if (name==='casiers')  renderAvCasiers();
-  if (name==='amendes')  renderAvAmendes();
-  if (name==='membres')  renderAvMembres();
-  if (name==='ajout')    renderAvAjout();
+  if (name==='dossiers')     renderAvDossiers();
+  if (name==='candidatures') renderAvCandidatures();
+  if (name==='casiers')      renderAvCasiers();
+  if (name==='amendes')      renderAvAmendes();
+  if (name==='membres')      renderAvMembres();
+  if (name==='ajout')        renderAvAjout();
 }
 
 async function renderAvDossiers() {
@@ -12636,19 +12822,22 @@ function logoutAvocat() {
         <div id="jus-username" style="font-size:13px;font-weight:600;color:#e2e8f0"></div>
         <div id="jus-grade" style="font-size:11px;color:#93c5fd"></div>
       </div>
-      <button onclick="logoutJustice()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">D&#233;connexion</button>
+      <button onclick="showPage('home')" style="padding:6px 14px;background:rgba(37,99,235,0.12);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;cursor:pointer">🌐 Site public</button>
+      <button onclick="logoutJustice()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">🔓 Déconnexion</button>
     </div>
   </div>
   <div style="display:flex;min-height:calc(100vh - 56px);background:#0f172a">
     <div style="width:200px;background:#1e293b;border-right:1px solid rgba(37,99,235,0.2);padding:1rem;flex-shrink:0">
-      <button onclick="switchJusTab('dossiers')" class="jus-nav-btn jus-active" id="jus-btn-dossiers">&#128203; Dossiers</button>
-      <button onclick="switchJusTab('casiers')" class="jus-nav-btn" id="jus-btn-casiers">&#128193; Casiers judiciaires</button>
-      <button onclick="switchJusTab('amendes')" class="jus-nav-btn" id="jus-btn-amendes">&#128176; Amendes</button>
-      <button onclick="switchJusTab('membres')" class="jus-nav-btn" id="jus-btn-membres">&#128101; Membres</button>
-      <button onclick="switchJusTab('ajout')" class="jus-nav-btn" id="jus-btn-ajout" style="display:none">&#10133; Ajouter membre</button>
+      <button onclick="switchJusTab('dossiers')" class="jus-nav-btn jus-active" id="jus-btn-dossiers">📋 Dossiers</button>
+      <button onclick="switchJusTab('candidatures')" class="jus-nav-btn" id="jus-btn-candidatures">📨 Candidatures</button>
+      <button onclick="switchJusTab('casiers')" class="jus-nav-btn" id="jus-btn-casiers">🗂 Casiers</button>
+      <button onclick="switchJusTab('amendes')" class="jus-nav-btn" id="jus-btn-amendes">💰 Amendes</button>
+      <button onclick="switchJusTab('membres')" class="jus-nav-btn" id="jus-btn-membres">👥 Membres</button>
+      <button onclick="switchJusTab('ajout')" class="jus-nav-btn" id="jus-btn-ajout" style="display:none">➕ Ajouter membre</button>
     </div>
     <div style="flex:1;padding:1.5rem;overflow-y:auto">
       <div id="jus-tab-dossiers"></div>
+      <div id="jus-tab-candidatures" style="display:none"></div>
       <div id="jus-tab-casiers" style="display:none"></div>
       <div id="jus-tab-amendes" style="display:none"></div>
       <div id="jus-tab-membres" style="display:none"></div>
@@ -12672,19 +12861,22 @@ function logoutAvocat() {
         <div id="av-username" style="font-size:13px;font-weight:600;color:#fef3c7"></div>
         <div id="av-grade" style="font-size:11px;color:#fbbf24"></div>
       </div>
-      <button onclick="logoutAvocat()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">D&#233;connexion</button>
+      <button onclick="showPage('home')" style="padding:6px 14px;background:rgba(180,83,9,0.12);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;cursor:pointer">🌐 Site public</button>
+      <button onclick="logoutAvocat()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">🔓 Déconnexion</button>
     </div>
   </div>
   <div style="display:flex;min-height:calc(100vh - 56px);background:#1c0a00">
     <div style="width:200px;background:#2d1600;border-right:1px solid rgba(180,83,9,0.25);padding:1rem;flex-shrink:0">
-      <button onclick="switchAvTab('dossiers')" class="av-nav-btn av-active" id="av-btn-dossiers">&#128203; Dossiers clients</button>
-      <button onclick="switchAvTab('casiers')" class="av-nav-btn" id="av-btn-casiers">&#128193; Casiers</button>
-      <button onclick="switchAvTab('amendes')" class="av-nav-btn" id="av-btn-amendes">&#128176; Amendes</button>
-      <button onclick="switchAvTab('membres')" class="av-nav-btn" id="av-btn-membres">&#128101; Membres</button>
-      <button onclick="switchAvTab('ajout')" class="av-nav-btn" id="av-btn-ajout" style="display:none">&#10133; Ajouter membre</button>
+      <button onclick="switchAvTab('dossiers')" class="av-nav-btn av-active" id="av-btn-dossiers">📋 Dossiers clients</button>
+      <button onclick="switchAvTab('candidatures')" class="av-nav-btn" id="av-btn-candidatures">📨 Candidatures</button>
+      <button onclick="switchAvTab('casiers')" class="av-nav-btn" id="av-btn-casiers">🗂 Casiers</button>
+      <button onclick="switchAvTab('amendes')" class="av-nav-btn" id="av-btn-amendes">💰 Amendes</button>
+      <button onclick="switchAvTab('membres')" class="av-nav-btn" id="av-btn-membres">👥 Membres</button>
+      <button onclick="switchAvTab('ajout')" class="av-nav-btn" id="av-btn-ajout" style="display:none">➕ Ajouter membre</button>
     </div>
     <div style="flex:1;padding:1.5rem;overflow-y:auto">
       <div id="av-tab-dossiers"></div>
+      <div id="av-tab-candidatures" style="display:none"></div>
       <div id="av-tab-casiers" style="display:none"></div>
       <div id="av-tab-amendes" style="display:none"></div>
       <div id="av-tab-membres" style="display:none"></div>
