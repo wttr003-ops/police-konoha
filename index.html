@@ -6777,23 +6777,16 @@ function initKaede() {
     setTimeout(() => { if (bubble) bubble.style.display = 'none'; }, 5000);
   }, 2000);
 
-  // Show welcome popup
-  if (!welcomed && !hasAccount) {
+  // Popup welcome désactivé pour ne pas bloquer la navigation
+  if (false && !welcomed && !hasAccount) {
     setTimeout(() => showKaedePopup('welcome'), 1500);
   } else if (newAccount) {
     localStorage.removeItem('kaede_new_account');
     setTimeout(() => showKaedePopup('newaccount'), 500);
   } else if (hasAccount) {
-    // Vérifier tutoriel — version v2 : tous les utilisateurs voient le tutoriel une fois
-    const tutorialDone = localStorage.getItem('konoha_tutorial_done_' + (session?.username||''));
-    if (!tutorialDone || tutorialDone !== 'v2') {
-      setTimeout(() => startKaedeTutorial(), 800);
-    } else {
-      // Vérifier message dimanche impôts
-      setTimeout(() => checkImpotsNotice(), 600);
-      // Check for unread missives
-      setTimeout(() => checkMissives(), 1500);
-    }
+    // Tutoriel désactivé — aller directement aux checks utiles
+    setTimeout(() => checkImpotsNotice(), 600);
+    setTimeout(() => checkMissives(), 1500);
   }
 }
 
