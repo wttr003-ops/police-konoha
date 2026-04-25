@@ -12077,42 +12077,215 @@ async function renderJusDossiers() {
 
 async function renderJusCasiers() {
   var el = document.getElementById('jus-tab-casiers');
-  el.innerHTML = '<div class="jus-title">🗂 Casiers judiciaires</div><div style="font-size:12px;color:#64748b;margin-bottom:1rem">Données Police de Konoha — Lecture seule</div><div id="jus-casiers-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
+  el.innerHTML = '<div class="jus-title">🗂 Casiers judiciaires</div>'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:1rem">Cliquez sur un dossier pour voir tous les détails</div>'
+    + '<div id="jus-casiers-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
   var casiers = [];
   try { var r = await sbGet('casiers','?order=id.desc'); if(Array.isArray(r)) casiers=r; } catch(e){}
-  var h = '<div class="jus-block" style="padding:0;overflow:hidden">';
-  if (casiers.length === 0) {
-    h += '<div style="padding:1.5rem;text-align:center;color:#64748b">Aucun casier.</div>';
+
+  // Grouper par personne
+  var dossiers = {};
+  casiers.forEach(function(c) {
+    var key = (c.nom||'').toLowerCase().trim();
+    if (!dossiers[key]) dossiers[key] = { nom: c.nom, grade: c.grade, infractions: [] };
+    dossiers[key].infractions.push(c);
+  });
+
+  var dangerColors = { faible:'#86efac', moyen:'#fde68a', eleve:'#fb923c', extreme:'#fca5a5', palier2:'#fde68a', palier3:'#fca5a5' };
+  var sanctionLabels = { amende:'Amende', avertissement:'Avertissement', interdiction:'Interdiction', prison:'Prison (RP)', cellule:'Cellule du Palais', bannissement:'Banni', en_cours:'En instruction' };
+
+  var h = '';
+  if (Object.keys(dossiers).length === 0) {
+    h += '<div class="jus-block" style="padding:1.5rem;text-align:center;color:#64748b">Aucun casier enregistré.</div>';
   } else {
-    casiers.slice(0,30).forEach(function(c){
-      h += '<div class="jus-row"><div style="flex:1"><div style="font-weight:600;color:#e2e8f0">'+c.nom+'</div>'
-        +'<div style="font-size:11px;color:#64748b">'+(c.type||'--')+' &bull; Danger: '+(c.danger||'--')+' &bull; '+(c.date||'--')+'</div></div>'
-        +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(239,68,68,0.12);color:#fca5a5">Casier</span>'
-        +'</div>';
+    h += '<div class="jus-block" style="padding:0;overflow:hidden">';
+    Object.entries(dossiers).forEach(function(entry, di) {
+      var nomKey = entry[0], dossier = entry[1];
+      var nb = dossier.infractions.length;
+      var detailId = 'jus-cas-dos-' + di;
+      var lastDanger = dossier.infractions[0] ? (dossier.infractions[0].danger||'palier2') : 'palier2';
+      var dc = dangerColors[lastDanger] || '#fca5a5';
+
+      h += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.12)">'
+        // En-tête dossier cliquable
+        + '<div onclick="jusToggle(\'' + detailId + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">'
+        + '<div style="width:36px;height:36px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fca5a5;flex-shrink:0">'
+        + (dossier.nom||'?').slice(0,2).toUpperCase()
+        + '</div>'
+        + '<div style="flex:1">'
+        + '<div style="font-weight:700;color:#e2e8f0;font-size:13px">'+(dossier.nom||'—')+'</div>'
+        + '<div style="font-size:11px;color:#64748b">'+(dossier.grade||'—')+' — '+nb+' infraction(s)</div>'
+        + '</div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(239,68,68,0.12);color:'+dc+'">'+lastDanger.replace('palier','Palier ')+'</span>'
+        + '<span style="font-size:10px;color:#64748b;margin-left:6px" id="arr-'+detailId+'">▼</span>'
+        + '</div>'
+        // Corps dépliable
+        + '<div id="'+detailId+'" style="display:none;background:rgba(37,99,235,0.03);border-top:0.5px solid rgba(37,99,235,0.1);padding:0">';
+
+      dossier.infractions.forEach(function(c, ci) {
+        var dColor = dangerColors[c.danger||'palier2'] || '#fde68a';
+        var sl = sanctionLabels[c.sanction] || c.sanction || '—';
+
+        // Statut traitement Justice
+        var jStatut = c.statut_justice || 'en_attente';
+        var jColors = { en_attente: 'rgba(234,179,8,0.1);color:#fde68a', en_cours: 'rgba(37,99,235,0.12);color:#93c5fd', traite: 'rgba(34,197,94,0.1);color:#86efac', classe: 'rgba(100,116,139,0.12);color:#94a3b8' };
+        var jLabels = { en_attente: '⏳ En attente', en_cours: '⚙️ En traitement', traite: '✓ Traité', classe: '📁 Classé' };
+        var jColor = jColors[jStatut] || jColors.en_attente;
+        var jLabel = jLabels[jStatut] || jStatut;
+
+        var infId = 'jus-cas-inf-'+di+'-'+ci;
+        h += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.08);padding:10px 14px">'
+          // Ligne résumé infraction cliquable
+          + '<div onclick="jusToggle(\'' + infId + '\')" style="display:flex;align-items:center;gap:8px;cursor:pointer">'
+          + '<div style="flex:1">'
+          + '<div style="font-size:12px;font-weight:600;color:#fca5a5">'+(c.type||'—')+'</div>'
+          + '<div style="font-size:11px;color:#64748b">'+(c.date||'—')+' — '+(c.agent||'—')+'</div>'
+          + '</div>'
+          + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+jColor+'">'+jLabel+'</span>'
+          + '<span style="font-size:10px;color:#64748b">▼</span>'
+          + '</div>'
+          // Détail complet
+          + '<div id="'+infId+'" style="display:none;margin-top:10px;padding:10px;background:rgba(15,23,42,0.5);border-radius:8px;border:1px solid rgba(37,99,235,0.15)">'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">'
+          + '<div><span style="color:#64748b">Infraction :</span> <strong style="color:#fca5a5">'+(c.type||'—')+'</strong></div>'
+          + '<div><span style="color:#64748b">Palier :</span> <span style="color:'+dColor+'">'+(c.danger||'—').replace('palier','Palier ')+'</span></div>'
+          + '<div><span style="color:#64748b">Sanction :</span> <span style="color:#e2e8f0">'+sl+'</span></div>'
+          + '<div><span style="color:#64748b">Agent rédacteur :</span> <span style="color:#e2e8f0">'+(c.agent||'—')+'</span></div>'
+          + '<div style="grid-column:1/-1"><span style="color:#64748b">Motif :</span> <span style="color:#cbd5e1">'+(c.motif||'—')+'</span></div>'
+          + '</div>'
+          // Statut traitement Justice avec boutons de changement
+          + '<div style="margin-bottom:8px">'
+          + '<div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Statut traitement Justice</div>'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+          + ['en_attente','en_cours','traite','classe'].map(function(st) {
+              var active = jStatut===st;
+              var stc = { en_attente:'rgba(234,179,8,0.15);color:#fde68a;border-color:rgba(234,179,8,0.4)', en_cours:'rgba(37,99,235,0.15);color:#93c5fd;border-color:rgba(37,99,235,0.4)', traite:'rgba(34,197,94,0.15);color:#86efac;border-color:rgba(34,197,94,0.4)', classe:'rgba(100,116,139,0.15);color:#94a3b8;border-color:rgba(100,116,139,0.4)' }[st];
+              return '<button onclick="jusCasierSetStatut('+c.id+',\'' + st + '\',this)" style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid;'+(active ? stc : 'background:none;color:#64748b;border-color:rgba(37,99,235,0.15)')+'">'+jLabels[st]+'</button>';
+            }).join('')
+          + '</div></div>'
+          // Notes Justice
+          + '<div>'
+          + '<div style="font-size:11px;color:#64748b;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px">Notes / Décision du Tribunal</div>'
+          + '<textarea id="jus-note-'+c.id+'" placeholder="Saisir la décision, les notes de traitement..." rows="2" style="width:100%;padding:7px;border:1px solid rgba(37,99,235,0.2);border-radius:6px;font-size:12px;background:#0f172a;color:#e2e8f0;font-family:inherit;resize:vertical;box-sizing:border-box">'+(c.note_justice||'')+'</textarea>'
+          + '<button onclick="jusCasierSaveNote('+c.id+')" style="margin-top:4px;padding:5px 14px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">💾 Enregistrer la note</button>'
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      });
+
+      h += '</div></div>';
     });
+    h += '</div>';
   }
-  h += '</div>';
+
   document.getElementById('jus-casiers-list').innerHTML = h;
+}
+
+async function jusCasierSetStatut(id, statut, btn) {
+  // Mettre à jour le statut_justice dans Supabase
+  try {
+    await fetch(SB_URL + '/rest/v1/casiers?id=eq.' + id, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ statut_justice: statut })
+    });
+  } catch(e) { console.warn('jusCasierSetStatut:', e); }
+  // Rafraîchir
+  renderJusCasiers();
+}
+
+async function jusCasierSaveNote(id) {
+  var note = document.getElementById('jus-note-'+id)?.value.trim();
+  if (note === undefined) return;
+  try {
+    await fetch(SB_URL + '/rest/v1/casiers?id=eq.' + id, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ note_justice: note })
+    });
+  } catch(e) { console.warn('jusCasierSaveNote:', e); }
+  // Flash de confirmation
+  var btn = document.querySelector('[onclick="jusCasierSaveNote('+id+')"]');
+  if (btn) { var orig = btn.textContent; btn.textContent = '✓ Sauvegardé'; setTimeout(function(){ btn.textContent = orig; }, 2000); }
 }
 
 async function renderJusAmendes() {
   var el = document.getElementById('jus-tab-amendes');
-  el.innerHTML = '<div class="jus-title">💰 Amendes</div><div style="font-size:12px;color:#64748b;margin-bottom:1rem">Données Police de Konoha — Lecture seule</div><div id="jus-amendes-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
+  el.innerHTML = '<div class="jus-title">💰 Amendes</div>'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:1rem">Données Police de Konoha — Lecture seule</div>'
+    + '<div id="jus-amendes-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
   var amendes = [];
   try { var r = await sbGet('amendes','?order=id.desc'); if(Array.isArray(r)) amendes=r; } catch(e){}
-  var h = '<div class="jus-block" style="padding:0;overflow:hidden">';
-  if (amendes.length === 0) {
-    h += '<div style="padding:1.5rem;text-align:center;color:#64748b">Aucune amende.</div>';
-  } else {
-    amendes.slice(0,30).forEach(function(a){
-      var payee = a.statut==='payee';
-      h += '<div class="jus-row"><div style="flex:1"><div style="font-weight:600;color:#e2e8f0">'+(a.nom||a.citoyen||'--')+'</div>'
-        +'<div style="font-size:11px;color:#64748b">'+(a.montant||'--')+' Ryos &bull; '+(a.motif||'--')+'</div></div>'
-        +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:'+(payee?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.12)')+';color:'+(payee?'#86efac':'#fca5a5')+'">'+(payee?'Payée':'Impayée')+'</span>'
-        +'</div>';
-    });
+
+  // Champs possibles pour le nom : fullname, nom, citoyen, username
+  function getNom(a) { return a.fullname || a.nom || a.citoyen || a.username || '—'; }
+
+  // Statut réel — vérifier tous les champs possibles
+  function getStatut(a) {
+    var s = a.status || a.statut || '';
+    return s;
   }
-  h += '</div>';
+
+  // Stats
+  var total = amendes.length;
+  var payees = amendes.filter(function(a){ var s=getStatut(a); return s==='payee'||s==='recuperee'; }).length;
+  var impayees = amendes.filter(function(a){ var s=getStatut(a); return s==='impayee'||s===''; }).length;
+  var totalRyos = amendes.reduce(function(s,a){ return s+(parseInt(a.montant)||0); }, 0);
+
+  var h = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem">'
+    + '<div style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#93c5fd">'+total+'</div><div style="font-size:10px;color:#64748b">Total amendes</div></div>'
+    + '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#86efac">'+payees+'</div><div style="font-size:10px;color:#64748b">Payées</div></div>'
+    + '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#fca5a5">'+impayees+'</div><div style="font-size:10px;color:#64748b">Impayées</div></div>'
+    + '</div>';
+
+  if (amendes.length === 0) {
+    h += '<div class="jus-block" style="padding:1.5rem;text-align:center;color:#64748b">Aucune amende enregistrée.</div>';
+  } else {
+    h += '<div class="jus-block" style="padding:0;overflow:hidden">';
+    amendes.forEach(function(a, i) {
+      var nom = getNom(a);
+      var statut = getStatut(a);
+      var isPay = statut==='payee'||statut==='recuperee';
+      var isImp = statut==='impayee'||statut==='';
+      var sColor = isPay ? 'rgba(34,197,94,0.12);color:#86efac' : isImp ? 'rgba(239,68,68,0.12);color:#fca5a5' : 'rgba(234,179,8,0.1);color:#fde68a';
+      var sLabel = isPay ? '✓ Payée' : isImp ? '⚠ Impayée' : statut;
+      var palier = a.palier || '';
+      var palierColor = palier==='palier3' ? '#fca5a5' : palier==='palier2' ? '#fde68a' : '#86efac';
+      var detailId = 'jus-am-det-'+i;
+
+      h += '<div style="border-bottom:0.5px solid rgba(37,99,235,0.1)">'
+        // Header cliquable
+        + '<div onclick="jusToggle(\'' + detailId + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">'
+        + '<div style="flex:1">'
+        + '<div style="font-weight:600;color:#e2e8f0;font-size:13px">'+nom+'</div>'
+        + '<div style="font-size:11px;color:#64748b;margin-top:2px">'
+        + (palier ? '<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:rgba(37,99,235,0.1);color:'+palierColor+'">'+palier.replace('palier','Palier ')+'</span> ' : '')
+        + (a.infraction||a.motif||'—').substring(0,50)+(((a.infraction||a.motif||'').length>50)?'...':'')
+        + '</div></div>'
+        + '<div style="text-align:right;flex-shrink:0">'
+        + '<div style="font-size:13px;font-weight:700;color:#e2e8f0">'+(parseInt(a.montant)||0).toLocaleString()+' Ryos</div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+sColor+'">'+sLabel+'</span>'
+        + '</div>'
+        + '<span style="font-size:10px;color:#64748b;margin-left:6px">▼</span>'
+        + '</div>'
+        // Détail dépliable
+        + '<div id="'+detailId+'" style="display:none;background:rgba(37,99,235,0.04);border-top:0.5px solid rgba(37,99,235,0.1);padding:12px 14px">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">'
+        + '<div><span style="color:#64748b">Contrevenant :</span> <strong style="color:#e2e8f0">'+nom+'</strong></div>'
+        + '<div><span style="color:#64748b">Montant :</span> <strong style="color:#fde68a">'+(parseInt(a.montant)||0).toLocaleString()+' Ryos</strong></div>'
+        + '<div><span style="color:#64748b">Infraction :</span> <span style="color:#cbd5e1">'+(a.infraction||a.motif||'—')+'</span></div>'
+        + '<div><span style="color:#64748b">Palier :</span> <span style="color:'+palierColor+'">'+(palier||'—')+'</span></div>'
+        + '<div><span style="color:#64748b">Émis par :</span> <span style="color:#cbd5e1">'+(a.agent_name||a.agent||'—')+'</span></div>'
+        + '<div><span style="color:#64748b">Date :</span> <span style="color:#cbd5e1">'+(a.date||a.created_at||'—')+'</span></div>'
+        + (a.note ? '<div style="grid-column:1/-1"><span style="color:#64748b">Note :</span> <span style="color:#cbd5e1">'+a.note+'</span></div>' : '')
+        + (a.encaisse_par ? '<div><span style="color:#64748b">Encaissé par :</span> <span style="color:#86efac">'+a.encaisse_par+'</span></div>' : '')
+        + (a.recupere_par ? '<div><span style="color:#64748b">Récupéré par :</span> <span style="color:#86efac">'+a.recupere_par+'</span></div>' : '')
+        + '</div></div>'
+        + '</div>';
+    });
+    h += '</div>';
+  }
+
   document.getElementById('jus-amendes-list').innerHTML = h;
 }
 
@@ -12146,15 +12319,57 @@ function renderJusAjout() {
   var el = document.getElementById('jus-tab-ajout');
   var grades = GRADES_JUSTICE.map(function(g){return '<option>'+g+'</option>';}).join('');
   el.innerHTML = '<div class="jus-title">➕ Ajouter un membre — Justice</div>'
-    +'<div class="jus-block"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
-    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Nom et Prénom</label><input id="jus-new-nom" type="text" placeholder="Ex: Hatake Kakashi" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Identifiant (login)</label><input id="jus-new-user" type="text" placeholder="Ex: kakashi_juge" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Mot de passe</label><input id="jus-new-pass" type="text" placeholder="Minimum 6 caractères" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Grade</label><select id="jus-new-grade" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0">'+grades+'</select></div>'
+    +'<div class="jus-block">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Nom et Prénom *</label>'
+    +'<input id="jus-new-nom" type="text" placeholder="Ex: Hatake Kakashi" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box" oninput="jusAutoUser()"/></div>'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Identifiant (login) *</label>'
+    +'<input id="jus-new-user" type="text" placeholder="Ex: kakashi_juge" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Mot de passe *</label>'
+    +'<div style="display:flex;gap:6px">'
+    +'<input id="jus-new-pass" type="text" placeholder="Générez ou saisissez" style="flex:1;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;font-family:monospace;letter-spacing:1px"/>'
+    +'<button onclick="jusGenPass()" title="Générer un mot de passe" style="padding:7px 10px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🎲 Générer</button>'
     +'</div>'
-    +'<button onclick="ajouterMembreJus()" style="padding:9px 24px;background:rgba(37,99,235,0.2);color:#93c5fd;border:1px solid rgba(37,99,235,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Créer le compte</button>'
-    +'<div id="jus-ajout-ok" style="display:none;margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);color:#86efac;border-radius:8px;font-size:13px"></div>'
+    +'<div id="jus-pass-display" style="display:none;margin-top:5px;padding:5px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;font-size:11px;color:#86efac;font-family:monospace;letter-spacing:1px"></div>'
+    +'</div>'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Grade</label>'
+    +'<select id="jus-new-grade" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0">'+grades+'</select></div>'
+    +'</div>'
+    +'<div style="margin-bottom:10px;padding:8px 12px;background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.15);border-radius:8px;font-size:12px;color:#64748b">'
+    +'💡 Identifiant pour se connecter via <strong style="color:#93c5fd">Espace agent → Section Justice</strong>. Le nom complet peut aussi être utilisé à la place.'
+    +'</div>'
+    +'<button onclick="ajouterMembreJus()" style="padding:9px 24px;background:rgba(37,99,235,0.2);color:#93c5fd;border:1px solid rgba(37,99,235,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">➕ Créer le compte</button>'
+    +'<div id="jus-ajout-ok" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(34,197,94,0.1);color:#86efac;border:1px solid rgba(34,197,94,0.2);border-radius:8px;font-size:13px"></div>'
+    +'<div id="jus-ajout-err" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px"></div>'
     +'</div>';
+}
+
+function jusGenPass() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var pwd = '';
+  for (var i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  var inp = document.getElementById('jus-new-pass');
+  if (inp) inp.value = pwd;
+  var disp = document.getElementById('jus-pass-display');
+  if (disp) { disp.style.display = 'block'; disp.textContent = '✓ Mot de passe : ' + pwd + ' — Notez-le bien !'; }
+}
+
+function jusAutoUser() {
+  var nom = document.getElementById('jus-new-nom')?.value.trim() || '';
+  var userEl = document.getElementById('jus-new-user');
+  if (!userEl || userEl.dataset.touched === 'true') return;
+  // Auto-générer l'identifiant depuis le nom : "Hatake Kakashi" → "hatake_kakashi_juge"
+  var auto = nom.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'') + '_juge';
+  userEl.value = auto;
+}
+
+function jusToggle(id) {
+  var el = document.getElementById(id);
+  var arr = document.getElementById('arr-'+id);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (arr) arr.textContent = open ? '▼' : '▲';
 }
 
 async function ajouterMembreJus() {
@@ -12318,17 +12533,48 @@ function renderAvAjout() {
   var el = document.getElementById('av-tab-ajout');
   var grades = GRADES_AVOCAT.map(function(g){return '<option>'+g+'</option>';}).join('');
   el.innerHTML = '<div class="av-title">➕ Ajouter un membre — Cabinet</div>'
-    +'<div class="av-block"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Nom et Prénom</label><input id="av-new-nom" type="text" placeholder="Ex: Me. Yamato" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Identifiant (login)</label><input id="av-new-user" type="text" placeholder="Ex: yamato_avocat" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Mot de passe</label><input id="av-new-pass" type="text" placeholder="Minimum 6 caractères" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Grade</label><select id="av-new-grade" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7">'+grades+'</select></div>'
+    +'<div class="av-block">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Nom et Prénom *</label>'
+    +'<input id="av-new-nom" type="text" placeholder="Ex: Me. Yamato" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box" oninput="avAutoUser()"/></div>'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Identifiant (login) *</label>'
+    +'<input id="av-new-user" type="text" placeholder="Ex: yamato_avocat" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Mot de passe *</label>'
+    +'<div style="display:flex;gap:6px">'
+    +'<input id="av-new-pass" type="text" placeholder="Générez ou saisissez" style="flex:1;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;font-family:monospace;letter-spacing:1px"/>'
+    +'<button onclick="avGenPass()" title="Générer" style="padding:7px 10px;background:rgba(180,83,9,0.15);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🎲 Générer</button>'
     +'</div>'
-    +'<button onclick="ajouterMembreAv()" style="padding:9px 24px;background:rgba(180,83,9,0.2);color:#fbbf24;border:1px solid rgba(180,83,9,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Créer le compte</button>'
-    +'<div id="av-ajout-ok" style="display:none;margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);color:#86efac;border-radius:8px;font-size:13px"></div>'
+    +'<div id="av-pass-display" style="display:none;margin-top:5px;padding:5px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;font-size:11px;color:#86efac;font-family:monospace;letter-spacing:1px"></div>'
+    +'</div>'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Grade</label>'
+    +'<select id="av-new-grade" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7">'+grades+'</select></div>'
+    +'</div>'
+    +'<div style="margin-bottom:10px;padding:8px 12px;background:rgba(180,83,9,0.05);border:1px solid rgba(180,83,9,0.15);border-radius:8px;font-size:12px;color:#92400e">'
+    +'💡 Identifiant pour se connecter via <strong style="color:#fbbf24">Espace agent → Section Avocat</strong>.'
+    +'</div>'
+    +'<button onclick="ajouterMembreAv()" style="padding:9px 24px;background:rgba(180,83,9,0.2);color:#fbbf24;border:1px solid rgba(180,83,9,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">➕ Créer le compte</button>'
+    +'<div id="av-ajout-ok" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(34,197,94,0.1);color:#86efac;border:1px solid rgba(34,197,94,0.2);border-radius:8px;font-size:13px"></div>'
+    +'<div id="av-ajout-err" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px"></div>'
     +'</div>';
 }
 
+function avGenPass() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var pwd = '';
+  for (var i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  var inp = document.getElementById('av-new-pass');
+  if (inp) inp.value = pwd;
+  var disp = document.getElementById('av-pass-display');
+  if (disp) { disp.style.display = 'block'; disp.textContent = '✓ Mot de passe : ' + pwd + ' — Notez-le bien !'; }
+}
+
+function avAutoUser() {
+  var nom = document.getElementById('av-new-nom')?.value.trim() || '';
+  var userEl = document.getElementById('av-new-user');
+  if (!userEl || userEl.dataset.touched === 'true') return;
+  var auto = nom.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'') + '_avocat';
+  userEl.value = auto;
+}
 async function ajouterMembreAv() {
   var nom  = document.getElementById('av-new-nom')?.value.trim();
   var user = document.getElementById('av-new-user')?.value.trim().toLowerCase().replace(/\s/g,'_');
