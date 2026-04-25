@@ -1614,6 +1614,44 @@ span.footer-logo svg { width: 40px; height: 40px; }
   border: 1px solid rgba(139,92,246,0.4) !important;
   font-weight: 700 !important;
 }
+
+/* Justice & Avocat Nav */
+.jus-nav-btn {
+  display:block;width:100%;padding:9px 12px;text-align:left;background:none;
+  border:none;border-radius:8px;font-size:12px;cursor:pointer;
+  font-family:inherit;color:#94a3b8;margin-bottom:4px;transition:all .15s;
+}
+.jus-nav-btn:hover,.jus-nav-btn.jus-active {
+  background:rgba(37,99,235,0.15);color:#93c5fd;
+}
+.av-nav-btn {
+  display:block;width:100%;padding:9px 12px;text-align:left;background:none;
+  border:none;border-radius:8px;font-size:12px;cursor:pointer;
+  font-family:inherit;color:#d97706;margin-bottom:4px;transition:all .15s;
+}
+.av-nav-btn:hover,.av-nav-btn.av-active {
+  background:rgba(180,83,9,0.2);color:#fbbf24;
+}
+.jus-block {
+  background:#1e293b;border:1px solid rgba(37,99,235,0.2);
+  border-radius:12px;padding:1.25rem;margin-bottom:1rem;
+}
+.av-block {
+  background:#2d1600;border:1px solid rgba(180,83,9,0.2);
+  border-radius:12px;padding:1.25rem;margin-bottom:1rem;
+}
+.jus-title { font-size:16px;font-weight:700;color:#e2e8f0;margin-bottom:1rem; }
+.av-title  { font-size:16px;font-weight:700;color:#fef3c7;margin-bottom:1rem; }
+.jus-row {
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid rgba(37,99,235,0.1);color:#cbd5e1;
+}
+.jus-row:last-child { border-bottom:none; }
+.av-row {
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid rgba(180,83,9,0.1);color:#fef3c7;
+}
+.av-row:last-child { border-bottom:none; }
 </style></head><body>
 
 
@@ -3544,8 +3582,14 @@ async function doLogin() {
   state.currentUser = { username: user, grade: realGrade, fullname: found.fullname || user };
   localStorage.setItem('konoha_session', JSON.stringify(state.currentUser));
   startRealtime();
-  showPage('dashboard');
-  startGlobalTimerPol();
+  const userService = found.service || '';
+  if (userService === 'justice') {
+    showPage('justice'); setTimeout(renderJusticeDashboard, 100);
+  } else if (userService === 'avocat') {
+    showPage('avocat'); setTimeout(renderAvocatDashboard, 100);
+  } else {
+    showPage('dashboard'); startGlobalTimerPol();
+  }
 }
 
 
@@ -10996,6 +11040,44 @@ async function impotsGenPDF() {
   border: 1px solid rgba(139,92,246,0.4) !important;
   font-weight: 700 !important;
 }
+
+/* Justice & Avocat Nav */
+.jus-nav-btn {
+  display:block;width:100%;padding:9px 12px;text-align:left;background:none;
+  border:none;border-radius:8px;font-size:12px;cursor:pointer;
+  font-family:inherit;color:#94a3b8;margin-bottom:4px;transition:all .15s;
+}
+.jus-nav-btn:hover,.jus-nav-btn.jus-active {
+  background:rgba(37,99,235,0.15);color:#93c5fd;
+}
+.av-nav-btn {
+  display:block;width:100%;padding:9px 12px;text-align:left;background:none;
+  border:none;border-radius:8px;font-size:12px;cursor:pointer;
+  font-family:inherit;color:#d97706;margin-bottom:4px;transition:all .15s;
+}
+.av-nav-btn:hover,.av-nav-btn.av-active {
+  background:rgba(180,83,9,0.2);color:#fbbf24;
+}
+.jus-block {
+  background:#1e293b;border:1px solid rgba(37,99,235,0.2);
+  border-radius:12px;padding:1.25rem;margin-bottom:1rem;
+}
+.av-block {
+  background:#2d1600;border:1px solid rgba(180,83,9,0.2);
+  border-radius:12px;padding:1.25rem;margin-bottom:1rem;
+}
+.jus-title { font-size:16px;font-weight:700;color:#e2e8f0;margin-bottom:1rem; }
+.av-title  { font-size:16px;font-weight:700;color:#fef3c7;margin-bottom:1rem; }
+.jus-row {
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid rgba(37,99,235,0.1);color:#cbd5e1;
+}
+.jus-row:last-child { border-bottom:none; }
+.av-row {
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid rgba(180,83,9,0.1);color:#fef3c7;
+}
+.av-row:last-child { border-bottom:none; }
 </style></head><body>
 <div class="header"><h1>🏯 VILLAGE DE KONOHA — REGISTRE DES IMPOTS</h1><p>Document officiel — Police de Konoha — Généré le ${today}</p></div>
 <div class="kpis">
@@ -11810,4 +11892,454 @@ function startGlobalTimerPol() {
   window._globalTimerPol = setInterval(tick, 1000);
 }
 
-</script></body></html>
+
+// ============================================================
+// GRADES JUSTICE & AVOCAT
+// ============================================================
+const GRADES_JUSTICE = ['Grand Juge', 'Juge Senior', 'Juge', 'Juge Stagiaire'];
+const GRADES_AVOCAT  = ['Avocat Général', 'Avocat Senior', 'Avocat', 'Stagiaire Avocat'];
+
+function gradeRankJus(g) {
+  var r = {'Grand Juge':0,'Juge Senior':1,'Juge':2,'Juge Stagiaire':3};
+  return r[g] !== undefined ? r[g] : 99;
+}
+function gradeRankAv(g) {
+  var r = {'Avocat Général':0,'Avocat Senior':1,'Avocat':2,'Stagiaire Avocat':3};
+  return r[g] !== undefined ? r[g] : 99;
+}
+
+// ============================================================
+// DASHBOARD JUSTICE
+// ============================================================
+function renderJusticeDashboard() {
+  var u = state.currentUser;
+  if (!u) return;
+  document.getElementById('jus-username').textContent = u.fullname || u.username;
+  document.getElementById('jus-grade').textContent = u.grade;
+  var isChef = gradeRankJus(u.grade) <= 0;
+  if (isChef) document.getElementById('jus-btn-ajout').style.display = 'block';
+  switchJusTab('dossiers');
+}
+
+function switchJusTab(name) {
+  ['dossiers','casiers','amendes','membres','ajout'].forEach(function(t){
+    var el = document.getElementById('jus-tab-'+t);
+    var btn = document.getElementById('jus-btn-'+t);
+    if (el) el.style.display = t===name ? 'block' : 'none';
+    if (btn) btn.classList.toggle('jus-active', t===name);
+  });
+  if (name==='dossiers') renderJusDossiers();
+  if (name==='casiers')  renderJusCasiers();
+  if (name==='amendes')  renderJusAmendes();
+  if (name==='membres')  renderJusMembres();
+  if (name==='ajout')    renderJusAjout();
+}
+
+async function renderJusDossiers() {
+  var el = document.getElementById('jus-tab-dossiers');
+  var u = state.currentUser;
+  var isChef = gradeRankJus(u.grade) <= 0;
+  var dossiers = [];
+  try {
+    var res = await sbGet('dossiers_justice', '?order=created_at.desc');
+    if (Array.isArray(res)) dossiers = res;
+  } catch(e) {}
+
+  var h = '<div class="jus-title">📋 Dossiers judiciaires</div>';
+  if (isChef) {
+    h += '<button onclick="ouvrirNouveauDossierJus()" style="padding:8px 16px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:1rem">+ Nouveau dossier</button>';
+  }
+
+  if (dossiers.length === 0) {
+    h += '<div class="jus-block" style="text-align:center;color:#64748b;padding:2rem">Aucun dossier actif.</div>';
+  } else {
+    h += '<div class="jus-block" style="padding:0;overflow:hidden">';
+    dossiers.forEach(function(d) {
+      var sc = d.statut==='urgent' ? 'rgba(239,68,68,0.15);color:#fca5a5'
+        : d.statut==='clos' ? 'rgba(34,197,94,0.1);color:#86efac'
+        : 'rgba(234,179,8,0.1);color:#fde68a';
+      h += '<div class="jus-row">'
+        + '<div style="flex:1"><div style="font-weight:600;color:#e2e8f0">Affaire '+d.nom_accuse+'</div>'
+        + '<div style="font-size:11px;color:#64748b">'+(d.type_infraction||'--')+' &bull; Juge : '+(d.juge||'--')+'</div></div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:'+sc+'">'+( d.statut||'En cours')+'</span>'
+        + '<button onclick="voirDossierJus('+d.id+')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(37,99,235,0.3);background:none;font-size:11px;cursor:pointer;color:#93c5fd">Voir</button>'
+        + '</div>';
+    });
+    h += '</div>';
+  }
+  el.innerHTML = h;
+}
+
+async function renderJusCasiers() {
+  var el = document.getElementById('jus-tab-casiers');
+  el.innerHTML = '<div class="jus-title">🗂 Casiers judiciaires</div><div style="font-size:12px;color:#64748b;margin-bottom:1rem">Données Police de Konoha — Lecture seule</div><div id="jus-casiers-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
+  var casiers = [];
+  try { var r = await sbGet('casiers','?order=id.desc'); if(Array.isArray(r)) casiers=r; } catch(e){}
+  var h = '<div class="jus-block" style="padding:0;overflow:hidden">';
+  if (casiers.length === 0) {
+    h += '<div style="padding:1.5rem;text-align:center;color:#64748b">Aucun casier.</div>';
+  } else {
+    casiers.slice(0,30).forEach(function(c){
+      h += '<div class="jus-row"><div style="flex:1"><div style="font-weight:600;color:#e2e8f0">'+c.nom+'</div>'
+        +'<div style="font-size:11px;color:#64748b">'+(c.type||'--')+' &bull; Danger: '+(c.danger||'--')+' &bull; '+(c.date||'--')+'</div></div>'
+        +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(239,68,68,0.12);color:#fca5a5">Casier</span>'
+        +'</div>';
+    });
+  }
+  h += '</div>';
+  document.getElementById('jus-casiers-list').innerHTML = h;
+}
+
+async function renderJusAmendes() {
+  var el = document.getElementById('jus-tab-amendes');
+  el.innerHTML = '<div class="jus-title">💰 Amendes</div><div style="font-size:12px;color:#64748b;margin-bottom:1rem">Données Police de Konoha — Lecture seule</div><div id="jus-amendes-list"><div style="color:#64748b;text-align:center;padding:1rem">Chargement...</div></div>';
+  var amendes = [];
+  try { var r = await sbGet('amendes','?order=id.desc'); if(Array.isArray(r)) amendes=r; } catch(e){}
+  var h = '<div class="jus-block" style="padding:0;overflow:hidden">';
+  if (amendes.length === 0) {
+    h += '<div style="padding:1.5rem;text-align:center;color:#64748b">Aucune amende.</div>';
+  } else {
+    amendes.slice(0,30).forEach(function(a){
+      var payee = a.statut==='payee';
+      h += '<div class="jus-row"><div style="flex:1"><div style="font-weight:600;color:#e2e8f0">'+(a.nom||a.citoyen||'--')+'</div>'
+        +'<div style="font-size:11px;color:#64748b">'+(a.montant||'--')+' Ryos &bull; '+(a.motif||'--')+'</div></div>'
+        +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:'+(payee?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.12)')+';color:'+(payee?'#86efac':'#fca5a5')+'">'+(payee?'Payée':'Impayée')+'</span>'
+        +'</div>';
+    });
+  }
+  h += '</div>';
+  document.getElementById('jus-amendes-list').innerHTML = h;
+}
+
+async function renderJusMembres() {
+  var el = document.getElementById('jus-tab-membres');
+  var u = state.currentUser;
+  var isChef = gradeRankJus(u.grade) <= 0;
+  var membres = [];
+  try {
+    var r = await sbGet('users','?service=eq.justice&order=created_at.asc');
+    if(Array.isArray(r)) membres=r;
+  } catch(e){}
+
+  var h = '<div class="jus-title">👥 Membres — Justice de Konoha</div>';
+  if (isChef) h += '<button onclick="switchJusTab(\'ajout\')" style="padding:7px 14px;background:rgba(37,99,235,0.15);color:#93c5fd;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:1rem">+ Ajouter un membre</button>';
+  h += '<div class="jus-block" style="padding:0;overflow:hidden">';
+  if (membres.length === 0) h += '<div style="padding:1.5rem;color:#64748b;text-align:center">Aucun membre.</div>';
+  else membres.forEach(function(m){
+    h += '<div class="jus-row"><div style="width:36px;height:36px;border-radius:50%;background:rgba(37,99,235,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#93c5fd">'+(m.fullname||m.username||'?').slice(0,2).toUpperCase()+'</div>'
+      +'<div style="flex:1"><div style="font-weight:600;color:#e2e8f0">'+(m.fullname||m.username)+'</div>'
+      +'<div style="font-size:11px;color:#64748b">'+m.grade+' &bull; @'+m.username+'</div></div>'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(37,99,235,0.12);color:#93c5fd">'+m.grade+'</span>'
+      +(isChef?'<button onclick="supprimerMembreJus(\''+m.username+'\')" style="padding:3px 8px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:none;font-size:11px;cursor:pointer;color:#fca5a5">✕</button>':'')
+      +'</div>';
+  });
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+function renderJusAjout() {
+  var el = document.getElementById('jus-tab-ajout');
+  var grades = GRADES_JUSTICE.map(function(g){return '<option>'+g+'</option>';}).join('');
+  el.innerHTML = '<div class="jus-title">➕ Ajouter un membre — Justice</div>'
+    +'<div class="jus-block"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Nom et Prénom</label><input id="jus-new-nom" type="text" placeholder="Ex: Hatake Kakashi" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Identifiant (login)</label><input id="jus-new-user" type="text" placeholder="Ex: kakashi_juge" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Mot de passe</label><input id="jus-new-pass" type="text" placeholder="Minimum 6 caractères" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Grade</label><select id="jus-new-grade" style="width:100%;padding:8px;border:1px solid rgba(37,99,235,0.3);border-radius:8px;font-size:13px;background:#0f172a;color:#e2e8f0">'+grades+'</select></div>'
+    +'</div>'
+    +'<button onclick="ajouterMembreJus()" style="padding:9px 24px;background:rgba(37,99,235,0.2);color:#93c5fd;border:1px solid rgba(37,99,235,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Créer le compte</button>'
+    +'<div id="jus-ajout-ok" style="display:none;margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);color:#86efac;border-radius:8px;font-size:13px"></div>'
+    +'</div>';
+}
+
+async function ajouterMembreJus() {
+  var nom  = document.getElementById('jus-new-nom')?.value.trim();
+  var user = document.getElementById('jus-new-user')?.value.trim().toLowerCase().replace(/\s/g,'_');
+  var pass = document.getElementById('jus-new-pass')?.value;
+  var grade= document.getElementById('jus-new-grade')?.value;
+  if (!nom||!user||!pass) { alert('Remplissez tous les champs.'); return; }
+  try {
+    await sbPost('users', { username:user, fullname:nom, password:pass, grade, service:'justice', isAgent:true });
+  } catch(e) { console.warn('ajout jus:', e); alert('Erreur: '+e.message); return; }
+  var ok = document.getElementById('jus-ajout-ok');
+  if (ok) { ok.style.display='block'; ok.textContent='✓ Compte créé pour '+nom+' ('+grade+')'; }
+  ['jus-new-nom','jus-new-user','jus-new-pass'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+}
+
+async function supprimerMembreJus(username) {
+  if (!confirm('Supprimer le membre @'+username+' de la Justice ?')) return;
+  try { await sbDelete('users','?username=eq.'+encodeURIComponent(username)); } catch(e){}
+  renderJusMembres();
+}
+
+async function ouvrirNouveauDossierJus() {
+  var nom = prompt('Nom de l\'accusé :');
+  if (!nom) return;
+  var type = prompt('Type d\'infraction :');
+  var u = state.currentUser;
+  try {
+    await sbPost('dossiers_justice', {nom_accuse:nom, type_infraction:type, juge:u.fullname||u.username, statut:'En cours'});
+  } catch(e) {}
+  renderJusDossiers();
+}
+
+async function voirDossierJus(id) {
+  var d = null;
+  try { var r=await sbGet('dossiers_justice','?id=eq.'+id); if(Array.isArray(r)&&r[0]) d=r[0]; } catch(e){}
+  if (!d) return;
+  alert('Dossier #'+d.id+'\nAccusé: '+d.nom_accuse+'\nInfraction: '+d.type_infraction+'\nJuge: '+d.juge+'\nStatut: '+d.statut);
+}
+
+function logoutJustice() {
+  state.currentUser = null;
+  localStorage.removeItem('konoha_session');
+  showPage('login');
+}
+
+// ============================================================
+// DASHBOARD AVOCAT
+// ============================================================
+function renderAvocatDashboard() {
+  var u = state.currentUser;
+  if (!u) return;
+  document.getElementById('av-username').textContent = u.fullname || u.username;
+  document.getElementById('av-grade').textContent = u.grade;
+  var isChef = gradeRankAv(u.grade) <= 0;
+  if (isChef) document.getElementById('av-btn-ajout').style.display = 'block';
+  switchAvTab('dossiers');
+}
+
+function switchAvTab(name) {
+  ['dossiers','casiers','amendes','membres','ajout'].forEach(function(t){
+    var el = document.getElementById('av-tab-'+t);
+    var btn = document.getElementById('av-btn-'+t);
+    if (el) el.style.display = t===name ? 'block' : 'none';
+    if (btn) btn.classList.toggle('av-active', t===name);
+  });
+  if (name==='dossiers') renderAvDossiers();
+  if (name==='casiers')  renderAvCasiers();
+  if (name==='amendes')  renderAvAmendes();
+  if (name==='membres')  renderAvMembres();
+  if (name==='ajout')    renderAvAjout();
+}
+
+async function renderAvDossiers() {
+  var el = document.getElementById('av-tab-dossiers');
+  var u = state.currentUser;
+  var dossiers = [];
+  try {
+    var res = await sbGet('dossiers_avocat', '?order=created_at.desc');
+    if (Array.isArray(res)) dossiers = res;
+  } catch(e) {}
+
+  var h = '<div class="av-title">📋 Dossiers clients</div>';
+  h += '<button onclick="ouvrirNouveauDossierAv()" style="padding:8px 16px;background:rgba(180,83,9,0.15);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:1rem">+ Nouveau dossier client</button>';
+
+  if (dossiers.length === 0) {
+    h += '<div class="av-block" style="text-align:center;color:#92400e;padding:2rem">Aucun dossier client.</div>';
+  } else {
+    h += '<div class="av-block" style="padding:0;overflow:hidden">';
+    dossiers.forEach(function(d){
+      h += '<div class="av-row"><div style="flex:1"><div style="font-weight:600;color:#fef3c7">Client : '+d.nom_client+'</div>'
+        +'<div style="font-size:11px;color:#92400e">Avocat : '+(d.avocat||'--')+' &bull; '+(d.type_affaire||'--')+'</div></div>'
+        +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(234,179,8,0.1);color:#fde68a">'+(d.statut||'En défense')+'</span>'
+        +'<button onclick="voirDossierAv('+d.id+')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(180,83,9,0.3);background:none;font-size:11px;cursor:pointer;color:#fbbf24">Voir</button>'
+        +'</div>';
+    });
+    h += '</div>';
+  }
+  el.innerHTML = h;
+}
+
+async function renderAvCasiers() {
+  var el = document.getElementById('av-tab-casiers');
+  el.innerHTML = '<div class="av-title">🗂 Casiers — consultation défense</div><div style="font-size:12px;color:#92400e;margin-bottom:1rem">Données Police — Lecture seule</div><div id="av-casiers-list"><div style="color:#92400e;text-align:center;padding:1rem">Chargement...</div></div>';
+  var casiers = [];
+  try { var r = await sbGet('casiers','?order=id.desc'); if(Array.isArray(r)) casiers=r; } catch(e){}
+  var h = '<div class="av-block" style="padding:0;overflow:hidden">';
+  if (casiers.length === 0) h += '<div style="padding:1.5rem;text-align:center;color:#92400e">Aucun casier.</div>';
+  else casiers.slice(0,30).forEach(function(c){
+    h += '<div class="av-row"><div style="flex:1"><div style="font-weight:600;color:#fef3c7">'+c.nom+'</div>'
+      +'<div style="font-size:11px;color:#92400e">'+(c.type||'--')+' &bull; '+(c.danger||'--')+'</div></div></div>';
+  });
+  h += '</div>';
+  document.getElementById('av-casiers-list').innerHTML = h;
+}
+
+async function renderAvAmendes() {
+  var el = document.getElementById('av-tab-amendes');
+  el.innerHTML = '<div class="av-title">💰 Amendes — plaidoirie</div><div style="font-size:12px;color:#92400e;margin-bottom:1rem">Données Police — Lecture seule</div><div id="av-amendes-list"><div style="color:#92400e;text-align:center;padding:1rem">Chargement...</div></div>';
+  var amendes = [];
+  try { var r = await sbGet('amendes','?order=id.desc'); if(Array.isArray(r)) amendes=r; } catch(e){}
+  var h = '<div class="av-block" style="padding:0;overflow:hidden">';
+  if (amendes.length === 0) h += '<div style="padding:1.5rem;text-align:center;color:#92400e">Aucune amende.</div>';
+  else amendes.slice(0,30).forEach(function(a){
+    var payee = a.statut==='payee';
+    h += '<div class="av-row"><div style="flex:1"><div style="font-weight:600;color:#fef3c7">'+(a.nom||a.citoyen||'--')+'</div>'
+      +'<div style="font-size:11px;color:#92400e">'+(a.montant||'--')+' Ryos &bull; '+(a.motif||'--')+'</div></div>'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:'+(payee?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.12)')+';color:'+(payee?'#86efac':'#fca5a5')+'">'+(payee?'Payée':'Impayée')+'</span></div>';
+  });
+  h += '</div>';
+  document.getElementById('av-amendes-list').innerHTML = h;
+}
+
+async function renderAvMembres() {
+  var el = document.getElementById('av-tab-membres');
+  var u = state.currentUser;
+  var isChef = gradeRankAv(u.grade) <= 0;
+  var membres = [];
+  try {
+    var r = await sbGet('users','?service=eq.avocat&order=created_at.asc');
+    if(Array.isArray(r)) membres=r;
+  } catch(e){}
+
+  var h = '<div class="av-title">👥 Membres — Cabinet des Avocats</div>';
+  if (isChef) h += '<button onclick="switchAvTab(\'ajout\')" style="padding:7px 14px;background:rgba(180,83,9,0.15);color:#fbbf24;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:1rem">+ Ajouter un membre</button>';
+  h += '<div class="av-block" style="padding:0;overflow:hidden">';
+  if (membres.length === 0) h += '<div style="padding:1.5rem;color:#92400e;text-align:center">Aucun membre.</div>';
+  else membres.forEach(function(m){
+    h += '<div class="av-row"><div style="width:36px;height:36px;border-radius:50%;background:rgba(180,83,9,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fbbf24">'+(m.fullname||m.username||'?').slice(0,2).toUpperCase()+'</div>'
+      +'<div style="flex:1"><div style="font-weight:600;color:#fef3c7">'+(m.fullname||m.username)+'</div>'
+      +'<div style="font-size:11px;color:#92400e">'+m.grade+' &bull; @'+m.username+'</div></div>'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(180,83,9,0.12);color:#fbbf24">'+m.grade+'</span>'
+      +(isChef?'<button onclick="supprimerMembreAv(\''+m.username+'\')" style="padding:3px 8px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:none;font-size:11px;cursor:pointer;color:#fca5a5">✕</button>':'')
+      +'</div>';
+  });
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+function renderAvAjout() {
+  var el = document.getElementById('av-tab-ajout');
+  var grades = GRADES_AVOCAT.map(function(g){return '<option>'+g+'</option>';}).join('');
+  el.innerHTML = '<div class="av-title">➕ Ajouter un membre — Cabinet</div>'
+    +'<div class="av-block"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Nom et Prénom</label><input id="av-new-nom" type="text" placeholder="Ex: Me. Yamato" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Identifiant (login)</label><input id="av-new-user" type="text" placeholder="Ex: yamato_avocat" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Mot de passe</label><input id="av-new-pass" type="text" placeholder="Minimum 6 caractères" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7;box-sizing:border-box"/></div>'
+    +'<div><label style="font-size:11px;color:#92400e;display:block;margin-bottom:4px">Grade</label><select id="av-new-grade" style="width:100%;padding:8px;border:1px solid rgba(180,83,9,0.3);border-radius:8px;font-size:13px;background:#1c0a00;color:#fef3c7">'+grades+'</select></div>'
+    +'</div>'
+    +'<button onclick="ajouterMembreAv()" style="padding:9px 24px;background:rgba(180,83,9,0.2);color:#fbbf24;border:1px solid rgba(180,83,9,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Créer le compte</button>'
+    +'<div id="av-ajout-ok" style="display:none;margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);color:#86efac;border-radius:8px;font-size:13px"></div>'
+    +'</div>';
+}
+
+async function ajouterMembreAv() {
+  var nom  = document.getElementById('av-new-nom')?.value.trim();
+  var user = document.getElementById('av-new-user')?.value.trim().toLowerCase().replace(/\s/g,'_');
+  var pass = document.getElementById('av-new-pass')?.value;
+  var grade= document.getElementById('av-new-grade')?.value;
+  if (!nom||!user||!pass) { alert('Remplissez tous les champs.'); return; }
+  try {
+    await sbPost('users', { username:user, fullname:nom, password:pass, grade, service:'avocat', isAgent:true });
+  } catch(e) { alert('Erreur: '+e.message); return; }
+  var ok = document.getElementById('av-ajout-ok');
+  if (ok) { ok.style.display='block'; ok.textContent='✓ Compte créé pour '+nom+' ('+grade+')'; }
+  ['av-new-nom','av-new-user','av-new-pass'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+}
+
+async function supprimerMembreAv(username) {
+  if (!confirm('Supprimer @'+username+' du Cabinet ?')) return;
+  try { await sbDelete('users','?username=eq.'+encodeURIComponent(username)); } catch(e){}
+  renderAvMembres();
+}
+
+async function ouvrirNouveauDossierAv() {
+  var nom = prompt('Nom du client :');
+  if (!nom) return;
+  var type = prompt('Type d\'affaire :');
+  var u = state.currentUser;
+  try {
+    await sbPost('dossiers_avocat', {nom_client:nom, type_affaire:type, avocat:u.fullname||u.username, statut:'En défense'});
+  } catch(e) {}
+  renderAvDossiers();
+}
+
+async function voirDossierAv(id) {
+  var d = null;
+  try { var r=await sbGet('dossiers_avocat','?id=eq.'+id); if(Array.isArray(r)&&r[0]) d=r[0]; } catch(e){}
+  if (!d) return;
+  alert('Dossier #'+d.id+'\nClient: '+d.nom_client+'\nAffaire: '+d.type_affaire+'\nAvocat: '+d.avocat+'\nStatut: '+d.statut);
+}
+
+function logoutAvocat() {
+  state.currentUser = null;
+  localStorage.removeItem('konoha_session');
+  showPage('login');
+}
+
+</script>
+
+<!-- PAGE JUSTICE -->
+<div id="page-justice" class="page">
+  <div style="background:#0f172a;border-bottom:1px solid rgba(37,99,235,0.3);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">&#9878;&#65039;</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#e2e8f0">Justice de Konoha</div>
+        <div style="font-size:11px;color:#64748b">Tribunal officiel</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="text-align:right">
+        <div id="jus-username" style="font-size:13px;font-weight:600;color:#e2e8f0"></div>
+        <div id="jus-grade" style="font-size:11px;color:#93c5fd"></div>
+      </div>
+      <button onclick="logoutJustice()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">D&#233;connexion</button>
+    </div>
+  </div>
+  <div style="display:flex;min-height:calc(100vh - 56px);background:#0f172a">
+    <div style="width:200px;background:#1e293b;border-right:1px solid rgba(37,99,235,0.2);padding:1rem;flex-shrink:0">
+      <button onclick="switchJusTab('dossiers')" class="jus-nav-btn jus-active" id="jus-btn-dossiers">&#128203; Dossiers</button>
+      <button onclick="switchJusTab('casiers')" class="jus-nav-btn" id="jus-btn-casiers">&#128193; Casiers judiciaires</button>
+      <button onclick="switchJusTab('amendes')" class="jus-nav-btn" id="jus-btn-amendes">&#128176; Amendes</button>
+      <button onclick="switchJusTab('membres')" class="jus-nav-btn" id="jus-btn-membres">&#128101; Membres</button>
+      <button onclick="switchJusTab('ajout')" class="jus-nav-btn" id="jus-btn-ajout" style="display:none">&#10133; Ajouter membre</button>
+    </div>
+    <div style="flex:1;padding:1.5rem;overflow-y:auto">
+      <div id="jus-tab-dossiers"></div>
+      <div id="jus-tab-casiers" style="display:none"></div>
+      <div id="jus-tab-amendes" style="display:none"></div>
+      <div id="jus-tab-membres" style="display:none"></div>
+      <div id="jus-tab-ajout" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE AVOCAT -->
+<div id="page-avocat" class="page">
+  <div style="background:#1c0a00;border-bottom:1px solid rgba(180,83,9,0.3);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">&#9878;</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#fef3c7">Cabinet des Avocats</div>
+        <div style="font-size:11px;color:#92400e">Konoha &#8212; D&#233;fense juridique</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="text-align:right">
+        <div id="av-username" style="font-size:13px;font-weight:600;color:#fef3c7"></div>
+        <div id="av-grade" style="font-size:11px;color:#fbbf24"></div>
+      </div>
+      <button onclick="logoutAvocat()" style="padding:6px 14px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;cursor:pointer">D&#233;connexion</button>
+    </div>
+  </div>
+  <div style="display:flex;min-height:calc(100vh - 56px);background:#1c0a00">
+    <div style="width:200px;background:#2d1600;border-right:1px solid rgba(180,83,9,0.25);padding:1rem;flex-shrink:0">
+      <button onclick="switchAvTab('dossiers')" class="av-nav-btn av-active" id="av-btn-dossiers">&#128203; Dossiers clients</button>
+      <button onclick="switchAvTab('casiers')" class="av-nav-btn" id="av-btn-casiers">&#128193; Casiers</button>
+      <button onclick="switchAvTab('amendes')" class="av-nav-btn" id="av-btn-amendes">&#128176; Amendes</button>
+      <button onclick="switchAvTab('membres')" class="av-nav-btn" id="av-btn-membres">&#128101; Membres</button>
+      <button onclick="switchAvTab('ajout')" class="av-nav-btn" id="av-btn-ajout" style="display:none">&#10133; Ajouter membre</button>
+    </div>
+    <div style="flex:1;padding:1.5rem;overflow-y:auto">
+      <div id="av-tab-dossiers"></div>
+      <div id="av-tab-casiers" style="display:none"></div>
+      <div id="av-tab-amendes" style="display:none"></div>
+      <div id="av-tab-membres" style="display:none"></div>
+      <div id="av-tab-ajout" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+</body></html>
