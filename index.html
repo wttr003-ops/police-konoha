@@ -8243,7 +8243,8 @@ async function _doPriseDeService() {
     prise: serverPrise || now.toISOString(),
     heureLocale: heureLocale,
     fin: null,
-    id: presenceId
+    id: presenceId,
+    grade: u.grade || ''
   }));
 
   await renderPresencesContent(u.grade);
@@ -11649,38 +11650,87 @@ async function portesRetirerDeGroupe(id) {
   }
 
   async function cloturerTousServicesPolice() {
-    // Trouver tous les services en cours dans localStorage
     var clotures = 0;
+    var keys = [];
     for (var key in localStorage) {
-      if (key.startsWith('konoha_service_')) {
-        var data = JSON.parse(localStorage.getItem(key) || 'null');
-        if (data && data.prise && !data.fin) {
-          var username = key.replace('konoha_service_', '');
-          var debut = new Date(data.prise);
-          // Calculer fin = 2h00 Paris → UTC
-          var parisNow = new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
-          var fin2h = new Date(parisNow);
-          fin2h.setHours(2,0,0,0);
-          if (fin2h < debut) fin2h.setDate(fin2h.getDate()+1);
-          var dureeMs = Math.max(60000, Math.min(fin2h - debut, 12*3600000));
-          var grade = state.users[username]?.grade || 'Recrue';
-          var taux = SALAIRES[grade] || 50;
-          var salaire = Math.round((dureeMs/3600000)*taux);
-          try {
-            await fetch(SB_URL+'/rest/v1/presences?username=eq.'+encodeURIComponent(username)+'&fin_service=is.null', {
-              method:'PATCH',
-              headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
-              body:JSON.stringify({fin_service:fin2h.toISOString(), duree_minutes:Math.floor(dureeMs/60000), salaire:salaire, note:'Coupure automatique 02h00'})
-            });
-          } catch(e){}
-          localStorage.removeItem(key);
-          clotures++;
+      if (key.startsWith('konoha_service_')) keys.push(key);
+    }
+
+    for (var ki = 0; ki < keys.length; ki++) {
+      var key = keys[ki];
+      var data = JSON.parse(localStorage.getItem(key) || 'null');
+      if (!data || !data.prise || data.fin) continue;
+
+      var username = key.replace('konoha_service_', '');
+      var debut = new Date(data.prise);
+
+      // Fin = 2h00 heure Paris
+      var parisNow = new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
+      var fin2h = new Date(parisNow);
+      fin2h.setHours(2, 0, 0, 0);
+      if (fin2h < debut) fin2h.setDate(fin2h.getDate() + 1);
+
+      var dureeMs = Math.max(60000, Math.min(fin2h - debut, 12 * 3600000));
+
+      // Utiliser le grade depuis state.users OU depuis localStorage
+      var grade = (state.users && state.users[username] && state.users[username].grade)
+        ? state.users[username].grade
+        : (data.grade || 'Recrue');
+      var taux = SALAIRES[grade] || 50;
+      var salaire = Math.round((dureeMs / 3600000) * taux);
+
+      var ok = false;
+      try {
+        var url, body;
+        if (data.id) {
+          // Cibler la ligne exacte par son ID
+          url = SB_URL + '/rest/v1/presences?id=eq.' + data.id;
+          body = {
+            fin_service: fin2h.toISOString(),
+            heure_fin: '02:00',
+            duree_minutes: Math.floor(dureeMs / 60000),
+            salaire: salaire,
+            note: 'Coupure automatique 02h00'
+          };
+        } else {
+          // Fallback : cibler par username + fin_service null
+          url = SB_URL + '/rest/v1/presences?username=eq.' + encodeURIComponent(username) + '&fin_service=is.null';
+          body = {
+            fin_service: fin2h.toISOString(),
+            heure_fin: '02:00',
+            duree_minutes: Math.floor(dureeMs / 60000),
+            salaire: salaire,
+            note: 'Coupure automatique 02h00'
+          };
         }
+        var resp = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(body)
+        });
+        ok = resp.ok;
+        if (!resp.ok) {
+          console.warn('[Konoha] Coupure PATCH échoué:', resp.status, await resp.text());
+        }
+      } catch(e) {
+        console.warn('[Konoha] Coupure erreur:', e);
+      }
+
+      if (ok) {
+        localStorage.removeItem(key);
+        clotures++;
+        console.log('[Konoha] Service clôturé pour', username, '— salaire:', salaire, 'Ryos');
+      } else {
+        console.warn('[Konoha] PATCH échoué pour', username, '— localStorage conservé pour retry');
       }
     }
+
     if (clotures > 0) {
-      console.log('[Konoha] Coupure 2h00 : '+clotures+' service(s) clôturé(s)');
-      // Si l'agent est sur l'onglet présences, recharger
       if (state.currentUser) {
         var tabPresences = document.getElementById('dash-presences');
         if (tabPresences && tabPresences.classList.contains('active')) {
