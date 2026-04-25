@@ -2728,6 +2728,10 @@ span.footer-logo svg { width: 40px; height: 40px; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           Galerie équipe
         </button>
+        <button class="dash-nav-btn" onclick="switchDashTab('discussions',this)" style="color:#93c5fd">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Discussions
+        </button>
         <button class="dash-nav-btn" onclick="switchDashTab('cellules',this)" style="color:var(--red2)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="12" y1="15" x2="12" y2="17"/></svg>
           Cellules
@@ -2865,6 +2869,7 @@ span.footer-logo svg { width: 40px; height: 40px; }
 
       <!-- LOGS COMPTES -->
       <div class="dash-tab" id="dash-galerie"></div>
+      <div class="dash-tab" id="dash-discussions"></div>
       <div class="dash-tab" id="dash-cellules"><div id="cellules-content"></div></div>
       <div class="dash-tab" id="dash-messages-agent"></div>
 
@@ -4151,6 +4156,7 @@ async function switchDashTab(name, btn) {
   if (name === 'messages-agent') renderAgentMessages();
   if (name === 'presences')      renderPresencesContent(g);
   if (name === 'galerie')        renderGalerie();
+  if (name === 'discussions')   renderDiscussionsPolice(g);
   if (name === 'cellules')      renderCellulesContent(g);
 }
 
@@ -5182,6 +5188,459 @@ async function removeRecherchee(index) {
 // ============================================================
 // CASIER JUDICIAIRE
 // ============================================================
+
+// ============================================================
+// DISCUSSIONS INTER-SECTIONS — Justice / Police / Avocat
+// Accès : 2 premiers grades de chaque section uniquement
+// ============================================================
+
+const DISC_GRADES_POLICE  = ['Directeur', 'Directeur Adjoint'];
+const DISC_GRADES_JUSTICE = ['Grand Juge', 'Juge Senior'];
+const DISC_GRADES_AVOCAT  = ['Avocat Général', 'Avocat Senior'];
+
+function canAccessDiscussions(grade, service) {
+  if (!grade) return false;
+  if (service === 'justice') return DISC_GRADES_JUSTICE.includes(grade);
+  if (service === 'avocat')  return DISC_GRADES_AVOCAT.includes(grade);
+  // Police (pas de service ou service vide)
+  return DISC_GRADES_POLICE.includes(grade);
+}
+
+function getDiscUserInfo() {
+  const u = state.currentUser;
+  if (!u) return null;
+  const userData = state.users[u.username] || {};
+  const service = u.service || userData.service || '';
+  const grade = u.grade || userData.grade || '';
+  if (!canAccessDiscussions(grade, service)) return null;
+  return { username: u.username, fullname: u.fullname || u.username, grade, service };
+}
+
+function getDiscSectionLabel(service) {
+  if (service === 'justice') return '⚖️ Justice';
+  if (service === 'avocat')  return '🧑‍⚖️ Avocat';
+  return '👮 Police';
+}
+
+function getDiscSectionColors(service) {
+  if (service === 'justice') return { bg: 'rgba(37,99,235,0.1)', color: '#93c5fd', border: 'rgba(37,99,235,0.3)' };
+  if (service === 'avocat')  return { bg: 'rgba(180,83,9,0.12)', color: '#fbbf24', border: 'rgba(180,83,9,0.3)' };
+  return { bg: 'rgba(196,154,26,0.1)', color: '#c49a1a', border: 'rgba(196,154,26,0.3)' };
+}
+
+// ---- POLICE : onglet Discussions ----
+async function renderDiscussionsPolice(g) {
+  const el = document.getElementById('dash-discussions');
+  if (!el) return;
+  const userInfo = getDiscUserInfo();
+  if (!userInfo) {
+    el.innerHTML = '<h2 class="dash-section-title">💬 Discussions inter-sections</h2>'
+      + '<div class="dash-block" style="padding:2rem;text-align:center">'
+      + '<div style="font-size:32px;margin-bottom:10px">🔒</div>'
+      + '<div style="font-weight:700;color:var(--text);margin-bottom:6px">Accès restreint</div>'
+      + '<div style="color:var(--muted);font-size:13px">Réservé au Directeur et au Directeur Adjoint uniquement.</div>'
+      + '</div>';
+    return;
+  }
+  await renderDiscussionsCommon(el, userInfo, 'police');
+}
+
+// ---- JUSTICE : onglet Discussions ----
+async function renderJusDiscussions() {
+  const el = document.getElementById('jus-tab-discussions');
+  if (!el) return;
+  const userInfo = getDiscUserInfo();
+  if (!userInfo) {
+    el.innerHTML = '<div class="jus-title">💬 Discussions inter-sections</div>'
+      + '<div class="jus-block" style="padding:2rem;text-align:center;color:#64748b">Accès réservé au Grand Juge et au Juge Senior.</div>';
+    return;
+  }
+  await renderDiscussionsCommon(el, userInfo, 'justice');
+}
+
+// ---- AVOCAT : onglet Discussions ----
+async function renderAvDiscussions() {
+  const el = document.getElementById('av-tab-discussions');
+  if (!el) return;
+  const userInfo = getDiscUserInfo();
+  if (!userInfo) {
+    el.innerHTML = '<div class="av-title">💬 Discussions inter-sections</div>'
+      + '<div class="av-block" style="padding:2rem;text-align:center;color:#92400e">Accès réservé à l\'Avocat Général et à l\'Avocat Senior.</div>';
+    return;
+  }
+  await renderDiscussionsCommon(el, userInfo, 'avocat');
+}
+
+// ---- MOTEUR COMMUN ----
+async function renderDiscussionsCommon(el, userInfo, myService) {
+  const isJus = myService === 'justice';
+  const isAv  = myService === 'avocat';
+  const isPol = myService === 'police';
+  const titleClass = isJus ? 'jus-title' : isAv ? 'av-title' : 'dash-section-title';
+
+  let discussions = [];
+  try {
+    const r = await sbGet('discussions_inter', '?order=created_at.desc');
+    if (Array.isArray(r)) {
+      // Filtrer : seulement les discussions où ma section est incluse
+      discussions = r.filter(function(d) {
+        const parts = (d.participants || '').split(',');
+        return parts.includes(myService);
+      });
+    }
+  } catch(e) {}
+
+  const priorityColors = {
+    normale:   { bg: 'rgba(34,197,94,0.1)',   color: '#86efac', label: '🟢 Normale' },
+    urgente:   { bg: 'rgba(234,179,8,0.1)',    color: '#fde68a', label: '🟡 Urgente' },
+    critique:  { bg: 'rgba(239,68,68,0.12)',   color: '#fca5a5', label: '🔴 Critique' },
+  };
+
+  let html = `<div class="${titleClass}">💬 Discussions inter-sections</div>`;
+
+  // === BOUTON NOUVELLE DISCUSSION ===
+  html += `<button onclick="openNewDiscModal('${myService}')"
+    style="padding:8px 18px;background:${isJus?'rgba(37,99,235,0.15)':isAv?'rgba(180,83,9,0.15)':'rgba(196,154,26,0.12)'};
+    color:${isJus?'#93c5fd':isAv?'#fbbf24':'var(--accent)'};
+    border:1px solid ${isJus?'rgba(37,99,235,0.35)':isAv?'rgba(180,83,9,0.35)':'rgba(196,154,26,0.35)'};
+    border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:1rem">
+    + Nouvelle discussion
+  </button>`;
+
+  // === LISTE ===
+  if (discussions.length === 0) {
+    html += `<div style="padding:2rem;text-align:center;color:${isJus?'#64748b':isAv?'#92400e':'var(--muted)'};font-size:13px">
+      Aucune discussion ouverte pour le moment.
+    </div>`;
+  } else {
+    discussions.forEach(function(d, i) {
+      const parts = (d.participants||'').split(',');
+      const prio = priorityColors[d.priorite||'normale'] || priorityColors.normale;
+      html += `<div style="background:${isJus?'#1e293b':isAv?'#2d1200':'var(--panel)'};
+        border:1px solid ${isJus?'rgba(37,99,235,0.15)':isAv?'rgba(180,83,9,0.15)':'var(--border)'};
+        border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer"
+        onclick="openDiscussion(${d.id},'${myService}')">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="flex:1;font-weight:700;color:${isJus?'#e2e8f0':isAv?'#fef3c7':'var(--text)'}">
+            ${d.titre||'Discussion sans titre'}
+          </div>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;
+            background:${prio.bg};color:${prio.color}">${prio.label}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${parts.map(function(p){ const c=getDiscSectionColors(p.trim()); return `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${c.bg};color:${c.color}">${getDiscSectionLabel(p.trim())}</span>`; }).join('')}
+          <span style="font-size:11px;color:${isJus?'#64748b':isAv?'#92400e':'var(--muted)'};margin-left:auto">
+            ${d.nb_messages||0} msg · ${d.date_creation||'—'}
+          </span>
+        </div>
+        <div style="font-size:11px;color:${isJus?'#64748b':isAv?'#92400e':'var(--muted)'};margin-top:4px">
+          Par ${d.createur_nom||'—'} · ${d.createur_grade||'—'}
+        </div>
+      </div>`;
+    });
+  }
+
+  el.innerHTML = html;
+}
+
+// ---- MODAL NOUVELLE DISCUSSION ----
+function openNewDiscModal(myService) {
+  const existing = document.getElementById('new-disc-modal');
+  if (existing) existing.remove();
+
+  const isJus = myService === 'justice';
+  const isAv  = myService === 'avocat';
+  const accentColor = isJus ? '#93c5fd' : isAv ? '#fbbf24' : 'var(--accent)';
+  const borderColor = isJus ? 'rgba(37,99,235,0.35)' : isAv ? 'rgba(180,83,9,0.35)' : 'rgba(196,154,26,0.35)';
+  const bgColor = isJus ? 'rgba(37,99,235,0.12)' : isAv ? 'rgba(180,83,9,0.12)' : 'rgba(196,154,26,0.1)';
+  const panelBg = isJus ? '#0f172a' : isAv ? '#1c0a00' : 'var(--mid)';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'new-disc-modal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+
+  overlay.innerHTML = `
+    <div style="background:${panelBg};border:1px solid ${borderColor};border-radius:14px;padding:1.75rem;max-width:480px;width:100%">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <div style="font-size:15px;font-weight:700;color:${accentColor}">💬 Nouvelle discussion</div>
+        <button onclick="document.getElementById('new-disc-modal').remove()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;padding:0">✕</button>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px;font-weight:600">Titre *</div>
+        <input type="text" id="disc-titre" placeholder="Ex: Affaire Uzumaki — Coordination" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.3);border:1px solid ${borderColor};border-radius:8px;font-size:13px;color:#e2e8f0;box-sizing:border-box"/>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:600">Sections participantes</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <!-- Section de l'initiateur — toujours cochée et désactivée -->
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${bgColor};border:1px solid ${borderColor};border-radius:8px;opacity:0.8">
+            <input type="checkbox" checked disabled style="width:15px;height:15px"/>
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:700;color:${accentColor}">${getDiscSectionLabel(myService)}</div>
+              <div style="font-size:10px;color:#64748b">${myService==='justice'?'Grand Juge · Juge Senior':myService==='avocat'?'Avocat Général · Avocat Senior':'Directeur · Directeur Adjoint'} — <em>initiateur</em></div>
+            </div>
+          </label>
+          ${myService !== 'police' ? `
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.25);border-radius:8px;cursor:pointer">
+            <input type="checkbox" id="disc-inc-police" style="width:15px;height:15px"/>
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:700;color:#c49a1a">👮 Police de Konoha</div>
+              <div style="font-size:10px;color:#64748b">Directeur · Directeur Adjoint</div>
+            </div>
+          </label>` : ''}
+          ${myService !== 'justice' ? `
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.25);border-radius:8px;cursor:pointer">
+            <input type="checkbox" id="disc-inc-justice" style="width:15px;height:15px"/>
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:700;color:#93c5fd">⚖️ Justice de Konoha</div>
+              <div style="font-size:10px;color:#64748b">Grand Juge · Juge Senior</div>
+            </div>
+          </label>` : ''}
+          ${myService !== 'avocat' ? `
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(180,83,9,0.06);border:1px solid rgba(180,83,9,0.2);border-radius:8px;cursor:pointer">
+            <input type="checkbox" id="disc-inc-avocat" style="width:15px;height:15px"/>
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:700;color:#fbbf24">🧑‍⚖️ Cabinet des Avocats</div>
+              <div style="font-size:10px;color:#64748b">Avocat Général · Avocat Senior</div>
+            </div>
+          </label>` : ''}
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px;font-weight:600">Priorité</div>
+        <select id="disc-priorite" style="width:100%;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid ${borderColor};border-radius:8px;font-size:13px;color:#e2e8f0">
+          <option value="normale">🟢 Normale</option>
+          <option value="urgente">🟡 Urgente</option>
+          <option value="critique">🔴 Critique</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px;font-weight:600">Message d'ouverture *</div>
+        <textarea id="disc-premier-msg" rows="3" placeholder="Décrivez le sujet de la discussion..." style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.3);border:1px solid ${borderColor};border-radius:8px;font-size:13px;color:#e2e8f0;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+      </div>
+
+      <div id="disc-create-err" style="display:none;padding:7px 12px;background:rgba(239,68,68,0.1);color:#fca5a5;border-radius:6px;font-size:12px;margin-bottom:10px"></div>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('new-disc-modal').remove()"
+          style="flex:1;padding:10px;background:transparent;color:#64748b;border:1px solid rgba(100,116,139,0.3);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">
+          Annuler
+        </button>
+        <button onclick="createDiscussion('${myService}')"
+          style="flex:2;padding:10px;background:${bgColor};color:${accentColor};border:1px solid ${borderColor};border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+          💬 Ouvrir la discussion
+        </button>
+      </div>
+    </div>`;
+
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+async function createDiscussion(myService) {
+  const titre = document.getElementById('disc-titre')?.value.trim();
+  const msg   = document.getElementById('disc-premier-msg')?.value.trim();
+  const prio  = document.getElementById('disc-priorite')?.value || 'normale';
+  const errEl = document.getElementById('disc-create-err');
+
+  if (!titre || !msg) {
+    if (errEl) { errEl.style.display='block'; errEl.textContent='Le titre et le message d\'ouverture sont obligatoires.'; }
+    return;
+  }
+
+  // Construire la liste des participants
+  const parts = [myService];
+  if (document.getElementById('disc-inc-police')?.checked)  parts.push('police');
+  if (document.getElementById('disc-inc-justice')?.checked) parts.push('justice');
+  if (document.getElementById('disc-inc-avocat')?.checked)  parts.push('avocat');
+
+  if (parts.length < 2) {
+    if (errEl) { errEl.style.display='block'; errEl.textContent='Ajoutez au moins une autre section.'; }
+    return;
+  }
+
+  const u = state.currentUser;
+  const userData = state.users[u.username] || {};
+  const now = new Date();
+
+  // 1. Créer la discussion
+  let discId = null;
+  try {
+    const res = await sbPost('discussions_inter', {
+      titre, participants: parts.join(','), priorite: prio,
+      createur_nom: u.fullname || u.username,
+      createur_grade: u.grade || userData.grade || '',
+      createur_service: myService,
+      date_creation: now.toLocaleDateString('fr-FR'),
+      nb_messages: 1,
+      statut: 'ouvert'
+    });
+    if (Array.isArray(res) && res[0]) discId = res[0].id;
+  } catch(e) { console.warn('createDiscussion:', e); }
+
+  // 2. Ajouter le premier message
+  if (discId) {
+    try {
+      await sbPost('disc_inter_messages', {
+        discussion_id: discId,
+        from_username: u.username,
+        from_nom: u.fullname || u.username,
+        from_grade: u.grade || userData.grade || '',
+        from_service: myService,
+        texte: msg,
+        heure: now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+        date: now.toLocaleDateString('fr-FR')
+      });
+    } catch(e) { console.warn('premier message:', e); }
+  }
+
+  document.getElementById('new-disc-modal')?.remove();
+  konohaAlert('✓ Discussion ouverte ! Les sections invitées peuvent maintenant y accéder.', '💬');
+
+  // Rafraîchir
+  if (myService === 'justice') renderJusDiscussions();
+  else if (myService === 'avocat') renderAvDiscussions();
+  else renderDiscussionsPolice(state.currentUser?.grade);
+}
+
+// ---- OUVRIR UNE CONVERSATION ----
+async function openDiscussion(discId, myService) {
+  const isJus = myService === 'justice';
+  const isAv  = myService === 'avocat';
+
+  // Trouver le bon conteneur
+  let el;
+  if (myService === 'justice') el = document.getElementById('jus-tab-discussions');
+  else if (myService === 'avocat') el = document.getElementById('av-tab-discussions');
+  else el = document.getElementById('dash-discussions');
+  if (!el) return;
+
+  const accentColor = isJus ? '#93c5fd' : isAv ? '#fbbf24' : 'var(--accent)';
+  const borderColor = isJus ? 'rgba(37,99,235,0.2)' : isAv ? 'rgba(180,83,9,0.2)' : 'var(--border)';
+  const panelBg = isJus ? '#1e293b' : isAv ? '#2d1600' : 'var(--panel)';
+  const mutedC = isJus ? '#64748b' : isAv ? '#92400e' : 'var(--muted)';
+
+  // Charger la discussion
+  let disc = null;
+  let messages = [];
+  try {
+    const rd = await sbGet('discussions_inter', '?id=eq.' + discId);
+    if (Array.isArray(rd) && rd[0]) disc = rd[0];
+    const rm = await sbGet('disc_inter_messages', '?discussion_id=eq.' + discId + '&order=created_at.asc');
+    if (Array.isArray(rm)) messages = rm;
+  } catch(e) {}
+
+  if (!disc) { konohaAlert('Discussion introuvable.', '⚠️'); return; }
+
+  const prio = { normale:'🟢 Normale', urgente:'🟡 Urgente', critique:'🔴 Critique' }[disc.priorite||'normale'];
+  const parts = (disc.participants||'').split(',');
+
+  const u = state.currentUser;
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:0.5px solid ${borderColor}">
+      <button onclick="${myService==='justice'?'renderJusDiscussions()':myService==='avocat'?'renderAvDiscussions()':'renderDiscussionsPolice(state.currentUser.grade)'}"
+        style="background:none;border:none;color:${mutedC};font-size:18px;cursor:pointer;padding:0">←</button>
+      <div style="flex:1">
+        <div style="font-weight:700;color:${isJus?'#e2e8f0':isAv?'#fef3c7':'var(--text)'};font-size:14px">${disc.titre||'—'}</div>
+        <div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap">
+          ${parts.map(function(p){ const c=getDiscSectionColors(p.trim()); return `<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;background:${c.bg};color:${c.color}">${getDiscSectionLabel(p.trim())}</span>`; }).join('')}
+          <span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;background:rgba(234,179,8,0.1);color:#fde68a">${prio}</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="disc-messages-${discId}" style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;padding:4px 0">`;
+
+  // Afficher les messages
+  messages.forEach(function(m) {
+    const isMe = m.from_username === u.username;
+    const sColors = getDiscSectionColors(m.from_service||'police');
+    const init = (m.from_nom||'?').slice(0,2).toUpperCase();
+    if (isMe) {
+      html += `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:flex-end">
+        <div>
+          <div style="font-size:10px;color:${mutedC};text-align:right;margin-bottom:3px">${m.from_nom} · ${m.from_grade} · ${m.heure||''}</div>
+          <div style="padding:9px 13px;border-radius:14px 14px 4px 14px;font-size:12px;max-width:300px;line-height:1.5;background:${sColors.bg};color:#e2e8f0;border:1px solid ${sColors.border}">${m.texte||''}</div>
+        </div>
+        <div style="width:30px;height:30px;border-radius:50%;background:${sColors.bg};border:1px solid ${sColors.border};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${sColors.color};flex-shrink:0">${init}</div>
+      </div>`;
+    } else {
+      html += `<div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="width:30px;height:30px;border-radius:50%;background:${sColors.bg};border:1px solid ${sColors.border};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${sColors.color};flex-shrink:0">${init}</div>
+        <div>
+          <div style="font-size:10px;color:${mutedC};margin-bottom:3px">${m.from_nom} · ${m.from_grade} · ${getDiscSectionLabel(m.from_service||'police')} · ${m.heure||''}</div>
+          <div style="padding:9px 13px;border-radius:14px 14px 14px 4px;font-size:12px;max-width:300px;line-height:1.5;background:${panelBg};border:1px solid ${borderColor};color:${isJus?'#e2e8f0':isAv?'#fef3c7':'var(--text)'}">${m.texte||''}</div>
+        </div>
+      </div>`;
+    }
+  });
+
+  if (messages.length === 0) {
+    html += `<div style="text-align:center;color:${mutedC};font-size:13px;padding:1rem">Aucun message.</div>`;
+  }
+
+  html += `</div>
+    <div style="display:flex;gap:8px">
+      <textarea id="disc-reply-${discId}" rows="2" placeholder="Écrire un message confidentiel..."
+        style="flex:1;padding:9px 12px;background:${panelBg};border:1px solid ${borderColor};border-radius:8px;font-size:12px;color:${isJus?'#e2e8f0':isAv?'#fef3c7':'var(--text)'};resize:none;font-family:inherit"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDiscMessage(${discId},'${myService}')}"></textarea>
+      <button onclick="sendDiscMessage(${discId},'${myService}')"
+        style="padding:9px 16px;background:${isJus?'rgba(37,99,235,0.15)':isAv?'rgba(180,83,9,0.15)':'rgba(196,154,26,0.12)'};color:${accentColor};border:1px solid ${borderColor};border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;align-self:flex-end">
+        Envoyer
+      </button>
+    </div>`;
+
+  el.innerHTML = html;
+
+  // Scroll au dernier message
+  setTimeout(function() {
+    const msgEl = document.getElementById('disc-messages-' + discId);
+    if (msgEl) msgEl.scrollTop = msgEl.scrollHeight;
+  }, 50);
+}
+
+async function sendDiscMessage(discId, myService) {
+  const inp = document.getElementById('disc-reply-' + discId);
+  if (!inp || !inp.value.trim()) return;
+  const texte = inp.value.trim();
+  inp.value = '';
+
+  const u = state.currentUser;
+  const userData = state.users[u.username] || {};
+  const now = new Date();
+
+  try {
+    await sbPost('disc_inter_messages', {
+      discussion_id: discId,
+      from_username: u.username,
+      from_nom: u.fullname || u.username,
+      from_grade: u.grade || userData.grade || '',
+      from_service: myService,
+      texte: texte,
+      heure: now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      date: now.toLocaleDateString('fr-FR')
+    });
+    // Incrémenter nb_messages
+    const existing = await sbGet('discussions_inter', '?id=eq.' + discId);
+    if (Array.isArray(existing) && existing[0]) {
+      await fetch(SB_URL + '/rest/v1/discussions_inter?id=eq.' + discId, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ nb_messages: (existing[0].nb_messages||0) + 1 })
+      });
+    }
+  } catch(e) { console.warn('sendDiscMessage:', e); }
+
+  // Recharger la conversation
+  openDiscussion(discId, myService);
+}
+
+
 async function renderCasierContent(g) {
   const el = document.getElementById('casier-content');
   if (!el) return;
@@ -12616,7 +13075,7 @@ function renderJusticeDashboard() {
 }
 
 function switchJusTab(name) {
-  ['dossiers','candidatures','casiers','amendes','cellules','membres','ajout','logs'].forEach(function(t){
+  ['dossiers','candidatures','casiers','amendes','discussions','cellules','membres','ajout','logs'].forEach(function(t){
     var el = document.getElementById('jus-tab-'+t);
     var btn = document.getElementById('jus-btn-'+t);
     if (el) el.style.display = t===name ? 'block' : 'none';
@@ -12628,6 +13087,7 @@ function switchJusTab(name) {
   if (name==='amendes')      renderJusAmendes();
   if (name==='membres')      renderJusMembres();
   if (name==='ajout')        renderJusAjout();
+  if (name==='discussions')  renderJusDiscussions();
   if (name==='cellules')     renderJusCellules();
   if (name==='logs')         renderJusLogs();
 }
@@ -13299,7 +13759,7 @@ function renderAvocatDashboard() {
 }
 
 function switchAvTab(name) {
-  ['dossiers','candidatures','casiers','amendes','cellules','membres','ajout','logs'].forEach(function(t){
+  ['dossiers','candidatures','casiers','amendes','discussions','cellules','membres','ajout','logs'].forEach(function(t){
     var el = document.getElementById('av-tab-'+t);
     var btn = document.getElementById('av-btn-'+t);
     if (el) el.style.display = t===name ? 'block' : 'none';
@@ -13311,6 +13771,7 @@ function switchAvTab(name) {
   if (name==='amendes')      renderAvAmendes();
   if (name==='membres')      renderAvMembres();
   if (name==='ajout')        renderAvAjout();
+  if (name==='discussions')  renderAvDiscussions();
   if (name==='cellules')     renderAvCellules();
   if (name==='logs')         renderAvLogs();
 }
@@ -13560,6 +14021,7 @@ function logoutAvocat() {
       <button onclick="switchJusTab('candidatures')" class="jus-nav-btn" id="jus-btn-candidatures">📨 Candidatures</button>
       <button onclick="switchJusTab('casiers')" class="jus-nav-btn" id="jus-btn-casiers">🗂 Casiers</button>
       <button onclick="switchJusTab('amendes')" class="jus-nav-btn" id="jus-btn-amendes">💰 Amendes</button>
+      <button onclick="switchJusTab('discussions')" class="jus-nav-btn" id="jus-btn-discussions">💬 Discussions</button>
       <button onclick="switchJusTab('cellules')" class="jus-nav-btn" id="jus-btn-cellules">⛓ Cellules</button>
       <button onclick="switchJusTab('membres')" class="jus-nav-btn" id="jus-btn-membres">👥 Membres</button>
       <button onclick="switchJusTab('ajout')" class="jus-nav-btn" id="jus-btn-ajout" style="display:none">➕ Ajouter membre</button>
@@ -13570,6 +14032,7 @@ function logoutAvocat() {
       <div id="jus-tab-candidatures" style="display:none"></div>
       <div id="jus-tab-casiers" style="display:none"></div>
       <div id="jus-tab-amendes" style="display:none"></div>
+      <div id="jus-tab-discussions" style="display:none"></div>
       <div id="jus-tab-cellules" style="display:none"></div>
       <div id="jus-tab-membres" style="display:none"></div>
       <div id="jus-tab-ajout" style="display:none"></div>
@@ -13603,6 +14066,7 @@ function logoutAvocat() {
       <button onclick="switchAvTab('candidatures')" class="av-nav-btn" id="av-btn-candidatures">📨 Candidatures</button>
       <button onclick="switchAvTab('casiers')" class="av-nav-btn" id="av-btn-casiers">🗂 Casiers</button>
       <button onclick="switchAvTab('amendes')" class="av-nav-btn" id="av-btn-amendes">💰 Amendes</button>
+      <button onclick="switchAvTab('discussions')" class="av-nav-btn" id="av-btn-discussions">💬 Discussions</button>
       <button onclick="switchAvTab('cellules')" class="av-nav-btn" id="av-btn-cellules">⛓ Cellules</button>
       <button onclick="switchAvTab('membres')" class="av-nav-btn" id="av-btn-membres">👥 Membres</button>
       <button onclick="switchAvTab('ajout')" class="av-nav-btn" id="av-btn-ajout" style="display:none">➕ Ajouter membre</button>
@@ -13613,6 +14077,7 @@ function logoutAvocat() {
       <div id="av-tab-candidatures" style="display:none"></div>
       <div id="av-tab-casiers" style="display:none"></div>
       <div id="av-tab-amendes" style="display:none"></div>
+      <div id="av-tab-discussions" style="display:none"></div>
       <div id="av-tab-cellules" style="display:none"></div>
       <div id="av-tab-membres" style="display:none"></div>
       <div id="av-tab-ajout" style="display:none"></div>
