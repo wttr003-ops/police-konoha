@@ -4184,7 +4184,7 @@ function renderPlaintesContent(g) {
 
   const canAct = canAll(g) && g !== 'Hokage'; // Hokage = lecture seule
 
-  let html = '<div class="dash-block">'
+  let html = '<div class="dash-block">';
  plaintes.forEach(p => {
     const sc = p.status === 'wait' ? 's-wait' : p.status === 'ok' ? 's-ok' : 's-no';
     const sl = p.status === 'wait' ? 'En attente' : p.status === 'ok' ? 'Traité' : 'Rejeté';
@@ -4246,7 +4246,7 @@ function renderCandidContent(g) {
 
   const canAct = canRecruit(g) && g !== 'Hokage'; // Officier+ peuvent traiter
 
-  let html = '<div class="dash-block">'
+  let html = '<div class="dash-block">';
  candidatures.forEach(c => {
     const sc  = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
     const sl  = c.status === 'wait' ? 'En attente' : c.status === 'ok' ? 'Accepté' : 'Refusé';
@@ -6978,7 +6978,7 @@ async function renderAnnuaireContent(g) {
     return;
   }
 
-  let html = '<div class="dash-block">'
+  let html = '<div class="dash-block">';
  agents.forEach(([key, u]) => {
     const displayName = u.fullname || key.replace(/_/g,' ');
     const init = displayName.slice(0,2).toUpperCase();
@@ -12649,8 +12649,11 @@ function avCelFilter() {
 function renderJusticeDashboard() {
   var u = state.currentUser;
   if (!u) return;
-  document.getElementById('jus-username').textContent = u.fullname || u.username;
-  document.getElementById('jus-grade').textContent = u.grade;
+  var jusU = document.getElementById('jus-username');
+    var jusG = document.getElementById('jus-grade');
+    if (!jusU || !jusG) return;
+    jusU.textContent = u.fullname || u.username;
+    jusG.textContent = u.grade;
   var isChef = gradeRankJus(u.grade) <= 0;
   // Boutons réservés au Grand Juge
   var ajoutBtn = document.getElementById('jus-btn-ajout');
@@ -13374,8 +13377,11 @@ function logoutJustice() {
 function renderAvocatDashboard() {
   var u = state.currentUser;
   if (!u) return;
-  document.getElementById('av-username').textContent = u.fullname || u.username;
-  document.getElementById('av-grade').textContent = u.grade;
+  var avU = document.getElementById('av-username');
+    var avG = document.getElementById('av-grade');
+    if (!avU || !avG) return;
+    avU.textContent = u.fullname || u.username;
+    avG.textContent = u.grade;
   var isChef = gradeRankAv(u.grade) <= 0;
   // Boutons réservés à l'Avocat Général
   var ajoutBtn = document.getElementById('av-btn-ajout');
