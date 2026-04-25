@@ -5251,12 +5251,18 @@ async function saveCasier() {
 
   if (!nom||!type||!motif) { konohaAlert('Nom, type infraction et motif sont obligatoires.', '⚠️'); return; }
 
-  const entry = { nom, grade, type, danger, motif, sanction, agent, date: new Date().toLocaleDateString('fr-FR') };
+  const entry = { nom, grade, type, danger, motif, sanction, agent, date: new Date().toLocaleDateString('fr-FR'), suivis: '[]' };
 
   // Save to Supabase
+  let saveOk = false;
   try {
-    await sbPost('casiers', entry);
-  } catch(e) {}
+    const result = await sbPost('casiers', entry);
+    saveOk = !!result;
+    if (!saveOk) console.warn('casier sbPost returned:', result);
+  } catch(e) {
+    console.warn('casier save error:', e);
+    konohaAlert('Erreur lors de la sauvegarde dans Supabase. Vérifiez la table casiers.', '⚠️');
+  }
 
   // Also local backup
   const list = JSON.parse(localStorage.getItem('konoha_casiers') || '[]');
@@ -5286,15 +5292,16 @@ async function saveCasier() {
 
   document.getElementById('cas-nom').value='';
   document.getElementById('cas-grade').value='';
-  document.getElementById('cas-type').value='';
-  document.getElementById('cas-motif').value='';
+  ['cas-type','cas-motif','cas-sanction','cas-danger'].forEach(function(id){
+    var el = document.getElementById(id); if(el && el.tagName==='INPUT') el.value='';
+  });
 
   const ok = document.getElementById('cas-ok');
-  ok.style.display='block';
-  setTimeout(()=>ok.style.display='none', 3000);
+  if (ok) { ok.style.display='block'; setTimeout(function(){ok.style.display='none';}, 3000); }
 
-  // Refresh list
-  renderCasierContent(state.currentUser.grade);
+  // Vider le cache localStorage et forcer rechargement depuis Supabase
+  localStorage.removeItem('konoha_casiers');
+  await renderCasierContent(state.currentUser.grade);
 }
 
 async function deleteCasier(idx) {
