@@ -187,6 +187,54 @@
   }
   .btn-civil.btn-lg { padding: 12px 28px; font-size: 14px; }
 
+  /* Bouton Rejoindre le Tribunal (bleu) */
+  .btn-justice {
+    background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05));
+    color: #93c5fd;
+    border: 1px solid rgba(59,130,246,0.5);
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-justice:hover {
+    background: linear-gradient(135deg, rgba(59,130,246,0.28), rgba(59,130,246,0.18));
+    border-color: #93c5fd;
+    color: #dbeafe;
+    box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+    transform: translateY(-1px);
+  }
+  .btn-justice.btn-lg { padding: 12px 28px; font-size: 14px; }
+
+  /* Bouton Rejoindre les Avocats (ambré) */
+  .btn-cabinet {
+    background: linear-gradient(135deg, rgba(217,119,6,0.18), rgba(217,119,6,0.06));
+    color: #fbbf24;
+    border: 1px solid rgba(217,119,6,0.5);
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-cabinet:hover {
+    background: linear-gradient(135deg, rgba(217,119,6,0.3), rgba(217,119,6,0.18));
+    border-color: #fbbf24;
+    color: #fde68a;
+    box-shadow: 0 4px 16px rgba(217,119,6,0.3);
+    transform: translateY(-1px);
+  }
+  .btn-cabinet.btn-lg { padding: 12px 28px; font-size: 14px; }
+
   .btn-danger {
     background: transparent;
     color: var(--red2);
@@ -1609,7 +1657,11 @@
       <p class="hero-subtitle">木ノ葉軍警察署 — Gardiens de la Volonté du Feu</p>
       <p class="hero-desc">Au nom de la Volonté du Feu, nous protégeons chaque citoyen, chaque clan, chaque rue de Konoha. L'ordre n'est pas une contrainte — c'est l'expression de notre amour pour le village.</p>
       <div class="hero-btns">
-        <button class="btn-primary btn-lg" onclick="showPage('postuler')">Rejoindre la Police</button>
+        <button class="btn-primary btn-lg" onclick="goToPostuler('police')">👮 Rejoindre la Police</button>
+        <button class="btn-justice btn-lg" onclick="goToPostuler('juge')">⚖️ Rejoindre le Tribunal</button>
+        <button class="btn-cabinet btn-lg" onclick="goToPostuler('avocat')">🧑‍⚖️ Rejoindre les Avocats</button>
+      </div>
+      <div class="hero-btns" style="margin-top:0.75rem">
         <button class="btn-civil btn-lg" onclick="showPage('civil')">🍃 Créer un compte citoyen</button>
         <button class="btn-outline btn-lg" onclick="showPage('login')">Espace agent</button>
       </div>
@@ -3723,6 +3775,17 @@ function selectPostSection(btn) {
   btn.style.color = 'var(--accent)';
   btn.style.borderColor = 'var(--accent)';
   selectedPostSection = btn.dataset.target;
+}
+
+// Aller à la page Postuler avec une section pré-sélectionnée
+function goToPostuler(section) {
+  selectedPostSection = section || 'police';
+  showPage('postuler');
+  // Activer visuellement le bon bouton de section dans le formulaire
+  setTimeout(() => {
+    const btn = document.querySelector('.post-section-btn[data-target="' + selectedPostSection + '"]');
+    if (btn) selectPostSection(btn);
+  }, 50);
 }
 
 // Sélection de la cible de la plainte
