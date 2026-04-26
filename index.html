@@ -2219,8 +2219,8 @@
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
         <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
-        <button class="dash-nav-btn" data-tab="ajout" data-services="police" onclick="switchDashTab('ajout', this)">➕ Ajouter agent</button>
-        <button class="dash-nav-btn" data-tab="logs" data-services="police" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
+        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
+        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
       </nav>
     </aside>
 
@@ -2551,6 +2551,30 @@ let state = {
 const GRADES_JUGE_HC = ['Premier Président', 'Président de Chambre', 'Juge Senior'];
 const GRADES_AVOCAT_HC = ['Bâtonnier', 'Maître', 'Avocat Senior'];
 
+// Tous les grades disponibles pour Juges et Avocats
+const ALL_GRADES_JUGE = ['Premier Président', 'Président de Chambre', 'Juge Senior', 'Juge Confirmé', 'Juge', 'Juge Auditeur', 'Juge Stagiaire'];
+const ALL_GRADES_AVOCAT = ['Bâtonnier', 'Maître', 'Avocat Senior', 'Avocat Confirmé', 'Avocat', 'Avocat Junior', 'Avocat Stagiaire'];
+
+// Qui peut ajouter des membres dans sa section ?
+function canAddMemberInSection(user) {
+  if (!user) return false;
+  const service = user.service || 'police';
+  if (service === 'police') return canAddAgent(user.grade); // Directeur + Adjoint
+  if (service === 'juge') return ['Premier Président', 'Président de Chambre'].includes(user.grade);
+  if (service === 'avocat') return ['Bâtonnier', 'Maître'].includes(user.grade);
+  return false;
+}
+
+// Qui peut voir les logs de sa section ?
+function canSeeSectionLogs(user) {
+  if (!user) return false;
+  const service = user.service || 'police';
+  if (service === 'police') return canSeeLogs(user.grade); // Directeur + Adjoint
+  if (service === 'juge') return ['Premier Président', 'Président de Chambre'].includes(user.grade);
+  if (service === 'avocat') return ['Bâtonnier', 'Maître'].includes(user.grade);
+  return false;
+}
+
 // Vérifier si un utilisateur peut accéder aux discussions inter-sections
 function canAccessDiscussions(user) {
   if (!user) return false;
@@ -2829,6 +2853,9 @@ function restoreSession() {
     if (data.impotsHistoriqueDirection) state.impotsHistoriqueDirection = data.impotsHistoriqueDirection;
     if (data.presences) state.presences = data.presences;
 
+    // GARANTIR la présence des 3 comptes Owner Konoha (anti-perte)
+    ensureOwnerAccounts();
+
     if (data.currentUser) {
       // Vérifier que l'utilisateur existe toujours
       const stillExists = state.users.find(u =>
@@ -2842,6 +2869,22 @@ function restoreSession() {
     }
   } catch(e) { console.warn('restoreSession failed:', e); }
   return false;
+}
+
+// Garantir que les 3 comptes propriétaires existent toujours (Police, Juge, Avocat)
+function ensureOwnerAccounts() {
+  const owners = [
+    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Directeur',          isAgent: true,  service: 'police', genre: 'autre', section: 'aucune', casier: 'non' },
+    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Premier Président',  isAgent: true,  service: 'juge',   genre: 'autre', section: 'aucune', casier: 'non' },
+    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Bâtonnier',          isAgent: true,  service: 'avocat', genre: 'autre', section: 'aucune', casier: 'non' }
+  ];
+  owners.forEach(o => {
+    const exists = state.users.find(u => u.fullname === o.fullname && (u.service||'police') === o.service);
+    if (!exists) {
+      state.users.push(o);
+      console.log('✓ Compte Owner restauré :', o.service);
+    }
+  });
 }
 
 // Auto-sauvegarde périodique (toutes les 5 secondes si quelque chose a changé)
@@ -4194,16 +4237,32 @@ function filtrerImpots() {
 function renderAjout() {
   const u = state.currentUser;
   const el = document.getElementById('ajout-content');
-  if (!canAddAgent(u.grade)) {
-    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Réservé au Directeur et au Directeur Adjoint.</p></div>';
+  const myService = u.service || 'police';
+
+  if (!canAddMemberInSection(u)) {
+    let msg = 'Accès réservé.';
+    if (myService === 'police') msg = 'Réservé au Directeur et au Directeur Adjoint.';
+    if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
+    if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
     return;
   }
+
+  // Liste des grades disponibles selon la section
+  let gradesDispo = GRADES;
+  let titreSection = 'Police de Konoha';
+  let labelBouton = 'Ajouter l\'agent';
+  if (myService === 'juge') { gradesDispo = ALL_GRADES_JUGE; titreSection = 'Tribunal de Konoha'; labelBouton = 'Ajouter le juge'; }
+  if (myService === 'avocat') { gradesDispo = ALL_GRADES_AVOCAT; titreSection = 'Cabinet des Avocats'; labelBouton = 'Ajouter l\'avocat'; }
+
   el.innerHTML = `
     <div class="dash-block" style="padding:1.5rem;max-width:520px">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">➕ Ajouter un membre — ${titreSection}</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Le compte sera créé immédiatement et automatiquement sauvegardé.</p>
       <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="aj-fullname" placeholder="Ex: Sasuke Uchiha"/></div>
       <div class="form-group">
         <label>Grade *</label>
-        <select id="aj-grade">${GRADES.map(g => '<option>' + g + '</option>').join('')}</select>
+        <select id="aj-grade">${gradesDispo.map(g => '<option>' + g + '</option>').join('')}</select>
       </div>
       <div class="form-group">
         <label>Mot de passe *</label>
@@ -4212,7 +4271,7 @@ function renderAjout() {
           <button class="btn-outline" onclick="genPwd()">🎲 Générer</button>
         </div>
       </div>
-      <button class="btn-primary btn-full" onclick="addAgent()">➕ Ajouter l'agent</button>
+      <button class="btn-primary btn-full" onclick="addAgent()">➕ ${labelBouton}</button>
     </div>`;
 }
 
@@ -4224,24 +4283,36 @@ function genPwd() {
 }
 
 function addAgent() {
+  const u = state.currentUser;
+  const myService = u.service || 'police';
   const fullname = document.getElementById('aj-fullname').value.trim();
   const g = document.getElementById('aj-grade').value;
   const p = document.getElementById('aj-password').value;
   if (!fullname || !p) { alert('Champs manquants'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
   if (p.length < 6) { alert('Mot de passe trop court'); return; }
-  if (state.users.some(u => matchFullname(u.fullname, fullname) && (u.service||'police') === 'police')) { alert('Cet agent existe déjà'); return; }
+  if (state.users.some(uu => matchFullname(uu.fullname, fullname) && (uu.service||'police') === myService)) {
+    alert('Un compte existe déjà pour cette personne dans cette section.');
+    return;
+  }
 
-  const matricule = generateMatriculeFromGrade(g);
+  const matricule = (myService === 'police') ? generateMatriculeFromGrade(g) : null;
 
-  state.users.push({
+  const newUser = {
     fullname: fullname, password: p, grade: g,
-    matricule: matricule,
-    isAgent: true, casier: 'non', service: 'police',
+    isAgent: true, casier: 'non', service: myService,
     hireDate: new Date().toLocaleDateString('fr-FR')
-  });
+  };
+  if (matricule) newUser.matricule = matricule;
+
+  state.users.push(newUser);
+  saveSession(); // ⚠ SAUVEGARDE IMMÉDIATE pour éviter la perte
+
   ['aj-fullname','aj-password'].forEach(id => document.getElementById(id).value = '');
-  alert('✓ Agent ajouté : ' + fullname + ' (' + g + ')\nMatricule : ' + matricule);
+  let msg = '✓ ' + fullname + ' ajouté (' + g + ')';
+  if (matricule) msg += '\nMatricule : ' + matricule;
+  msg += '\n\n💾 Compte sauvegardé.';
+  alert(msg);
   updateStats();
 }
 
@@ -5384,52 +5455,269 @@ function deleteGroupe(idx) {
 function renderLogs() {
   const u = state.currentUser;
   const el = document.getElementById('logs-content');
+  const myService = u.service || 'police';
 
-  if (!canSeeLogs(u.grade)) {
-    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès strictement restreint</h3><p>Cette section est réservée au <strong>Directeur</strong> et au <strong>Directeur Adjoint</strong> uniquement.</p></div>';
+  if (!canSeeSectionLogs(u)) {
+    let msg = 'Accès réservé.';
+    if (myService === 'police') msg = 'Réservé au Directeur et au Directeur Adjoint.';
+    if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
+    if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès strictement restreint</h3><p>' + msg + '</p></div>';
     return;
   }
 
+  const agents = state.users.filter(x => x.isAgent && (x.service||'police')==='police');
+  const civils = state.users.filter(x => x.service === 'civil');
+  const juges = state.users.filter(x => x.isAgent && x.service === 'juge');
+  const avocats = state.users.filter(x => x.isAgent && x.service === 'avocat');
+
+  // Détermine quels onglets afficher selon la section
+  const showPolice = (myService === 'police');
+  const showJuges = (myService === 'police' || myService === 'juge');
+  const showAvocats = (myService === 'police' || myService === 'avocat');
+  const showCivils = true; // Toutes les directions peuvent voir les civils
+  const defaultTab = myService === 'police' ? 'agents' : myService === 'juge' ? 'juges' : 'avocats';
+
+  let bandeauColor = 'rgba(231,76,60,0.06)';
+  let bandeauBorder = 'rgba(231,76,60,0.2)';
+  let bandeauTextColor = 'var(--red2)';
+  let bandeauMsg = '🔒 <strong>Accès Direction uniquement</strong> — Informations confidentielles.';
+  if (myService === 'juge') {
+    bandeauColor = 'rgba(59,130,246,0.06)'; bandeauBorder = 'rgba(59,130,246,0.25)'; bandeauTextColor = '#93c5fd';
+    bandeauMsg = '⚖️ <strong>Tribunal — Direction</strong> — Comptes des juges et des civils.';
+  } else if (myService === 'avocat') {
+    bandeauColor = 'rgba(217,119,6,0.06)'; bandeauBorder = 'rgba(217,119,6,0.25)'; bandeauTextColor = '#fbbf24';
+    bandeauMsg = '🧑‍⚖️ <strong>Cabinet — Direction</strong> — Comptes des avocats et des civils.';
+  }
+
   let html = `
-    <div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.2);border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:var(--red2)">
-      🔒 <strong>Accès Direction uniquement</strong> — Informations confidentielles. Toute fuite expose à des sanctions.
+    <div style="background:${bandeauColor};border:1px solid ${bandeauBorder};border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:${bandeauTextColor}">
+      ${bandeauMsg}
     </div>
 
-    <div class="dash-block">
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">🔑 Comptes agents (${state.users.filter(u=>u.isAgent && (u.service||'police')==='police').length})</div>`;
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap">`;
 
-  state.users.filter(x => x.isAgent && (x.service||'police')==='police').sort((a,b) => gradeRank(a.grade) - gradeRank(b.grade)).forEach((a, i) => {
-    const safeId = 'log-' + i;
-    const matricule = a.matricule || generateMatriculeFromGrade(a.grade);
-    if (!a.matricule) a.matricule = matricule;
-    html += `
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          <div class="avatar">${getInitialsFromFullname(a.fullname)}</div>
-          <div style="flex:1">
-            <div style="font-weight:700;color:var(--text)">${a.fullname}</div>
-            <span class="grade-pill ${GRADE_CLASS[a.grade]||'gp-d'}">${a.grade}</span>
-          </div>
-        </div>
-        <div style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div>
-              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Matricule</div>
-              <code style="display:block;padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--accent);font-family:monospace;letter-spacing:1px">${matricule}</code>
+  if (showPolice) {
+    const isDefault = defaultTab === 'agents';
+    html += `<button id="logs-tab-agents" onclick="switchLogsTab('agents')" style="background:${isDefault?'rgba(196,154,26,0.15)':'transparent'};color:${isDefault?'var(--accent)':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'var(--accent)':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">👮 Police (${agents.length})</button>`;
+  }
+  if (showJuges) {
+    const isDefault = defaultTab === 'juges';
+    html += `<button id="logs-tab-juges" onclick="switchLogsTab('juges')" style="background:${isDefault?'rgba(196,154,26,0.15)':'transparent'};color:${isDefault?'var(--accent)':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'var(--accent)':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">⚖️ Juges (${juges.length})</button>`;
+  }
+  if (showAvocats) {
+    const isDefault = defaultTab === 'avocats';
+    html += `<button id="logs-tab-avocats" onclick="switchLogsTab('avocats')" style="background:${isDefault?'rgba(196,154,26,0.15)':'transparent'};color:${isDefault?'var(--accent)':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'var(--accent)':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🧑‍⚖️ Avocats (${avocats.length})</button>`;
+  }
+  if (showCivils) {
+    html += `<button id="logs-tab-civils" onclick="switchLogsTab('civils')" style="background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🍃 Civils (${civils.length})</button>`;
+  }
+  html += `</div>
+
+    <!-- Section Agents Police -->
+    <div id="logs-section-agents" style="display:${showPolice && defaultTab==='agents'?'block':'none'}">
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">👮 Police de Konoha (${agents.length})</div>`;
+
+  if (agents.length === 0) {
+    html += '<p style="padding:1.5rem;text-align:center;color:var(--muted)">Aucun agent enregistré.</p>';
+  } else {
+    agents.sort((a,b) => gradeRank(a.grade) - gradeRank(b.grade)).forEach((a, i) => {
+      const safeId = 'log-pol-' + i;
+      const matricule = a.matricule || generateMatriculeFromGrade(a.grade);
+      if (!a.matricule) a.matricule = matricule;
+      html += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div class="avatar">${getInitialsFromFullname(a.fullname)}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:var(--text)">${a.fullname}</div>
+              <span class="grade-pill ${GRADE_CLASS[a.grade]||'gp-d'}">${a.grade}</span>
             </div>
-            <div>
-              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Mot de passe</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <input type="password" id="${safeId}-pwd" value="${a.password}" readonly style="flex:1;padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--accent);font-family:monospace;letter-spacing:2px"/>
-                <button onclick="togglePwdView('${safeId}-pwd', this)" style="padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;color:var(--muted)">👁</button>
+          </div>
+          <div style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Matricule</div>
+                <code style="display:block;padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--accent);font-family:monospace;letter-spacing:1px">${matricule}</code>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Mot de passe</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <input type="password" id="${safeId}-pwd" value="${a.password}" readonly style="flex:1;padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--accent);font-family:monospace;letter-spacing:2px"/>
+                  <button onclick="togglePwdView('${safeId}-pwd', this)" style="padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;color:var(--muted)">👁</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>`;
-  });
-  html += '</div>';
+        </div>`;
+    });
+  }
+  html += `</div></div>`; // ferme logs-section-agents
+
+  // Section Juges
+  const showJugesDefault = defaultTab === 'juges';
+  const sectionJugesDisplay = (showJuges && showJugesDefault) ? 'block' : 'none';
+  html += `<div id="logs-section-juges" style="display:${sectionJugesDisplay}">
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:1px">⚖️ Tribunal de Konoha (${juges.length})</div>`;
+
+  if (juges.length === 0) {
+    html += '<p style="padding:1.5rem;text-align:center;color:var(--muted)">Aucun juge enregistré.</p>';
+  } else {
+    juges.sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname))).forEach((j, i) => {
+      const safeId = 'log-jug-' + i;
+      html += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div style="width:34px;height:34px;border-radius:50%;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;color:#93c5fd;font-weight:700">${getInitialsFromFullname(j.fullname)}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:var(--text)">${j.fullname}</div>
+              <span style="font-size:10px;background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);padding:2px 8px;border-radius:10px;font-weight:700">${j.grade}</span>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Mot de passe</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="password" id="${safeId}-pwd" value="${j.password}" readonly style="flex:1;padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;color:#93c5fd;font-family:monospace;letter-spacing:2px"/>
+              <button onclick="togglePwdView('${safeId}-pwd', this)" style="padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;color:var(--muted)">👁</button>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+  html += `</div></div>
+
+    <!-- Section Avocats -->`;
+
+  const showAvocatsDefault = defaultTab === 'avocats';
+  const sectionAvocatsDisplay = (showAvocats && showAvocatsDefault) ? 'block' : 'none';
+  html += `<div id="logs-section-avocats" style="display:${sectionAvocatsDisplay}">
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:1px">🧑‍⚖️ Cabinet des Avocats (${avocats.length})</div>`;
+
+  if (avocats.length === 0) {
+    html += '<p style="padding:1.5rem;text-align:center;color:var(--muted)">Aucun avocat enregistré.</p>';
+  } else {
+    avocats.sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname))).forEach((av, i) => {
+      const safeId = 'log-av-' + i;
+      html += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div style="width:34px;height:34px;border-radius:50%;background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fbbf24;font-weight:700">${getInitialsFromFullname(av.fullname)}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:var(--text)">${av.fullname}</div>
+              <span style="font-size:10px;background:rgba(217,119,6,0.15);color:#fbbf24;border:1px solid rgba(217,119,6,0.4);padding:2px 8px;border-radius:10px;font-weight:700">${av.grade}</span>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Mot de passe</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="password" id="${safeId}-pwd" value="${av.password}" readonly style="flex:1;padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;color:#fbbf24;font-family:monospace;letter-spacing:2px"/>
+              <button onclick="togglePwdView('${safeId}-pwd', this)" style="padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;color:var(--muted)">👁</button>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+  html += `</div></div>`; // Ferme section-avocats
+
+  // Section Civils (toujours accessible)
+  html += `<div id="logs-section-civils" style="display:none">
+      <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
+        ℹ️ <strong style="color:#93c5fd">Comptes citoyens</strong> — Permet de retransmettre un mot de passe en cas d'oubli. Utilisez la barre de recherche pour retrouver rapidement un citoyen.
+      </div>
+      <div style="margin-bottom:1rem;position:relative">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px">🔍</span>
+        <input type="text" id="logs-civil-search" placeholder="Rechercher par nom et prénom..." oninput="filtrerLogsCivils()" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:9px 12px 9px 36px;color:var(--text);font-size:13px;font-family:'Rajdhani',sans-serif"/>
+      </div>
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:1px">🍃 Citoyens enregistrés (${civils.length})</div>`;
+
+  if (civils.length === 0) {
+    html += '<p style="padding:1.5rem;text-align:center;color:var(--muted)">Aucun compte civil enregistré pour le moment.</p>';
+  } else {
+    civils.sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname))).forEach((c, i) => {
+      const safeId = 'log-civ-' + i;
+      const ninjaC = ninjaGradeColor(c.grade || 'Citoyen');
+      html += `
+        <div class="logs-civ-row" data-name="${normalize(c.fullname)}" style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+            <div style="width:34px;height:34px;border-radius:50%;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;color:#86efac;font-weight:700">${getInitialsFromFullname(c.fullname)}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:var(--text)">${c.fullname}</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+                ${c.grade ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:${ninjaC.bg};color:${ninjaC.color};border:1px solid ${ninjaC.border};font-size:10px;font-weight:700">${ninjaC.icon} ${c.grade}</span>` : ''}
+                ${c.inscription ? `<span style="font-size:10px;color:var(--muted)">Inscrit le ${c.inscription}</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Mot de passe à retransmettre</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="password" id="${safeId}-pwd" value="${c.password}" readonly style="flex:1;padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;color:#86efac;font-family:monospace;letter-spacing:2px"/>
+              <button onclick="togglePwdView('${safeId}-pwd', this)" style="padding:5px 10px;background:var(--mid);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer;color:var(--muted)">👁 Afficher</button>
+              <button onclick="copyToClipboard('${c.password.replace(/'/g,"\\'")}',this)" style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#86efac;border-radius:4px;font-size:12px;cursor:pointer">📋 Copier</button>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+  html += '</div></div>';
+
   el.innerHTML = html;
+}
+
+// Switch entre les onglets de Logs
+function switchLogsTab(tab) {
+  ['agents','juges','avocats','civils'].forEach(t => {
+    const btn = document.getElementById('logs-tab-' + t);
+    const sec = document.getElementById('logs-section-' + t);
+    if (btn) {
+      if (t === tab) {
+        btn.style.background = 'rgba(196,154,26,0.15)';
+        btn.style.color = 'var(--accent)';
+        btn.style.borderBottomColor = 'var(--accent)';
+      } else {
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--muted)';
+        btn.style.borderBottomColor = 'transparent';
+      }
+    }
+    if (sec) {
+      sec.style.display = (t === tab) ? 'block' : 'none';
+    }
+  });
+}
+
+// Filtrer la liste des civils par recherche
+function filtrerLogsCivils() {
+  const q = normalize(document.getElementById('logs-civil-search').value || '');
+  document.querySelectorAll('.logs-civ-row').forEach(row => {
+    const name = row.dataset.name || '';
+    row.style.display = (!q || name.includes(q)) ? '' : 'none';
+  });
+}
+
+// Copier dans le presse-papier
+function copyToClipboard(text, btn) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      const old = btn.textContent;
+      btn.textContent = '✓ Copié';
+      btn.style.color = '#86efac';
+      setTimeout(() => { btn.textContent = old; btn.style.color = '#86efac'; }, 1500);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); btn.textContent = '✓ Copié'; setTimeout(() => btn.textContent = '📋 Copier', 1500); } catch(e) {}
+      document.body.removeChild(ta);
+    });
+  }
 }
 
 function togglePwdView(id, btn) {
@@ -6798,6 +7086,9 @@ const restored = restoreSession();
 state.presences = state.presences || [];
 state.serviceActif = state.serviceActif || {};
 state.tarifsHoraires = state.tarifsHoraires || {};
+// Double sécurité : si la restauration n'a pas eu lieu, on vérifie quand même
+ensureOwnerAccounts();
+saveSession();
 const civilRestored = restoreCivilSession();
 updateNav();
 if (restored && state.currentUser) {
