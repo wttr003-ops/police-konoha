@@ -2665,6 +2665,57 @@ async function loadAllFromSupabase() {
 }
 
 // ============================================================
+// SUPABASE : Service actif (qui est en service maintenant)
+// Table active_shifts (1 ligne par agent en service)
+// ============================================================
+async function loadServiceActifFromSupabase() {
+  if (!supabaseReady) return;
+  try {
+    const { data, error } = await sb.from('active_shifts').select('*');
+    if (error || !data) return;
+    state.serviceActif = {};
+    data.forEach(row => {
+      state.serviceActif[row.fullname] = {
+        debut: row.start_time,
+        grade: row.grade,
+        _id: row.id
+      };
+    });
+    console.log('  ↳ active_shifts :', data.length, 'agents en service');
+  } catch(e) {}
+}
+
+async function pushServiceActifToSupabase(fullname, service) {
+  if (!supabaseReady) return null;
+  try {
+    // Upsert : si la ligne existe (par fullname), update, sinon insert
+    const row = {
+      fullname: fullname,
+      grade: service.grade || null,
+      start_time: service.debut
+    };
+    // Chercher si ligne existante
+    const { data: existing } = await sb.from('active_shifts').select('id').eq('fullname', fullname).maybeSingle();
+    if (existing && existing.id) {
+      const { data } = await sb.from('active_shifts').update(row).eq('id', existing.id).select().single();
+      if (data) service._id = data.id;
+      return data;
+    } else {
+      const { data } = await sb.from('active_shifts').insert(row).select().single();
+      if (data) service._id = data.id;
+      return data;
+    }
+  } catch(e) { console.warn('pushServiceActif:', e); return null; }
+}
+
+async function deleteServiceActifFromSupabase(fullname) {
+  if (!supabaseReady) return;
+  try {
+    await sb.from('active_shifts').delete().eq('fullname', fullname);
+  } catch(e) {}
+}
+
+// ============================================================
 // SUPABASE : Pousser un élément (insert ou update intelligent)
 // ============================================================
 // Tables où on peut identifier un enregistrement existant par fullname (pas d'ID local)
@@ -2759,7 +2810,17 @@ function subscribeToSupabaseChanges() {
       })
       .subscribe();
   });
-  console.log('📡 Realtime activé sur ' + Object.keys(SUPABASE_TABLES).length + ' tables');
+
+  // Écoute spéciale pour active_shifts (qui n'est pas dans SUPABASE_TABLES)
+  sb.channel('rt-active_shifts')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'active_shifts' }, async (payload) => {
+      console.log('🔄 Realtime active_shifts', payload.eventType);
+      await loadServiceActifFromSupabase();
+      refreshAllUI();
+    })
+    .subscribe();
+
+  console.log('📡 Realtime activé sur ' + Object.keys(SUPABASE_TABLES).length + ' tables + active_shifts');
 }
 
 // ============================================================
@@ -7391,7 +7452,7 @@ function renderPresences() {
 }
 
 // ===== ACTIONS DE SERVICE =====
-function prendreService() {
+async function prendreService() {
   const u = state.currentUser;
   const now = new Date();
   const h = now.getHours();
@@ -7399,13 +7460,21 @@ function prendreService() {
     alert('⛔ Prise de service uniquement entre 20h00 et 02h00.\nHeure actuelle : ' + now.toLocaleTimeString('fr-FR'));
     return;
   }
-  state.serviceActif[u.fullname] = {
+  const service = {
     debut: now.toISOString(),
     grade: u.grade
   };
+  state.serviceActif[u.fullname] = service;
+
+  // Push vers Supabase pour que tout le monde voie
+  if (supabaseReady) {
+    try { await pushServiceActifToSupabase(u.fullname, service); } catch(e) {}
+  }
+
   saveSession();
   alert('✓ Service pris à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}));
   renderPresences();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function finService() {
@@ -7442,7 +7511,7 @@ function cloturerHeurePersonnalisee() {
   enregistrerService(u.fullname, service, finCustom);
 }
 
-function enregistrerService(fullname, service, fin) {
+async function enregistrerService(fullname, service, fin) {
   const debut = new Date(service.debut);
   const dureeMs = fin.getTime() - debut.getTime();
   const dureeMin = Math.max(1, Math.round(dureeMs / 60000));
@@ -7450,7 +7519,7 @@ function enregistrerService(fullname, service, fin) {
   const salaire = Math.round((dureeMin / 60) * taux);
 
   state.presences = state.presences || [];
-  state.presences.push({
+  const newPresence = {
     fullname,
     grade: service.grade,
     date: debut.toLocaleDateString('fr-FR'),
@@ -7459,15 +7528,43 @@ function enregistrerService(fullname, service, fin) {
     duree: dureeMin,
     salaire,
     statut: 'a_payer'
-  });
+  };
 
+  // Push presence vers Supabase (table shifts)
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.presences || null;
+      // shifts mapping
+      const row = {
+        fullname,
+        grade: service.grade || null,
+        date: newPresence.date,
+        start_time: newPresence.heureDebut,
+        end_time: newPresence.heureFin,
+        duration: dureeMin,
+        salary: salaire,
+        status: 'to_pay'
+      };
+      const { data } = await sb.from('shifts').insert(row).select().single();
+      if (data) newPresence._id = data.id;
+    } catch(e) {}
+  }
+
+  state.presences.push(newPresence);
+
+  // Supprimer du active_shifts (cloud + local)
+  if (supabaseReady) {
+    try { await deleteServiceActifFromSupabase(fullname); } catch(e) {}
+  }
   delete state.serviceActif[fullname];
+
   saveSession();
 
   const h = Math.floor(dureeMin / 60);
   const m = dureeMin % 60;
   alert('✓ Service terminé\nDurée : ' + h + 'h' + String(m).padStart(2,'0') + '\nSalaire : ' + salaire.toLocaleString() + ' Ryos');
   renderPresences();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function forcerFinService(fullname) {
@@ -8341,6 +8438,9 @@ async function initSupabase() {
 
   // Charger toutes les données depuis le cloud
   const loaded = await loadAllFromSupabase();
+
+  // Charger les services actifs (qui est en service maintenant)
+  await loadServiceActifFromSupabase();
 
   if (loaded) {
     // FUSION : on garde les éléments locaux qui n'existent pas dans Supabase
