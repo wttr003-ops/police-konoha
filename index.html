@@ -2584,6 +2584,29 @@ const SUPABASE_TABLES = {
       date: r.date, detail: r.detail, _id: r.id
     })
   },
+  presences: {
+    table: 'shifts',
+    mapTo: p => ({
+      fullname: p.fullname, grade: p.grade || null,
+      date: p.date || null,
+      start_time: p.heureDebut || null,
+      end_time: p.heureFin || null,
+      duration: p.duree || 0,
+      salary: p.salaire || 0,
+      status: p.statut === 'paye' ? 'paid' : 'to_pay',
+      reason: p.motif || null,
+      paid_on: p.payeLe || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, grade: r.grade,
+      date: r.date,
+      heureDebut: r.start_time, heureFin: r.end_time,
+      duree: r.duration, salaire: r.salary,
+      statut: r.status === 'paid' ? 'paye' : 'a_payer',
+      motif: r.reason, payeLe: r.paid_on,
+      _id: r.id
+    })
+  },
   groupes: {
     table: 'teams',
     mapTo: g => ({
@@ -2672,17 +2695,24 @@ async function loadServiceActifFromSupabase() {
   if (!supabaseReady) return;
   try {
     const { data, error } = await sb.from('active_shifts').select('*');
-    if (error || !data) return;
-    state.serviceActif = {};
-    data.forEach(row => {
-      state.serviceActif[row.fullname] = {
-        debut: row.start_time,
-        grade: row.grade,
-        _id: row.id
-      };
-    });
-    console.log('  ↳ active_shifts :', data.length, 'agents en service');
-  } catch(e) {}
+    if (error) return;
+    // Reconstituer state.serviceActif depuis Supabase (source de vérité partagée)
+    const newState = {};
+    if (data) {
+      data.forEach(row => {
+        newState[row.fullname] = {
+          debut: row.start_time,
+          grade: row.grade,
+          _id: row.id
+        };
+      });
+    }
+    state.serviceActif = newState;
+    console.log('  ↳ active_shifts :', (data||[]).length, 'agents en service');
+  } catch(e) {
+    console.warn('loadServiceActif:', e);
+    // Ne PAS écraser state.serviceActif si erreur réseau
+  }
 }
 
 async function pushServiceActifToSupabase(fullname, service) {
@@ -3472,7 +3502,8 @@ function saveSession() {
       dossiersAvocat: state.dossiersAvocat || [],
       amendesHistoriqueDirection: state.amendesHistoriqueDirection || [],
       impotsHistoriqueDirection: state.impotsHistoriqueDirection || [],
-      presences: state.presences || []
+      presences: state.presences || [],
+      serviceActif: state.serviceActif || {}
     };
     localStorage.setItem('konaSession', JSON.stringify(data));
   } catch(e) { console.warn('saveSession failed:', e); }
@@ -3541,6 +3572,7 @@ function restoreSession() {
     if (data.amendesHistoriqueDirection) state.amendesHistoriqueDirection = data.amendesHistoriqueDirection;
     if (data.impotsHistoriqueDirection) state.impotsHistoriqueDirection = data.impotsHistoriqueDirection;
     if (data.presences) state.presences = data.presences;
+    if (data.serviceActif) state.serviceActif = data.serviceActif;
 
     ensureOwnerAccounts();
 
@@ -7450,14 +7482,18 @@ function renderPresences() {
 
   // ===== SECTION DIRECTION =====
   if (isDir) {
-    // Agents en service en temps réel
+    // Agents en service en temps réel — utiliser le grade stocké dans serviceActif
+    // (ne pas dépendre de state.users qui peut être en train de charger)
     const agentsEnService = Object.entries(state.serviceActif || {})
       .filter(([_, s]) => s && !s.fin)
       .map(([name, s]) => {
+        // Essayer de trouver l'utilisateur, sinon utiliser le grade stocké dans serviceActif
         const user = state.users.find(u => u.fullname === name);
-        return user ? { user, service: s } : null;
-      })
-      .filter(x => x);
+        return {
+          user: user || { fullname: name, grade: s.grade || '—' },
+          service: s
+        };
+      });
 
     html += `
       <div class="dash-block" style="margin-bottom:1.25rem">
@@ -7647,23 +7683,11 @@ async function enregistrerService(fullname, service, fin) {
     statut: 'a_payer'
   };
 
-  // Push presence vers Supabase (table shifts)
+  // Push presence vers Supabase via le mapping standard
   if (supabaseReady) {
     try {
-      const cfg = SUPABASE_TABLES.presences || null;
-      // shifts mapping
-      const row = {
-        fullname,
-        grade: service.grade || null,
-        date: newPresence.date,
-        start_time: newPresence.heureDebut,
-        end_time: newPresence.heureFin,
-        duration: dureeMin,
-        salary: salaire,
-        status: 'to_pay'
-      };
-      const { data } = await sb.from('shifts').insert(row).select().single();
-      if (data) newPresence._id = data.id;
+      const inserted = await pushToSupabase('presences', newPresence);
+      if (inserted && inserted._id) newPresence._id = inserted._id;
     } catch(e) {}
   }
 
