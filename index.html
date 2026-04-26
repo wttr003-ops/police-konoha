@@ -3616,7 +3616,14 @@ function submitCandidature() {
     return;
   }
 
-  state.candidatures.push({...data, target: selectedPostSection});
+  const newCand = {...data, target: selectedPostSection};
+  state.candidatures.push(newCand);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('candidatures', newCand).then(inserted => {
+      if (inserted && inserted._id) newCand._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
   okEl.style.display = 'block';
   ['post-fullname','post-genre','post-niveau','post-section','post-casier','post-motiv','post-password'].forEach(id => {
@@ -3701,13 +3708,20 @@ function submitPlainte() {
     return;
   }
 
-  state.plaintes.push({
+  const newPlainte = {
     pseudo, suspect, type, desc, date: date || 'Non précisée',
     status: 'wait',
-    target: selectedPlainteTarget, // 'citoyen' ou 'agent'
+    target: selectedPlainteTarget,
     submittedAt: new Date().toLocaleDateString('fr-FR'),
     id: Date.now()
-  });
+  };
+  state.plaintes.push(newPlainte);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('plaintes', newPlainte).then(inserted => {
+      if (inserted && inserted._id) newPlainte._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
 
   okEl.style.display = 'block';
@@ -3879,7 +3893,7 @@ function toggleDetail(id) {
   body.style.display = body.style.display === 'none' ? 'block' : 'none';
 }
 
-function treatCandid(idx, decision) {
+async function treatCandid(idx, decision) {
   const c = state.candidatures[idx];
   if (!c) return;
   const target = c.target || 'police';
@@ -3888,23 +3902,39 @@ function treatCandid(idx, decision) {
 
   if (decision === 'ok') {
     if (!confirm('Accepter ' + c.fullname + ' au ' + labels[target] + ' ? Un compte sera créé au grade ' + gradeInitial + '.')) return;
-    state.users.push({
+    const newUser = {
       fullname: c.fullname, password: c.password,
       grade: gradeInitial, genre: c.genre, section: c.section,
       isAgent: true, casier: c.casier, ninjaRank: c.niveau, service: target,
       hireDate: new Date().toLocaleDateString('fr-FR')
-    });
+    };
+    // Push le nouveau compte vers Supabase
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('users', newUser);
+        if (inserted && inserted._id) newUser._id = inserted._id;
+      } catch(e) {}
+    }
+    state.users.push(newUser);
     c.status = 'ok';
+    // Push update candidature
+    if (supabaseReady && c._id) {
+      try { await pushToSupabase('candidatures', c); } catch(e) {}
+    }
     saveSession();
     alert('✓ Candidature acceptée ! ' + c.fullname + ' rejoint ' + labels[target] + ' au grade ' + gradeInitial + '.');
   } else {
     if (!confirm('Refuser cette candidature ?')) return;
     c.status = 'no';
+    if (supabaseReady && c._id) {
+      try { await pushToSupabase('candidatures', c); } catch(e) {}
+    }
     saveSession();
     alert('Candidature refusée.');
   }
   renderCandidatures();
   updateStats();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function renderMembres() {
@@ -4412,7 +4442,7 @@ function updateAmendeMontant() {
   document.getElementById('am-montant-display').textContent = total.toLocaleString() + ' Ryos';
 }
 
-function emettreAmende() {
+async function emettreAmende() {
   let fullname = document.getElementById('am-fullname').value.trim();
   const mult = document.getElementById('am-mult').value;
   if (!fullname) { alert('Nom du contrevenant manquant'); return; }
@@ -4424,27 +4454,29 @@ function emettreAmende() {
   const existante = state.amendes.find(a => matchFullname(a.fullname, fullname));
   if (existante) fullname = existante.fullname;
 
-  // Récidive auto sur casier traité
-  state.casiers.forEach(c => {
+  // Récidive auto sur casier traité (push vers Supabase pour les casiers modifiés)
+  for (const c of state.casiers) {
     if (matchFullname(c.fullname, fullname) && c.statutJustice === 'traite') {
       c.statutJustice = 'en_cours';
       c.recidive = true;
+      if (supabaseReady && c._id) {
+        try { await pushToSupabase('casiers', c); } catch(e) {}
+      }
     }
-  });
+  }
 
-  // Concaténation des infractions pour le champ texte (compat ancien format)
+  // Concaténation des infractions pour le champ texte
   const infractionStr = amInfractionsSelectionnees.map(i => i.label).join(' + ');
-  // Palier le plus haut
   let palierMax = 'palier1';
   amInfractionsSelectionnees.forEach(i => {
     if (i.palier === 'palier3') palierMax = 'palier3';
     else if (i.palier === 'palier2' && palierMax !== 'palier3') palierMax = 'palier2';
   });
 
-  state.amendes.push({
+  const newAmende = {
     fullname: fullname,
     infraction: infractionStr,
-    infractions: amInfractionsSelectionnees.slice(), // Détails pour affichage
+    infractions: amInfractionsSelectionnees.slice(),
     palier: palierMax,
     montant: total,
     recidive: mult,
@@ -4452,7 +4484,17 @@ function emettreAmende() {
     date: new Date().toLocaleDateString('fr-FR'),
     statut: 'impaye',
     id: Date.now()
-  });
+  };
+
+  // PUSH VERS SUPABASE pour que tout le monde voie l'amende
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('amendes', newAmende);
+      if (inserted && inserted._id) newAmende._id = inserted._id;
+    } catch(e) {}
+  }
+
+  state.amendes.push(newAmende);
   saveSession();
 
   // Reset
@@ -4462,6 +4504,7 @@ function emettreAmende() {
   document.getElementById('am-montant-preview').style.display = 'none';
   alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))');
   renderAmendes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function refreshAmendesList() {
@@ -5609,13 +5652,20 @@ function ajouterCellule() {
     return;
   }
 
-  state.cellules.push({
+  const newCellule = {
     fullname, grade, section, chakra, motif, faits, duree, objets,
     agent: state.currentUser.fullname,
     statut: 'detenu',
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
     noteLiberation: ''
-  });
+  };
+  state.cellules.push(newCellule);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('cellules', newCellule).then(inserted => {
+      if (inserted && inserted._id) newCellule._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
 
   ['cel-fullname','cel-faits','cel-objets'].forEach(id => document.getElementById(id).value = '');
@@ -5625,18 +5675,22 @@ function ajouterCellule() {
   renderCellules();
 }
 
-function libererDetenu(idx) {
+async function libererDetenu(idx) {
   const c = state.cellules[idx];
   if (!c) return;
   const note = prompt('Note de libération (optionnel) :', '');
-  if (note === null) return; // annulé
+  if (note === null) return;
   if (!confirm('Libérer ' + c.fullname + ' ?')) return;
   c.statut = 'libere';
   c.noteLiberation = note || 'Libération autorisée par ' + state.currentUser.fullname;
   c.dateLiberation = new Date().toLocaleDateString('fr-FR');
+  if (supabaseReady && c._id) {
+    try { await pushToSupabase('cellules', c); } catch(e) {}
+  }
   saveSession();
   alert('✓ ' + c.fullname + ' a été libéré.');
   renderCellules();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 async function supprimerCellule(idx) {
@@ -5743,10 +5797,17 @@ function renderPlaintes() {
   el.innerHTML = html;
 }
 
-function treatPlainte(idx, status) {
+async function treatPlainte(idx, status) {
   if (!confirm('Confirmer ?')) return;
-  state.plaintes[idx].status = status;
+  const p = state.plaintes[idx];
+  if (!p) return;
+  p.status = status;
+  if (supabaseReady && p._id) {
+    try { await pushToSupabase('plaintes', p); } catch(e) {}
+  }
+  saveSession();
   renderPlaintes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // ============================================================
@@ -5887,13 +5948,20 @@ function submitRapport() {
   if (!type || !desc) { alert('Type et description obligatoires.'); return; }
 
   const now = new Date();
-  state.rapports.push({
+  const newRapport = {
     type, desc, agentsPresents,
     agent: state.currentUser.fullname,
     date: now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
     dateISO: now.toISOString(),
     id: Date.now()
-  });
+  };
+  state.rapports.push(newRapport);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('rapports', newRapport).then(inserted => {
+      if (inserted && inserted._id) newRapport._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
   document.getElementById('rap-desc').value = '';
   document.getElementById('rap-type').value = '';
@@ -6142,7 +6210,7 @@ function renderCasier() {
 }
 
 // Marquer un casier comme traité (juge uniquement)
-function traiterCasier(idx) {
+async function traiterCasier(idx) {
   const c = state.casiers[idx];
   if (!c) return;
   const note = prompt('Note de jugement (optionnel) :', '');
@@ -6152,18 +6220,28 @@ function traiterCasier(idx) {
   c.noteJuge = note || '';
   c.dateTraitement = new Date().toLocaleDateString('fr-FR');
   c.recidive = false;
+  // Push vers Supabase
+  if (supabaseReady && c._id) {
+    try { await pushToSupabase('casiers', c); } catch(e) {}
+  }
   saveSession();
   alert('✓ Dossier de ' + c.fullname + ' traité.');
   renderCasier();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function reouvrirCasier(idx) {
+async function reouvrirCasier(idx) {
   const c = state.casiers[idx];
   if (!c) return;
   if (!confirm('Rouvrir le dossier de ' + c.fullname + ' ?')) return;
   c.statutJustice = 'en_cours';
+  // Push vers Supabase
+  if (supabaseReady && c._id) {
+    try { await pushToSupabase('casiers', c); } catch(e) {}
+  }
   saveSession();
   renderCasier();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // État temporaire des infractions sélectionnées pour la nouvelle fiche
@@ -6238,18 +6316,25 @@ function ajouterCasier() {
   // Concaténer les infractions pour le champ "infraction" (compatibilité ancien format)
   const infractionStr = casInfractionsSelectionnees.map(i => i.label).join(' + ');
 
-  state.casiers.push({
+  const newCasier = {
     fullname, grade,
     palier: palierMax,
     infraction: infractionStr,
-    infractions: casInfractionsSelectionnees.slice(), // Copie du tableau pour affichage détaillé
+    infractions: casInfractionsSelectionnees.slice(),
     faits, sanction,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
     statutJustice: 'en_cours',
     recidive: existant ? true : false,
     id: Date.now()
-  });
+  };
+  state.casiers.push(newCasier);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('casiers', newCasier).then(inserted => {
+      if (inserted && inserted._id) newCasier._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
 
   // Reset
@@ -6417,16 +6502,23 @@ function ajouterPorte() {
     return;
   }
 
-  state.portes.push({
+  const newPorte = {
     fullname, grade, statut,
     heureSortie: statut === 'sorti' ? new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : null
-  });
+  };
+  state.portes.push(newPorte);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('portes', newPorte).then(inserted => {
+      if (inserted && inserted._id) newPorte._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
   document.getElementById('por-fullname').value = '';
   renderPortes();
 }
 
-function togglePorte(idx) {
+async function togglePorte(idx) {
   const p = state.portes[idx];
   if (!p) return;
   if (p.statut === 'present') {
@@ -6436,8 +6528,13 @@ function togglePorte(idx) {
     p.statut = 'present';
     p.heureSortie = null;
   }
+  // Push vers Supabase
+  if (supabaseReady && p._id) {
+    try { await pushToSupabase('portes', p); } catch(e) {}
+  }
   saveSession();
   renderPortes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // ===== GROUPES =====
@@ -6603,7 +6700,7 @@ function creerGroupe() {
   });
 
   // Créer le groupe
-  state.groupes.push({
+  const newGroupe = {
     id: groupeId,
     nom,
     motif,
@@ -6612,7 +6709,14 @@ function creerGroupe() {
     heureSortie,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR')
-  });
+  };
+  state.groupes.push(newGroupe);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('groupes', newGroupe).then(inserted => {
+      if (inserted && inserted._id) newGroupe._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
 
   document.getElementById('grp-modal').remove();
@@ -7126,7 +7230,7 @@ function creerDiscussion() {
   const invites = Array.from(document.querySelectorAll('.disc-svc:checked')).map(c => c.value);
   const participants = [myService, ...invites];
 
-  state.discussions.push({
+  const newDiscussion = {
     titre,
     participants,
     messages: [{
@@ -7138,7 +7242,14 @@ function creerDiscussion() {
     }],
     createur: u.fullname,
     date: new Date().toLocaleDateString('fr-FR')
-  });
+  };
+  state.discussions.push(newDiscussion);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('discussions', newDiscussion).then(inserted => {
+      if (inserted && inserted._id) newDiscussion._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
 
   document.getElementById('disc-modal').remove();
@@ -7146,19 +7257,25 @@ function creerDiscussion() {
   renderDiscussions();
 }
 
-function envoyerMessage(idx) {
+async function envoyerMessage(idx) {
   const u = state.currentUser;
   const ta = document.getElementById('disc-msg-' + idx);
   const texte = ta.value.trim();
   if (!texte) return;
+  const d = state.discussions[idx];
+  if (!d) return;
 
-  state.discussions[idx].messages.push({
+  d.messages.push({
     fullname: u.fullname,
     grade: u.grade,
     service: u.service || 'police',
     texte,
     heure: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
   });
+  // Push vers Supabase (UPDATE de toute la discussion avec les messages mis à jour)
+  if (supabaseReady && d._id) {
+    try { await pushToSupabase('discussions', d); } catch(e) {}
+  }
   saveSession();
 
   ta.value = '';
@@ -8130,12 +8247,19 @@ function creerDossier() {
   if (!client || !affaire || !details || honoraires < 0) { alert('Tous les champs sont obligatoires.'); return; }
   if (client.split(/\s+/).length < 2) { alert('Veuillez entrer prénom ET nom du client.'); return; }
 
-  state.dossiersAvocat.push({
+  const newDossier = {
     client, affaire, details, honoraires, statut,
     avocat: u.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
     id: Date.now()
-  });
+  };
+  state.dossiersAvocat.push(newDossier);
+  // Push vers Supabase
+  if (supabaseReady) {
+    pushToSupabase('dossiersAvocat', newDossier).then(inserted => {
+      if (inserted && inserted._id) newDossier._id = inserted._id;
+    }).catch(()=>{});
+  }
   saveSession();
 
   ['doss-client','doss-affaire','doss-details','doss-honoraires'].forEach(id => document.getElementById(id).value = '');
@@ -8144,11 +8268,16 @@ function creerDossier() {
   renderDossiersAvocat();
 }
 
-function marquerDossierPaye(idx) {
+async function marquerDossierPaye(idx) {
   if (!state.dossiersAvocat[idx]) return;
   if (!confirm('Marquer ce contrat comme payé ?')) return;
-  state.dossiersAvocat[idx].statut = 'paye';
-  state.dossiersAvocat[idx].datePaiement = new Date().toLocaleDateString('fr-FR');
+  const d = state.dossiersAvocat[idx];
+  d.statut = 'paye';
+  d.datePaiement = new Date().toLocaleDateString('fr-FR');
+  // Push vers Supabase
+  if (supabaseReady && d._id) {
+    try { await pushToSupabase('dossiersAvocat', d); } catch(e) {}
+  }
   saveSession();
   renderDossiersAvocat();
 }
