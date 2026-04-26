@@ -5487,7 +5487,7 @@ function renderAjout() {
       <div class="form-group">
         <label>Mot de passe *</label>
         <div style="display:flex;gap:8px">
-          <input type="text" id="aj-password" placeholder="Min 6 caractères" style="flex:1"/>
+          <input type="text" id="aj-password" placeholder="Min 6 caractères ou cliquez sur Générer (20 car.)" style="flex:1"/>
           <button class="btn-outline" onclick="genPwd()">🎲 Générer</button>
         </div>
       </div>
@@ -5496,10 +5496,65 @@ function renderAjout() {
 }
 
 function genPwd() {
-  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  // Caractères : majuscules, minuscules, chiffres et quelques symboles sûrs
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '!@#$%&*+=?';
+  const allChars = upper + lower + digits + symbols;
+
+  // Récupérer tous les mots de passe existants pour éviter les doublons
+  const existingPasswords = new Set();
+  (state.users || []).forEach(u => {
+    if (u.password) existingPasswords.add(u.password);
+  });
+
   let p = '';
-  for (let i = 0; i < 8; i++) p += c[Math.floor(Math.random() * c.length)];
+  let attempts = 0;
+  const maxAttempts = 50;
+
+  // Générer jusqu'à obtenir un mot de passe unique
+  do {
+    p = '';
+    // Garantir au moins 1 majuscule, 1 minuscule, 1 chiffre, 1 symbole
+    p += upper[secureRandomInt(upper.length)];
+    p += lower[secureRandomInt(lower.length)];
+    p += digits[secureRandomInt(digits.length)];
+    p += symbols[secureRandomInt(symbols.length)];
+
+    // Compléter jusqu'à 20 caractères avec une sélection aléatoire de tout
+    for (let i = 4; i < 20; i++) {
+      p += allChars[secureRandomInt(allChars.length)];
+    }
+
+    // Mélanger les caractères pour que les 4 premiers garantis soient à des positions aléatoires
+    p = shuffleString(p);
+
+    attempts++;
+  } while (existingPasswords.has(p) && attempts < maxAttempts);
+
   document.getElementById('aj-password').value = p;
+  return p;
+}
+
+// Génération d'un entier aléatoire cryptographiquement sûr (vraie randomisation)
+function secureRandomInt(max) {
+  if (window.crypto && window.crypto.getRandomValues) {
+    const arr = new Uint32Array(1);
+    window.crypto.getRandomValues(arr);
+    return arr[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
+// Mélange les caractères d'une chaîne aléatoirement
+function shuffleString(str) {
+  const arr = str.split('');
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = secureRandomInt(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join('');
 }
 
 async function addAgent() {
