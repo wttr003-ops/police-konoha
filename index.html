@@ -8130,21 +8130,21 @@ async function recupererAmendesAgent(agentName) {
   state.amendesHistoriqueDirection = state.amendesHistoriqueDirection || [];
   state.amendesHistoriqueDirection.push(histDirEntry);
 
-  // 2. Marquer les amendes comme récupérées (local + Supabase)
-  for (const a of state.amendes) {
-    if (a.agent === agentName && !a.recupere && a.statut === 'paye') {
-      a.recupere = true;
-      a.recupereLe = dateRecup;
-      a.recupereParDirection = state.currentUser.fullname;
-      a.recupId = recupId;
-      if (supabaseReady && a._id) {
-        try { await pushToSupabase('amendes', a); } catch(e) {}
-      }
+  // 2. Marquer les amendes comme récupérées (les MÊMES qui ont été comptées)
+  // Important : on doit marquer par AGENT ENCAISSEUR (celui qui a fait payer), pas l'émetteur
+  // → on utilise data.entries (qui contient les amendes regroupées par encaisseur)
+  for (const a of data.entries) {
+    a.recupere = true;
+    a.recupereLe = dateRecup;
+    a.recupereParDirection = state.currentUser.fullname;
+    a.recupId = recupId;
+    if (supabaseReady && a._id) {
+      try { await pushToSupabase('amendes', a); } catch(e) {}
     }
   }
 
   saveSession();
-  alert('✓ ' + data.total.toLocaleString() + ' Ryos récupérés sur ' + agentName + '\nEnregistré dans l\'historique Direction.');
+  alert('✓ ' + data.total.toLocaleString() + ' Ryos récupérés sur ' + agentName + '\nEnregistré dans l\'historique Direction.\nLe compteur de l\'agent revient à 0.');
   renderAmendes();
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
