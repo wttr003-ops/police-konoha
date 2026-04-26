@@ -2958,13 +2958,23 @@ const GRADES_AVOCAT_HC = ['Bâtonnier', 'Maître', 'Avocat Senior'];
 const ALL_GRADES_JUGE = ['Premier Président', 'Président de Chambre', 'Juge Senior', 'Juge Confirmé', 'Juge', 'Juge Auditeur', 'Juge Stagiaire'];
 const ALL_GRADES_AVOCAT = ['Bâtonnier', 'Maître', 'Avocat Senior', 'Avocat Confirmé', 'Avocat', 'Avocat Junior', 'Avocat Stagiaire'];
 
+// Helper : compare 2 grades en ignorant accents/casse
+function _gradeMatch(a, b) {
+  if (!a || !b) return false;
+  const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  return norm(a) === norm(b);
+}
+function _gradeIn(grade, list) {
+  return list.some(g => _gradeMatch(g, grade));
+}
+
 // Qui peut ajouter des membres dans sa section ?
 function canAddMemberInSection(user) {
   if (!user) return false;
   const service = user.service || 'police';
-  if (service === 'police') return canAddAgent(user.grade); // Directeur + Adjoint
-  if (service === 'juge') return ['Premier Président', 'Président de Chambre'].includes(user.grade);
-  if (service === 'avocat') return ['Bâtonnier', 'Maître'].includes(user.grade);
+  if (service === 'police') return canAddAgent(user.grade);
+  if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
+  if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
   return false;
 }
 
@@ -2972,9 +2982,9 @@ function canAddMemberInSection(user) {
 function canSeeSectionLogs(user) {
   if (!user) return false;
   const service = user.service || 'police';
-  if (service === 'police') return canSeeLogs(user.grade); // Directeur + Adjoint
-  if (service === 'juge') return ['Premier Président', 'Président de Chambre'].includes(user.grade);
-  if (service === 'avocat') return ['Bâtonnier', 'Maître'].includes(user.grade);
+  if (service === 'police') return canSeeLogs(user.grade);
+  if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
+  if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
   return false;
 }
 
@@ -2982,9 +2992,9 @@ function canSeeSectionLogs(user) {
 function canAccessDiscussions(user) {
   if (!user) return false;
   const service = user.service || 'police';
-  if (service === 'police') return gradeRank(user.grade) <= 2; // Lieutenant + Adjoint + Directeur
-  if (service === 'juge') return GRADES_JUGE_HC.includes(user.grade);
-  if (service === 'avocat') return GRADES_AVOCAT_HC.includes(user.grade);
+  if (service === 'police') return gradeRank(user.grade) <= 2;
+  if (service === 'juge') return _gradeIn(user.grade, GRADES_JUGE_HC);
+  if (service === 'avocat') return _gradeIn(user.grade, GRADES_AVOCAT_HC);
   return false;
 }
 
@@ -3061,8 +3071,14 @@ function canViewCasier(user) {
   // Tout le monde peut consulter (Police, Juge, Avocat)
   return true;
 }
-// Permission émission d'amendes : Police uniquement (Recrue+), pas Juge ni Avocat
+// Permission émission d'amendes : Police + Juge (le Tribunal peut aussi émettre des amendes)
 function canCreateAmende(user) {
+  if (!user) return false;
+  const service = user.service || 'police';
+  return service === 'police' || service === 'juge';
+}
+// Permission création de fiches en cellule : Police uniquement (le Juge peut consulter mais pas mettre)
+function canCreateCell(user) {
   if (!user) return false;
   const service = user.service || 'police';
   return service === 'police';
@@ -5021,6 +5037,7 @@ async function addAgent() {
 function renderCellules() {
   const el = document.getElementById('cellules-content');
   const u = state.currentUser;
+  const canCreate = canCreateCell(u);
 
   let html = `
     <!-- Stats -->
@@ -5039,6 +5056,12 @@ function renderCellules() {
       </div>
     </div>
 
+    ${!canCreate ? `
+    <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1.25rem;font-size:13px;color:var(--text)">
+      ⚖️ <strong style="color:#93c5fd">Mode consultation — Tribunal</strong> — Vous pouvez consulter qui est actuellement détenu en cellule, mais la mise en cellule est réservée à la Police.
+    </div>` : ''}
+
+    ${canCreate ? `
     <!-- Formulaire mise en cellule -->
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem">
       <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">⛓ Nouvelle mise en cellule</h3>
@@ -5132,6 +5155,7 @@ function renderCellules() {
         ⛓ Mettre en cellule
       </button>
     </div>
+    ` : ''}
 
     <!-- Liste des dossiers -->
     <div class="dash-block">
@@ -5204,6 +5228,8 @@ function toggleCellule(idx) {
 }
 
 function ajouterCellule() {
+  const u = state.currentUser;
+  if (!canCreateCell(u)) { alert('La mise en cellule est réservée à la Police.'); return; }
   const fullname = document.getElementById('cel-fullname').value.trim();
   const grade = document.getElementById('cel-grade').value;
   const section = document.getElementById('cel-section').value;
@@ -5368,7 +5394,9 @@ function treatPlainte(idx, status) {
 function renderRapports() {
   const u = state.currentUser;
   const el = document.getElementById('rapports-content');
-  const allAgents = state.users.filter(x => x.isAgent && (x.service||'police')==='police');
+  const myService = u.service || 'police';
+  // Filtrer les agents selon la section connectée (un juge ne voit que les juges, etc.)
+  const allAgents = state.users.filter(x => x.isAgent && (x.service||'police') === myService);
 
   let html = `
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
