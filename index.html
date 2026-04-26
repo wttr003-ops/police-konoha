@@ -3763,7 +3763,7 @@ function renderImpots() {
     <!-- Tableau registre des ninjas -->
     <div class="dash-block" style="overflow-x:auto;margin-bottom:1.5rem">
       <table class="penal-table" style="width:100%">
-        <thead><tr><th>Nom et Prénom</th><th>Grade</th><th>Montant</th><th>Statut</th><th>Action / Collecteur</th></tr></thead>
+        <thead><tr><th>Nom et Prénom</th><th>Grade</th><th>Montant</th><th>Statut</th><th>Action / Collecteur</th>${canAddAgent(u.grade) ? '<th></th>' : ''}</tr></thead>
         <tbody id="imp-tbody">`;
 
   // Tri par grade décroissant (haut gradé en premier)
@@ -3774,7 +3774,7 @@ function renderImpots() {
   });
 
   if (impotsTries.length === 0) {
-    html += '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem">Aucun ninja enregistré.</td></tr>';
+    html += '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem">Aucun ninja enregistré.</td></tr>';
   } else {
     impotsTries.forEach((i) => {
       const idx = state.impots.indexOf(i);
@@ -3810,6 +3810,7 @@ function renderImpots() {
             </select>
           ` : '<span style="font-size:11px;color:var(--muted)">—</span>'}
         </td>
+        ${canAddAgent(u.grade) ? `<td><button class="btn-sm btn-sm-red" onclick="supprimerImpot(${idx})" title="Supprimer du registre" style="padding:4px 8px;font-size:11px">🗑</button></td>` : ''}
       </tr>`;
     });
   }
@@ -3867,50 +3868,82 @@ function renderImpots() {
   }
   html += '</div>';
 
-  // Historique récupérations Direction
-  const histoDir = state.impotsHistoriqueDirection || [];
-  const totalDir = histoDir.reduce((s, h) => s + (h.montant||0), 0);
-  html += `
-    <div class="dash-block" style="padding:1.5rem;margin-top:1rem">
-      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.75rem">👑 Historique récupérations Direction</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Toutes les récupérations effectuées par la Direction depuis le début.</p>`;
+  // Historique récupérations Direction (seulement visible pour Directeur + Adjoint)
+  if (canAddAgent(u.grade)) {
+    const histoDir = state.impotsHistoriqueDirection || [];
+    const totalDir = histoDir.reduce((s, h) => s + (h.montant||0), 0);
+    html += `
+      <div class="dash-block" style="padding:1.5rem;margin-top:1rem">
+        <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.75rem">👑 Historique récupérations Direction</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">🔒 Visible uniquement par Directeur & Directeur Adjoint</p>`;
 
-  if (histoDir.length === 0) {
-    html += '<p style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">Aucune récupération effectuée.</p>';
-  } else {
-    html += `<div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;text-align:center">
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total récupéré (toutes opérations)</div>
-      <div style="font-size:24px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${totalDir.toLocaleString()} Ryos</div>
-    </div>`;
-    histoDir.slice().reverse().forEach(h => {
-      const safeId = 'idir-' + h.id;
-      html += `
-        <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
-          <div onclick="toggleDetail('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer">
-            <div style="width:36px;height:36px;border-radius:50%;background:rgba(232,197,71,0.15);border:1px solid rgba(232,197,71,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">👑</div>
-            <div style="flex:1">
-              <div style="font-weight:700;color:var(--text);font-size:13px">Récupération par ${h.direction}</div>
-              <div style="font-size:11px;color:var(--muted)">Sur ${h.agentSource} · ${h.nbCollectes} collecte(s) · ${h.date}</div>
+    if (histoDir.length === 0) {
+      html += '<p style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">Aucune récupération effectuée.</p>';
+    } else {
+      html += `<div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total récupéré (toutes opérations)</div>
+        <div style="font-size:24px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${totalDir.toLocaleString()} Ryos</div>
+      </div>`;
+      histoDir.slice().reverse().forEach(h => {
+        const safeId = 'idir-' + h.id;
+        html += `
+          <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+            <div onclick="toggleDetail('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer">
+              <div style="width:36px;height:36px;border-radius:50%;background:rgba(232,197,71,0.15);border:1px solid rgba(232,197,71,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">👑</div>
+              <div style="flex:1">
+                <div style="font-weight:700;color:var(--text);font-size:13px">Récupération par ${h.direction}</div>
+                <div style="font-size:11px;color:var(--muted)">Sur ${h.agentSource} · ${h.nbCollectes} collecte(s) · ${h.date}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${h.montant.toLocaleString()}</div>
+                <div style="font-size:10px;color:var(--muted)">Ryos</div>
+              </div>
+              <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
             </div>
-            <div style="text-align:right">
-              <div style="font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${h.montant.toLocaleString()}</div>
-              <div style="font-size:10px;color:var(--muted)">Ryos</div>
+            <div id="${safeId}" style="display:none;background:rgba(0,0,0,0.25);padding:10px 14px">
+              ${(h.detail||[]).map(d => `
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+                  <span>${d.payeur} ${ninjaGradePill(d.grade)}</span>
+                  <strong style="color:var(--lgold)">${d.montant.toLocaleString()} Ryos</strong>
+                </div>`).join('')}
+              <div style="margin-top:10px;display:flex;justify-content:flex-end">
+                <button class="btn-sm btn-sm-red" onclick="deleteHistoDirImpots(${h.id})">🗑 Supprimer cette entrée</button>
+              </div>
             </div>
-            <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
-          </div>
-          <div id="${safeId}" style="display:none;background:rgba(0,0,0,0.25);padding:10px 14px">
-            ${(h.detail||[]).map(d => `
-              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
-                <span>${d.payeur} ${ninjaGradePill(d.grade)}</span>
-                <strong style="color:var(--lgold)">${d.montant.toLocaleString()} Ryos</strong>
-              </div>`).join('')}
-          </div>
-        </div>`;
-    });
+          </div>`;
+      });
+    }
+    html += '</div>';
   }
-  html += '</div>';
 
   el.innerHTML = html;
+}
+
+// Supprimer une entrée de l'historique Direction (impôts)
+function deleteHistoDirImpots(id) {
+  if (!confirm('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.')) return;
+  state.impotsHistoriqueDirection = (state.impotsHistoriqueDirection || []).filter(h => h.id !== id);
+  saveSession();
+  renderImpots();
+}
+
+// Supprimer un ninja du registre des impôts (Direction uniquement)
+function supprimerImpot(idx) {
+  const i = state.impots[idx];
+  if (!i) return;
+  if (!confirm('Supprimer définitivement ' + i.fullname + ' du registre des impôts ?\n\n⚠ Cette action est irréversible et réservée à la Direction.\n• Le ninja disparaît du registre\n• Ses entrées dans les collectes en cours sont nettoyées')) return;
+
+  // Nettoyer les collectes en cours qui le mentionnent
+  Object.keys(state.collectesEnCours || {}).forEach(agent => {
+    state.collectesEnCours[agent] = state.collectesEnCours[agent].filter(c => !matchFullname(c.payeur, i.fullname));
+  });
+  // Nettoyer aussi l'historique des collecteurs (compteur)
+  state.impotsHistorique = state.impotsHistorique.filter(h => !matchFullname(h.payeur, i.fullname));
+
+  state.impots.splice(idx, 1);
+  saveSession();
+  alert('✓ ' + i.fullname + ' a été supprimé du registre des impôts.');
+  renderImpots();
 }
 
 function resetTousImpots() {
@@ -4075,12 +4108,9 @@ function recupererCollectes(agent) {
   const collectes = state.collectesEnCours[agent] || [];
   const total = collectes.reduce((s, c) => s + c.montant, 0);
   if (collectes.length === 0) { alert('Aucune collecte à récupérer'); return; }
-  if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Cette récupération est enregistrée dans l'historique de la Direction\n• Les ninjas restent marqués comme PAYÉS\n• Pour remettre les ninjas en "non payé", utilisez "Remettre tout à zéro"`)) return;
+  if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Cette récupération est enregistrée dans l'historique de la Direction\n• Les ninjas restent marqués comme PAYÉS\n• Le compteur "Total historique" de l'agent revient à 0`)) return;
 
-  // ⚠ NE PAS remettre les ninjas en "non payé" — ils restent payés
-  // (Le bouton "Remettre tout à zéro" s'en charge si besoin)
-
-  // Enregistrer dans l'historique direction
+  // Enregistrer dans l'historique direction (preuve permanente)
   state.impotsHistoriqueDirection = state.impotsHistoriqueDirection || [];
   state.impotsHistoriqueDirection.push({
     id: Date.now(),
@@ -4092,11 +4122,14 @@ function recupererCollectes(agent) {
     detail: collectes.slice() // copie
   });
 
-  // Vider les collectes en cours de cet agent (le compteur revient à 0)
+  // Retirer les entrées correspondantes de impotsHistorique pour reset le compteur de l'agent
+  state.impotsHistorique = state.impotsHistorique.filter(h => h.agent !== agent);
+
+  // Vider les collectes en cours de cet agent
   state.collectesEnCours[agent] = [];
 
   saveSession();
-  alert(`✓ ${total.toLocaleString()} Ryos récupérés sur ${agent}\nEnregistré dans l'historique Direction.\n\nLes ninjas restent payés.`);
+  alert(`✓ ${total.toLocaleString()} Ryos récupérés sur ${agent}\n\nEnregistré dans l'historique Direction.\nLe compteur de l'agent revient à 0.`);
   renderImpots();
 }
 
@@ -6183,6 +6216,15 @@ function refreshHistoriqueDirectionAmendes() {
   const u = state.currentUser;
   const el = document.getElementById('amendes-historique-direction');
   if (!el) return;
+
+  // Cacher complètement la section pour les non-Direction
+  if (!canAddAgent(u.grade)) {
+    // On retire aussi la div parente et son titre
+    const parent = el.closest('.dash-block');
+    if (parent) parent.style.display = 'none';
+    return;
+  }
+
   const histo = state.amendesHistoriqueDirection || [];
   if (histo.length === 0) {
     el.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">Aucune récupération effectuée.</p>';
@@ -6195,7 +6237,6 @@ function refreshHistoriqueDirectionAmendes() {
     <div style="font-size:24px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${totalGlobal.toLocaleString()} Ryos</div>
   </div>`;
 
-  // Tri du plus récent au plus ancien
   histo.slice().reverse().forEach(h => {
     const safeId = 'hr-' + h.id;
     html += `
@@ -6218,10 +6259,20 @@ function refreshHistoriqueDirectionAmendes() {
               <span>${d.fullname} · ${d.infraction.length>40?d.infraction.substring(0,40)+'...':d.infraction}</span>
               <strong style="color:var(--lgold)">${d.montant.toLocaleString()} Ryos</strong>
             </div>`).join('')}
+          <div style="margin-top:10px;display:flex;justify-content:flex-end">
+            <button class="btn-sm btn-sm-red" onclick="deleteHistoDirAmendes(${h.id})">🗑 Supprimer cette entrée</button>
+          </div>
         </div>
       </div>`;
   });
   el.innerHTML = html;
+}
+
+function deleteHistoDirAmendes(id) {
+  if (!confirm('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.')) return;
+  state.amendesHistoriqueDirection = (state.amendesHistoriqueDirection || []).filter(h => h.id !== id);
+  saveSession();
+  refreshHistoriqueDirectionAmendes();
 }
 
 // ============================================================
