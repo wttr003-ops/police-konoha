@@ -2627,23 +2627,50 @@ async function loadAllFromSupabase() {
 }
 
 // ============================================================
-// SUPABASE : Pousser un élément (insert ou update)
+// SUPABASE : Pousser un élément (insert ou update intelligent)
 // ============================================================
+// Tables où on peut identifier un enregistrement existant par fullname (pas d'ID local)
+const SUPABASE_LOOKUP_BY_FULLNAME = new Set(['impots', 'portes']);
+
 async function pushToSupabase(stateKey, item) {
   if (!supabaseReady) return null;
   const cfg = SUPABASE_TABLES[stateKey];
   if (!cfg) return null;
   try {
     const row = cfg.mapTo(item);
+
+    // Cas 1 : on a un _id Supabase → simple UPDATE
     if (item._id) {
       const { data, error } = await sb.from(cfg.table).update(row).eq('id', item._id).select().single();
       if (error) { console.warn('⚠️ update', cfg.table, error.message); return null; }
       return data ? cfg.mapFrom(data) : null;
-    } else {
-      const { data, error } = await sb.from(cfg.table).insert(row).select().single();
-      if (error) { console.warn('⚠️ insert', cfg.table, error.message); return null; }
-      return data ? cfg.mapFrom(data) : null;
     }
+
+    // Cas 2 : pas de _id mais on peut chercher par fullname (table comme impots)
+    if (SUPABASE_LOOKUP_BY_FULLNAME.has(stateKey) && item.fullname) {
+      // Chercher l'ID existant
+      const { data: existing } = await sb.from(cfg.table).select('id').eq('fullname', item.fullname).maybeSingle();
+      if (existing && existing.id) {
+        // UPDATE de l'enregistrement existant
+        const { data, error } = await sb.from(cfg.table).update(row).eq('id', existing.id).select().single();
+        if (error) { console.warn('⚠️ update lookup', cfg.table, error.message); return null; }
+        // Lier le _id à l'item local pour les prochaines fois
+        if (data) {
+          item._id = data.id;
+          return cfg.mapFrom(data);
+        }
+        return null;
+      }
+    }
+
+    // Cas 3 : INSERT
+    const { data, error } = await sb.from(cfg.table).insert(row).select().single();
+    if (error) { console.warn('⚠️ insert', cfg.table, error.message); return null; }
+    if (data) {
+      item._id = data.id;
+      return cfg.mapFrom(data);
+    }
+    return null;
   } catch(e) {
     console.warn('⚠️ pushToSupabase:', e);
     return null;
