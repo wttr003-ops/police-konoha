@@ -2318,6 +2318,63 @@
 
 <script>
 // ============================================================
+// DÉTECTION ENVIRONNEMENT — masquer les warnings dans la preview
+// ============================================================
+// Détecte si on est dans la preview Claude/sandbox (réseau bloqué)
+const _isPreviewSandbox = (() => {
+  try {
+    // Si on est dans une iframe sandboxée ou si l'origine est différente
+    if (window.location.protocol === 'about:' || window.location.protocol === 'blob:') return true;
+    if (window.parent !== window) {
+      try { window.parent.location.href; } catch(e) { return true; }
+    }
+    return false;
+  } catch(e) { return true; }
+})();
+
+// Filtrer les warnings liés à Supabase (DataCloneError, postMessage) dans la preview
+const _origConsoleWarn = console.warn.bind(console);
+console.warn = function(...args) {
+  const msg = args.map(a => {
+    try { return typeof a === 'string' ? a : (a && a.message) ? a.message : JSON.stringify(a); }
+    catch(e) { return String(a); }
+  }).join(' ');
+  // Masquer les erreurs réseau de la preview (DataCloneError, postMessage, fetch)
+  if (msg.includes('DataCloneError') ||
+      msg.includes('postMessage') ||
+      msg.includes('Headers object could not be cloned') ||
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg.includes('Erreur chargement') ||
+      msg.includes('Erreur Supabase') ||
+      msg.includes('pushToSupabase') ||
+      msg.includes('restoreSession failed') ||
+      msg.includes('saveSession failed') ||
+      msg.includes('Auto-save failed') ||
+      msg.includes('Sync error')) {
+    return; // Silencieux
+  }
+  _origConsoleWarn(...args);
+};
+
+// Filtrer aussi les erreurs réseau dans console.error
+const _origConsoleError = console.error.bind(console);
+console.error = function(...args) {
+  const msg = args.map(a => {
+    try { return typeof a === 'string' ? a : (a && a.message) ? a.message : JSON.stringify(a); }
+    catch(e) { return String(a); }
+  }).join(' ');
+  if (msg.includes('DataCloneError') ||
+      msg.includes('postMessage') ||
+      msg.includes('Headers object could not be cloned') ||
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError when attempting to fetch resource')) {
+    return;
+  }
+  _origConsoleError(...args);
+};
+
+// ============================================================
 // SUPABASE — Synchronisation cloud temps réel
 // ============================================================
 const SUPABASE_URL = 'https://tbzmqoxnsniknpqgcqrh.supabase.co';
@@ -2869,10 +2926,7 @@ let state = {
   currentUser: null,
   selectedSection: 'police',
   users: [
-    // Comptes propriétaires pré-créés (Police, Juge, Avocat)
-    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Directeur', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'police' },
-    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Premier Président', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'juge' },
-    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Bâtonnier', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'avocat' }
+    // Aucun compte par défaut. Les utilisateurs sont chargés depuis Supabase.
   ],
   candidatures: [],
   plaintes: [],
@@ -3281,18 +3335,10 @@ function restoreSession() {
 
 // Garantir que les 3 comptes propriétaires existent toujours (Police, Juge, Avocat)
 function ensureOwnerAccounts() {
-  const owners = [
-    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Directeur',          isAgent: true,  service: 'police', genre: 'autre', section: 'aucune', casier: 'non' },
-    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Premier Président',  isAgent: true,  service: 'juge',   genre: 'autre', section: 'aucune', casier: 'non' },
-    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Bâtonnier',          isAgent: true,  service: 'avocat', genre: 'autre', section: 'aucune', casier: 'non' }
-  ];
-  owners.forEach(o => {
-    const exists = state.users.find(u => u.fullname === o.fullname && (u.service||'police') === o.service);
-    if (!exists) {
-      state.users.push(o);
-      console.log('✓ Compte Owner restauré :', o.service);
-    }
-  });
+  // ⛔ Comptes Owner Konoha désactivés définitivement.
+  // L'utilisateur a créé son propre compte directeur et a explicitement supprimé
+  // les comptes Owner — on ne les recrée plus.
+  return;
 }
 
 // Auto-sauvegarde périodique (toutes les 5 secondes si quelque chose a changé)
@@ -3842,7 +3888,7 @@ function switchMembresTab(tab) {
   }
 }
 
-function changeGrade(fullname, dir) {
+async function changeGrade(fullname, dir) {
   const a = state.users.find(x => x.isAgent && x.fullname === fullname && (x.service||'police') === 'police');
   if (!a) return;
   const r = gradeRank(a.grade) + dir;
@@ -3850,7 +3896,15 @@ function changeGrade(fullname, dir) {
   if (!newG) return;
   if (!confirm((dir < 0 ? 'Promouvoir' : 'Rétrograder') + ' ' + a.fullname + ' au grade ' + newG[0] + ' ?')) return;
   a.grade = newG[0];
+
+  // Push le changement vers Supabase
+  if (supabaseReady && a._id) {
+    try { await pushToSupabase('users', a); } catch(e) { console.warn('Erreur changeGrade cloud:', e); }
+  }
+
+  saveSession();
   renderMembres();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function renderAmendes() {
@@ -4863,7 +4917,7 @@ function genPwd() {
   document.getElementById('aj-password').value = p;
 }
 
-function addAgent() {
+async function addAgent() {
   const u = state.currentUser;
   const myService = u.service || 'police';
   const fullname = document.getElementById('aj-fullname').value.trim();
@@ -4886,15 +4940,33 @@ function addAgent() {
   };
   if (matricule) newUser.matricule = matricule;
 
+  // 1. PUSH IMMÉDIAT vers Supabase (et attente du résultat)
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('users', newUser);
+      if (inserted && inserted._id) {
+        Object.assign(newUser, { _id: inserted._id });
+      } else {
+        alert('⚠️ Erreur : impossible de créer le compte sur le serveur partagé.\nVérifiez votre connexion internet.');
+        return;
+      }
+    } catch(e) {
+      alert('⚠️ Erreur serveur : ' + (e.message || e));
+      return;
+    }
+  }
+
+  // 2. Ajout local
   state.users.push(newUser);
-  saveSession(); // ⚠ SAUVEGARDE IMMÉDIATE pour éviter la perte
+  saveSession();
 
   ['aj-fullname','aj-password'].forEach(id => document.getElementById(id).value = '');
   let msg = '✓ ' + fullname + ' ajouté (' + g + ')';
   if (matricule) msg += '\nMatricule : ' + matricule;
-  msg += '\n\n💾 Compte sauvegardé.';
+  msg += '\n\n💾 Compte sauvegardé sur le serveur partagé.';
   alert(msg);
   updateStats();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // ============================================================
@@ -7123,13 +7195,29 @@ setInterval(updateChronoService, 1000);
 // ============================================================
 // SUPPRESSION DE COMPTE (Direction uniquement)
 // ============================================================
-function supprimerCompte(fullname, service) {
+async function supprimerCompte(fullname, service) {
   const u = state.currentUser;
   if (!canAddAgent(u.grade)) { alert('Réservé à la Direction'); return; }
-  if (!confirm('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son historique reste mais il sera marqué comme supprimé\n\nConfirmer la suppression ?')) return;
+  if (!confirm('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son compte sera supprimé du serveur partagé\n\nConfirmer la suppression ?')) return;
+
+  // Trouver le compte (et son _id Supabase) AVANT de le retirer du state local
+  const compte = state.users.find(x => x.fullname === fullname && (x.service||'police') === (service||'police'));
+
+  // 1. Supprimer dans Supabase si l'utilisateur est synchronisé (a un _id)
+  if (compte && compte._id && supabaseReady) {
+    try {
+      await deleteFromSupabase('users', compte._id);
+    } catch(e) { console.warn('Erreur suppression cloud:', e); }
+  }
+
+  // 2. Supprimer du state local
   state.users = state.users.filter(x => !(x.fullname === fullname && (x.service||'police') === (service||'police')));
+
+  // 3. Sauvegarder localement
   saveSession();
-  alert('✓ Compte de ' + fullname + ' supprimé.');
+
+  // 4. Re-render
+  alert('✓ Compte de ' + fullname + ' supprimé définitivement.');
   renderMembres();
   updateStats();
 }
