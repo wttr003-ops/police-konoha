@@ -74,12 +74,12 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 1.5rem;
-    height: 64px;
+    min-height: 64px;
     gap: 0.75rem;
     flex-wrap: wrap;
   }
 
-  .nav-logo { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .nav-logo { display: flex; align-items: center; gap: 12px; cursor: pointer; flex-shrink: 0; }
 
   .nav-logo-img {
     width: 44px; height: 44px;
@@ -118,6 +118,8 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     flex-wrap: wrap;
+    flex: 1 1 auto;
+    justify-content: center;
   }
   .nav-links a {
     color: var(--muted);
@@ -127,8 +129,22 @@
   }
   .nav-links a:hover { color: var(--text); }
 
-  .nav-auth { display: flex; gap: 8px; }
-  .nav-user { display: flex; align-items: center; gap: 8px; }
+  .nav-auth { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
+  .nav-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+  }
+
+  /* Sur petit écran : profil sur sa propre ligne à droite */
+  @media (max-width: 1100px) {
+    .nav-user { width: 100%; justify-content: flex-end; border-left: none; padding-left: 0; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 8px; }
+    .nav-auth { width: 100%; justify-content: flex-end; }
+  }
 
   /* === BUTTONS === */
   .btn-primary {
