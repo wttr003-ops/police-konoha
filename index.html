@@ -1328,6 +1328,10 @@
     .dash-nav-btn::before { font-size: 16px; }
   }
 </style>
+
+<!-- Supabase SDK (synchronisation cloud temps réel) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 </head>
 <body>
 
@@ -2314,6 +2318,325 @@
 
 <script>
 // ============================================================
+// SUPABASE — Synchronisation cloud temps réel
+// ============================================================
+const SUPABASE_URL = 'https://tbzmqoxnsniknpqgcqrh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_J2fBcXUp69RYHow8HgUXGA_PD0gED-h';
+
+let sb = null;
+let supabaseReady = false;
+
+try {
+  if (window.supabase && window.supabase.createClient) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabaseReady = true;
+    console.log('🔗 Supabase connecté');
+  } else {
+    console.warn('⚠️ Supabase SDK non chargé — mode local uniquement');
+  }
+} catch(e) {
+  console.warn('⚠️ Erreur Supabase:', e);
+}
+
+// Mapping état local → tables Supabase
+// Format : nomLocalState → { table: 'nom_supabase', mapTo: fct(item)→row, mapFrom: fct(row)→item }
+const SUPABASE_TABLES = {
+  users: {
+    table: 'users',
+    mapTo: u => ({
+      fullname: u.fullname, password: u.password, grade: u.grade,
+      service: u.service || 'police', is_agent: u.isAgent !== false,
+      matricule: u.matricule || null, gender: u.genre || null,
+      section: u.section || null, has_record: u.casier || 'non',
+      ninja_rank: u.ninjaRank || null, hire_date: u.hireDate || null,
+      registration_date: u.inscription || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, password: r.password, grade: r.grade,
+      service: r.service, isAgent: r.is_agent, matricule: r.matricule,
+      genre: r.gender, section: r.section, casier: r.has_record,
+      ninjaRank: r.ninja_rank, hireDate: r.hire_date, inscription: r.registration_date,
+      _id: r.id
+    })
+  },
+  candidatures: {
+    table: 'applications',
+    mapTo: c => ({
+      fullname: c.fullname, password: c.password || null, gender: c.genre || null,
+      ninja_level: c.niveau || null, section: c.section || null,
+      has_record: c.casier || null, motivation: c.motiv || null,
+      target: c.target || 'police', status: c.status || 'wait',
+      date: c.date || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, password: r.password, genre: r.gender,
+      niveau: r.ninja_level, section: r.section, casier: r.has_record,
+      motiv: r.motivation, target: r.target, status: r.status,
+      date: r.date, _id: r.id
+    })
+  },
+  plaintes: {
+    table: 'complaints',
+    mapTo: p => ({
+      pseudo: p.pseudo, suspect: p.suspect || null, type: p.type || null,
+      description: p.desc || null, date: p.date || null,
+      target: p.target || 'citoyen', status: p.status || 'wait',
+      submitted_at: p.submittedAt || null
+    }),
+    mapFrom: r => ({
+      pseudo: r.pseudo, suspect: r.suspect, type: r.type,
+      desc: r.description, date: r.date, target: r.target,
+      status: r.status, submittedAt: r.submitted_at,
+      id: r.id, _id: r.id
+    })
+  },
+  casiers: {
+    table: 'criminal_records',
+    mapTo: c => ({
+      fullname: c.fullname, grade: c.grade || null, tier: c.palier || null,
+      offense: c.infraction || null, offenses: c.infractions || null,
+      facts: c.faits || null, sanction: c.sanction || null,
+      agent: c.agent || null, date: c.date || null,
+      justice_status: c.statutJustice || 'en_cours',
+      is_repeat_offense: !!c.recidive,
+      judge_note: c.noteJuge || null, treatment_date: c.dateTraitement || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, grade: r.grade, palier: r.tier,
+      infraction: r.offense, infractions: r.offenses, faits: r.facts,
+      sanction: r.sanction, agent: r.agent, date: r.date,
+      statutJustice: r.justice_status, recidive: r.is_repeat_offense,
+      noteJuge: r.judge_note, dateTraitement: r.treatment_date,
+      id: r.id, _id: r.id
+    })
+  },
+  amendes: {
+    table: 'fines',
+    mapTo: a => ({
+      fullname: a.fullname, offense: a.infraction || null,
+      offenses: a.infractions || null, tier: a.palier || null,
+      amount: a.montant || 0, recidivism: a.recidive || 'x1',
+      agent: a.agent || null, date: a.date || null,
+      status: a.statut || 'impaye', payment_date: a.datePaiement || null,
+      collecting_agent: a.agentEncaisseur || null,
+      is_collected: !!a.recupere, collected_at: a.recupereLe || null,
+      collected_by_direction: a.recupereParDirection || null,
+      recovery_id: a.recupId || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, infraction: r.offense, infractions: r.offenses,
+      palier: r.tier, montant: r.amount, recidive: r.recidivism,
+      agent: r.agent, date: r.date, statut: r.status,
+      datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
+      recupere: r.is_collected, recupereLe: r.collected_at,
+      recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
+      id: r.id, _id: r.id
+    })
+  },
+  cellules: {
+    table: 'cells',
+    mapTo: c => ({
+      fullname: c.fullname, grade: c.grade || null, section: c.section || null,
+      chakra: c.chakra || null, reason: c.motif || null,
+      facts: c.faits || null, duration: c.duree || null,
+      seized_items: c.objets || null, agent: c.agent || null,
+      status: c.statut || 'detenu', date: c.date || null,
+      release_note: c.noteLiberation || null, release_date: c.dateLiberation || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, grade: r.grade, section: r.section,
+      chakra: r.chakra, motif: r.reason, faits: r.facts,
+      duree: r.duration, objets: r.seized_items, agent: r.agent,
+      statut: r.status, date: r.date, noteLiberation: r.release_note,
+      dateLiberation: r.release_date, _id: r.id
+    })
+  },
+  rapports: {
+    table: 'reports',
+    mapTo: r => ({
+      type: r.type || null, description: r.desc || null,
+      agents_present: r.agentsPresents || [], agent: r.agent || null,
+      date: r.date || null, date_iso: r.dateISO || null
+    }),
+    mapFrom: r => ({
+      type: r.type, desc: r.description, agentsPresents: r.agents_present,
+      agent: r.agent, date: r.date, dateISO: r.date_iso,
+      id: r.id, _id: r.id
+    })
+  },
+  impots: {
+    table: 'taxes',
+    mapTo: i => ({
+      fullname: i.fullname, grade: i.grade || null,
+      status: i.statut === 'paye' ? 'paid' : 'unpaid',
+      collector: i.collecteur || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, grade: r.grade,
+      statut: r.status === 'paid' ? 'paye' : 'non',
+      collecteur: r.collector, _id: r.id
+    })
+  },
+  groupes: {
+    table: 'teams',
+    mapTo: g => ({
+      team_uid: g.id || null, name: g.nom, reason: g.motif || null,
+      members: g.membres || [], status: g.statut || 'sorti',
+      exit_time: g.heureSortie || null, return_time: g.heureRentree || null,
+      agent: g.agent || null, date: g.date || null
+    }),
+    mapFrom: r => ({
+      id: r.team_uid, nom: r.name, motif: r.reason,
+      membres: r.members, statut: r.status, heureSortie: r.exit_time,
+      heureRentree: r.return_time, agent: r.agent, date: r.date,
+      _id: r.id
+    })
+  },
+  portes: {
+    table: 'gates',
+    mapTo: p => ({
+      fullname: p.fullname, grade: p.grade || null,
+      status: p.statut || 'present', exit_time: p.heureSortie || null,
+      team_id: p.groupeId || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, grade: r.grade, statut: r.status,
+      heureSortie: r.exit_time, groupeId: r.team_id, _id: r.id
+    })
+  },
+  discussions: {
+    table: 'discussions',
+    mapTo: d => ({
+      title: d.titre, participants: d.participants || [],
+      messages: d.messages || [], creator: d.createur || null,
+      date: d.date || null
+    }),
+    mapFrom: r => ({
+      titre: r.title, participants: r.participants, messages: r.messages,
+      createur: r.creator, date: r.date, _id: r.id
+    })
+  },
+  dossiersAvocat: {
+    table: 'lawyer_cases',
+    mapTo: d => ({
+      client: d.client, case_type: d.affaire || null,
+      details: d.details || null, fees: d.honoraires || 0,
+      status: d.statut || 'en_attente', lawyer: d.avocat || null,
+      date: d.date || null, payment_date: d.datePaiement || null
+    }),
+    mapFrom: r => ({
+      client: r.client, affaire: r.case_type, details: r.details,
+      honoraires: r.fees, statut: r.status, avocat: r.lawyer,
+      date: r.date, datePaiement: r.payment_date, _id: r.id, id: r.id
+    })
+  }
+};
+
+// ============================================================
+// SUPABASE : Charger toutes les données depuis le cloud
+// ============================================================
+async function loadAllFromSupabase() {
+  if (!supabaseReady) return false;
+  console.log('📥 Chargement depuis Supabase...');
+  try {
+    for (const [stateKey, cfg] of Object.entries(SUPABASE_TABLES)) {
+      const { data, error } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
+      if (error) {
+        console.warn('⚠️ Erreur chargement', cfg.table, ':', error.message);
+        continue;
+      }
+      // Charger toutes les données du cloud (qui sont la "vérité" partagée)
+      state[stateKey] = (data || []).map(cfg.mapFrom);
+      console.log('  ↳', cfg.table, ':', state[stateKey].length, 'éléments chargés');
+    }
+    console.log('✅ Données chargées depuis Supabase');
+    return true;
+  } catch(e) {
+    console.warn('⚠️ Erreur chargement global:', e);
+    return false;
+  }
+}
+
+// ============================================================
+// SUPABASE : Pousser un élément (insert ou update)
+// ============================================================
+async function pushToSupabase(stateKey, item) {
+  if (!supabaseReady) return null;
+  const cfg = SUPABASE_TABLES[stateKey];
+  if (!cfg) return null;
+  try {
+    const row = cfg.mapTo(item);
+    if (item._id) {
+      const { data, error } = await sb.from(cfg.table).update(row).eq('id', item._id).select().single();
+      if (error) { console.warn('⚠️ update', cfg.table, error.message); return null; }
+      return data ? cfg.mapFrom(data) : null;
+    } else {
+      const { data, error } = await sb.from(cfg.table).insert(row).select().single();
+      if (error) { console.warn('⚠️ insert', cfg.table, error.message); return null; }
+      return data ? cfg.mapFrom(data) : null;
+    }
+  } catch(e) {
+    console.warn('⚠️ pushToSupabase:', e);
+    return null;
+  }
+}
+
+// ============================================================
+// SUPABASE : Supprimer un élément
+// ============================================================
+async function deleteFromSupabase(stateKey, dbId) {
+  if (!supabaseReady || !dbId) return false;
+  const cfg = SUPABASE_TABLES[stateKey];
+  if (!cfg) return false;
+  try {
+    const { error } = await sb.from(cfg.table).delete().eq('id', dbId);
+    if (error) { console.warn('⚠️ delete', cfg.table, error.message); return false; }
+    return true;
+  } catch(e) { return false; }
+}
+
+// ============================================================
+// SUPABASE : Sync complète (push tout l'état actuel vers cloud)
+// Utilisée par saveSession() pour propager les changements
+// ============================================================
+async function syncStateToSupabase() {
+  if (!supabaseReady) return;
+  // On ne pousse pas tout à chaque fois (ce serait trop lourd)
+  // À la place, les fonctions individuelles appellent pushToSupabase directement
+  // Cette fonction est gardée pour usage futur
+}
+
+// ============================================================
+// SUPABASE : Realtime — écouter les changements
+// ============================================================
+function subscribeToSupabaseChanges() {
+  if (!supabaseReady) return;
+  Object.entries(SUPABASE_TABLES).forEach(([stateKey, cfg]) => {
+    sb.channel('rt-' + cfg.table)
+      .on('postgres_changes', { event: '*', schema: 'public', table: cfg.table }, async (payload) => {
+        console.log('🔄 Realtime', cfg.table, payload.eventType);
+        // Recharger juste cette table
+        const { data } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
+        if (data) {
+          state[stateKey] = data.map(cfg.mapFrom);
+          // Re-render la vue actuelle si possible
+          try {
+            if (typeof updateNav === 'function') updateNav();
+            if (typeof updateStats === 'function') updateStats();
+            const activeTab = document.querySelector('.dash-nav-btn.active');
+            if (activeTab && state.currentUser) {
+              const tabName = activeTab.dataset.tab;
+              if (typeof switchDashTab === 'function') switchDashTab(tabName, activeTab);
+            }
+          } catch(e) {}
+        }
+      })
+      .subscribe();
+  });
+  console.log('📡 Realtime activé sur ' + Object.keys(SUPABASE_TABLES).length + ' tables');
+}
+
+// ============================================================
 // FIRE PARTICLES — HERO
 // ============================================================
 function initFire(canvasId) {
@@ -2827,6 +3150,7 @@ function logout() {
 
 // Sauvegarde / restauration de session + données
 function saveSession() {
+  // 1. SAUVEGARDE LOCALE (toujours, pour la rapidité)
   try {
     const data = {
       currentUser: state.currentUser,
@@ -2850,6 +3174,44 @@ function saveSession() {
     };
     localStorage.setItem('konaSession', JSON.stringify(data));
   } catch(e) { console.warn('saveSession failed:', e); }
+
+  // 2. SAUVEGARDE CLOUD (Supabase) — déclenchée en arrière-plan, non-bloquante
+  if (supabaseReady && !window._supabaseSyncInProgress) {
+    syncAllStateToSupabase();
+  }
+}
+
+// Synchronise toutes les listes vers Supabase (insert/update différentiel)
+let _lastSyncSnapshot = {};
+async function syncAllStateToSupabase() {
+  if (!supabaseReady) return;
+  if (window._supabaseSyncInProgress) return;
+  window._supabaseSyncInProgress = true;
+
+  try {
+    for (const [stateKey, cfg] of Object.entries(SUPABASE_TABLES)) {
+      const items = state[stateKey] || [];
+      const snapshot = JSON.stringify(items);
+      // Skip si identique au dernier snapshot
+      if (_lastSyncSnapshot[stateKey] === snapshot) continue;
+
+      // Pour chaque item sans _id, on insère
+      for (const item of items) {
+        if (!item._id) {
+          const inserted = await pushToSupabase(stateKey, item);
+          if (inserted && inserted._id) {
+            // Lier le _id de Supabase à l'item local
+            Object.assign(item, { _id: inserted._id });
+          }
+        }
+      }
+      _lastSyncSnapshot[stateKey] = snapshot;
+    }
+  } catch(e) {
+    console.warn('Sync error:', e);
+  } finally {
+    window._supabaseSyncInProgress = false;
+  }
 }
 
 function restoreSession() {
@@ -2875,11 +3237,9 @@ function restoreSession() {
     if (data.impotsHistoriqueDirection) state.impotsHistoriqueDirection = data.impotsHistoriqueDirection;
     if (data.presences) state.presences = data.presences;
 
-    // GARANTIR la présence des 3 comptes Owner Konoha (anti-perte)
     ensureOwnerAccounts();
 
     if (data.currentUser) {
-      // Vérifier que l'utilisateur existe toujours
       const stillExists = state.users.find(u =>
         u.fullname === data.currentUser.fullname &&
         (u.service||'police') === (data.currentUser.service||'police')
@@ -7395,6 +7755,103 @@ if (restored && state.currentUser) {
   showPage('civil-dash');
 }
 updateStats();
+
+// ============================================================
+// SUPABASE — Chargement depuis le cloud + écoute temps réel
+// ============================================================
+async function initSupabase() {
+  if (!supabaseReady) {
+    console.warn('⚠️ Supabase non disponible — mode local uniquement');
+    return;
+  }
+
+  // Sauvegarder l'état local AVANT le chargement cloud
+  const localBackup = {};
+  for (const stateKey of Object.keys(SUPABASE_TABLES)) {
+    localBackup[stateKey] = (state[stateKey] || []).slice();
+  }
+
+  // Charger toutes les données depuis le cloud
+  const loaded = await loadAllFromSupabase();
+
+  if (loaded) {
+    // FUSION : on garde les éléments locaux qui n'existent pas dans Supabase
+    // (les éléments locaux sans _id signifient qu'ils n'ont jamais été synchronisés)
+    for (const stateKey of Object.keys(SUPABASE_TABLES)) {
+      const cloud = state[stateKey] || [];
+      const local = localBackup[stateKey] || [];
+
+      // Identifier les locaux non synchronisés (sans _id ou non présents dans cloud par fullname/id)
+      const cloudKeys = new Set();
+      cloud.forEach(item => {
+        if (item.fullname) cloudKeys.add(item.fullname.toLowerCase().trim() + '|' + (item.service || ''));
+        if (item.id) cloudKeys.add('id:' + item.id);
+      });
+
+      const localOnly = local.filter(item => {
+        if (item._id) return false; // déjà sync (_id Supabase)
+        // Vérifier doublon par fullname+service ou id
+        const k1 = (item.fullname || '').toLowerCase().trim() + '|' + (item.service || '');
+        const k2 = item.id ? 'id:' + item.id : null;
+        if (cloudKeys.has(k1)) return false;
+        if (k2 && cloudKeys.has(k2)) return false;
+        return true;
+      });
+
+      // Ajouter les locaux non sync dans le state (et les pousser vers Supabase)
+      if (localOnly.length > 0) {
+        console.log('📤 Migration vers Supabase :', localOnly.length, stateKey);
+        for (const item of localOnly) {
+          const inserted = await pushToSupabase(stateKey, item);
+          if (inserted) {
+            state[stateKey].push(inserted);
+          } else {
+            // Échec push → on garde au moins localement
+            state[stateKey].push(item);
+          }
+        }
+      }
+    }
+
+    // Garantir les comptes Owner
+    if (typeof ensureOwnerAccounts === 'function') ensureOwnerAccounts();
+
+    // Sauver localement
+    try {
+      const data = {
+        users: state.users, candidatures: state.candidatures, plaintes: state.plaintes,
+        rapports: state.rapports, casiers: state.casiers, amendes: state.amendes,
+        cellules: state.cellules, impots: state.impots, portes: state.portes,
+        groupes: state.groupes, discussions: state.discussions,
+        dossiersAvocat: state.dossiersAvocat || [],
+        currentUser: state.currentUser
+      };
+      localStorage.setItem('konaSession', JSON.stringify(data));
+    } catch(e) {}
+
+    // RE-RENDER complet
+    try {
+      if (typeof updateNav === 'function') updateNav();
+      if (typeof updateStats === 'function') updateStats();
+      if (state.currentUser) {
+        // Forcer la re-construction du dashboard (sidebar incluse)
+        if (typeof renderDashboard === 'function') {
+          const activeTab = document.querySelector('.dash-nav-btn.active');
+          const tabName = activeTab ? activeTab.dataset.tab : 'overview';
+          renderDashboard(tabName);
+        }
+      }
+    } catch(e) { console.warn('Re-render error:', e); }
+
+    // Activer l'écoute temps réel
+    subscribeToSupabaseChanges();
+
+    console.log('✅ Init Supabase terminée — données synchronisées');
+  }
+}
+
+// Lancer l'init Supabase (en arrière-plan)
+setTimeout(initSupabase, 800);
 
 // ============================================================
 // PERSISTANCE TOTALE — Sauvegardes de sécurité multiples
