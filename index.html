@@ -4790,17 +4790,31 @@ async function supprimerImpot(idx) {
   renderImpots();
 }
 
-function resetTousImpots() {
+async function resetTousImpots() {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   if (!confirm('⚠️ ATTENTION : Cette action va remettre TOUS les ninjas en "Non payé".\n\n• Aucun ninja ne sera supprimé du registre\n• L\'historique global est conservé\n\nConfirmer ?')) return;
+
+  const toUpdate = [];
   state.impots.forEach(i => {
     if (i.grade !== 'Genin') {
       i.statut = 'non';
       i.collecteur = '';
+      if (i._id) toUpdate.push(i);
     }
   });
+
+  // Push tous les changements vers Supabase
+  if (supabaseReady && toUpdate.length > 0) {
+    for (const item of toUpdate) {
+      try { await pushToSupabase('impots', item); } catch(e) {}
+    }
+  }
+
   saveSession();
   alert('✓ Tous les statuts ont été remis à "Non payé".\nLe registre des ninjas est intact.');
   renderImpots();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function genererPDFImpots() {
@@ -4890,30 +4904,49 @@ function toggleCollecteur(safeId) {
   if (arr) arr.textContent = open ? '▼' : '▲';
 }
 
-function ajouterImpot() {
+async function ajouterImpot() {
   const fullname = document.getElementById('imp-fullname').value.trim();
   const g = document.getElementById('imp-grade').value;
   if (!fullname) { alert('Nom requis'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (ex: Naruto Uzumaki)'); return; }
   if (state.impots.some(i => matchFullname(i.fullname, fullname))) { alert('Ce ninja est déjà dans le registre'); return; }
-  state.impots.push({ fullname: fullname, grade: g, statut: 'non', collecteur: '' });
+
+  const newImpot = { fullname: fullname, grade: g, statut: 'non', collecteur: '' };
+
+  // Push immédiat vers Supabase pour que tout le monde le voie
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('impots', newImpot);
+      if (inserted && inserted._id) {
+        Object.assign(newImpot, { _id: inserted._id });
+      }
+    } catch(e) {}
+  }
+
+  state.impots.push(newImpot);
   saveSession();
   document.getElementById('imp-fullname').value = '';
   renderImpots();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function toggleImpot(idx, newStatut) {
+async function toggleImpot(idx, newStatut) {
   const i = state.impots[idx];
   if (!i) return;
   i.statut = newStatut;
   if (newStatut === 'non') {
     i.collecteur = '';
   }
+  // Push vers Supabase pour que tout le monde voie
+  if (supabaseReady && i._id) {
+    try { await pushToSupabase('impots', i); } catch(e) {}
+  }
   saveSession();
   renderImpots();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function setCollecteur(idx, agent) {
+async function setCollecteur(idx, agent) {
   const i = state.impots[idx];
   if (!i) return;
 
@@ -4944,8 +4977,14 @@ function setCollecteur(idx, agent) {
     });
   }
 
+  // Push le changement vers Supabase
+  if (supabaseReady && i._id) {
+    try { await pushToSupabase('impots', i); } catch(e) {}
+  }
+
   saveSession();
   renderImpots();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function recupererCollectes(agent) {
@@ -7551,7 +7590,7 @@ async function deleteHistoDirAmendes(id) {
 // ============================================================
 // IMPÔTS — Changement grade auto-recalcul
 // ============================================================
-function changerGradeImpot(idx, nouveauGrade) {
+async function changerGradeImpot(idx, nouveauGrade) {
   const i = state.impots[idx];
   if (!i) return;
   i.grade = nouveauGrade;
@@ -7563,8 +7602,13 @@ function changerGradeImpot(idx, nouveauGrade) {
     i.statut = 'non';
     i.collecteur = '';
   }
+  // Push vers Supabase
+  if (supabaseReady && i._id) {
+    try { await pushToSupabase('impots', i); } catch(e) {}
+  }
   saveSession();
   renderImpots();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // ============================================================
