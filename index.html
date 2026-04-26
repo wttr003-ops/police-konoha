@@ -2622,10 +2622,14 @@ const INFRACTIONS = {
 // Helpers
 function normalize(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
 function matchFullname(a, b) {
-  // Compare insensible casse/accents/ordre des mots
+  // Compare insensible casse/accents/ordre des mots — utile pour casiers, amendes, etc.
   const na = normalize(a).split(' ').filter(x => x).sort().join(' ');
   const nb = normalize(b).split(' ').filter(x => x).sort().join(' ');
   return na === nb;
+}
+// Comparaison stricte : exactement le même nom dans le même ordre (utile pour les comptes uniques)
+function matchFullnameStrict(a, b) {
+  return normalize(a) === normalize(b);
 }
 function getInitialsFromFullname(fullname) {
   const parts = (fullname||'').trim().split(/\s+/);
@@ -4331,7 +4335,7 @@ function addAgent() {
   if (!fullname || !p) { alert('Champs manquants'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
   if (p.length < 6) { alert('Mot de passe trop court'); return; }
-  if (state.users.some(uu => matchFullname(uu.fullname, fullname) && (uu.service||'police') === myService)) {
+  if (state.users.some(uu => matchFullnameStrict(uu.fullname, fullname) && (uu.service||'police') === myService)) {
     alert('Un compte existe déjà pour cette personne dans cette section.');
     return;
   }
@@ -6683,10 +6687,11 @@ function enregistrerSalaires() {
 // ============================================================
 // Helper : trouver l'inscription correspondante (insensible casse/ordre)
 function trouverInscriptionCivil(fullname) {
+  // Recherche LARGE : utilisée pour la connexion civile et la consultation impôts
+  // (insensible à l'ordre des mots pour aider l'utilisateur)
   const norm = normalize(fullname);
   const parts = norm.split(' ').filter(x => x.length > 1);
 
-  // Chercher dans les utilisateurs civils (créés via espace civil)
   return state.users.find(u => {
     if (u.isAgent) return false;
     if ((u.service||'') !== 'civil') return false;
@@ -6697,6 +6702,16 @@ function trouverInscriptionCivil(fullname) {
     if (cp.length >= 2 && cp.every(p => parts.includes(p))) return true;
     return false;
   });
+}
+
+// Recherche STRICTE : utilisée pour empêcher les doublons à l'inscription
+// Doit être exactement le même nom dans le même ordre
+function trouverInscriptionCivilStrict(fullname) {
+  return state.users.find(u =>
+    !u.isAgent &&
+    (u.service||'') === 'civil' &&
+    matchFullnameStrict(u.fullname, fullname)
+  );
 }
 
 // Vérifier si le citoyen a payé ses impôts (insensible casse/ordre)
@@ -6980,8 +6995,8 @@ function registerCivil() {
   if (fullname.split(/\s+/).length < 2) { errEl.textContent = 'Veuillez entrer prénom ET nom.'; errEl.style.display = 'block'; return; }
   if (password.length < 6) { errEl.textContent = 'Mot de passe trop court (6 caractères min).'; errEl.style.display = 'block'; return; }
 
-  // Vérifier si déjà inscrit (insensible à la casse/ordre)
-  if (trouverInscriptionCivil(fullname)) {
+  // Vérifier si déjà inscrit (vérification stricte : même nom dans le même ordre)
+  if (trouverInscriptionCivilStrict(fullname)) {
     errEl.textContent = 'Un compte existe déjà avec ce nom.'; errEl.style.display = 'block'; return;
   }
 
