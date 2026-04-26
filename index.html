@@ -4353,8 +4353,14 @@ function toggleAmendeStatut(idx, statut) {
   renderAmendes();
 }
 
-function deleteAmende(idx) {
+async function deleteAmende(idx) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   if (!confirm('Supprimer définitivement cette amende ?\n\n⚠ Cette action est irréversible et réservée à la Direction.')) return;
+  const item = state.amendes[idx];
+  if (item && item._id && supabaseReady) {
+    try { await deleteFromSupabase('amendes', item._id); } catch(e) {}
+  }
   state.amendes.splice(idx, 1);
   saveSession();
   refreshAmendesList();
@@ -4624,18 +4630,32 @@ function renderImpots() {
 }
 
 // Supprimer une entrée de l'historique Direction (impôts)
-function deleteHistoDirImpots(id) {
+async function deleteHistoDirImpots(id) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   if (!confirm('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.')) return;
+  // Trouver l'item dans le state pour récupérer son _id Supabase
+  const item = (state.impotsHistoriqueDirection || []).find(h => h.id === id);
+  if (item && item._id && supabaseReady) {
+    try { await deleteFromSupabase('impotsHistoriqueDirection', item._id); } catch(e) {}
+  }
   state.impotsHistoriqueDirection = (state.impotsHistoriqueDirection || []).filter(h => h.id !== id);
   saveSession();
   renderImpots();
 }
 
 // Supprimer un ninja du registre des impôts (Direction uniquement)
-function supprimerImpot(idx) {
+async function supprimerImpot(idx) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const i = state.impots[idx];
   if (!i) return;
   if (!confirm('Supprimer définitivement ' + i.fullname + ' du registre des impôts ?\n\n⚠ Cette action est irréversible et réservée à la Direction.\n• Le ninja disparaît du registre\n• Ses entrées dans les collectes en cours sont nettoyées')) return;
+
+  // Supprimer dans Supabase
+  if (i._id && supabaseReady) {
+    try { await deleteFromSupabase('impots', i._id); } catch(e) {}
+  }
 
   // Nettoyer les collectes en cours qui le mentionnent
   Object.keys(state.collectesEnCours || {}).forEach(agent => {
@@ -5232,10 +5252,15 @@ function libererDetenu(idx) {
   renderCellules();
 }
 
-function supprimerCellule(idx) {
+async function supprimerCellule(idx) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const c = state.cellules[idx];
   if (!c) return;
   if (!confirm('Supprimer définitivement le dossier de ' + c.fullname + ' ?')) return;
+  if (c._id && supabaseReady) {
+    try { await deleteFromSupabase('cellules', c._id); } catch(e) {}
+  }
   state.cellules.splice(idx, 1);
   saveSession();
   renderCellules();
@@ -5487,8 +5512,14 @@ function submitRapport() {
   renderRapports();
 }
 
-function deleteRapport(idx) {
+async function deleteRapport(idx) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   if (!confirm('Supprimer ce rapport ?')) return;
+  const item = state.rapports[idx];
+  if (item && item._id && supabaseReady) {
+    try { await deleteFromSupabase('rapports', item._id); } catch(e) {}
+  }
   state.rapports.splice(idx, 1);
   saveSession();
   renderRapports();
@@ -5839,8 +5870,14 @@ function ajouterCasier() {
   renderCasier();
 }
 
-function deleteCasier(idx) {
+async function deleteCasier(idx) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   if (!confirm('Supprimer définitivement cette fiche du casier ?\n\n⚠ Cette action est irréversible et réservée à la Direction.')) return;
+  const item = state.casiers[idx];
+  if (item && item._id && supabaseReady) {
+    try { await deleteFromSupabase('casiers', item._id); } catch(e) {}
+  }
   state.casiers.splice(idx, 1);
   saveSession();
   renderCasier();
@@ -6215,7 +6252,9 @@ function rentrerGroupe(idx) {
   renderPortes();
 }
 
-function deleteGroupe(idx) {
+async function deleteGroupe(idx) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const g = state.groupes[idx];
   if (!g) return;
   if (!confirm('Supprimer le groupe "' + g.nom + '" ? Les ninjas resteront dans le registre.')) return;
@@ -6223,6 +6262,9 @@ function deleteGroupe(idx) {
   state.portes.forEach(p => {
     if (p.groupeId === g.id) delete p.groupeId;
   });
+  if (g._id && supabaseReady) {
+    try { await deleteFromSupabase('groupes', g._id); } catch(e) {}
+  }
   state.groupes.splice(idx, 1);
   saveSession();
   renderPortes();
@@ -6755,8 +6797,14 @@ function addParticipant(idx, service) {
   }, 50);
 }
 
-function deleteDiscussion(idx) {
+async function deleteDiscussion(idx) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   if (!confirm('Supprimer définitivement cette discussion ?')) return;
+  const item = state.discussions[idx];
+  if (item && item._id && supabaseReady) {
+    try { await deleteFromSupabase('discussions', item._id); } catch(e) {}
+  }
   state.discussions.splice(idx, 1);
   saveSession();
   renderDiscussions();
@@ -7355,8 +7403,14 @@ function refreshHistoriqueDirectionAmendes() {
   el.innerHTML = html;
 }
 
-function deleteHistoDirAmendes(id) {
+async function deleteHistoDirAmendes(id) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   if (!confirm('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.')) return;
+  const item = (state.amendesHistoriqueDirection || []).find(h => h.id === id);
+  if (item && item._id && supabaseReady) {
+    try { await deleteFromSupabase('amendesHistoriqueDirection', item._id); } catch(e) {}
+  }
   state.amendesHistoriqueDirection = (state.amendesHistoriqueDirection || []).filter(h => h.id !== id);
   saveSession();
   refreshHistoriqueDirectionAmendes();
@@ -7652,9 +7706,21 @@ function marquerDossierPaye(idx) {
   renderDossiersAvocat();
 }
 
-function supprimerDossier(idx) {
+async function supprimerDossier(idx) {
   if (!state.dossiersAvocat[idx]) return;
+  const u = state.currentUser;
+  const item = state.dossiersAvocat[idx];
+  // Autoriser : Direction OU l'avocat propriétaire du dossier
+  const isOwner = u && item.avocat === u.fullname;
+  const isDirection = u && canAddAgent(u.grade);
+  if (!isOwner && !isDirection) {
+    alert('Réservé à l\'avocat propriétaire du dossier ou à la Direction');
+    return;
+  }
   if (!confirm('Supprimer définitivement ce contrat ?')) return;
+  if (item._id && supabaseReady) {
+    try { await deleteFromSupabase('dossiersAvocat', item._id); } catch(e) {}
+  }
   state.dossiersAvocat.splice(idx, 1);
   saveSession();
   renderDossiersAvocat();
