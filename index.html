@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Police de Kona — Système Officiel</title>
+<title>Police de Konoha — Système Officiel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1333,7 +1333,7 @@
 
 <!-- DISCLAIMER -->
 <div class="disclaimer">
-  ⚠ Police de Kona — Projet Ninja Road · Mode de jeu fictif
+  ⚠ Police de Konoha — Projet Ninja Road · Mode de jeu fictif
 </div>
 
 <!-- ==================== NAV ==================== -->
@@ -1341,13 +1341,15 @@
   <div class="nav-logo" onclick="showPage('home')">
     <div class="nav-logo-img" id="nav-logo-content">PK</div>
     <div>
-      <div class="nav-logo-text">Police de Kona</div>
+      <div class="nav-logo-text">Police de Konoha</div>
       <div class="nav-logo-sub">木ノ葉警察署</div>
     </div>
   </div>
   <ul class="nav-links">
     <li><a onclick="showPage('home')">Accueil</a></li>
     <li><a onclick="showSection('histoire')">Histoire</a></li>
+    <li><a onclick="showSection('tribunal')">⚖️ Tribunal</a></li>
+    <li><a onclick="showSection('cabinet')">🧑‍⚖️ Avocats</a></li>
     <li><a onclick="showSection('volonte')">Volonté du Feu</a></li>
     <li><a onclick="showSection('missions')">Missions</a></li>
     <li><a onclick="showSection('grades')">Grades</a></li>
@@ -1357,6 +1359,7 @@
     <li><a onclick="showSection('reglement')">Règlement</a></li>
     <li><a onclick="showPage('postuler')">Postuler</a></li>
     <li><a onclick="showPage('plainte')">⚖️ Porter plainte</a></li>
+    <li><a onclick="showPage('civil')">🍃 Espace Civil</a></li>
   </ul>
   <div class="nav-auth" id="nav-auth">
     <button class="btn-primary" onclick="showPage('login')">Connexion</button>
@@ -1378,10 +1381,10 @@
     <canvas id="fire-canvas"></canvas>
     <div class="hero-inner">
       <div class="hero-logo-big" id="hero-logo">PK</div>
-      <span class="hero-tag">Système Officiel · Police de Kona</span>
-      <h1 class="hero-title">Police de Kona</h1>
+      <span class="hero-tag">Système Officiel · Police de Konoha</span>
+      <h1 class="hero-title">Police de Konoha</h1>
       <p class="hero-subtitle">木ノ葉軍警察署 — Gardiens de la Volonté du Feu</p>
-      <p class="hero-desc">Au nom de la Volonté du Feu, nous protégeons chaque citoyen, chaque clan, chaque rue de Kona. L'ordre n'est pas une contrainte — c'est l'expression de notre amour pour le village.</p>
+      <p class="hero-desc">Au nom de la Volonté du Feu, nous protégeons chaque citoyen, chaque clan, chaque rue de Konoha. L'ordre n'est pas une contrainte — c'est l'expression de notre amour pour le village.</p>
       <div class="hero-btns">
         <button class="btn-primary btn-lg" onclick="showPage('postuler')">Rejoindre la Police</button>
         <button class="btn-outline btn-lg" onclick="showPage('login')">Espace agent</button>
@@ -1391,9 +1394,10 @@
 
   <!-- STATS -->
   <div class="stats-bar">
-    <div class="stat"><span class="stat-num" id="stat-agents">0</span><span class="stat-label">Officiers actifs</span></div>
-    <div class="stat"><span class="stat-num">6</span><span class="stat-label">Grades</span></div>
-    <div class="stat"><span class="stat-num" id="stat-candid">0</span><span class="stat-label">Candidatures traitées</span></div>
+    <div class="stat"><span class="stat-num" id="stat-agents">0</span><span class="stat-label">Officiers Police</span></div>
+    <div class="stat"><span class="stat-num" id="stat-juges">0</span><span class="stat-label">Juges actifs</span></div>
+    <div class="stat"><span class="stat-num" id="stat-avocats">0</span><span class="stat-label">Avocats actifs</span></div>
+    <div class="stat"><span class="stat-num" id="stat-candid">0</span><span class="stat-label">Candidatures</span></div>
     <div class="stat"><span class="stat-num">24/7</span><span class="stat-label">Patrouilles</span></div>
   </div>
 
@@ -1407,8 +1411,8 @@
           <div class="history-block">
             <div class="history-year">Ère du 2ème Hokage</div>
             <h3 class="history-block-title">La Création — Une décision politique</h3>
-            <p>Peu après la fondation du Village Caché de Kona, le <strong>2ème Hokage</strong> prit l'une des décisions les plus marquantes de l'histoire du village : la création d'une force de police militaire dédiée à maintenir l'ordre intérieur. Une institution née autant de la nécessité que du calcul.</p>
-            <p>À cette époque, Kona était encore fragile. Des dizaines de clans cohabitaient sur un même territoire, chacun portant ses propres valeurs, ses rivalités ancestrales et ses ambitions. Sans structure pour encadrer cette diversité, le risque de conflits internes était permanent. Le 2ème Hokage comprit que la paix extérieure ne pouvait tenir sans une paix intérieure maîtrisée.</p>
+            <p>Peu après la fondation du Village Caché de Konoha, le <strong>2ème Hokage</strong> prit l'une des décisions les plus marquantes de l'histoire du village : la création d'une force de police militaire dédiée à maintenir l'ordre intérieur. Une institution née autant de la nécessité que du calcul.</p>
+            <p>À cette époque, Konoha était encore fragile. Des dizaines de clans cohabitaient sur un même territoire, chacun portant ses propres valeurs, ses rivalités ancestrales et ses ambitions. Sans structure pour encadrer cette diversité, le risque de conflits internes était permanent. Le 2ème Hokage comprit que la paix extérieure ne pouvait tenir sans une paix intérieure maîtrisée.</p>
           </div>
           <div class="history-block">
             <div class="history-year">Le Choix du Clan</div>
@@ -1419,7 +1423,7 @@
           <div class="history-block">
             <div class="history-year">Héritage</div>
             <h3 class="history-block-title">Un héritage porté fièrement</h3>
-            <p>Aujourd'hui, la <strong>Section Police de Kona</strong> perpétue cet héritage. Héritière de la rigueur de ses fondateurs et des idéaux du 2ème Hokage, elle veille sur les habitants du Village des Feuilles avec la même exigence qu'à ses origines.</p>
+            <p>Aujourd'hui, la <strong>Section Police de Konoha</strong> perpétue cet héritage. Héritière de la rigueur de ses fondateurs et des idéaux du 2ème Hokage, elle veille sur les habitants du Village des Feuilles avec la même exigence qu'à ses origines.</p>
           </div>
         </div>
         <aside class="history-sidebar">
@@ -1439,8 +1443,98 @@
             <div class="history-fact-sub">Protéger, servir, transmettre</div>
           </div>
           <div class="history-quote">
-            <p>"Nul n'est au-dessus des lois de Kona. Pas même ceux qui les font respecter."</p>
+            <p>"Nul n'est au-dessus des lois de Konoha. Pas même ceux qui les font respecter."</p>
             <span>— Doctrine fondatrice</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRIBUNAL DE KONOHA -->
+  <section class="section" id="tribunal">
+    <div class="section-inner">
+      <p class="section-tag">⚖️ Tribunal de Konoha</p>
+      <h2 class="section-title">Le rôle du <span>Tribunal</span></h2>
+      <div class="history-layout">
+        <div class="history-main">
+          <div class="history-block">
+            <div class="history-year">Institution Judiciaire</div>
+            <h3 class="history-block-title">Les Juges, gardiens de la justice shinobi</h3>
+            <p>Au cœur du Pays du Feu, le <strong>Tribunal de Konoha</strong> est l'institution chargée de rendre la justice. Composé de juges expérimentés, il statue sur les affaires les plus graves portées par la Police de Konoha : trahisons, homicides, conspirations, infractions majeures au code shinobi.</p>
+            <p>Chaque juge prête serment de juger sans favoritisme, en respect de la <strong>Volonté du Feu</strong>. Leur autorité est reconnue par le Hokage lui-même, et leurs décisions s'appliquent à tous — du Genin au Jonin.</p>
+          </div>
+          <div class="history-block">
+            <div class="history-year">Missions du Tribunal</div>
+            <h3 class="history-block-title">Compétences principales</h3>
+            <p>Les juges examinent les casiers judiciaires transmis par la Police, convoquent les suspects, entendent les avocats de la défense, et prononcent les sanctions : amendes, emprisonnement, bannissement du village ou — dans les cas extrêmes — exécution.</p>
+            <p>Le Tribunal traite également les <strong>plaintes contre les agents de Police</strong>, garantissant qu'aucun officier ne soit au-dessus des lois. Cette compétence exclusive protège les citoyens contre les abus.</p>
+          </div>
+        </div>
+        <aside class="history-sidebar">
+          <div class="history-fact-card">
+            <div class="history-fact-label">Statut</div>
+            <div class="history-fact-val">Indépendant</div>
+            <div class="history-fact-sub">Distinct de la Police</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Hiérarchie</div>
+            <div class="history-fact-val">Premier Président</div>
+            <div class="history-fact-sub">Plus haute autorité judiciaire</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Compétence exclusive</div>
+            <div class="history-fact-val">Plaintes vs Police</div>
+            <div class="history-fact-sub">Garantie d'impartialité</div>
+          </div>
+          <div class="history-quote">
+            <p>"La justice ne connaît ni rang, ni clan, ni faveur. Seule la vérité guide notre main."</p>
+            <span>— Serment des juges de Konoha</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- CABINET DES AVOCATS -->
+  <section class="section section-dark" id="cabinet">
+    <div class="section-inner">
+      <p class="section-tag">🧑‍⚖️ Cabinet des Avocats</p>
+      <h2 class="section-title">Le Cabinet des <span>Avocats</span></h2>
+      <div class="history-layout">
+        <div class="history-main">
+          <div class="history-block">
+            <div class="history-year">Défense des Droits</div>
+            <h3 class="history-block-title">Les défenseurs des shinobis</h3>
+            <p>Le <strong>Cabinet des Avocats de Konoha</strong> rassemble les défenseurs jurés du village. Leur rôle : assister tout shinobi ou citoyen accusé, garantir un procès équitable, et plaider devant le Tribunal lorsque la liberté ou l'honneur d'un client est en jeu.</p>
+            <p>Un avocat de Konoha étudie le casier judiciaire de son client, prépare sa défense, négocie avec le Tribunal et la Police, et rédige les contrats officiels qui scellent ses engagements.</p>
+          </div>
+          <div class="history-block">
+            <div class="history-year">Honoraires & Contrats</div>
+            <h3 class="history-block-title">Le contrat avocat-client</h3>
+            <p>Chaque dossier ouvert par un avocat fait l'objet d'un <strong>contrat officiel</strong> précisant les honoraires en Ryos. La facture est ensuite transmise au client.</p>
+            <p>Les avocats peuvent rouvrir un dossier déjà existant lorsqu'un nouveau fait apparaît concernant le même client — sans créer de doublon — et générer un avenant au contrat initial.</p>
+          </div>
+        </div>
+        <aside class="history-sidebar">
+          <div class="history-fact-card">
+            <div class="history-fact-label">Hiérarchie</div>
+            <div class="history-fact-val">Bâtonnier</div>
+            <div class="history-fact-sub">Chef du Cabinet</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Accès</div>
+            <div class="history-fact-val">Casiers judiciaires</div>
+            <div class="history-fact-sub">Pour défense efficace</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Outil</div>
+            <div class="history-fact-val">Contrats & Factures</div>
+            <div class="history-fact-sub">Honoraires en Ryos</div>
+          </div>
+          <div class="history-quote">
+            <p>"Tout shinobi a droit à une défense, quelle que soit la gravité des charges qui pèsent sur lui."</p>
+            <span>— Maxime du Barreau de Konoha</span>
           </div>
         </aside>
       </div>
@@ -1454,8 +1548,8 @@
       <h2 class="section-title">La Volonté <span>du Feu</span></h2>
       <div class="volonte-layout">
         <div class="volonte-intro">
-          <p class="volonte-lead">Le village de <strong>Kona</strong> suit une philosophie fondatrice transmise de génération en génération : la <strong style="color:var(--lgold)">Volonté du Feu</strong>.</p>
-          <p class="volonte-sub">Cette philosophie enseigne que le village est comme une famille. Chaque ninja, chaque citoyen, chaque clan en est une partie indissociable. La Police de Kona incarne cette volonté dans chacune de ses actions.</p>
+          <p class="volonte-lead">Le village de <strong>Konoha</strong> suit une philosophie fondatrice transmise de génération en génération : la <strong style="color:var(--lgold)">Volonté du Feu</strong>.</p>
+          <p class="volonte-sub">Cette philosophie enseigne que le village est comme une famille. Chaque ninja, chaque citoyen, chaque clan en est une partie indissociable. La Police de Konoha incarne cette volonté dans chacune de ses actions.</p>
         </div>
         <div class="volonte-pillars">
           <div class="volonte-pillar">
@@ -1476,7 +1570,7 @@
             <div class="pillar-num">3</div>
             <div>
               <div class="pillar-title">L'unité entre les clans</div>
-              <div class="pillar-desc">Les différences doivent créer une force commune. La diversité est la richesse de Kona.</div>
+              <div class="pillar-desc">Les différences doivent créer une force commune. La diversité est la richesse de Konoha.</div>
             </div>
           </div>
           <div class="volonte-pillar">
@@ -1503,7 +1597,7 @@
         </div>
       </div>
       <div class="volonte-quote">
-        <p>"La volonté du feu ne s'éteint jamais. Elle brûle dans le cœur de chaque shinobi de Kona, transmise de maître en élève, de parent en enfant, de génération en génération."</p>
+        <p>"La volonté du feu ne s'éteint jamais. Elle brûle dans le cœur de chaque shinobi de Konoha, transmise de maître en élève, de parent en enfant, de génération en génération."</p>
       </div>
     </div>
   </section>
@@ -1659,7 +1753,7 @@
     <div class="section-inner">
       <p class="section-tag">Fiscalité du village</p>
       <h2 class="section-title">Barème des <span>Impôts</span></h2>
-      <p style="font-size:14px;color:var(--muted);margin-bottom:1rem;line-height:1.7">Tout ninja actif de Kona est soumis à l'impôt selon son grade. Le montant est fixé par la Direction de la Police et doit être acquitté à chaque session de collecte. Le Genin est exonéré.</p>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1rem;line-height:1.7">Tout ninja actif de Konoha est soumis à l'impôt selon son grade. Le montant est fixé par la Direction de la Police et doit être acquitté à chaque session de collecte. Le Genin est exonéré.</p>
 
       <div class="impot-grid">
         <div class="impot-card" style="background:rgba(196,154,26,0.08);border-color:rgba(196,154,26,0.3)">
@@ -1728,7 +1822,7 @@
       </div>
 
       <div style="padding:1rem 1.5rem;background:rgba(26,42,74,0.06);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;font-size:13px;color:var(--muted);line-height:1.7">
-        ℹ️ Les impôts sont collectés par les agents de la Police de Kona lors des sessions officielles. Tout refus expose à des sanctions conformément au code pénal.
+        ℹ️ Les impôts sont collectés par les agents de la Police de Konoha lors des sessions officielles. Tout refus expose à des sanctions conformément au code pénal.
       </div>
     </div>
   </section>
@@ -1788,7 +1882,7 @@
         <div class="rule"><span class="rule-n">07</span><div><strong>Confidentialité</strong><p>Les enquêtes en cours sont strictement confidentielles.</p></div></div>
         <div class="rule"><span class="rule-n">08</span><div><strong>Respect des civils</strong><p>Tout citoyen arrêté a droit à être informé et traité avec dignité.</p></div></div>
         <div class="rule"><span class="rule-n">09</span><div><strong>Rapport obligatoire</strong><p>Rapport détaillé après toute mission ou incident significatif.</p></div></div>
-        <div class="rule"><span class="rule-n">10</span><div><strong>Loyauté envers Kona</strong><p>Allégeance au village et au Hokage. Toute trahison entraîne exclusion.</p></div></div>
+        <div class="rule"><span class="rule-n">10</span><div><strong>Loyauté envers Konoha</strong><p>Allégeance au village et au Hokage. Toute trahison entraîne exclusion.</p></div></div>
       </div>
     </div>
   </section>
@@ -1798,12 +1892,12 @@
     <div class="section-inner" style="text-align:center">
       <p class="section-tag">Rejoindre nos rangs</p>
       <h2 class="section-title">Candidature <span>Ouverte</span></h2>
-      <p class="recruit-desc">La Police de Kona recrute des ninjas motivés, intègres et dévoués à servir le Village des Feuilles.</p>
+      <p class="recruit-desc">La Police de Konoha recrute des ninjas motivés, intègres et dévoués à servir le Village des Feuilles.</p>
       <ul class="req-chips">
         <li>Niveau Genin minimum</li>
         <li>Casier judiciaire vierge</li>
         <li>Disponibilité régulière</li>
-        <li>Loyauté envers Kona</li>
+        <li>Loyauté envers Konoha</li>
       </ul>
       <button class="btn-primary btn-lg" onclick="showPage('postuler')">Candidater maintenant →</button>
     </div>
@@ -1813,7 +1907,7 @@
     <div class="footer-inner">
       <div class="nav-logo-img">PK</div>
       <div>
-        <div class="footer-title">Police de Kona — 木ノ葉軍警察署</div>
+        <div class="footer-title">Police de Konoha — 木ノ葉軍警察署</div>
         <div class="footer-sub">© 2026 Section Police · Projet Ninja Road</div>
       </div>
     </div>
@@ -1873,10 +1967,26 @@
   <div class="form-page">
     <div class="form-container">
       <p class="section-tag">Recrutement officiel</p>
-      <h2 class="section-title">Candidature <span>Police</span></h2>
+      <h2 class="section-title">Candidature <span>officielle</span></h2>
 
       <div class="form-msg success" id="post-ok" style="display:none">✓ Candidature envoyée ! Elle sera étudiée par les officiers ou supérieurs dans les plus brefs délais.</div>
       <div class="form-msg error" id="post-err" style="display:none"></div>
+
+      <!-- Sélecteur de section -->
+      <div style="margin-bottom:1.25rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Section visée *</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <button type="button" class="post-section-btn active" data-target="police" onclick="selectPostSection(this)" style="padding:14px 10px;background:rgba(196,154,26,0.15);color:var(--accent);border:2px solid var(--accent);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
+            <div style="font-size:24px;margin-bottom:4px">👮</div>Police
+          </button>
+          <button type="button" class="post-section-btn" data-target="juge" onclick="selectPostSection(this)" style="padding:14px 10px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
+            <div style="font-size:24px;margin-bottom:4px">⚖️</div>Tribunal
+          </button>
+          <button type="button" class="post-section-btn" data-target="avocat" onclick="selectPostSection(this)" style="padding:14px 10px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
+            <div style="font-size:24px;margin-bottom:4px">🧑‍⚖️</div>Avocats
+          </button>
+        </div>
+      </div>
 
       <div class="form-group">
         <label>Nom et Prénom *</label>
@@ -1924,7 +2034,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Pourquoi rejoindre la Police de Kona ? *</label>
+        <label>Pourquoi rejoindre la Police de Konoha ? *</label>
         <textarea id="post-motiv" rows="4" placeholder="Expliquez votre motivation..."></textarea>
       </div>
       <div class="form-group">
@@ -1948,10 +2058,25 @@
     <div class="form-container">
       <p class="section-tag">Démarche citoyenne</p>
       <h2 class="section-title">Déposer une <span>plainte</span></h2>
-      <p style="color:var(--muted);font-size:14px;margin-bottom:1.5rem;line-height:1.7">Toute plainte est étudiée par la Police de Kona. Les officiers et gradés supérieurs sont chargés de leur traitement.</p>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:1.5rem;line-height:1.7">Toute plainte est étudiée par la Police de Konoha. Les officiers et gradés supérieurs sont chargés de leur traitement.</p>
 
-      <div class="form-msg success" id="pl-ok" style="display:none">✓ Plainte enregistrée. Un officier vous contactera.</div>
+      <div class="form-msg success" id="pl-ok" style="display:none">✓ Plainte enregistrée. Un officier ou un juge vous contactera.</div>
       <div class="form-msg error" id="pl-err" style="display:none"></div>
+
+      <!-- Sélecteur cible -->
+      <div style="margin-bottom:1.25rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Contre qui portez-vous plainte ? *</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button type="button" class="pl-target-btn active" data-target="citoyen" onclick="selectPlainteTarget(this)" style="padding:14px;background:rgba(196,154,26,0.15);color:var(--accent);border:2px solid var(--accent);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
+            <div style="font-size:24px;margin-bottom:4px">🍃</div>Un citoyen
+            <div style="font-size:10px;font-weight:400;color:var(--muted);margin-top:2px;text-transform:none;letter-spacing:0">Traitée par la Police</div>
+          </button>
+          <button type="button" class="pl-target-btn" data-target="agent" onclick="selectPlainteTarget(this)" style="padding:14px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
+            <div style="font-size:24px;margin-bottom:4px">⚖️</div>Un agent de Police
+            <div style="font-size:10px;font-weight:400;color:var(--muted);margin-top:2px;text-transform:none;letter-spacing:0">Traitée par le Tribunal</div>
+          </button>
+        </div>
+      </div>
 
       <div class="form-group"><label>Votre nom et prénom *</label><input type="text" id="pl-pseudo" placeholder="Ex: Sasuke Uchiha"/></div>
       <div class="form-group"><label>Nom et prénom du mis en cause *</label><input type="text" id="pl-suspect" placeholder="Ex: Orochimaru Senju"/></div>
@@ -1978,13 +2103,92 @@
   </div>
 </div>
 
+<!-- ==================== ESPACE CIVIL ==================== -->
+<div id="page-civil" class="page">
+  <div class="subpage-nav">
+    <div class="nav-logo-img" style="width:36px;height:36px;font-size:14px">PK</div>
+    <span class="subpage-nav-title">🍃 Espace Civil</span>
+    <button class="btn-outline" onclick="showPage('home')">← Retour</button>
+  </div>
+  <div class="form-page">
+    <div class="form-container">
+      <p class="section-tag">Citoyens de Konoha</p>
+      <h2 class="section-title">Mon Espace <span>Civil</span></h2>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:1.5rem;line-height:1.7">Créez votre compte civil ou connectez-vous pour consulter votre statut d'impôts auprès de la Police de Konoha.</p>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:1.5rem;border-bottom:1px solid var(--border)">
+        <button id="civ-tab-login" onclick="switchCivilTab('login')" style="background:rgba(196,154,26,0.15);color:var(--accent);border:none;border-bottom:2px solid var(--accent);padding:10px 20px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">
+          🔑 Connexion
+        </button>
+        <button id="civ-tab-register" onclick="switchCivilTab('register')" style="background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;padding:10px 20px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">
+          ➕ Créer compte
+        </button>
+      </div>
+
+      <!-- Section LOGIN -->
+      <div id="civ-section-login">
+        <div class="form-msg error" id="civ-login-err" style="display:none"></div>
+        <div class="form-group"><label>Nom et Prénom</label><input type="text" id="civ-login-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
+        <div class="form-group"><label>Mot de passe</label><input type="password" id="civ-login-password"/></div>
+        <button class="btn-primary btn-full" onclick="loginCivil()">Se connecter</button>
+      </div>
+
+      <!-- Section REGISTER -->
+      <div id="civ-section-register" style="display:none">
+        <div class="form-msg success" id="civ-reg-ok" style="display:none">✓ Compte créé ! Connectez-vous maintenant.</div>
+        <div class="form-msg error" id="civ-reg-err" style="display:none"></div>
+        <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="civ-reg-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
+        <div class="form-group">
+          <label>Grade Ninja *</label>
+          <select id="civ-reg-grade">
+            <option value="">-- Sélectionner --</option>
+            <option>Genin</option><option>Genin Confirmé</option>
+            <option>Tokubetsu Chunin</option><option>Chunin</option>
+            <option>Kakunin</option><option>Tokubetsu Jonin</option>
+            <option>Jonin</option><option>Commandant Jonin</option>
+            <option>Citoyen</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Mot de passe *</label><input type="password" id="civ-reg-password" placeholder="Min. 6 caractères"/></div>
+        <button class="btn-primary btn-full" onclick="registerCivil()">Créer mon compte</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ESPACE CIVIL DASHBOARD ==================== -->
+<div id="page-civil-dash" class="page">
+  <div class="dash-topbar">
+    <div class="dash-topbar-left">
+      <div class="nav-logo-img" style="width:36px;height:36px;font-size:14px;cursor:pointer" onclick="showPage('home')">PK</div>
+      <div>
+        <div class="dash-topbar-title">Espace Civil — Konoha</div>
+        <div class="dash-topbar-sub">Mon compte citoyen</div>
+      </div>
+    </div>
+    <div class="dash-topbar-right">
+      <div class="avatar" id="civ-dash-avatar">—</div>
+      <div>
+        <div id="civ-dash-name" style="font-size:13px;color:var(--text);font-weight:700"></div>
+        <div id="civ-dash-grade" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px"></div>
+      </div>
+      <button class="btn-outline" onclick="showPage('home')">Site public</button>
+      <button class="btn-danger" onclick="logoutCivil()">Déconnexion</button>
+    </div>
+  </div>
+  <div style="padding:2rem;max-width:900px;margin:0 auto">
+    <div id="civ-dash-content"></div>
+  </div>
+</div>
+
 <!-- ==================== DASHBOARD ==================== -->
 <div id="page-dashboard" class="page">
   <div class="dash-topbar">
     <div class="dash-topbar-left">
       <div class="nav-logo-img" style="width:36px;height:36px;font-size:14px;cursor:pointer" onclick="showPage('home')">PK</div>
       <div>
-        <div class="dash-topbar-title">Espace Agent — Police de Kona</div>
+        <div class="dash-topbar-title">Espace Agent — Police de Konoha</div>
         <div class="dash-topbar-sub">Tableau de bord interne</div>
       </div>
     </div>
@@ -2014,6 +2218,7 @@
         <button class="dash-nav-btn" data-tab="portes" data-services="police" onclick="switchDashTab('portes', this)">🏯 Portes du village</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
         <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
         <button class="dash-nav-btn" data-tab="ajout" data-services="police" onclick="switchDashTab('ajout', this)">➕ Ajouter agent</button>
         <button class="dash-nav-btn" data-tab="logs" data-services="police" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
       </nav>
@@ -2087,6 +2292,11 @@
       <div class="dash-tab" id="dash-discussions">
         <h2 class="dash-section-title">💬 Discussions inter-sections</h2>
         <div id="discussions-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-dossiers">
+        <h2 class="dash-section-title">📁 Dossiers clients (Avocat)</h2>
+        <div id="dossiers-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-logs">
@@ -2269,9 +2479,9 @@ let state = {
   selectedSection: 'police',
   users: [
     // Comptes propriétaires pré-créés (Police, Juge, Avocat)
-    { fullname: 'Owner Kona', password: 'kona2026', grade: 'Directeur', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'police' },
-    { fullname: 'Owner Kona', password: 'kona2026', grade: 'Premier Président', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'juge' },
-    { fullname: 'Owner Kona', password: 'kona2026', grade: 'Bâtonnier', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'avocat' }
+    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Directeur', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'police' },
+    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Premier Président', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'juge' },
+    { fullname: 'Owner Konoha', password: 'kona2026', grade: 'Bâtonnier', genre: 'autre', section: 'aucune', isAgent: true, casier: 'non', service: 'avocat' }
   ],
   candidatures: [],
   plaintes: [],
@@ -2286,7 +2496,9 @@ let state = {
   collectesEnCours: {},
   cellules: [],
   // Discussions inter-sections (Police HC ↔ Juge HC ↔ Avocat HC)
-  discussions: []
+  discussions: [],
+  // Dossiers / contrats avocats
+  dossiersAvocat: []
 };
 
 // Grades hauts de la Justice et du Barreau (les 3 plus hauts)
@@ -2333,7 +2545,7 @@ const INFRACTIONS = {
     { label: 'Kidnapping / Torture', x1: 7000, x2: 8000, x3: 9000 },
     { label: 'Acte terroriste', x1: 7000, x2: 8000, x3: 9000 },
     { label: 'Évasion des cellules', x1: 5000, x2: 6000, x3: 7000 },
-    { label: 'Trahison envers Kona', x1: 7500, x2: 8500, x3: 9500 }
+    { label: 'Trahison envers Konoha', x1: 7500, x2: 8500, x3: 9500 }
   ]
 };
 
@@ -2377,6 +2589,38 @@ function selectSection(btn) {
   state.selectedSection = btn.dataset.section;
 }
 
+// Sélection de la section visée pour postuler
+let selectedPostSection = 'police';
+function selectPostSection(btn) {
+  document.querySelectorAll('.post-section-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--muted)';
+    b.style.borderColor = 'var(--border)';
+  });
+  btn.classList.add('active');
+  btn.style.background = 'rgba(196,154,26,0.15)';
+  btn.style.color = 'var(--accent)';
+  btn.style.borderColor = 'var(--accent)';
+  selectedPostSection = btn.dataset.target;
+}
+
+// Sélection de la cible de la plainte
+let selectedPlainteTarget = 'citoyen';
+function selectPlainteTarget(btn) {
+  document.querySelectorAll('.pl-target-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--muted)';
+    b.style.borderColor = 'var(--border)';
+  });
+  btn.classList.add('active');
+  btn.style.background = 'rgba(196,154,26,0.15)';
+  btn.style.color = 'var(--accent)';
+  btn.style.borderColor = 'var(--accent)';
+  selectedPlainteTarget = btn.dataset.target;
+}
+
 // ============================================================
 // NAVIGATION
 // ============================================================
@@ -2387,11 +2631,16 @@ function showPage(id) {
   window.scrollTo(0, 0);
 
   const mainNav = document.getElementById('main-nav');
-  if (mainNav) mainNav.style.display = (id === 'dashboard' || id === 'login') ? 'none' : 'flex';
+  if (mainNav) mainNav.style.display = (id === 'dashboard' || id === 'login' || id === 'civil-dash') ? 'none' : 'flex';
 
   if (id === 'dashboard') {
     if (!state.currentUser) { showPage('login'); return; }
     renderDashboard('overview');
+  }
+
+  if (id === 'civil-dash') {
+    if (!civilUser) { showPage('civil'); return; }
+    renderCivilDash();
   }
 
   if (id === 'home') {
@@ -2431,8 +2680,12 @@ function updateNav() {
 
 function updateStats() {
   const agentsEl = document.getElementById('stat-agents');
+  const jugesEl = document.getElementById('stat-juges');
+  const avocatsEl = document.getElementById('stat-avocats');
   const candidEl = document.getElementById('stat-candid');
-  if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent).length;
+  if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent && (u.service||'police') === 'police').length;
+  if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge').length;
+  if (avocatsEl) avocatsEl.textContent = state.users.filter(u => u.isAgent && u.service === 'avocat').length;
   if (candidEl) candidEl.textContent = state.candidatures.filter(c => c.status === 'ok').length;
 }
 
@@ -2498,6 +2751,7 @@ function saveSession() {
       collectesEnCours: state.collectesEnCours,
       cellules: state.cellules,
       discussions: state.discussions,
+      dossiersAvocat: state.dossiersAvocat || [],
       presences: state.presences || []
     };
     localStorage.setItem('konaSession', JSON.stringify(data));
@@ -2522,6 +2776,7 @@ function restoreSession() {
     if (data.collectesEnCours) state.collectesEnCours = data.collectesEnCours;
     if (data.cellules) state.cellules = data.cellules;
     if (data.discussions) state.discussions = data.discussions;
+    if (data.dossiersAvocat) state.dossiersAvocat = data.dossiersAvocat;
     if (data.presences) state.presences = data.presences;
 
     if (data.currentUser) {
@@ -2589,7 +2844,7 @@ function submitCandidature() {
     return;
   }
 
-  state.candidatures.push(data);
+  state.candidatures.push({...data, target: selectedPostSection});
   okEl.style.display = 'block';
   ['post-fullname','post-genre','post-niveau','post-section','post-casier','post-motiv','post-password'].forEach(id => {
     const el = document.getElementById(id);
@@ -2619,7 +2874,7 @@ function showCasierRefusModal(fullname, fiche) {
 
       <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:0.75rem;line-height:1.3;font-family:'Cinzel',serif">
         Vous ne pouvez pas rejoindre<br>
-        <span style="color:#fca5a5">la Police de Kona</span>
+        <span style="color:#fca5a5">la Police de Konoha</span>
       </div>
 
       <div style="font-size:14px;color:#94a3b8;margin-bottom:1.25rem">
@@ -2630,7 +2885,7 @@ function showCasierRefusModal(fullname, fiche) {
       <div style="background:rgba(192,57,43,0.12);border:1px solid rgba(192,57,43,0.4);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;text-align:left">
         <div style="font-size:12px;font-weight:700;color:#e74c3c;margin-bottom:8px">⚠ Casier judiciaire actif</div>
         <div style="font-size:13px;color:#f5a5a5;line-height:1.6">
-          Toute personne fichée au casier judiciaire ne peut rejoindre <strong>les sections officielles de Kona</strong> ni <strong>les services de l'Hôpital</strong>.
+          Toute personne fichée au casier judiciaire ne peut rejoindre <strong>les sections officielles de Konoha</strong> ni <strong>les services de l'Hôpital</strong>.
         </div>
       </div>
 
@@ -2676,6 +2931,7 @@ function submitPlainte() {
   state.plaintes.push({
     pseudo, suspect, type, desc, date: date || 'Non précisée',
     status: 'wait',
+    target: selectedPlainteTarget, // 'citoyen' ou 'agent'
     submittedAt: new Date().toLocaleDateString('fr-FR'),
     id: Date.now()
   });
@@ -2739,6 +2995,7 @@ function switchDashTab(name, btn) {
   if (name === 'portes') renderPortes();
   if (name === 'presences') renderPresences();
   if (name === 'discussions') renderDiscussions();
+  if (name === 'dossiers') renderDossiersAvocat();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
 }
@@ -2764,20 +3021,26 @@ function renderOverview() {
 function renderCandidatures() {
   const u = state.currentUser;
   const el = document.getElementById('candid-content');
+  const myService = u.service || 'police';
 
-  if (!canTreatCandid(u.grade)) {
+  // Police nécessite Officier+ ; Juge et Avocat : tous les grades de leur section
+  if (myService === 'police' && !canTreatCandid(u.grade)) {
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Le traitement des candidatures est réservé aux Officiers et grades supérieurs.</p></div>';
     return;
   }
 
-  if (state.candidatures.length === 0) {
-    el.innerHTML = '<div class="dash-block" style="padding:2rem;text-align:center"><p style="color:var(--muted)">Aucune candidature reçue pour le moment.</p></div>';
+  // Filtrer par section visée
+  const candidsForMe = state.candidatures.filter(c => (c.target||'police') === myService);
+
+  if (candidsForMe.length === 0) {
+    el.innerHTML = '<div class="dash-block" style="padding:2rem;text-align:center"><p style="color:var(--muted)">Aucune candidature pour votre section.</p></div>';
     return;
   }
 
   let html = '<div class="dash-block">';
-  state.candidatures.slice().reverse().forEach((c, idx) => {
-    const realIdx = state.candidatures.length - 1 - idx;
+  // Trier par ordre alphabétique des noms
+  candidsForMe.slice().sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname))).forEach((c) => {
+    const realIdx = state.candidatures.indexOf(c);
     const sc = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
     const sl = c.status === 'wait' ? 'En attente' : c.status === 'ok' ? 'Acceptée' : 'Refusée';
     const sectionLabels = { aucune:'Indépendant', diplomate:'Diplomate', strategie:'Stratégie', medecin:'Médecin' };
@@ -2833,20 +3096,25 @@ function toggleDetail(id) {
 function treatCandid(idx, decision) {
   const c = state.candidatures[idx];
   if (!c) return;
+  const target = c.target || 'police';
+  const gradeInitial = target === 'police' ? 'Recrue' : target === 'juge' ? 'Juge Stagiaire' : 'Avocat Stagiaire';
+  const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
 
   if (decision === 'ok') {
-    if (!confirm('Accepter ' + c.fullname + ' ? Un compte agent sera créé au grade Recrue.')) return;
+    if (!confirm('Accepter ' + c.fullname + ' au ' + labels[target] + ' ? Un compte sera créé au grade ' + gradeInitial + '.')) return;
     state.users.push({
       fullname: c.fullname, password: c.password,
-      grade: 'Recrue', genre: c.genre, section: c.section,
-      isAgent: true, casier: c.casier, ninjaRank: c.niveau, service: 'police',
+      grade: gradeInitial, genre: c.genre, section: c.section,
+      isAgent: true, casier: c.casier, ninjaRank: c.niveau, service: target,
       hireDate: new Date().toLocaleDateString('fr-FR')
     });
     c.status = 'ok';
-    alert('✓ Candidature acceptée ! ' + c.fullname + ' est maintenant Recrue.');
+    saveSession();
+    alert('✓ Candidature acceptée ! ' + c.fullname + ' rejoint ' + labels[target] + ' au grade ' + gradeInitial + '.');
   } else {
     if (!confirm('Refuser cette candidature ?')) return;
     c.status = 'no';
+    saveSession();
     alert('Candidature refusée.');
   }
   renderCandidatures();
@@ -2856,7 +3124,7 @@ function treatCandid(idx, decision) {
 function renderMembres() {
   const u = state.currentUser;
   const el = document.getElementById('membres-content');
-  const agents = state.users.filter(x => x.isAgent && (x.service||'police') === 'police').sort((a,b) => gradeRank(a.grade) - gradeRank(b.grade));
+  const agents = state.users.filter(x => x.isAgent && (x.service||'police') === 'police');
   const canManage = canManageMembers(u.grade); // Lieutenant + Direction
 
   // Récupérer les citoyens : ceux qui ont postulé (candidatures) + comptes citoyens créés
@@ -2888,7 +3156,15 @@ function renderMembres() {
       };
     }
   });
-  const citoyens = Object.values(citoyensMap);
+  // Tri par grade décroissant (haut gradé en haut), puis alpha
+  agents.sort((a,b) => {
+    const r = gradeRank(a.grade) - gradeRank(b.grade);
+    if (r !== 0) return r;
+    return normalize(a.fullname).localeCompare(normalize(b.fullname));
+  });
+
+  // Tri citoyens en alphabétique
+  citoyens.sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname)));
 
   // Fonction de détection casier "intelligente" (mélange de pseudos)
   function checkCasierIntelligent(fullname) {
@@ -2941,6 +3217,7 @@ function renderMembres() {
             <button class="btn-sm btn-sm-green" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', -1)" title="Promouvoir">▲</button>
             <button class="btn-sm btn-sm-red" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', +1)" title="Rétrograder">▼</button>
           ` : ''}
+          ${canAddAgent(u.grade) && !isMe ? `<button class="btn-sm btn-sm-red" onclick="supprimerCompte('${a.fullname.replace(/'/g,"\\'")}', 'police')" title="Supprimer le compte" style="background:rgba(192,57,43,0.3)">🗑</button>` : ''}
         </div>`;
     });
   }
@@ -3058,8 +3335,57 @@ function renderAmendes() {
     <div class="dash-block" style="padding:1.5rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">Amendes émises (${state.amendes.length})</h3>
       <div id="amendes-list"></div>
+    </div>
+
+    <div class="dash-block" style="padding:1.5rem;margin-top:1rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:0.75rem">📊 Historique par agent collecteur</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Cliquez sur "Récupérer" pour archiver les amendes d'un agent et remettre son compteur à zéro.</p>
+      <div id="amendes-par-agent"></div>
     </div>`;
   refreshAmendesList();
+  refreshAmendesParAgent();
+}
+
+function refreshAmendesParAgent() {
+  const u = state.currentUser;
+  const el = document.getElementById('amendes-par-agent');
+  if (!el) return;
+  const par = getAmendesParAgent();
+  const isDir = canAddAgent(u.grade);
+
+  if (Object.keys(par).length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">Aucune amende active.</p>';
+    return;
+  }
+
+  el.innerHTML = Object.entries(par).sort((a,b) => normalize(a[0]).localeCompare(normalize(b[0]))).map(([agent, data]) => {
+    const init = getInitialsFromFullname(agent);
+    const safeId = agent.replace(/[^a-zA-Z0-9]/g, '_');
+    return `
+      <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+        <div onclick="toggleDetail('amag-${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer">
+          <div class="avatar">${init}</div>
+          <div style="flex:1">
+            <div style="font-weight:700;color:var(--text);font-size:13px">${agent}</div>
+            <div style="font-size:11px;color:var(--muted)">${data.entries.length} amende(s) en attente</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${data.total.toLocaleString()}</div>
+            <div style="font-size:10px;color:var(--muted)">Ryos collectés</div>
+          </div>
+          <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
+        </div>
+        <div id="amag-${safeId}" style="display:none;background:rgba(0,0,0,0.25);padding:10px 14px">
+          ${data.entries.map(a => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+              <span>${a.fullname} · ${a.infraction.length>40?a.infraction.substring(0,40)+'...':a.infraction}</span>
+              <strong style="color:var(--lgold)">${a.montant.toLocaleString()} Ryos</strong>
+            </div>
+          `).join('')}
+          ${isDir ? `<button class="btn-primary" style="margin-top:10px;width:100%" onclick="recupererAmendesAgent('${agent.replace(/'/g,"\\'")}')">💰 Récupérer ${data.total.toLocaleString()} Ryos & Reset</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function updateAmendeMontant() {
@@ -3249,7 +3575,12 @@ function renderImpots() {
       const collecteur = i.collecteur || '';
       html += `<tr>
         <td><strong>${i.fullname}</strong></td>
-        <td>${i.grade}${isExo?' <span style="font-size:10px;color:var(--muted)">(exonéré)</span>':''}</td>
+        <td>
+          <select onchange="changerGradeImpot(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer">
+            ${Object.keys(IMPOTS_MONTANTS).map(g => '<option ' + (i.grade===g?'selected':'') + '>'+g+'</option>').join('')}
+          </select>
+          ${isExo?'<span style="font-size:10px;color:var(--muted);margin-left:4px">(exonéré)</span>':''}
+        </td>
         <td class="amount">${isExo?'—':m.toLocaleString()+' Ryos'}</td>
         <td>
           ${isExo ? '<span style="font-size:11px;color:var(--muted)">Exonéré</span>' : `
@@ -3346,7 +3677,7 @@ function genererPDFImpots() {
   const totalCollecte = payes.reduce((s, i) => s + (IMPOTS_MONTANTS[i.grade]||0), 0);
   const today = new Date().toLocaleDateString('fr-FR');
 
-  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><title>Rapport Impôts — Police de Kona</title>
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><title>Rapport Impôts — Police de Konoha</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Georgia,serif;background:#f5f0e8;color:#1a1a1a;padding:20px}
@@ -3403,7 +3734,7 @@ function genererPDFImpots() {
   <tr style="background:#0a0a0a;color:#fff"><td colspan="2"><strong>TOTAL RESTANT À ENCAISSER</strong></td><td class="amount" style="color:#c49a1a">${totalDu.toLocaleString()} Ryos</td></tr>
   </tbody></table>
 
-  <div class="footer">Document confidentiel · Police de Kona · À transmettre à la Direction et aux Hauts Gradés</div>
+  <div class="footer">Document confidentiel · Police de Konoha · À transmettre à la Direction et aux Hauts Gradés</div>
 </div>
 </body></html>`;
 
@@ -3820,29 +4151,46 @@ function switchPalier(num, btn) {
 function renderPlaintes() {
   const u = state.currentUser;
   const el = document.getElementById('plaintes-content');
+  const myService = u.service || 'police';
 
-  if (!canTreatPlaintes(u.grade)) {
+  // Police voit les plaintes contre citoyens, Juge voit les plaintes contre agents
+  let plaintesForMe;
+  if (myService === 'police') {
+    plaintesForMe = state.plaintes.filter(p => (p.target||'citoyen') === 'citoyen');
+  } else if (myService === 'juge') {
+    plaintesForMe = state.plaintes.filter(p => p.target === 'agent');
+  } else {
+    plaintesForMe = [];
+  }
+
+  if (myService === 'police' && !canTreatPlaintes(u.grade)) {
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Le traitement des plaintes est réservé aux Officiers et grades supérieurs.</p></div>';
     return;
   }
 
-  if (state.plaintes.length === 0) {
-    el.innerHTML = '<div class="dash-block" style="padding:2rem;text-align:center"><p style="color:var(--muted)">Aucune plainte reçue.</p></div>';
+  if (plaintesForMe.length === 0) {
+    const msg = myService === 'juge' ? 'Aucune plainte contre un agent en cours.' : 'Aucune plainte reçue.';
+    el.innerHTML = '<div class="dash-block" style="padding:2rem;text-align:center"><p style="color:var(--muted)">'+msg+'</p></div>';
     return;
   }
 
-  let html = '<div class="dash-block">';
-  state.plaintes.slice().reverse().forEach((p, i) => {
-    const idx = state.plaintes.length - 1 - i;
+  let html = '';
+  if (myService === 'juge') {
+    html += '<div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:var(--text)">⚖️ <strong style="color:var(--red2)">Plaintes contre agents</strong> — Compétence exclusive du Tribunal. La Police ne voit pas ces dossiers.</div>';
+  }
+  html += '<div class="dash-block">';
+  plaintesForMe.slice().sort((a,b) => normalize(a.pseudo).localeCompare(normalize(b.pseudo))).forEach((p) => {
+    const idx = state.plaintes.indexOf(p);
     const sc = p.status === 'wait' ? 's-wait' : p.status === 'ok' ? 's-ok' : 's-no';
     const sl = p.status === 'wait' ? 'En attente' : p.status === 'ok' ? 'Traitée' : 'Rejetée';
+    const targetBadge = p.target === 'agent' ? '<span style="font-size:10px;background:rgba(231,76,60,0.2);color:var(--red2);border:1px solid rgba(231,76,60,0.4);padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:700">⚠ vs Agent</span>' : '';
     html += `
       <div class="detail-card">
         <div class="detail-card-header" onclick="toggleDetail('pl-body-${idx}')">
           <div style="display:flex;align-items:center;gap:12px;flex:1">
             <span class="detail-id">#${idx+1}</span>
             <div>
-              <div class="detail-title">${p.pseudo} <span style="color:var(--muted);font-weight:400">→</span> ${p.suspect}</div>
+              <div class="detail-title">${p.pseudo} <span style="color:var(--muted);font-weight:400">→</span> ${p.suspect}${targetBadge}</div>
               <div class="detail-meta">
                 <span class="grade-pill gp-c">${p.type}</span>
                 <span>${p.submittedAt}</span>
@@ -4938,7 +5286,7 @@ function renderPresences() {
   // État du service de l'utilisateur connecté
   const monService = state.serviceActif[u.fullname];
   const enService = monService && !monService.fin;
-  const tauxHoraire = TARIF_HORAIRE[u.grade] || 50;
+  const tauxHoraire = getTarif(u.grade);
 
   // Calcul des stats personnelles depuis l'historique
   const mesPresences = (state.presences || []).filter(p => p.fullname === u.fullname && p.statut !== 'paye');
@@ -5073,7 +5421,7 @@ function renderPresences() {
         const elapsed = Math.floor((Date.now() - debutDate.getTime()) / 60000);
         const h = Math.floor(elapsed / 60);
         const m = elapsed % 60;
-        const taux = TARIF_HORAIRE[user.grade] || 50;
+        const taux = getTarif(user.grade);
         const salaireEnCours = Math.round((elapsed / 60) * taux);
 
         html += `
@@ -5107,7 +5455,10 @@ function renderPresences() {
       <div class="dash-block">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
           <div style="font-size:12px;font-weight:700;color:var(--lgold);text-transform:uppercase;letter-spacing:1px">📋 Fiches de paye — Direction</div>
-          <button class="btn-danger" onclick="resetToutesPresences()" style="padding:7px 14px">🔄 Tout remettre à zéro</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn-outline" onclick="ouvrirEditionSalaires()" style="padding:7px 14px">💰 Éditer salaires</button>
+            <button class="btn-danger" onclick="resetToutesPresences()" style="padding:7px 14px">🔄 Tout remettre à zéro</button>
+          </div>
         </div>`;
 
     if (Object.keys(ficheParAgent).length === 0) {
@@ -5219,7 +5570,7 @@ function enregistrerService(fullname, service, fin) {
   const debut = new Date(service.debut);
   const dureeMs = fin.getTime() - debut.getTime();
   const dureeMin = Math.max(1, Math.round(dureeMs / 60000));
-  const taux = TARIF_HORAIRE[service.grade] || 50;
+  const taux = getTarif(service.grade);
   const salaire = Math.round((dureeMin / 60) * taux);
 
   state.presences = state.presences || [];
@@ -5321,7 +5672,7 @@ function updateChronoService() {
   // Salaire en cours
   const salEl = document.getElementById('salaire-en-cours');
   if (salEl) {
-    const taux = TARIF_HORAIRE[service.grade] || 50;
+    const taux = getTarif(service.grade);
     const sal = Math.round((elapsed / 3600000) * taux);
     salEl.textContent = sal.toLocaleString() + ' Ryos';
   }
@@ -5367,13 +5718,580 @@ setInterval(() => {
 // Tick chrono toutes les secondes
 setInterval(updateChronoService, 1000);
 
+// ============================================================
+// SUPPRESSION DE COMPTE (Direction uniquement)
+// ============================================================
+function supprimerCompte(fullname, service) {
+  const u = state.currentUser;
+  if (!canAddAgent(u.grade)) { alert('Réservé à la Direction'); return; }
+  if (!confirm('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son historique reste mais il sera marqué comme supprimé\n\nConfirmer la suppression ?')) return;
+  state.users = state.users.filter(x => !(x.fullname === fullname && (x.service||'police') === (service||'police')));
+  saveSession();
+  alert('✓ Compte de ' + fullname + ' supprimé.');
+  renderMembres();
+  updateStats();
+}
+
+// ============================================================
+// AMENDES — Historique par agent + récupération
+// ============================================================
+function getAmendesParAgent() {
+  const par = {};
+  state.amendes.forEach(a => {
+    if (a.recupere) return; // ne pas compter les amendes déjà récupérées
+    if (!par[a.agent]) par[a.agent] = { entries: [], total: 0 };
+    par[a.agent].entries.push(a);
+    par[a.agent].total += a.montant;
+  });
+  return par;
+}
+
+function recupererAmendesAgent(agentName) {
+  const par = getAmendesParAgent();
+  const data = par[agentName];
+  if (!data || data.total === 0) { alert('Rien à récupérer'); return; }
+  if (!confirm('Récupérer ' + data.total.toLocaleString() + ' Ryos des amendes de ' + agentName + ' ?\n\nCes amendes seront archivées dans l\'historique global.')) return;
+  state.amendes.forEach(a => {
+    if (a.agent === agentName && !a.recupere) {
+      a.recupere = true;
+      a.recupereLe = new Date().toLocaleDateString('fr-FR');
+      a.recupereParDirection = state.currentUser.fullname;
+    }
+  });
+  saveSession();
+  alert('✓ ' + data.total.toLocaleString() + ' Ryos récupérés sur ' + agentName);
+  renderAmendes();
+}
+
+// ============================================================
+// IMPÔTS — Changement grade auto-recalcul
+// ============================================================
+function changerGradeImpot(idx, nouveauGrade) {
+  const i = state.impots[idx];
+  if (!i) return;
+  i.grade = nouveauGrade;
+  // Reset le statut si on change de grade (pour éviter incohérences)
+  if (i.statut === 'paye') {
+    if (!confirm('Changer le grade vers ' + nouveauGrade + ' ?\nLe statut "Payé" sera réinitialisé en "Non payé" et le collecteur effacé.')) {
+      return; // annulation
+    }
+    i.statut = 'non';
+    i.collecteur = '';
+  }
+  saveSession();
+  renderImpots();
+}
+
+// ============================================================
+// SALAIRES — Édition par la Direction
+// ============================================================
+// state.tarifsHoraires : surchage de TARIF_HORAIRE
+state.tarifsHoraires = state.tarifsHoraires || {};
+
+function getTarif(grade) {
+  if (state.tarifsHoraires[grade] !== undefined) return state.tarifsHoraires[grade];
+  return TARIF_HORAIRE[grade] || 50;
+}
+
+function ouvrirEditionSalaires() {
+  const u = state.currentUser;
+  if (!canAddAgent(u.grade)) { alert('Réservé à la Direction'); return; }
+
+  const existing = document.getElementById('sal-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'sal-modal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
+
+  const grades = Object.keys(TARIF_HORAIRE);
+  overlay.innerHTML = `
+    <div style="background:#0a0a0a;border:2px solid var(--accent);border-radius:14px;padding:1.75rem 2rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+      <h2 style="color:var(--accent);font-family:'Cinzel',serif;font-size:18px;margin-bottom:1rem">💰 Éditer les salaires (Ryos / heure)</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Modifiez les tarifs horaires par grade. Les nouvelles valeurs s'appliqueront aux prochains services.</p>
+      ${grades.map(g => `
+        <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:center;margin-bottom:8px;padding:8px 10px;background:var(--mid);border-radius:6px">
+          <label style="font-size:13px;color:var(--text)">${g}</label>
+          <input type="number" id="sal-${g.replace(/\s/g,'_')}" value="${getTarif(g)}" min="0" style="background:#0a0a0a;border:1px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--accent);font-family:monospace;font-weight:700;font-size:14px;text-align:right"/>
+        </div>
+      `).join('')}
+      <div style="display:flex;gap:10px;margin-top:1rem">
+        <button onclick="document.getElementById('sal-modal').remove()" class="btn-outline" style="flex:1">Annuler</button>
+        <button onclick="enregistrerSalaires()" class="btn-primary" style="flex:2">💾 Enregistrer</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function enregistrerSalaires() {
+  Object.keys(TARIF_HORAIRE).forEach(g => {
+    const inp = document.getElementById('sal-' + g.replace(/\s/g,'_'));
+    if (inp) {
+      const v = parseInt(inp.value);
+      if (!isNaN(v) && v >= 0) state.tarifsHoraires[g] = v;
+    }
+  });
+  saveSession();
+  document.getElementById('sal-modal').remove();
+  alert('✓ Salaires mis à jour');
+  renderPresences();
+}
+
+// ============================================================
+// ESPACE CIVIL (citoyens)
+// ============================================================
+// Helper : trouver l'inscription correspondante (insensible casse/ordre)
+function trouverInscriptionCivil(fullname) {
+  const norm = normalize(fullname);
+  const parts = norm.split(' ').filter(x => x.length > 1);
+
+  // Chercher dans les utilisateurs civils (créés via espace civil)
+  return state.users.find(u => {
+    if (u.isAgent) return false;
+    if ((u.service||'') !== 'civil') return false;
+    const cn = normalize(u.fullname);
+    const cp = cn.split(' ').filter(x => x.length > 1);
+    if (cn === norm) return true;
+    if (parts.length >= 2 && parts.every(p => cp.includes(p))) return true;
+    if (cp.length >= 2 && cp.every(p => parts.includes(p))) return true;
+    return false;
+  });
+}
+
+// Vérifier si le citoyen a payé ses impôts (insensible casse/ordre)
+function statutImpotsCivil(fullname) {
+  const norm = normalize(fullname);
+  const parts = norm.split(' ').filter(x => x.length > 1);
+  const fiche = state.impots.find(i => {
+    const cn = normalize(i.fullname);
+    const cp = cn.split(' ').filter(x => x.length > 1);
+    if (cn === norm) return true;
+    if (parts.length >= 2 && parts.every(p => cp.includes(p))) return true;
+    if (cp.length >= 2 && cp.every(p => parts.includes(p))) return true;
+    return false;
+  });
+  return fiche;
+}
+
+// ============================================================
+// DOSSIERS AVOCAT — Contrats clients & facturation
+// ============================================================
+function renderDossiersAvocat() {
+  const u = state.currentUser;
+  const el = document.getElementById('dossiers-content');
+  state.dossiersAvocat = state.dossiersAvocat || [];
+
+  // Mes dossiers (de l'avocat connecté)
+  const mesDossiers = state.dossiersAvocat.filter(d => d.avocat === u.fullname);
+
+  // Construire la liste des infractions pour le sélecteur
+  let infOptions = '<option value="">-- Sélectionner --</option>';
+  ['palier1','palier2','palier3'].forEach(p => {
+    const label = p === 'palier1' ? 'Palier 1' : p === 'palier2' ? 'Palier 2' : 'Palier 3';
+    infOptions += `<optgroup label="${label}">`;
+    INFRACTIONS[p].forEach(i => { infOptions += `<option>${i.label}</option>`; });
+    infOptions += '</optgroup>';
+  });
+
+  let html = `
+    <!-- Création nouveau dossier -->
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.75rem">📝 Nouveau dossier client</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Ouvrez un dossier ou ajoutez un nouveau contrat à un client existant.</p>
+
+      <div class="form-group"><label>Nom et Prénom du client *</label><input type="text" id="doss-client" placeholder="Ex: Naruto Uzumaki" oninput="checkClientExistant()"/></div>
+      <div id="doss-existant-info" style="display:none;background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:6px;padding:8px 12px;margin-bottom:1rem;font-size:12px;color:var(--lgold)"></div>
+
+      <div class="form-group">
+        <label>Type d'affaire / Infraction *</label>
+        <select id="doss-affaire">${infOptions}</select>
+      </div>
+
+      <div class="form-group">
+        <label>Détails de la défense *</label>
+        <textarea id="doss-details" rows="3" placeholder="Stratégie de défense, faits importants, témoins..."></textarea>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group"><label>Honoraires (Ryos) *</label><input type="number" id="doss-honoraires" placeholder="Ex: 5000" min="0"/></div>
+        <div class="form-group">
+          <label>Statut paiement</label>
+          <select id="doss-statut">
+            <option value="en_attente">⏳ En attente</option>
+            <option value="paye">✓ Payé</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-primary btn-full" onclick="creerDossier()" style="background:linear-gradient(135deg,#fbbf24,#d97706);color:#1a1400">
+        📝 Ouvrir le dossier & émettre la facture
+      </button>
+    </div>
+
+    <!-- Liste des dossiers -->
+    <div class="dash-block">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:1px">
+        📂 Mes dossiers (${mesDossiers.length})
+      </div>`;
+
+  if (mesDossiers.length === 0) {
+    html += '<div style="padding:2rem;text-align:center;color:var(--muted)">Aucun dossier client.</div>';
+  } else {
+    // Grouper par client
+    const parClient = {};
+    mesDossiers.forEach(d => {
+      const key = normalize(d.client);
+      if (!parClient[key]) parClient[key] = { client: d.client, contrats: [], total: 0 };
+      parClient[key].contrats.push(d);
+      parClient[key].total += d.honoraires || 0;
+    });
+
+    Object.entries(parClient).sort((a,b) => normalize(a[1].client).localeCompare(normalize(b[1].client))).forEach(([key, data]) => {
+      const safeId = key.replace(/[^a-zA-Z0-9]/g, '_');
+      const init = getInitialsFromFullname(data.client);
+      html += `
+        <div style="border-bottom:1px solid var(--border)">
+          <div onclick="toggleDetail('doss-${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer">
+            <div style="width:42px;height:42px;border-radius:50%;background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fbbf24;font-weight:700">${init}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:var(--text);font-size:14px">${data.client}</div>
+              <div style="font-size:11px;color:var(--muted)">${data.contrats.length} contrat(s) · Total facturé : <strong style="color:#fbbf24">${data.total.toLocaleString()} Ryos</strong></div>
+            </div>
+            <span style="color:var(--muted);font-size:11px">▼</span>
+          </div>
+          <div id="doss-${safeId}" style="display:none;background:rgba(0,0,0,0.2);border-top:1px solid var(--border);padding:1rem 1.25rem">
+            ${data.contrats.map((c, i) => {
+              const realIdx = state.dossiersAvocat.indexOf(c);
+              return `
+                <div style="background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text)">${c.affaire}</div>
+                      <div style="font-size:11px;color:var(--muted)">Ouvert le ${c.date}</div>
+                    </div>
+                    <div style="text-align:right">
+                      <div style="font-size:14px;font-weight:800;color:#fbbf24;font-family:'Cinzel',serif">${(c.honoraires||0).toLocaleString()} Ryos</div>
+                      <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;${c.statut==='paye'?'background:rgba(39,174,96,0.15);color:var(--green);border:1px solid rgba(39,174,96,0.3)':'background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.3)'}">${c.statut==='paye'?'✓ Payé':'⏳ En attente'}</span>
+                    </div>
+                  </div>
+                  <div style="font-size:12px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:5px;margin-top:6px">${c.details}</div>
+                  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                    <button class="btn-sm" style="background:rgba(217,119,6,0.15);color:#fbbf24;border:1px solid rgba(217,119,6,0.3)" onclick="genererFacture(${realIdx})">📄 Générer la facture</button>
+                    ${c.statut !== 'paye' ? `<button class="btn-sm btn-sm-green" onclick="marquerDossierPaye(${realIdx})">✓ Marquer payé</button>` : ''}
+                    <button class="btn-sm btn-sm-red" onclick="supprimerDossier(${realIdx})">🗑 Supprimer</button>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+    });
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function checkClientExistant() {
+  const nom = document.getElementById('doss-client').value.trim();
+  const info = document.getElementById('doss-existant-info');
+  if (!nom || nom.length < 3) { info.style.display = 'none'; return; }
+  const u = state.currentUser;
+  const existants = state.dossiersAvocat.filter(d =>
+    d.avocat === u.fullname && matchFullname(d.client, nom)
+  );
+  if (existants.length > 0) {
+    info.style.display = 'block';
+    info.innerHTML = `ℹ️ <strong>Client existant détecté</strong> — ${existants.length} contrat(s) déjà ouvert(s) pour ce client. Le nouveau contrat sera ajouté à son dossier (pas de doublon).`;
+  } else {
+    info.style.display = 'none';
+  }
+}
+
+function creerDossier() {
+  const u = state.currentUser;
+  const client = document.getElementById('doss-client').value.trim();
+  const affaire = document.getElementById('doss-affaire').value;
+  const details = document.getElementById('doss-details').value.trim();
+  const honoraires = parseInt(document.getElementById('doss-honoraires').value) || 0;
+  const statut = document.getElementById('doss-statut').value;
+
+  if (!client || !affaire || !details || honoraires < 0) { alert('Tous les champs sont obligatoires.'); return; }
+  if (client.split(/\s+/).length < 2) { alert('Veuillez entrer prénom ET nom du client.'); return; }
+
+  state.dossiersAvocat.push({
+    client, affaire, details, honoraires, statut,
+    avocat: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR'),
+    id: Date.now()
+  });
+  saveSession();
+
+  ['doss-client','doss-affaire','doss-details','doss-honoraires'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('doss-existant-info').style.display = 'none';
+  alert('✓ Dossier créé pour ' + client + '\nFacture : ' + honoraires.toLocaleString() + ' Ryos');
+  renderDossiersAvocat();
+}
+
+function marquerDossierPaye(idx) {
+  if (!state.dossiersAvocat[idx]) return;
+  if (!confirm('Marquer ce contrat comme payé ?')) return;
+  state.dossiersAvocat[idx].statut = 'paye';
+  state.dossiersAvocat[idx].datePaiement = new Date().toLocaleDateString('fr-FR');
+  saveSession();
+  renderDossiersAvocat();
+}
+
+function supprimerDossier(idx) {
+  if (!state.dossiersAvocat[idx]) return;
+  if (!confirm('Supprimer définitivement ce contrat ?')) return;
+  state.dossiersAvocat.splice(idx, 1);
+  saveSession();
+  renderDossiersAvocat();
+}
+
+function genererFacture(idx) {
+  const c = state.dossiersAvocat[idx];
+  if (!c) return;
+  const today = new Date().toLocaleDateString('fr-FR');
+  const facture = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><title>Facture — Cabinet des Avocats de Konoha</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,serif;background:#f5f0e8;color:#1a1a1a;padding:20px}
+  .doc{background:#fff;max-width:780px;margin:0 auto;padding:32px;border:2px solid #d97706;border-radius:10px}
+  .header{background:#1a1400;color:#fff;padding:20px 24px;border-radius:8px;margin-bottom:24px;text-align:center}
+  .header h1{color:#fbbf24;font-size:24px;margin-bottom:6px;font-family:Georgia,serif}
+  .header p{color:#94a3b8;font-size:12px}
+  .meta{display:flex;justify-content:space-between;margin-bottom:24px;padding:14px 18px;background:#f5f0e8;border-radius:6px}
+  .meta strong{color:#1a1400}
+  h2{font-size:14px;margin:18px 0 8px;padding-bottom:6px;border-bottom:1.5px solid #d97706;color:#7c2d12}
+  .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid #e0e0e0;font-size:14px}
+  .row:last-child{border-bottom:none}
+  .total{background:#1a1400;color:#fbbf24;padding:14px 18px;margin-top:18px;border-radius:6px;font-size:18px;font-weight:700;display:flex;justify-content:space-between}
+  .footer{margin-top:24px;padding-top:12px;border-top:1px solid #ccc;font-size:10px;color:#888;text-align:center}
+  @media print{body{background:#fff;padding:0}.doc{border:none;padding:20px}}
+  .actions{text-align:center;margin-bottom:20px}
+  .actions button{padding:10px 24px;background:#d97706;color:#fff;border:none;border-radius:5px;font-size:13px;cursor:pointer;margin:0 5px}
+</style></head><body>
+<div class="actions">
+  <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+  <button onclick="window.close()">Fermer</button>
+</div>
+<div class="doc">
+  <div class="header">
+    <h1>🧑‍⚖️ FACTURE — CABINET DES AVOCATS DE KONOHA</h1>
+    <p>Document officiel · Émise le ${today}</p>
+  </div>
+  <div class="meta">
+    <div>
+      <div style="font-size:11px;color:#888;text-transform:uppercase">Avocat</div>
+      <div style="font-size:14px"><strong>${c.avocat}</strong></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:11px;color:#888;text-transform:uppercase">Client</div>
+      <div style="font-size:14px"><strong>${c.client}</strong></div>
+    </div>
+  </div>
+  <h2>Détails de la prestation</h2>
+  <div class="row"><span>Type d'affaire</span><strong>${c.affaire}</strong></div>
+  <div class="row"><span>Date d'ouverture</span><strong>${c.date}</strong></div>
+  <div class="row"><span>Statut</span><strong style="color:${c.statut==='paye'?'#16a34a':'#d97706'}">${c.statut==='paye'?'✓ Payé':'⏳ En attente'}</strong></div>
+  <h2>Description de la défense</h2>
+  <div style="padding:12px;background:#f5f0e8;border-radius:6px;font-size:13px;line-height:1.6">${c.details}</div>
+  <div class="total">
+    <span>HONORAIRES À PAYER</span>
+    <span>${(c.honoraires||0).toLocaleString()} Ryos</span>
+  </div>
+  <div class="footer">Cabinet des Avocats de Konoha · Document confidentiel · ${today}</div>
+</div>
+</body></html>`;
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(facture); win.document.close(); }
+  else alert('Veuillez autoriser les popups.');
+}
+
+
+
+function switchCivilTab(tab) {
+  const tL = document.getElementById('civ-tab-login');
+  const tR = document.getElementById('civ-tab-register');
+  const sL = document.getElementById('civ-section-login');
+  const sR = document.getElementById('civ-section-register');
+  if (tab === 'login') {
+    tL.style.background = 'rgba(196,154,26,0.15)'; tL.style.color = 'var(--accent)'; tL.style.borderBottomColor = 'var(--accent)';
+    tR.style.background = 'transparent'; tR.style.color = 'var(--muted)'; tR.style.borderBottomColor = 'transparent';
+    sL.style.display = 'block'; sR.style.display = 'none';
+  } else {
+    tR.style.background = 'rgba(196,154,26,0.15)'; tR.style.color = 'var(--accent)'; tR.style.borderBottomColor = 'var(--accent)';
+    tL.style.background = 'transparent'; tL.style.color = 'var(--muted)'; tL.style.borderBottomColor = 'transparent';
+    sR.style.display = 'block'; sL.style.display = 'none';
+  }
+}
+
+function registerCivil() {
+  const fullname = document.getElementById('civ-reg-fullname').value.trim();
+  const grade = document.getElementById('civ-reg-grade').value;
+  const password = document.getElementById('civ-reg-password').value;
+  const errEl = document.getElementById('civ-reg-err');
+  const okEl = document.getElementById('civ-reg-ok');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+
+  if (!fullname || !grade || !password) { errEl.textContent = 'Tous les champs sont obligatoires.'; errEl.style.display = 'block'; return; }
+  if (fullname.split(/\s+/).length < 2) { errEl.textContent = 'Veuillez entrer prénom ET nom.'; errEl.style.display = 'block'; return; }
+  if (password.length < 6) { errEl.textContent = 'Mot de passe trop court (6 caractères min).'; errEl.style.display = 'block'; return; }
+
+  // Vérifier si déjà inscrit (insensible à la casse/ordre)
+  if (trouverInscriptionCivil(fullname)) {
+    errEl.textContent = 'Un compte existe déjà avec ce nom.'; errEl.style.display = 'block'; return;
+  }
+
+  state.users.push({
+    fullname, password, grade, ninjaRank: grade,
+    isAgent: false, service: 'civil', casier: 'non',
+    inscription: new Date().toLocaleDateString('fr-FR')
+  });
+  saveSession();
+  okEl.style.display = 'block';
+  ['civ-reg-fullname','civ-reg-grade','civ-reg-password'].forEach(id => document.getElementById(id).value = '');
+  setTimeout(() => switchCivilTab('login'), 1500);
+}
+
+function loginCivil() {
+  const fullname = document.getElementById('civ-login-fullname').value.trim();
+  const password = document.getElementById('civ-login-password').value;
+  const errEl = document.getElementById('civ-login-err');
+  errEl.style.display = 'none';
+
+  if (!fullname || !password) { errEl.textContent = 'Champs obligatoires.'; errEl.style.display = 'block'; return; }
+
+  const user = trouverInscriptionCivil(fullname);
+  if (!user || user.password !== password) {
+    errEl.textContent = 'Identifiants incorrects.'; errEl.style.display = 'block'; return;
+  }
+
+  civilUser = user;
+  try { localStorage.setItem('konaCivilSession', JSON.stringify({ fullname: user.fullname })); } catch(e) {}
+  ['civ-login-fullname','civ-login-password'].forEach(id => document.getElementById(id).value = '');
+  showPage('civil-dash');
+  renderCivilDash();
+}
+
+function logoutCivil() {
+  civilUser = null;
+  try { localStorage.removeItem('konaCivilSession'); } catch(e) {}
+  showPage('home');
+}
+
+function renderCivilDash() {
+  if (!civilUser) { showPage('civil'); return; }
+  const u = civilUser;
+  document.getElementById('civ-dash-avatar').textContent = getInitialsFromFullname(u.fullname);
+  document.getElementById('civ-dash-name').textContent = u.fullname;
+  document.getElementById('civ-dash-grade').textContent = u.grade || 'Citoyen';
+
+  const ficheImpot = statutImpotsCivil(u.fullname);
+  const ficheCasier = state.casiers.find(c => {
+    const nf = normalize(c.fullname), nu = normalize(u.fullname);
+    const pf = nf.split(' ').filter(x=>x.length>1), pu = nu.split(' ').filter(x=>x.length>1);
+    if (nf === nu) return true;
+    if (pu.length>=2 && pu.every(p=>pf.includes(p))) return true;
+    if (pf.length>=2 && pf.every(p=>pu.includes(p))) return true;
+    return false;
+  });
+
+  let html = `
+    <h2 style="font-family:'Cinzel',serif;font-size:24px;color:white;margin-bottom:1.5rem">Bienvenue, ${u.fullname}</h2>
+
+    <!-- Statut impôts -->
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;${ficheImpot && ficheImpot.statut==='paye' ? 'border-color:rgba(39,174,96,0.4)' : 'border-color:rgba(231,76,60,0.4)'}">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">🏯 Statut de vos impôts</h3>`;
+
+  if (!ficheImpot) {
+    html += `
+      <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:14px 18px">
+        <div style="font-size:13px;color:var(--lgold);margin-bottom:6px">⚠ Vous n'êtes pas encore inscrit au registre fiscal</div>
+        <div style="font-size:12px;color:var(--muted)">Aucune fiche d'impôt n'a été créée à votre nom. Contactez un agent de la Police de Konoha.</div>
+      </div>`;
+  } else {
+    const isPaye = ficheImpot.statut === 'paye';
+    const isExo = ficheImpot.grade === 'Genin';
+    const m = IMPOTS_MONTANTS[ficheImpot.grade] || 0;
+    html += `
+      <div style="background:${isPaye?'rgba(39,174,96,0.08)':'rgba(231,76,60,0.08)'};border:1px solid ${isPaye?'rgba(39,174,96,0.3)':'rgba(231,76,60,0.3)'};border-radius:8px;padding:14px 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-size:12px;color:var(--muted)">Grade enregistré : <strong style="color:var(--text)">${ficheImpot.grade}</strong></div>
+            <div style="font-size:12px;color:var(--muted)">Montant : <strong style="color:var(--lgold)">${isExo?'Exonéré':m.toLocaleString()+' Ryos'}</strong></div>
+          </div>
+          <span style="font-size:13px;font-weight:700;padding:6px 14px;border-radius:20px;${isExo?'background:rgba(148,163,184,0.15);color:#94a3b8;border:1px solid rgba(148,163,184,0.3)':isPaye?'background:rgba(39,174,96,0.15);color:var(--green);border:1px solid rgba(39,174,96,0.4)':'background:rgba(231,76,60,0.15);color:var(--red2);border:1px solid rgba(231,76,60,0.4)'}">
+            ${isExo?'🍃 Exonéré':isPaye?'✓ Payé':'⚠ Non payé'}
+          </span>
+        </div>
+        ${ficheImpot.collecteur ? `<div style="font-size:11px;color:var(--muted);margin-top:8px">Collecté par : <strong style="color:var(--text)">${ficheImpot.collecteur}</strong></div>` : ''}
+      </div>`;
+  }
+  html += '</div>';
+
+  // Casier
+  html += `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;${ficheCasier?'border-color:rgba(231,76,60,0.4)':'border-color:rgba(39,174,96,0.4)'}">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">🗂 Mon casier judiciaire</h3>`;
+  if (!ficheCasier) {
+    html += `
+      <div style="background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.3);border-radius:8px;padding:14px 18px;text-align:center">
+        <div style="font-size:14px;color:var(--green);font-weight:700;margin-bottom:4px">✓ Casier vierge</div>
+        <div style="font-size:12px;color:var(--muted)">Aucune infraction enregistrée. Continuez à respecter les lois de Konoha.</div>
+      </div>`;
+  } else {
+    html += `
+      <div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.3);border-radius:8px;padding:14px 18px">
+        <div style="font-size:14px;color:var(--red2);font-weight:700;margin-bottom:6px">⚠ Casier actif (${ficheCasier.palier === 'palier3' ? 'Palier 3' : 'Palier 2'})</div>
+        <div style="font-size:12px;color:var(--text);margin-bottom:4px"><strong>Infraction :</strong> ${ficheCasier.infraction}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Date : ${ficheCasier.date}</div>
+        <div style="font-size:11px;color:var(--muted);background:rgba(0,0,0,0.2);padding:8px 10px;border-radius:5px">${ficheCasier.faits}</div>
+      </div>`;
+  }
+  html += '</div>';
+
+  // Actions
+  html += `
+    <div class="dash-block" style="padding:1.5rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">⚡ Actions rapides</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">
+        <button class="btn-outline" onclick="showPage('postuler')">📝 Postuler à un emploi</button>
+        <button class="btn-outline" onclick="showPage('plainte')">⚖️ Porter plainte</button>
+      </div>
+    </div>`;
+
+  document.getElementById('civ-dash-content').innerHTML = html;
+}
+
+// Restauration session civile
+function restoreCivilSession() {
+  try {
+    const raw = localStorage.getItem('konaCivilSession');
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    const u = state.users.find(x => x.fullname === data.fullname && x.service === 'civil');
+    if (u) {
+      civilUser = u;
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
 // Init
 const restored = restoreSession();
 state.presences = state.presences || [];
 state.serviceActif = state.serviceActif || {};
+state.tarifsHoraires = state.tarifsHoraires || {};
+const civilRestored = restoreCivilSession();
 updateNav();
 if (restored && state.currentUser) {
   showPage('dashboard');
+} else if (civilRestored && civilUser) {
+  showPage('civil-dash');
 }
 updateStats();
 </script>
