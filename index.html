@@ -4504,7 +4504,8 @@ function refreshAmendesList() {
                         }).join('')}
                       </div>` : ''}
                     <div style="font-size:10px;color:var(--muted);margin-top:4px">
-                      ${a.date} · agent ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
+                      ${a.date} · émis par ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
+                      ${a.agentEncaisseur && a.statut === 'paye' ? ' · <span style="color:var(--green)">💰 Encaissé par '+a.agentEncaisseur+'</span>' : ''}
                       ${a.recupere ? ' · <span style="color:var(--lgold)">📦 Récupéré le '+a.recupereLe+'</span>' : ''}
                     </div>
                   </div>
@@ -5004,12 +5005,58 @@ async function ajouterImpot() {
 async function toggleImpot(idx, newStatut) {
   const i = state.impots[idx];
   if (!i) return;
+  const u = state.currentUser;
   i.statut = newStatut;
+
   if (newStatut === 'non') {
+    // Si on passe en non payé, retirer l'historique de l'ancien collecteur
+    const oldCollecteur = i.collecteur;
+    if (oldCollecteur) {
+      // Supprimer du cloud
+      const oldEntries = state.impotsHistorique.filter(h => matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur);
+      for (const old of oldEntries) {
+        if (old._id && supabaseReady) {
+          try { await deleteFromSupabase('impotsHistorique', old._id); } catch(e) {}
+        }
+      }
+      state.impotsHistorique = state.impotsHistorique.filter(h => !(matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur));
+      // Retirer aussi des collectes en cours
+      if (state.collectesEnCours[oldCollecteur]) {
+        state.collectesEnCours[oldCollecteur] = state.collectesEnCours[oldCollecteur].filter(c => !matchFullname(c.payeur, i.fullname));
+      }
+    }
     i.collecteur = '';
+  } else if (newStatut === 'paye' && u) {
+    // Auto-définir le collecteur = utilisateur courant si aucun n'est défini
+    if (!i.collecteur) i.collecteur = u.fullname;
+    // Ajouter à l'historique (si pas déjà présent)
+    const collecteur = i.collecteur;
+    const montant = IMPOTS_MONTANTS[i.grade] || 0;
+    const date = new Date().toLocaleDateString('fr-FR');
+    const histExists = state.impotsHistorique.some(h => matchFullname(h.payeur, i.fullname) && h.agent === collecteur);
+    if (!histExists) {
+      const histEntry = {
+        payeur: i.fullname, grade: i.grade, montant: montant, agent: collecteur, date: date
+      };
+      if (supabaseReady) {
+        try {
+          const inserted = await pushToSupabase('impotsHistorique', histEntry);
+          if (inserted && inserted._id) histEntry._id = inserted._id;
+        } catch(e) {}
+      }
+      state.impotsHistorique.push(histEntry);
+    }
+    // Ajouter aussi aux collectes en cours
+    if (!state.collectesEnCours[collecteur]) state.collectesEnCours[collecteur] = [];
+    if (!state.collectesEnCours[collecteur].some(c => matchFullname(c.payeur, i.fullname))) {
+      state.collectesEnCours[collecteur].push({
+        payeur: i.fullname, grade: i.grade, montant: montant, date: date
+      });
+    }
   }
-  // Push vers Supabase pour que tout le monde voie
-  if (supabaseReady && i._id) {
+
+  // Push l'impôt vers Supabase
+  if (supabaseReady) {
     try { await pushToSupabase('impots', i); } catch(e) {}
   }
   saveSession();
@@ -7582,13 +7629,16 @@ async function supprimerCompte(fullname, service) {
 // ============================================================
 function getAmendesParAgent() {
   const par = {};
-  // Seules les amendes PAYÉES NON RÉCUPÉRÉES comptent pour la récupération
+  // Regrouper par AGENT ENCAISSEUR (celui qui a marqué "Payé"), pas par émetteur
   state.amendes.forEach(a => {
     if (a.recupere) return;
     if (a.statut !== 'paye') return; // doit être payée pour être récupérable
-    if (!par[a.agent]) par[a.agent] = { entries: [], total: 0 };
-    par[a.agent].entries.push(a);
-    par[a.agent].total += a.montant;
+    // Préférer agentEncaisseur, sinon fallback sur agent émetteur (compat ancien)
+    const collecteur = a.agentEncaisseur || a.agent;
+    if (!collecteur) return;
+    if (!par[collecteur]) par[collecteur] = { entries: [], total: 0 };
+    par[collecteur].entries.push(a);
+    par[collecteur].total += a.montant;
   });
   return par;
 }
