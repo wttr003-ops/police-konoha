@@ -163,6 +163,30 @@
   }
   .btn-outline:hover { border-color: var(--accent); background: rgba(196,154,26,0.08); }
 
+  .btn-civil {
+    background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
+    color: #86efac;
+    border: 1px solid rgba(34,197,94,0.5);
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 0 0 rgba(34,197,94,0.4);
+  }
+  .btn-civil:hover {
+    background: linear-gradient(135deg, rgba(34,197,94,0.25), rgba(34,197,94,0.15));
+    border-color: #86efac;
+    color: #bbf7d0;
+    box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+    transform: translateY(-1px);
+  }
+  .btn-civil.btn-lg { padding: 12px 28px; font-size: 14px; }
+
   .btn-danger {
     background: transparent;
     color: var(--red2);
@@ -1586,6 +1610,7 @@
       <p class="hero-desc">Au nom de la Volonté du Feu, nous protégeons chaque citoyen, chaque clan, chaque rue de Konoha. L'ordre n'est pas une contrainte — c'est l'expression de notre amour pour le village.</p>
       <div class="hero-btns">
         <button class="btn-primary btn-lg" onclick="showPage('postuler')">Rejoindre la Police</button>
+        <button class="btn-civil btn-lg" onclick="showPage('civil')">🍃 Créer un compte citoyen</button>
         <button class="btn-outline btn-lg" onclick="showPage('login')">Espace agent</button>
       </div>
     </div>
@@ -2187,10 +2212,9 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Nom et Prénom *</label>
-        <input type="text" id="post-fullname" placeholder="Ex: Naruto Uzumaki">
-      </div>
+      <!-- Bandeau d'identification : sera rempli par updatePostulerHeader() -->
+      <div id="post-identite-bandeau" style="margin-bottom:1.25rem"></div>
+
       <div class="form-group">
         <label>Genre *</label>
         <select id="post-genre">
@@ -2236,10 +2260,6 @@
         <label>Pourquoi rejoindre la Police de Konoha ? *</label>
         <textarea id="post-motiv" rows="4" placeholder="Expliquez votre motivation..."></textarea>
       </div>
-      <div class="form-group">
-        <label>Mot de passe (pour accéder à votre futur compte) *</label>
-        <input type="password" id="post-password" placeholder="Min. 6 caractères">
-      </div>
 
       <button class="btn-primary btn-lg" onclick="submitCandidature()">Envoyer ma candidature</button>
     </div>
@@ -2277,7 +2297,9 @@
         </div>
       </div>
 
-      <div class="form-group"><label>Votre nom et prénom *</label><input type="text" id="pl-pseudo" placeholder="Ex: Sasuke Uchiha"/></div>
+      <!-- Bandeau d'identification -->
+      <div id="pl-identite-bandeau" style="margin-bottom:1.25rem"></div>
+
       <div class="form-group"><label>Nom et prénom du mis en cause *</label><input type="text" id="pl-suspect" placeholder="Ex: Orochimaru Senju"/></div>
       <div class="form-group">
         <label>Type d'infraction *</label>
@@ -3745,6 +3767,59 @@ function showPage(id) {
     setTimeout(() => initFire('fire-canvas'), 100);
     updateStats();
   }
+
+  if (id === 'postuler') updatePostulerHeader();
+  if (id === 'plainte') updatePlainteHeader();
+}
+
+// Met à jour le bandeau d'identification de la page Postuler
+function updatePostulerHeader() {
+  const el = document.getElementById('post-identite-bandeau');
+  if (!el) return;
+  if (civilUser) {
+    el.innerHTML = `
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="width:40px;height:40px;border-radius:50%;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);display:flex;align-items:center;justify-content:center;font-size:13px;color:#86efac;font-weight:700">${getInitialsFromFullname(civilUser.fullname)}</div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Connecté en tant que</div>
+          <div style="font-size:15px;color:#86efac;font-weight:700">${civilUser.fullname}</div>
+        </div>
+        <button onclick="logoutCivil()" class="btn-outline" style="font-size:11px;padding:6px 12px">Changer de compte</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">ℹ️ Votre candidature sera envoyée au nom de votre compte civil. Une seule candidature par section.</p>`;
+  } else {
+    el.innerHTML = `
+      <div style="background:rgba(231,76,60,0.08);border:2px solid rgba(231,76,60,0.4);border-radius:8px;padding:18px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🔒</div>
+        <div style="font-size:14px;color:var(--red2);font-weight:700;margin-bottom:6px">Connexion civile requise</div>
+        <div style="font-size:12px;color:var(--text);margin-bottom:14px;line-height:1.5">Vous devez être connecté à votre <strong>Espace Civil</strong> pour pouvoir postuler.<br>Si vous n'avez pas encore de compte, créez-en un.</div>
+        <button onclick="showPage('civil')" style="background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.1));color:#86efac;border:1px solid rgba(34,197,94,0.5);padding:10px 24px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase">🍃 Aller à l'Espace Civil</button>
+      </div>`;
+  }
+}
+
+function updatePlainteHeader() {
+  const el = document.getElementById('pl-identite-bandeau');
+  if (!el) return;
+  if (civilUser) {
+    el.innerHTML = `
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="width:40px;height:40px;border-radius:50%;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);display:flex;align-items:center;justify-content:center;font-size:13px;color:#86efac;font-weight:700">${getInitialsFromFullname(civilUser.fullname)}</div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Plainte déposée par</div>
+          <div style="font-size:15px;color:#86efac;font-weight:700">${civilUser.fullname}</div>
+        </div>
+        <button onclick="logoutCivil()" class="btn-outline" style="font-size:11px;padding:6px 12px">Changer de compte</button>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div style="background:rgba(231,76,60,0.08);border:2px solid rgba(231,76,60,0.4);border-radius:8px;padding:18px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🔒</div>
+        <div style="font-size:14px;color:var(--red2);font-weight:700;margin-bottom:6px">Connexion civile requise</div>
+        <div style="font-size:12px;color:var(--text);margin-bottom:14px;line-height:1.5">Vous devez être connecté à votre <strong>Espace Civil</strong> pour pouvoir porter plainte.<br>Cela permet d'éviter les fausses plaintes anonymes.</div>
+        <button onclick="showPage('civil')" style="background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.1));color:#86efac;border:1px solid rgba(34,197,94,0.5);padding:10px 24px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase">🍃 Aller à l'Espace Civil</button>
+      </div>`;
+  }
 }
 
 function showSection(id) {
@@ -3981,36 +4056,52 @@ setInterval(() => {
 // CANDIDATURE PUBLIQUE
 // ============================================================
 function submitCandidature() {
-  const data = {
-    fullname: document.getElementById('post-fullname').value.trim(),
-    genre: document.getElementById('post-genre').value,
-    niveau: document.getElementById('post-niveau').value,
-    section: document.getElementById('post-section').value,
-    casier: document.getElementById('post-casier').value,
-    motiv: document.getElementById('post-motiv').value.trim(),
-    password: document.getElementById('post-password').value,
-    status: 'wait',
-    date: new Date().toLocaleDateString('fr-FR'),
-    id: Date.now()
-  };
-
   const errEl = document.getElementById('post-err');
   const okEl = document.getElementById('post-ok');
   errEl.style.display = 'none';
   okEl.style.display = 'none';
 
-  if (!data.fullname || !data.genre || !data.niveau || !data.section || !data.casier || !data.motiv || !data.password) {
+  // === VÉRIFICATION 1 : connexion civile obligatoire ===
+  if (!civilUser) {
+    errEl.innerHTML = '⚠️ Vous devez être connecté à votre <strong>Espace Civil</strong> pour postuler.<br><br>' +
+      '<button onclick="showPage(\'civil\')" style="margin-top:8px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:8px 16px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:700">🍃 Aller à l\'Espace Civil</button>';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const data = {
+    fullname: civilUser.fullname, // ⚠️ Nom forcé depuis le compte civil connecté
+    genre: document.getElementById('post-genre').value,
+    niveau: document.getElementById('post-niveau').value,
+    section: document.getElementById('post-section').value,
+    casier: document.getElementById('post-casier').value,
+    motiv: document.getElementById('post-motiv').value.trim(),
+    password: civilUser.password, // ⚠️ Mot de passe = celui du compte civil (donné aux Direction)
+    status: 'wait',
+    date: new Date().toLocaleDateString('fr-FR'),
+    id: Date.now()
+  };
+
+  if (!data.genre || !data.niveau || !data.section || !data.casier || !data.motiv) {
     errEl.textContent = 'Tous les champs sont obligatoires.';
     errEl.style.display = 'block';
     return;
   }
-  if (data.fullname.split(/\s+/).length < 2) {
-    errEl.textContent = 'Veuillez entrer votre prénom ET votre nom (ex: Naruto Uzumaki).';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (data.password.length < 6) {
-    errEl.textContent = 'Mot de passe trop court (6 caractères minimum).';
+
+  // === VÉRIFICATION 2 : anti-doublon par section ===
+  const sectionTarget = selectedPostSection;
+  const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
+  const candidatureExistante = state.candidatures.find(c =>
+    matchFullname(c.fullname, data.fullname) &&
+    (c.target || 'police') === sectionTarget &&
+    (c.status === 'wait' || c.status === 'ok')
+  );
+  if (candidatureExistante) {
+    let msgStatut = candidatureExistante.status === 'wait'
+      ? 'est en cours d\'examen' : 'a déjà été acceptée';
+    errEl.innerHTML = '⚠️ Vous avez déjà une candidature pour la section <strong>' + labels[sectionTarget] + '</strong> qui ' + msgStatut + '.<br><br>' +
+      'Vous ne pouvez pas envoyer plusieurs candidatures à la même section.<br>' +
+      '<small style="color:var(--muted)">Vous pouvez postuler aux autres sections en sélectionnant un autre service.</small>';
     errEl.style.display = 'block';
     return;
   }
@@ -4024,19 +4115,19 @@ function submitCandidature() {
 
   const newCand = {...data, target: selectedPostSection};
   state.candidatures.push(newCand);
-  // Push vers Supabase
   if (supabaseReady) {
     pushToSupabase('candidatures', newCand).then(inserted => {
       if (inserted && inserted._id) newCand._id = inserted._id;
     }).catch(()=>{});
   }
   saveSession();
+  okEl.innerHTML = '✓ Votre candidature pour <strong>' + labels[sectionTarget] + '</strong> a été envoyée !<br>Vous serez contacté(e) après examen de votre dossier.';
   okEl.style.display = 'block';
-  ['post-fullname','post-genre','post-niveau','post-section','post-casier','post-motiv','post-password'].forEach(id => {
+  ['post-genre','post-niveau','post-section','post-casier','post-motiv'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  setTimeout(() => okEl.style.display = 'none', 5000);
+  setTimeout(() => okEl.style.display = 'none', 6000);
   updateStats();
 }
 
@@ -4097,18 +4188,26 @@ function showCasierRefusModal(fullname, fiche) {
 
 // Soumettre une plainte
 function submitPlainte() {
-  const pseudo = document.getElementById('pl-pseudo').value.trim();
-  const suspect = document.getElementById('pl-suspect').value.trim();
-  const type = document.getElementById('pl-type').value;
-  const desc = document.getElementById('pl-desc').value.trim();
-  const date = document.getElementById('pl-date').value.trim();
-
   const errEl = document.getElementById('pl-err');
   const okEl = document.getElementById('pl-ok');
   errEl.style.display = 'none';
   okEl.style.display = 'none';
 
-  if (!pseudo || !suspect || !type || !desc) {
+  // === VÉRIFICATION : connexion civile obligatoire ===
+  if (!civilUser) {
+    errEl.innerHTML = '⚠️ Vous devez être connecté à votre <strong>Espace Civil</strong> pour porter plainte.<br><br>' +
+      '<button onclick="showPage(\'civil\')" style="margin-top:8px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:8px 16px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:700">🍃 Aller à l\'Espace Civil</button>';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const pseudo = civilUser.fullname; // ⚠️ Nom forcé depuis le compte civil connecté
+  const suspect = document.getElementById('pl-suspect').value.trim();
+  const type = document.getElementById('pl-type').value;
+  const desc = document.getElementById('pl-desc').value.trim();
+  const date = document.getElementById('pl-date').value.trim();
+
+  if (!suspect || !type || !desc) {
     errEl.textContent = 'Tous les champs marqués * sont obligatoires.';
     errEl.style.display = 'block';
     return;
@@ -4122,7 +4221,6 @@ function submitPlainte() {
     id: Date.now()
   };
   state.plaintes.push(newPlainte);
-  // Push vers Supabase
   if (supabaseReady) {
     pushToSupabase('plaintes', newPlainte).then(inserted => {
       if (inserted && inserted._id) newPlainte._id = inserted._id;
@@ -4130,12 +4228,13 @@ function submitPlainte() {
   }
   saveSession();
 
+  okEl.innerHTML = '✓ Votre plainte a bien été enregistrée. ' + (selectedPlainteTarget === 'agent' ? 'Le Tribunal vous contactera.' : 'La Police vous contactera.');
   okEl.style.display = 'block';
-  ['pl-pseudo','pl-suspect','pl-type','pl-desc','pl-date'].forEach(id => {
+  ['pl-suspect','pl-type','pl-desc','pl-date'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  setTimeout(() => okEl.style.display = 'none', 5000);
+  setTimeout(() => okEl.style.display = 'none', 6000);
 }
 
 // ============================================================
@@ -4530,12 +4629,40 @@ function renderMembres() {
           ` : `
             <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(39,174,96,0.1);color:var(--green);border:1px solid rgba(39,174,96,0.3)">✓ Vierge</span>
           `}
+          ${canAddAgent(u.grade) && c.compteEspaceCivil ? `<button class="btn-sm btn-sm-red" onclick="supprimerCompteCivil('${c.fullname.replace(/'/g,"\\'")}')" title="Supprimer le compte civil" style="background:rgba(192,57,43,0.3);font-size:11px;padding:4px 10px">🗑</button>` : ''}
         </div>`;
     });
   }
   html += '</div></div>';
 
   el.innerHTML = html;
+}
+
+// Supprimer un compte civil — Direction uniquement
+async function supprimerCompteCivil(fullname) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) {
+    alert('Réservé au Directeur et au Directeur Adjoint.');
+    return;
+  }
+  if (!(await confirmAsync('⚠️ Supprimer définitivement le compte civil de ' + fullname + ' ?\n\n• Le citoyen ne pourra plus se connecter\n• Ses candidatures et plaintes existantes restent\n• Cette action est irréversible'))) return;
+
+  // Trouver le compte civil
+  const compte = state.users.find(x => x.fullname === fullname && x.service === 'civil');
+  if (!compte) { alert('Compte introuvable.'); return; }
+
+  // Supprimer dans Supabase
+  if (compte._id && supabaseReady) {
+    try { await deleteFromSupabase('users', compte._id); } catch(e) {}
+  }
+
+  // Supprimer du state local
+  state.users = state.users.filter(x => !(x.fullname === fullname && x.service === 'civil'));
+  saveSession();
+
+  alert('✓ Compte civil de ' + fullname + ' supprimé.');
+  renderMembres();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function switchMembresTab(tab) {
