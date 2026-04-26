@@ -3213,8 +3213,8 @@ function renderMembres() {
     return normalize(a.fullname).localeCompare(normalize(b.fullname));
   });
 
-  // Tri citoyens en alphabétique
-  citoyens.sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname)));
+  // Construire le tableau des citoyens depuis la map et trier alphabétiquement
+  const citoyens = Object.values(citoyensMap).sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname)));
 
   // Fonction de détection casier "intelligente" (mélange de pseudos)
   function checkCasierIntelligent(fullname) {
@@ -3491,12 +3491,17 @@ function updateAmendeMontant() {
 }
 
 function emettreAmende() {
-  const fullname = document.getElementById('am-fullname').value.trim();
+  let fullname = document.getElementById('am-fullname').value.trim();
   const sel = document.getElementById('am-infraction');
   const mult = document.getElementById('am-mult').value;
   if (!fullname || !sel.value) { alert('Champs manquants'); return; }
   const opt = sel.options[sel.selectedIndex];
   const total = parseInt(opt.dataset[mult] || 0);
+
+  // Si une amende existe déjà pour cette personne (insensible casse/ordre),
+  // on réutilise la graphie existante pour grouper dans le même dossier
+  const existante = state.amendes.find(a => matchFullname(a.fullname, fullname));
+  if (existante) fullname = existante.fullname;
 
   // Vérifier si la personne a déjà un casier "traité" → si oui, le repasser en cours
   state.casiers.forEach(c => {
@@ -3510,66 +3515,124 @@ function emettreAmende() {
     fullname: fullname, infraction: opt.text, montant: total, recidive: mult,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
-    statut: 'impaye', // par défaut impayée
+    statut: 'impaye',
     id: Date.now()
   });
+  saveSession();
   document.getElementById('am-fullname').value = '';
   sel.value = '';
   document.getElementById('am-montant-preview').style.display = 'none';
   alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname);
-  refreshAmendesList();
+  renderAmendes();
 }
 
 function refreshAmendesList() {
   const u = state.currentUser;
   const el = document.getElementById('amendes-list');
   if (!el) return;
-  const actives = state.amendes.filter(a => !a.recupere);
-  if (actives.length === 0) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:1rem">Aucune amende.</p>'; return; }
   const canDelete = canAddAgent(u.grade);
 
-  // Tri : impayées d'abord, puis par date récente
-  actives.sort((a,b) => {
-    if (a.statut !== b.statut) return a.statut === 'paye' ? 1 : -1;
-    return (b.id||0) - (a.id||0);
+  // Toutes les amendes (payées ET impayées, on garde l'historique)
+  const toutes = state.amendes;
+  if (toutes.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:1rem">Aucune amende.</p>';
+    return;
+  }
+
+  // Grouper par personne (clé = nom normalisé)
+  const dossiers = {};
+  toutes.forEach(a => {
+    const key = normalize(a.fullname);
+    if (!dossiers[key]) {
+      dossiers[key] = {
+        fullname: a.fullname, // garde la 1ère graphie rencontrée
+        amendes: [],
+        totalDu: 0,
+        totalPaye: 0,
+        nbImpayees: 0,
+        nbPayees: 0,
+        derniereDate: 0
+      };
+    }
+    dossiers[key].amendes.push(a);
+    if (a.statut === 'paye') {
+      dossiers[key].totalPaye += a.montant;
+      dossiers[key].nbPayees++;
+    } else {
+      dossiers[key].totalDu += a.montant;
+      dossiers[key].nbImpayees++;
+    }
+    if ((a.id||0) > dossiers[key].derniereDate) dossiers[key].derniereDate = a.id||0;
   });
 
-  el.innerHTML = actives.map(a => {
-    const idx = state.amendes.indexOf(a);
-    const isPaye = a.statut === 'paye';
-    const bgColor = isPaye ? 'rgba(39,174,96,0.08)' : 'rgba(231,76,60,0.06)';
-    const borderColor = isPaye ? 'rgba(39,174,96,0.3)' : 'rgba(231,76,60,0.3)';
-    const statusLabel = isPaye ? '✓ Payée' : '✗ Impayée';
-    const statusColor = isPaye ? 'var(--green)' : 'var(--red2)';
+  // Tri des dossiers : ceux avec impayées en premier, puis par date de dernière amende (récent → ancien)
+  const dossiersList = Object.entries(dossiers).sort((a, b) => {
+    // Impayées d'abord
+    if ((a[1].nbImpayees > 0) !== (b[1].nbImpayees > 0)) {
+      return a[1].nbImpayees > 0 ? -1 : 1;
+    }
+    // Ensuite par dernière date (récent en premier)
+    return b[1].derniereDate - a[1].derniereDate;
+  });
+
+  el.innerHTML = dossiersList.map(([key, d]) => {
+    const safeId = 'amd-' + key.replace(/[^a-z0-9]/g,'_');
+    const hasImpayees = d.nbImpayees > 0;
+    const bgColor = hasImpayees ? 'rgba(231,76,60,0.06)' : 'rgba(39,174,96,0.06)';
+    const borderColor = hasImpayees ? 'rgba(231,76,60,0.3)' : 'rgba(39,174,96,0.3)';
+
+    // Tri amendes du dossier : récent → ancien
+    const amendesTriees = d.amendes.slice().sort((a, b) => (b.id||0) - (a.id||0));
+
     return `
-      <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:6px;margin-bottom:6px;overflow:hidden">
-        <div onclick="toggleDetail('am-det-${idx}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer;gap:10px">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              ${a.fullname}
-              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${isPaye?'rgba(39,174,96,0.2)':'rgba(231,76,60,0.2)'};color:${statusColor};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'}">${statusLabel}</span>
+      <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:6px;margin-bottom:8px;overflow:hidden">
+        <div onclick="toggleDetail('${safeId}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px;cursor:pointer;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+            <div style="width:38px;height:38px;border-radius:50%;background:${hasImpayees?'rgba(231,76,60,0.15)':'rgba(39,174,96,0.15)'};border:1px solid ${borderColor};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${hasImpayees?'var(--red2)':'var(--green)'};flex-shrink:0">${getInitialsFromFullname(d.fullname)}</div>
+            <div style="min-width:0">
+              <div style="font-weight:700;color:var(--text);font-size:14px">${d.fullname}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${d.amendes.length} amende(s) · ${d.nbImpayees} impayée(s) · ${d.nbPayees} payée(s)</div>
             </div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">${a.infraction.length>50?a.infraction.substring(0,50)+'...':a.infraction} · ${a.date} · agent ${a.agent}</div>
           </div>
-          <div style="font-weight:800;color:${statusColor};font-size:16px;font-family:'Cinzel',serif">${a.montant.toLocaleString()} Ryos</div>
+          <div style="text-align:right;flex-shrink:0">
+            ${hasImpayees ? `<div style="font-size:11px;color:var(--red2);font-weight:700">Dû : ${d.totalDu.toLocaleString()} Ryos</div>` : ''}
+            ${d.totalPaye > 0 ? `<div style="font-size:11px;color:var(--green);font-weight:700">Payé : ${d.totalPaye.toLocaleString()} Ryos</div>` : ''}
+          </div>
           <span style="color:var(--muted);font-size:11px">▼</span>
         </div>
-        <div id="am-det-${idx}" style="display:none;background:rgba(0,0,0,0.25);border-top:1px solid var(--border);padding:1rem 1.25rem">
-          <div class="detail-grid">
-            <div class="detail-field"><span class="detail-field-label">Contrevenant</span><span class="detail-field-val">${a.fullname}</span></div>
-            <div class="detail-field"><span class="detail-field-label">Infraction</span><span class="detail-field-val">${a.infraction}</span></div>
-            <div class="detail-field"><span class="detail-field-label">Récidive</span><span class="detail-field-val">${a.recidive==='x1'?'Première fois':a.recidive==='x2'?'Récidive':'Récidive multiple'}</span></div>
-            <div class="detail-field"><span class="detail-field-label">Montant</span><span class="detail-field-val" style="color:var(--lgold)">${a.montant.toLocaleString()} Ryos</span></div>
-            <div class="detail-field"><span class="detail-field-label">Agent émetteur</span><span class="detail-field-val">${a.agent}</span></div>
-            <div class="detail-field"><span class="detail-field-label">Date</span><span class="detail-field-val">${a.date}</span></div>
-            <div class="detail-field"><span class="detail-field-label">Statut</span>
-              <select onchange="toggleAmendeStatut(${idx}, this.value)" style="background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${statusColor};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'};padding:5px 10px;border-radius:5px;font-weight:700;font-size:11px;cursor:pointer;width:100%">
-                <option value="impaye" ${!isPaye?'selected':''}>✗ Impayée</option>
-                <option value="paye" ${isPaye?'selected':''}>✓ Payée</option>
-              </select>
-            </div>
-          </div>
-          ${canDelete ? `<button class="btn-sm btn-sm-red" style="margin-top:0.75rem" onclick="deleteAmende(${idx})">🗑 Supprimer (Direction)</button>` : ''}
+        <div id="${safeId}" style="display:none;background:rgba(0,0,0,0.25);border-top:1px solid var(--border);padding:0.75rem 1rem">
+          <div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Historique des amendes (${d.amendes.length})</div>
+          ${amendesTriees.map(a => {
+            const idx = state.amendes.indexOf(a);
+            const isPaye = a.statut === 'paye';
+            const cBg = isPaye ? 'rgba(39,174,96,0.08)' : 'rgba(231,76,60,0.06)';
+            const cBorder = isPaye ? 'rgba(39,174,96,0.3)' : 'rgba(231,76,60,0.3)';
+            const cColor = isPaye ? 'var(--green)' : 'var(--red2)';
+            const lbl = isPaye ? '✓ Payée' : '✗ Impayée';
+            return `
+              <div style="background:${cBg};border:1px solid ${cBorder};border-radius:5px;padding:8px 10px;margin-bottom:6px">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                  <div style="flex:1;min-width:160px">
+                    <div style="font-size:12px;color:var(--text);font-weight:600">${a.infraction}</div>
+                    <div style="font-size:10px;color:var(--muted);margin-top:2px">
+                      ${a.date} · agent ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
+                      ${a.recupere ? ' · <span style="color:var(--lgold)">📦 Récupéré le '+a.recupereLe+'</span>' : ''}
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${isPaye?'rgba(39,174,96,0.2)':'rgba(231,76,60,0.2)'};color:${cColor};border:1px solid ${cBorder}">${lbl}</span>
+                    <strong style="font-family:'Cinzel',serif;color:${cColor};font-size:14px">${a.montant.toLocaleString()} Ryos</strong>
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">
+                  <select onchange="toggleAmendeStatut(${idx}, this.value)" style="background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${cColor};border:1px solid ${cBorder};padding:4px 8px;border-radius:4px;font-weight:700;font-size:11px;cursor:pointer">
+                    <option value="impaye" ${!isPaye?'selected':''}>✗ Impayée</option>
+                    <option value="paye" ${isPaye?'selected':''}>✓ Payée</option>
+                  </select>
+                  ${canDelete ? `<button class="btn-sm btn-sm-red" onclick="deleteAmende(${idx})" style="font-size:10px;padding:3px 8px">🗑 Supprimer</button>` : ''}
+                </div>
+              </div>`;
+          }).join('')}
         </div>
       </div>`;
   }).join('');
@@ -4546,39 +4609,67 @@ function renderRapports() {
     </div>
 
     <div class="dash-block">
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📁 Rapports soumis (${state.rapports.length})</div>`;
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📁 Dossiers de rapports (${state.rapports.length} rapports)</div>`;
 
   if (state.rapports.length === 0) {
     html += '<div style="padding:2rem;text-align:center;color:var(--muted)">Aucun rapport pour l\'instant.</div>';
   } else {
-    state.rapports.slice().reverse().forEach((r, i) => {
-      const idx = state.rapports.length - 1 - i;
+    // Grouper par agent rédacteur
+    const dossiersAgents = {};
+    state.rapports.forEach(r => {
+      const key = normalize(r.agent);
+      if (!dossiersAgents[key]) {
+        dossiersAgents[key] = {
+          agent: r.agent,
+          rapports: [],
+          derniereDate: 0
+        };
+      }
+      dossiersAgents[key].rapports.push(r);
+      const ts = new Date(r.dateISO || 0).getTime() || 0;
+      if (ts > dossiersAgents[key].derniereDate) dossiersAgents[key].derniereDate = ts;
+    });
+
+    // Tri : agent avec dernier rapport le plus récent en premier
+    const dossiersAgentsList = Object.entries(dossiersAgents).sort((a, b) => b[1].derniereDate - a[1].derniereDate);
+
+    dossiersAgentsList.forEach(([key, d]) => {
+      const safeId = 'rapd-' + key.replace(/[^a-z0-9]/g,'_');
+      // Tri rapports : récents en haut
+      const rapportsTries = d.rapports.slice().sort((a, b) => {
+        const ta = new Date(a.dateISO || 0).getTime() || 0;
+        const tb = new Date(b.dateISO || 0).getTime() || 0;
+        return tb - ta;
+      });
+
       html += `
         <div style="border-bottom:1px solid var(--border)">
-          <div onclick="toggleDetail('rap-det-${idx}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer">
-            <div style="width:42px;height:42px;border-radius:50%;background:rgba(196,154,26,0.12);display:flex;align-items:center;justify-content:center;font-size:18px">📋</div>
+          <div onclick="toggleDetail('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer">
+            <div style="width:42px;height:42px;border-radius:50%;background:rgba(196,154,26,0.12);border:1px solid rgba(196,154,26,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent)">${getInitialsFromFullname(d.agent)}</div>
             <div style="flex:1">
-              <div style="font-weight:700;color:var(--text)">${r.type}</div>
-              <div style="font-size:11px;color:var(--muted)">par ${r.agent} · ${r.date} · ${r.agentsPresents.length} agent(s) présent(s)</div>
+              <div style="font-weight:700;color:var(--text)">${d.agent}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${d.rapports.length} rapport(s) rédigé(s)</div>
             </div>
             <span style="color:var(--muted);font-size:11px">▼</span>
           </div>
-          <div id="rap-det-${idx}" style="display:none;padding:1rem 1.25rem;background:rgba(0,0,0,0.2);border-top:1px solid var(--border)">
-            <div class="detail-section">
-              <div class="detail-section-label">Type de mission</div>
-              <div class="detail-field-val">${r.type}</div>
-            </div>
-            <div class="detail-section">
-              <div class="detail-section-label">Agents présents</div>
-              <div style="display:flex;flex-wrap:wrap;gap:6px">
-                ${r.agentsPresents.map(a => `<span style="background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.25);padding:3px 10px;border-radius:20px;font-size:11px">${a}</span>`).join('')}
-              </div>
-            </div>
-            <div class="detail-section">
-              <div class="detail-section-label">Description complète</div>
-              <div class="detail-section-text">${r.desc}</div>
-            </div>
-            ${canManageMembers(u.grade) ? `<button class="btn-sm btn-sm-red" style="margin-top:0.75rem" onclick="deleteRapport(${idx})">🗑 Supprimer</button>` : ''}
+          <div id="${safeId}" style="display:none;padding:0.75rem 1rem;background:rgba(0,0,0,0.2);border-top:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">📜 Rapports (récent → ancien)</div>
+            ${rapportsTries.map(r => {
+              const idx = state.rapports.indexOf(r);
+              return `
+                <div style="background:rgba(196,154,26,0.04);border:1px solid rgba(196,154,26,0.2);border-radius:5px;padding:10px;margin-bottom:6px">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+                    <div style="font-size:13px;color:var(--text);font-weight:600;flex:1;min-width:160px">${r.type}</div>
+                    <div style="font-size:10px;color:var(--muted)">${r.date}</div>
+                  </div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Agents présents :</strong></div>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+                    ${(r.agentsPresents||[]).map(a => `<span style="background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.25);padding:2px 8px;border-radius:10px;font-size:10px">${a}</span>`).join('')}
+                  </div>
+                  <div style="font-size:11px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:4px;line-height:1.5">${r.desc}</div>
+                  ${canManageMembers(u.grade) ? `<button class="btn-sm btn-sm-red" style="margin-top:8px;font-size:10px;padding:3px 8px" onclick="deleteRapport(${idx})">🗑 Supprimer</button>` : ''}
+                </div>`;
+            }).join('')}
           </div>
         </div>`;
     });
@@ -4595,20 +4686,25 @@ function submitRapport() {
 
   if (!type || !desc) { alert('Type et description obligatoires.'); return; }
 
+  const now = new Date();
   state.rapports.push({
     type, desc, agentsPresents,
     agent: state.currentUser.fullname,
-    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+    date: now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+    dateISO: now.toISOString(),
+    id: Date.now()
   });
+  saveSession();
   document.getElementById('rap-desc').value = '';
   document.getElementById('rap-type').value = '';
-  alert('✓ Rapport soumis !');
+  alert('✓ Rapport ajouté à votre dossier !');
   renderRapports();
 }
 
 function deleteRapport(idx) {
   if (!confirm('Supprimer ce rapport ?')) return;
   state.rapports.splice(idx, 1);
+  saveSession();
   renderRapports();
 }
 
@@ -4714,57 +4810,93 @@ function renderCasier() {
   if (state.casiers.length === 0) {
     html += '<div style="padding:2rem;text-align:center;color:var(--muted)">Aucune fiche au casier.</div>';
   } else {
-    const canDelete = canAddAgent(u.grade); // Directeur + Adjoint
+    const canDelete = canAddAgent(u.grade);
     const isJuge = (u.service||'police') === 'juge';
 
-    state.casiers.slice().reverse().forEach((c, i) => {
-      const idx = state.casiers.length - 1 - i;
-      const palCol = c.palier === 'palier3' ? '#e74c3c' : '#fb923c';
-      const statutJ = c.statutJustice || 'en_cours';
-      const isTraite = statutJ === 'traite';
-      const statutColor = isTraite ? 'rgba(39,174,96,0.15)' : 'rgba(232,197,71,0.15)';
-      const statutTextColor = isTraite ? 'var(--green)' : 'var(--lgold)';
-      const statutLabel = isTraite ? '✓ Traité' : '⏳ En cours de traitement';
-      const recidiveBadge = c.recidive ? '<span style="font-size:10px;background:rgba(231,76,60,0.2);color:var(--red2);border:1px solid rgba(231,76,60,0.4);padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:700">⚠ RÉCIDIVE</span>' : '';
+    // Grouper par personne
+    const dossiers = {};
+    state.casiers.forEach(c => {
+      const key = normalize(c.fullname);
+      if (!dossiers[key]) {
+        dossiers[key] = {
+          fullname: c.fullname,
+          grade: c.grade,
+          fiches: [],
+          enCours: 0,
+          traites: 0,
+          derniereDate: 0,
+          aRecidive: false
+        };
+      }
+      dossiers[key].fiches.push(c);
+      if (c.statutJustice === 'traite') dossiers[key].traites++;
+      else dossiers[key].enCours++;
+      if (c.recidive) dossiers[key].aRecidive = true;
+      if ((c.id||0) > dossiers[key].derniereDate) dossiers[key].derniereDate = c.id||0;
+    });
+
+    // Tri : récidives + en cours d'abord, puis par dernière date
+    const dossiersList = Object.entries(dossiers).sort((a, b) => {
+      if ((a[1].enCours > 0) !== (b[1].enCours > 0)) {
+        return a[1].enCours > 0 ? -1 : 1;
+      }
+      return b[1].derniereDate - a[1].derniereDate;
+    });
+
+    dossiersList.forEach(([key, d]) => {
+      const safeId = 'casd-' + key.replace(/[^a-z0-9]/g,'_');
+      const recidiveBadge = d.aRecidive ? '<span style="font-size:10px;background:rgba(231,76,60,0.2);color:var(--red2);border:1px solid rgba(231,76,60,0.4);padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:700">⚠ RÉCIDIVE</span>' : '';
+      const enCoursBadge = d.enCours > 0 ? `<span style="font-size:10px;background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);padding:2px 8px;border-radius:10px;font-weight:700">⏳ ${d.enCours} en cours</span>` : '';
+      const traitesBadge = d.traites > 0 ? `<span style="font-size:10px;background:rgba(39,174,96,0.15);color:var(--green);border:1px solid rgba(39,174,96,0.4);padding:2px 8px;border-radius:10px;margin-left:4px;font-weight:700">✓ ${d.traites} traité(s)</span>` : '';
+
+      // Tri des fiches : plus récentes en haut
+      const fichesTriees = d.fiches.slice().sort((a, b) => (b.id||0) - (a.id||0));
 
       html += `
         <div style="border-bottom:1px solid var(--border)">
-          <div onclick="toggleDetail('cas-det-${idx}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer">
-            <div style="width:42px;height:42px;border-radius:50%;background:rgba(231,76,60,0.12);display:flex;align-items:center;justify-content:center;font-size:18px">⛓</div>
+          <div onclick="toggleDetail('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer">
+            <div style="width:42px;height:42px;border-radius:50%;background:rgba(231,76,60,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--red2)">${getInitialsFromFullname(d.fullname)}</div>
             <div style="flex:1">
-              <div style="font-weight:700;color:var(--red2)">${c.fullname}${recidiveBadge}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${c.grade||'—'} · ${c.infraction} · ${c.date}</div>
+              <div style="font-weight:700;color:var(--red2)">${d.fullname}${recidiveBadge}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${d.grade||'—'} · ${d.fiches.length} infraction(s) au total</div>
             </div>
-            <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:${statutColor};color:${statutTextColor};border:1px solid ${statutTextColor}44">${statutLabel}</span>
-            <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(231,76,60,0.15);color:${palCol};border:1px solid ${palCol}44;margin-left:6px">${c.palier === 'palier3' ? 'P3' : 'P2'}</span>
+            ${enCoursBadge}${traitesBadge}
             <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
           </div>
-          <div id="cas-det-${idx}" style="display:none;padding:1rem 1.25rem;background:rgba(0,0,0,0.2);border-top:1px solid var(--border)">
-            <div class="detail-grid">
-              <div class="detail-field"><span class="detail-field-label">Nom et Prénom</span><span class="detail-field-val">${c.fullname}</span></div>
-              <div class="detail-field"><span class="detail-field-label">Grade</span><span class="detail-field-val">${c.grade||'—'}</span></div>
-              <div class="detail-field"><span class="detail-field-label">Infraction</span><span class="detail-field-val" style="color:var(--red2)">${c.infraction}</span></div>
-              <div class="detail-field"><span class="detail-field-label">Sanction</span><span class="detail-field-val">${c.sanction}</span></div>
-              <div class="detail-field"><span class="detail-field-label">Agent rédacteur</span><span class="detail-field-val">${c.agent}</span></div>
-              <div class="detail-field"><span class="detail-field-label">Date</span><span class="detail-field-val">${c.date}</span></div>
-              <div class="detail-field"><span class="detail-field-label">Statut justice</span><span class="detail-field-val" style="color:${statutTextColor}">${statutLabel}</span></div>
-              ${c.dateTraitement ? `<div class="detail-field"><span class="detail-field-label">Traité le</span><span class="detail-field-val">${c.dateTraitement}</span></div>` : ''}
-            </div>
-            <div class="detail-section">
-              <div class="detail-section-label">Faits détaillés</div>
-              <div class="detail-section-text">${c.faits}</div>
-            </div>
-            ${c.noteJuge ? `
-              <div class="detail-section">
-                <div class="detail-section-label" style="color:#93c5fd">Note du juge</div>
-                <div class="detail-section-text" style="border-left-color:#3b82f6;background:rgba(59,130,246,0.05)">${c.noteJuge}</div>
-              </div>` : ''}
-
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:0.75rem">
-              ${isJuge && !isTraite ? `<button class="btn-sm btn-sm-green" onclick="traiterCasier(${idx})">⚖️ Marquer comme traité</button>` : ''}
-              ${isJuge && isTraite ? `<button class="btn-sm" style="background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4)" onclick="reouvrirCasier(${idx})">↩ Rouvrir le dossier</button>` : ''}
-              ${canDelete ? `<button class="btn-sm btn-sm-red" onclick="deleteCasier(${idx})">🗑 Supprimer (Direction)</button>` : ''}
-            </div>
+          <div id="${safeId}" style="display:none;padding:0.75rem 1rem;background:rgba(0,0,0,0.2);border-top:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">📜 Historique des infractions (récent → ancien)</div>
+            ${fichesTriees.map(c => {
+              const idx = state.casiers.indexOf(c);
+              const palCol = c.palier === 'palier3' ? '#e74c3c' : '#fb923c';
+              const statutJ = c.statutJustice || 'en_cours';
+              const isTraite = statutJ === 'traite';
+              const stColor = isTraite ? 'var(--green)' : 'var(--lgold)';
+              const stBg = isTraite ? 'rgba(39,174,96,0.15)' : 'rgba(232,197,71,0.15)';
+              const stLbl = isTraite ? '✓ Traité' : '⏳ En cours';
+              return `
+                <div style="background:rgba(231,76,60,0.05);border:1px solid rgba(231,76,60,0.2);border-radius:5px;padding:10px;margin-bottom:6px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+                    <div style="flex:1;min-width:160px">
+                      <div style="font-size:13px;color:var(--text);font-weight:600">${c.infraction}</div>
+                      <div style="font-size:10px;color:var(--muted);margin-top:2px">${c.date} · agent ${c.agent} · sanction : ${c.sanction}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                      <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${stBg};color:${stColor};border:1px solid ${stColor}44">${stLbl}</span>
+                      <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(231,76,60,0.15);color:${palCol};border:1px solid ${palCol}44">${c.palier === 'palier3' ? 'P3' : 'P2'}</span>
+                    </div>
+                  </div>
+                  <div style="font-size:11px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:4px;line-height:1.5">${c.faits}</div>
+                  ${c.noteJuge ? `
+                    <div style="margin-top:6px;font-size:11px;color:#93c5fd;background:rgba(59,130,246,0.06);border-left:2px solid #3b82f6;padding:6px 10px;border-radius:0 4px 4px 0">
+                      <strong>Note du juge :</strong> ${c.noteJuge}
+                    </div>` : ''}
+                  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                    ${isJuge && !isTraite ? `<button class="btn-sm btn-sm-green" onclick="traiterCasier(${idx})" style="font-size:10px;padding:3px 8px">⚖️ Traiter</button>` : ''}
+                    ${isJuge && isTraite ? `<button class="btn-sm" style="background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);font-size:10px;padding:3px 8px" onclick="reouvrirCasier(${idx})">↩ Rouvrir</button>` : ''}
+                    ${canDelete ? `<button class="btn-sm btn-sm-red" onclick="deleteCasier(${idx})" style="font-size:10px;padding:3px 8px">🗑 Supprimer</button>` : ''}
+                  </div>
+                </div>`;
+            }).join('')}
           </div>
         </div>`;
     });
@@ -4779,27 +4911,28 @@ function traiterCasier(idx) {
   const c = state.casiers[idx];
   if (!c) return;
   const note = prompt('Note de jugement (optionnel) :', '');
-  if (note === null) return; // Annulé
+  if (note === null) return;
   if (!confirm('Marquer le dossier de ' + c.fullname + ' comme traité ?\n\nIl passera dans l\'historique. En cas de récidive, il sera automatiquement remis "en cours de traitement".')) return;
   c.statutJustice = 'traite';
   c.noteJuge = note || '';
   c.dateTraitement = new Date().toLocaleDateString('fr-FR');
-  c.recidive = false; // Reset le badge récidive
+  c.recidive = false;
+  saveSession();
   alert('✓ Dossier de ' + c.fullname + ' traité.');
   renderCasier();
 }
 
-// Rouvrir un dossier traité
 function reouvrirCasier(idx) {
   const c = state.casiers[idx];
   if (!c) return;
   if (!confirm('Rouvrir le dossier de ' + c.fullname + ' ?')) return;
   c.statutJustice = 'en_cours';
+  saveSession();
   renderCasier();
 }
 
 function ajouterCasier() {
-  const fullname = document.getElementById('cas-fullname').value.trim();
+  let fullname = document.getElementById('cas-fullname').value.trim();
   const grade = document.getElementById('cas-grade').value;
   const palier = document.getElementById('cas-palier').value;
   const infraction = document.getElementById('cas-infraction').value;
@@ -4809,23 +4942,29 @@ function ajouterCasier() {
   if (!fullname || !infraction || !faits) { alert('Nom, infraction et faits sont obligatoires.'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
 
+  // Réutiliser la graphie existante si la personne a déjà un casier (évite doublon)
+  const existant = state.casiers.find(c => matchFullname(c.fullname, fullname));
+  if (existant) fullname = existant.fullname;
+
   state.casiers.push({
     fullname, grade, palier, infraction, faits, sanction,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
-    statutJustice: 'en_cours', // En cours de traitement par défaut
-    recidive: false,
+    statutJustice: 'en_cours',
+    recidive: existant ? true : false, // récidive si dossier existant
     id: Date.now()
   });
+  saveSession();
 
   ['cas-fullname','cas-faits'].forEach(id => document.getElementById(id).value = '');
-  alert('⛓ Fiche enregistrée au casier de ' + fullname);
+  alert('⛓ Fiche ajoutée au dossier de ' + fullname + (existant ? '\n\n⚠ Récidive : nouvelle infraction ajoutée à un dossier existant.' : ''));
   renderCasier();
 }
 
 function deleteCasier(idx) {
   if (!confirm('Supprimer définitivement cette fiche du casier ?\n\n⚠ Cette action est irréversible et réservée à la Direction.')) return;
   state.casiers.splice(idx, 1);
+  saveSession();
   renderCasier();
 }
 
