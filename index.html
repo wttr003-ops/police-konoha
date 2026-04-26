@@ -937,6 +937,149 @@
   .form-group textarea { resize: vertical; min-height: 80px; }
   .form-group select option { background: var(--dark); }
 
+  /* === MODAL DE CONFIRMATION CUSTOM === */
+  .confirm-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: confirmFadeIn 0.2s ease-out;
+  }
+  @keyframes confirmFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .confirm-box {
+    background: linear-gradient(145deg, #1a1a1a, #0a0a0a);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 2rem;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(196,154,26,0.25), 0 0 0 1px rgba(232,197,71,0.2);
+    animation: confirmSlideIn 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+  }
+  @keyframes confirmSlideIn {
+    from { transform: translateY(-20px) scale(0.95); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  .confirm-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--lgold), var(--accent), transparent);
+  }
+  .confirm-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: rgba(196,154,26,0.15);
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+  .confirm-icon.danger {
+    background: rgba(231,76,60,0.15);
+    border-color: var(--red2);
+  }
+  .confirm-icon.warning {
+    background: rgba(232,197,71,0.15);
+    border-color: var(--lgold);
+  }
+  .confirm-title {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    color: white;
+    text-align: center;
+    margin-bottom: 0.75rem;
+    letter-spacing: 1px;
+  }
+  .confirm-message {
+    font-size: 14px;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    white-space: pre-line;
+  }
+  .confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+  .confirm-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .confirm-btn-cancel {
+    background: var(--mid);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .confirm-btn-cancel:hover {
+    background: var(--panel);
+    color: var(--text);
+  }
+  .confirm-btn-ok {
+    background: linear-gradient(135deg, var(--accent), var(--lgold));
+    color: #1a1400;
+    box-shadow: 0 4px 14px rgba(196,154,26,0.3);
+  }
+  .confirm-btn-ok:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(196,154,26,0.5);
+  }
+  .confirm-btn-ok.danger {
+    background: linear-gradient(135deg, var(--red), var(--red2));
+    color: white;
+    box-shadow: 0 4px 14px rgba(192,57,43,0.4);
+  }
+  .confirm-btn-ok.danger:hover {
+    box-shadow: 0 6px 20px rgba(192,57,43,0.6);
+  }
+
+  /* === MODAL ALERT (remplace alert() natif) === */
+  .alert-box {
+    background: linear-gradient(145deg, #1a1a1a, #0a0a0a);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 1.75rem 2rem;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(196,154,26,0.25);
+    animation: confirmSlideIn 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+  }
+  .alert-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--lgold), var(--accent), transparent);
+  }
+
   /* === FORCE COULEURS INPUTS — Anti Dark Reader & extensions dark mode === */
   input, textarea, select {
     background-color: #1a1a1a !important;
@@ -2369,6 +2512,185 @@
 </div>
 
 <script>
+// ============================================================
+// MODAL CUSTOM — Remplace confirm() et alert() natifs du navigateur
+// ============================================================
+window._confirmCallback = null;
+
+function showConfirmModal(message, onConfirm) {
+  // Supprimer un éventuel modal existant
+  const existing = document.getElementById('custom-confirm-overlay');
+  if (existing) existing.remove();
+
+  // Détecter le ton du message (danger / warning / normal)
+  const msgLower = (message || '').toLowerCase();
+  let iconClass = '';
+  let icon = '❓';
+  let titleText = 'Confirmation requise';
+  let okClass = '';
+
+  if (msgLower.includes('supprim') || msgLower.includes('définitiv') || msgLower.includes('irréversible') || msgLower.includes('⚠')) {
+    iconClass = 'danger';
+    icon = '⚠️';
+    titleText = 'Action irréversible';
+    okClass = 'danger';
+  } else if (msgLower.includes('attention') || msgLower.includes('reset') || msgLower.includes('zéro') || msgLower.includes('récupér')) {
+    iconClass = 'warning';
+    icon = '🔔';
+    titleText = 'Confirmation';
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'custom-confirm-overlay';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" role="dialog" aria-modal="true">
+      <div class="confirm-icon ${iconClass}">${icon}</div>
+      <div class="confirm-title">${titleText}</div>
+      <div class="confirm-message">${escapeHtml(message || 'Êtes-vous sûr ?')}</div>
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="closeConfirmModal(false)">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok ${okClass}" onclick="closeConfirmModal(true)">Confirmer</button>
+      </div>
+    </div>
+  `;
+
+  // Fermeture au clic sur le fond noir
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeConfirmModal(false);
+  });
+
+  document.body.appendChild(overlay);
+  window._confirmCallback = onConfirm;
+
+  // Focus sur le bouton Confirmer pour permettre Entrée
+  setTimeout(() => {
+    const btn = overlay.querySelector('.confirm-btn-ok');
+    if (btn) btn.focus();
+  }, 100);
+
+  // Echap pour annuler
+  const escHandler = (e) => {
+    if (e.key === 'Escape') {
+      closeConfirmModal(false);
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+}
+
+function closeConfirmModal(result) {
+  const overlay = document.getElementById('custom-confirm-overlay');
+  if (overlay) overlay.remove();
+  const cb = window._confirmCallback;
+  window._confirmCallback = null;
+  if (cb) cb(result);
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Remplace window.confirm par notre modal — synchrone via Promise + while
+// On garde l'API "if (!(await confirmAsync(...))) return" qui marche partout
+const _nativeConfirm = window.confirm.bind(window);
+window.confirm = function(message) {
+  // Méthode synchrone : on bloque avec une boucle d'attente sur un drapeau global
+  let result = null;
+  let done = false;
+  showConfirmModal(message, (r) => { result = r; done = true; });
+  // PROBLÈME : on peut PAS bloquer le thread principal en JS pur
+  // → Solution : on garde l'API native comme fallback
+  // Mais on retourne false par défaut pour empêcher l'action si modal pas fermé
+  // BREAKING : il faut convertir tous les "if (!(await confirmAsync())) return" en async
+  return _nativeConfirm(message); // fallback
+};
+
+// Approche plus propre : confirmAsync() à utiliser à la place
+function confirmAsync(message) {
+  return new Promise((resolve) => {
+    showConfirmModal(message, resolve);
+  });
+}
+
+// === ALERT CUSTOM ===
+function showAlertModal(message, callback) {
+  const existing = document.getElementById('custom-alert-overlay');
+  if (existing) existing.remove();
+
+  const msgLower = (message || '').toLowerCase();
+  let iconClass = '';
+  let icon = 'ℹ️';
+  let titleText = 'Information';
+
+  if (msgLower.startsWith('✓') || msgLower.includes('succès') || msgLower.includes('ajouté') || msgLower.includes('créé') || msgLower.includes('enregistré')) {
+    iconClass = '';
+    icon = '✓';
+    titleText = 'Succès';
+  } else if (msgLower.startsWith('⚠') || msgLower.includes('erreur') || msgLower.includes('impossible') || msgLower.includes('refus')) {
+    iconClass = 'danger';
+    icon = '⚠️';
+    titleText = 'Attention';
+  } else if (msgLower.startsWith('⛔') || msgLower.includes('interdit') || msgLower.includes('réservé')) {
+    iconClass = 'warning';
+    icon = '🔒';
+    titleText = 'Accès refusé';
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'custom-alert-overlay';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="alert-box" role="dialog" aria-modal="true">
+      <div class="confirm-icon ${iconClass}">${icon}</div>
+      <div class="confirm-title">${titleText}</div>
+      <div class="confirm-message">${escapeHtml(message || '')}</div>
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-ok" onclick="closeAlertModal()">OK</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeAlertModal();
+  });
+
+  document.body.appendChild(overlay);
+  window._alertCallback = callback;
+
+  setTimeout(() => {
+    const btn = overlay.querySelector('.confirm-btn-ok');
+    if (btn) btn.focus();
+  }, 100);
+
+  const escHandler = (e) => {
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      closeAlertModal();
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+}
+
+function closeAlertModal() {
+  const overlay = document.getElementById('custom-alert-overlay');
+  if (overlay) overlay.remove();
+  const cb = window._alertCallback;
+  window._alertCallback = null;
+  if (cb) cb();
+}
+
+// Remplace window.alert
+const _nativeAlert = window.alert.bind(window);
+window.alert = function(message) {
+  showAlertModal(message);
+};
+
 // ============================================================
 // DÉTECTION ENVIRONNEMENT — masquer les warnings dans la preview
 // ============================================================
@@ -3985,7 +4307,7 @@ async function treatCandid(idx, decision) {
   const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
 
   if (decision === 'ok') {
-    if (!confirm('Accepter ' + c.fullname + ' au ' + labels[target] + ' ? Un compte sera créé au grade ' + gradeInitial + '.')) return;
+    if (!(await confirmAsync('Accepter ' + c.fullname + ' au ' + labels[target] + ' ? Un compte sera créé au grade ' + gradeInitial + '.'))) return;
     const newUser = {
       fullname: c.fullname, password: c.password,
       grade: gradeInitial, genre: c.genre, section: c.section,
@@ -4008,7 +4330,7 @@ async function treatCandid(idx, decision) {
     saveSession();
     alert('✓ Candidature acceptée ! ' + c.fullname + ' rejoint ' + labels[target] + ' au grade ' + gradeInitial + '.');
   } else {
-    if (!confirm('Refuser cette candidature ?')) return;
+    if (!(await confirmAsync('Refuser cette candidature ?'))) return;
     c.status = 'no';
     if (supabaseReady && c._id) {
       try { await pushToSupabase('candidatures', c); } catch(e) {}
@@ -4290,7 +4612,7 @@ async function changeGrade(fullname, dir) {
     alert(dir < 0 ? 'Cet agent est déjà au grade le plus élevé.' : 'Cet agent est déjà au grade le plus bas.');
     return;
   }
-  if (!confirm((dir < 0 ? 'Promouvoir' : 'Rétrograder') + ' ' + a.fullname + ' au grade ' + newGradeName + ' ?')) return;
+  if (!(await confirmAsync((dir < 0 ? 'Promouvoir' : 'Rétrograder') + ' ' + a.fullname + ' au grade ' + newGradeName + ' ?'))) return;
   a.grade = newGradeName;
 
   // Push le changement vers Supabase
@@ -4746,7 +5068,7 @@ async function toggleAmendeStatut(idx, statut) {
 async function deleteAmende(idx) {
   const u = state.currentUser;
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
-  if (!confirm('Supprimer définitivement cette amende ?\n\n⚠ Cette action est irréversible et réservée à la Direction.')) return;
+  if (!(await confirmAsync('Supprimer définitivement cette amende ?\n\n⚠ Cette action est irréversible et réservée à la Direction.'))) return;
   const item = state.amendes[idx];
   if (item && item._id && supabaseReady) {
     try { await deleteFromSupabase('amendes', item._id); } catch(e) {}
@@ -5028,7 +5350,7 @@ function renderImpots() {
 async function deleteHistoDirImpots(id) {
   const u = state.currentUser;
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
-  if (!confirm('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.')) return;
+  if (!(await confirmAsync('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.'))) return;
   // Trouver l'item dans le state pour récupérer son _id Supabase
   const item = (state.impotsHistoriqueDirection || []).find(h => h.id === id);
   if (item && item._id && supabaseReady) {
@@ -5045,7 +5367,7 @@ async function supprimerImpot(idx) {
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const i = state.impots[idx];
   if (!i) return;
-  if (!confirm('Supprimer définitivement ' + i.fullname + ' du registre des impôts ?\n\n⚠ Cette action est irréversible et réservée à la Direction.\n• Le ninja disparaît du registre\n• Ses entrées dans les collectes en cours sont nettoyées')) return;
+  if (!(await confirmAsync('Supprimer définitivement ' + i.fullname + ' du registre des impôts ?\n\n⚠ Cette action est irréversible et réservée à la Direction.\n• Le ninja disparaît du registre\n• Ses entrées dans les collectes en cours sont nettoyées'))) return;
 
   // Supprimer dans Supabase
   if (i._id && supabaseReady) {
@@ -5068,7 +5390,7 @@ async function supprimerImpot(idx) {
 async function resetTousImpots() {
   const u = state.currentUser;
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
-  if (!confirm('⚠️ ATTENTION : Cette action va remettre TOUS les ninjas en "Non payé".\n\n• Aucun ninja ne sera supprimé du registre\n• L\'historique global est conservé\n\nConfirmer ?')) return;
+  if (!(await confirmAsync('⚠️ ATTENTION : Cette action va remettre TOUS les ninjas en "Non payé".\n\n• Aucun ninja ne sera supprimé du registre\n• L\'historique global est conservé\n\nConfirmer ?'))) return;
 
   const toUpdate = [];
   state.impots.forEach(i => {
@@ -5334,7 +5656,7 @@ async function recupererCollectes(agent) {
   const collectes = state.impotsHistorique.filter(h => h.agent === agent);
   const total = collectes.reduce((s, c) => s + (c.montant||0), 0);
   if (collectes.length === 0) { alert('Aucune collecte à récupérer pour cet agent.'); return; }
-  if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Cette récupération est enregistrée dans l'historique de la Direction\n• Les ninjas restent marqués comme PAYÉS\n• Le compteur "Total historique" de l'agent revient à 0`)) return;
+  if (!(await confirmAsync(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Cette récupération est enregistrée dans l'historique de la Direction\n• Les ninjas restent marqués comme PAYÉS\n• Le compteur "Total historique" de l'agent revient à 0`))) return;
 
   // 1. Créer l'entrée historique Direction
   const histDirEntry = {
@@ -5587,7 +5909,7 @@ async function addAgent() {
       }
     }
 
-    if (!confirm('Créer le compte ' + g + ' pour ' + fullname + ' ?\n\n3 comptes seront créés automatiquement avec les mêmes identifiants :\n• Police\n• Tribunal (Juge)\n• Cabinet (Avocat)\n\nCes 3 comptes ont les pouvoirs maximum dans chaque section.')) return;
+    if (!(await confirmAsync('Créer le compte ' + g + ' pour ' + fullname + ' ?\n\n3 comptes seront créés automatiquement avec les mêmes identifiants :\n• Police\n• Tribunal (Juge)\n• Cabinet (Avocat)\n\nCes 3 comptes ont les pouvoirs maximum dans chaque section.'))) return;
 
     const hireDate = new Date().toLocaleDateString('fr-FR');
     const matricule = generateMatriculeFromGrade(g === 'Hokage' ? 'Directeur' : 'Directeur');
@@ -5906,7 +6228,7 @@ async function libererDetenu(idx) {
   if (!c) return;
   const note = prompt('Note de libération (optionnel) :', '');
   if (note === null) return;
-  if (!confirm('Libérer ' + c.fullname + ' ?')) return;
+  if (!(await confirmAsync('Libérer ' + c.fullname + ' ?'))) return;
   c.statut = 'libere';
   c.noteLiberation = note || 'Libération autorisée par ' + state.currentUser.fullname;
   c.dateLiberation = new Date().toLocaleDateString('fr-FR');
@@ -5924,7 +6246,7 @@ async function supprimerCellule(idx) {
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const c = state.cellules[idx];
   if (!c) return;
-  if (!confirm('Supprimer définitivement le dossier de ' + c.fullname + ' ?')) return;
+  if (!(await confirmAsync('Supprimer définitivement le dossier de ' + c.fullname + ' ?'))) return;
   if (c._id && supabaseReady) {
     try { await deleteFromSupabase('cellules', c._id); } catch(e) {}
   }
@@ -6024,7 +6346,7 @@ function renderPlaintes() {
 }
 
 async function treatPlainte(idx, status) {
-  if (!confirm('Confirmer ?')) return;
+  if (!(await confirmAsync('Confirmer ?'))) return;
   const p = state.plaintes[idx];
   if (!p) return;
   p.status = status;
@@ -6198,7 +6520,7 @@ function submitRapport() {
 async function deleteRapport(idx) {
   const u = state.currentUser;
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
-  if (!confirm('Supprimer ce rapport ?')) return;
+  if (!(await confirmAsync('Supprimer ce rapport ?'))) return;
   const item = state.rapports[idx];
   if (item && item._id && supabaseReady) {
     try { await deleteFromSupabase('rapports', item._id); } catch(e) {}
@@ -6441,7 +6763,7 @@ async function traiterCasier(idx) {
   if (!c) return;
   const note = prompt('Note de jugement (optionnel) :', '');
   if (note === null) return;
-  if (!confirm('Marquer le dossier de ' + c.fullname + ' comme traité ?\n\nIl passera dans l\'historique. En cas de récidive, il sera automatiquement remis "en cours de traitement".')) return;
+  if (!(await confirmAsync('Marquer le dossier de ' + c.fullname + ' comme traité ?\n\nIl passera dans l\'historique. En cas de récidive, il sera automatiquement remis "en cours de traitement".'))) return;
   c.statutJustice = 'traite';
   c.noteJuge = note || '';
   c.dateTraitement = new Date().toLocaleDateString('fr-FR');
@@ -6459,7 +6781,7 @@ async function traiterCasier(idx) {
 async function reouvrirCasier(idx) {
   const c = state.casiers[idx];
   if (!c) return;
-  if (!confirm('Rouvrir le dossier de ' + c.fullname + ' ?')) return;
+  if (!(await confirmAsync('Rouvrir le dossier de ' + c.fullname + ' ?'))) return;
   c.statutJustice = 'en_cours';
   // Push vers Supabase
   if (supabaseReady && c._id) {
@@ -6573,7 +6895,7 @@ function ajouterCasier() {
 async function deleteCasier(idx) {
   const u = state.currentUser;
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
-  if (!confirm('Supprimer définitivement cette fiche du casier ?\n\n⚠ Cette action est irréversible et réservée à la Direction.')) return;
+  if (!(await confirmAsync('Supprimer définitivement cette fiche du casier ?\n\n⚠ Cette action est irréversible et réservée à la Direction.'))) return;
   const item = state.casiers[idx];
   if (item && item._id && supabaseReady) {
     try { await deleteFromSupabase('casiers', item._id); } catch(e) {}
@@ -6951,10 +7273,10 @@ function creerGroupe() {
   renderPortes();
 }
 
-function rentrerGroupe(idx) {
+async function rentrerGroupe(idx) {
   const g = state.groupes[idx];
   if (!g) return;
-  if (!confirm('Marquer le groupe "' + g.nom + '" comme rentré ?')) return;
+  if (!(await confirmAsync('Marquer le groupe "' + g.nom + '" comme rentré ?'))) return;
   g.statut = 'rentre';
   g.heureRentree = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
 
@@ -6976,7 +7298,7 @@ async function deleteGroupe(idx) {
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const g = state.groupes[idx];
   if (!g) return;
-  if (!confirm('Supprimer le groupe "' + g.nom + '" ? Les ninjas resteront dans le registre.')) return;
+  if (!(await confirmAsync('Supprimer le groupe "' + g.nom + '" ? Les ninjas resteront dans le registre.'))) return;
   // Délier les ninjas du groupe
   state.portes.forEach(p => {
     if (p.groupeId === g.id) delete p.groupeId;
@@ -7518,12 +7840,12 @@ async function envoyerMessage(idx) {
   }, 50);
 }
 
-function addParticipant(idx, service) {
+async function addParticipant(idx, service) {
   const d = state.discussions[idx];
   if (!d) return;
   if (d.participants.includes(service)) return;
   const labels = { police:'👮 Police', juge:'⚖️ Juge', avocat:'🧑‍⚖️ Avocat' };
-  if (!confirm('Ajouter ' + labels[service] + ' à la discussion ?')) return;
+  if (!(await confirmAsync('Ajouter ' + labels[service] + ' à la discussion ?'))) return;
   d.participants.push(service);
   saveSession();
   renderDiscussions();
@@ -7536,7 +7858,7 @@ function addParticipant(idx, service) {
 async function deleteDiscussion(idx) {
   const u = state.currentUser;
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
-  if (!confirm('Supprimer définitivement cette discussion ?')) return;
+  if (!(await confirmAsync('Supprimer définitivement cette discussion ?'))) return;
   const item = state.discussions[idx];
   if (item && item._id && supabaseReady) {
     try { await deleteFromSupabase('discussions', item._id); } catch(e) {}
@@ -7906,15 +8228,15 @@ async function enregistrerService(fullname, service, fin) {
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function forcerFinService(fullname) {
-  if (!confirm('Forcer la fin de service de ' + fullname + ' ?')) return;
+async function forcerFinService(fullname) {
+  if (!(await confirmAsync('Forcer la fin de service de ' + fullname + ' ?'))) return;
   const service = state.serviceActif[fullname];
   if (!service) return;
   enregistrerService(fullname, service, new Date());
 }
 
-function payerAgent(fullname, montant) {
-  if (!confirm('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\nLes services seront archivés et le solde reviendra à zéro.')) return;
+async function payerAgent(fullname, montant) {
+  if (!(await confirmAsync('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\nLes services seront archivés et le solde reviendra à zéro.'))) return;
   state.presences.forEach(p => {
     if (p.fullname === fullname && p.statut !== 'paye') {
       p.statut = 'paye';
@@ -7950,8 +8272,8 @@ function ouvrirRetrait(fullname, soldeActuel) {
   renderPresences();
 }
 
-function resetToutesPresences() {
-  if (!confirm('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme "payées" ?\nTous les soldes reviendront à zéro.\n\nL\'historique sera conservé mais marqué comme payé.')) return;
+async function resetToutesPresences() {
+  if (!(await confirmAsync('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme "payées" ?\nTous les soldes reviendront à zéro.\n\nL\'historique sera conservé mais marqué comme payé.'))) return;
   state.presences.forEach(p => {
     if (p.statut !== 'paye') {
       p.statut = 'paye';
@@ -8047,7 +8369,7 @@ async function supprimerCompte(fullname, service) {
       alert('⚠️ Seul le Directeur (Police) peut supprimer un compte ' + compte.grade + '.');
       return;
     }
-    if (!confirm('⚠️ Supprimer le compte ' + compte.grade + ' de ' + fullname + ' ?\n\nLes 3 comptes (Police + Tribunal + Cabinet) seront supprimés simultanément.\n\nConfirmer ?')) return;
+    if (!(await confirmAsync('⚠️ Supprimer le compte ' + compte.grade + ' de ' + fullname + ' ?\n\nLes 3 comptes (Police + Tribunal + Cabinet) seront supprimés simultanément.\n\nConfirmer ?'))) return;
 
     // Supprimer les 3 comptes (Police + Juge + Avocat) ayant ce nom + grade Hokage/Staff
     const services = ['police', 'juge', 'avocat'];
@@ -8067,7 +8389,7 @@ async function supprimerCompte(fullname, service) {
   }
 
   // === CAS NORMAL : suppression d'un seul compte ===
-  if (!confirm('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son compte sera supprimé du serveur partagé\n\nConfirmer la suppression ?')) return;
+  if (!(await confirmAsync('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son compte sera supprimé du serveur partagé\n\nConfirmer la suppression ?'))) return;
 
   if (compte._id && supabaseReady) {
     try { await deleteFromSupabase('users', compte._id); } catch(e) {}
@@ -8106,7 +8428,7 @@ async function recupererAmendesAgent(agentName) {
   const par = getAmendesParAgent();
   const data = par[agentName];
   if (!data || data.total === 0) { alert('Rien à récupérer (aucune amende payée par cet agent).'); return; }
-  if (!confirm('Récupérer ' + data.total.toLocaleString() + ' Ryos des amendes payées de ' + agentName + ' ?\n\nCette récupération sera enregistrée dans l\'historique de la Direction.')) return;
+  if (!(await confirmAsync('Récupérer ' + data.total.toLocaleString() + ' Ryos des amendes payées de ' + agentName + ' ?\n\nCette récupération sera enregistrée dans l\'historique de la Direction.'))) return;
 
   const recupId = Date.now();
   const dateRecup = new Date().toLocaleDateString('fr-FR');
@@ -8208,7 +8530,7 @@ function refreshHistoriqueDirectionAmendes() {
 async function deleteHistoDirAmendes(id) {
   const u = state.currentUser;
   if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
-  if (!confirm('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.')) return;
+  if (!(await confirmAsync('Supprimer définitivement cette entrée de l\'historique ?\n\n⚠ Cette action est irréversible.'))) return;
   const item = (state.amendesHistoriqueDirection || []).find(h => h.id === id);
   if (item && item._id && supabaseReady) {
     try { await deleteFromSupabase('amendesHistoriqueDirection', item._id); } catch(e) {}
@@ -8227,7 +8549,7 @@ async function changerGradeImpot(idx, nouveauGrade) {
   i.grade = nouveauGrade;
   // Reset le statut si on change de grade (pour éviter incohérences)
   if (i.statut === 'paye') {
-    if (!confirm('Changer le grade vers ' + nouveauGrade + ' ?\nLe statut "Payé" sera réinitialisé en "Non payé" et le collecteur effacé.')) {
+    if (!(await confirmAsync('Changer le grade vers ' + nouveauGrade + ' ?\nLe statut "Payé" sera réinitialisé en "Non payé" et le collecteur effacé.'))) {
       return; // annulation
     }
     i.statut = 'non';
@@ -8513,7 +8835,7 @@ function creerDossier() {
 
 async function marquerDossierPaye(idx) {
   if (!state.dossiersAvocat[idx]) return;
-  if (!confirm('Marquer ce contrat comme payé ?')) return;
+  if (!(await confirmAsync('Marquer ce contrat comme payé ?'))) return;
   const d = state.dossiersAvocat[idx];
   d.statut = 'paye';
   d.datePaiement = new Date().toLocaleDateString('fr-FR');
@@ -8536,7 +8858,7 @@ async function supprimerDossier(idx) {
     alert('Réservé à l\'avocat propriétaire du dossier ou à la Direction');
     return;
   }
-  if (!confirm('Supprimer définitivement ce contrat ?')) return;
+  if (!(await confirmAsync('Supprimer définitivement ce contrat ?'))) return;
   if (item._id && supabaseReady) {
     try { await deleteFromSupabase('dossiersAvocat', item._id); } catch(e) {}
   }
