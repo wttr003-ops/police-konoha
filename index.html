@@ -2496,6 +2496,25 @@ function ninjaGradeColor(grade) {
   return NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
 }
 
+// Ordre hiérarchique des grades ninja (plus haut en premier)
+const NINJA_GRADE_ORDER = [
+  'Hokage',
+  'Commandant Jonin',
+  'Jonin',
+  'Tokubetsu Jonin',
+  'Kakunin',
+  'Chunin',
+  'Tokubetsu Chunin',
+  'Genin Confirmé',
+  'Genin',
+  'Citoyen'
+];
+
+function ninjaGradeRank(grade) {
+  const idx = NINJA_GRADE_ORDER.indexOf(grade);
+  return idx === -1 ? 99 : idx;
+}
+
 // État en mémoire (sera remplacé par Supabase)
 let state = {
   currentUser: null,
@@ -3656,10 +3675,25 @@ function renderImpots() {
         <div class="form-group" style="margin:0"><label>Nom et Prénom</label><input type="text" id="imp-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
         <div class="form-group" style="margin:0"><label>Grade</label>
           <select id="imp-grade">
-            ${Object.keys(IMPOTS_MONTANTS).map(g => '<option>' + g + '</option>').join('')}
+            ${NINJA_GRADE_ORDER.filter(g => IMPOTS_MONTANTS[g] !== undefined).map(g => '<option>' + g + '</option>').join('')}
           </select>
         </div>
         <button class="btn-primary" onclick="ajouterImpot()">➕ Ajouter</button>
+      </div>
+    </div>
+
+    <!-- Barre de recherche + filtres -->
+    <div class="dash-block" style="padding:1rem 1.25rem;margin-bottom:1rem">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <div style="flex:1;min-width:220px;position:relative">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px">🔍</span>
+          <input type="text" id="imp-search" placeholder="Rechercher par nom et prénom..." oninput="filtrerImpots()" style="width:100%;background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:9px 12px 9px 36px;color:var(--text);font-size:13px;font-family:'Rajdhani',sans-serif"/>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="imp-filter-btn active" data-filter="tous" onclick="setImpotFiltre(this)" style="background:var(--accent);color:#1a1400;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Tous</button>
+          <button class="imp-filter-btn" data-filter="paye" onclick="setImpotFiltre(this)" style="background:transparent;color:var(--green);border:1px solid rgba(39,174,96,0.4);padding:8px 14px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase">✓ Payés</button>
+          <button class="imp-filter-btn" data-filter="non" onclick="setImpotFiltre(this)" style="background:transparent;color:var(--red2);border:1px solid rgba(231,76,60,0.4);padding:8px 14px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase">✗ Non payés</button>
+        </div>
       </div>
     </div>
 
@@ -3667,22 +3701,30 @@ function renderImpots() {
     <div class="dash-block" style="overflow-x:auto;margin-bottom:1.5rem">
       <table class="penal-table" style="width:100%">
         <thead><tr><th>Nom et Prénom</th><th>Grade</th><th>Montant</th><th>Statut</th><th>Action / Collecteur</th></tr></thead>
-        <tbody>`;
+        <tbody id="imp-tbody">`;
 
-  if (state.impots.length === 0) {
+  // Tri par grade décroissant (haut gradé en premier)
+  const impotsTries = state.impots.slice().sort((a, b) => {
+    const r = ninjaGradeRank(a.grade) - ninjaGradeRank(b.grade);
+    if (r !== 0) return r;
+    return normalize(a.fullname).localeCompare(normalize(b.fullname));
+  });
+
+  if (impotsTries.length === 0) {
     html += '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem">Aucun ninja enregistré.</td></tr>';
   } else {
-    state.impots.forEach((i, idx) => {
+    impotsTries.forEach((i) => {
+      const idx = state.impots.indexOf(i);
       const m = IMPOTS_MONTANTS[i.grade] || 0;
       const isPaye = i.statut === 'paye';
       const isExo = i.grade === 'Genin';
       const collecteur = i.collecteur || '';
       const gradeColor = ninjaGradeColor(i.grade);
-      html += `<tr>
+      html += `<tr class="imp-row" data-name="${normalize(i.fullname)}" data-statut="${isPaye?'paye':'non'}" data-exo="${isExo}">
         <td><strong>${i.fullname}</strong></td>
         <td>
           <select onchange="changerGradeImpot(${idx}, this.value)" style="background:${gradeColor.bg};border:1px solid ${gradeColor.border};color:${gradeColor.color};padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">
-            ${Object.keys(IMPOTS_MONTANTS).map(g => {
+            ${NINJA_GRADE_ORDER.filter(g => IMPOTS_MONTANTS[g] !== undefined).map(g => {
               const gc = ninjaGradeColor(g);
               return '<option ' + (i.grade===g?'selected':'') + ' style="background:#1a1a1a;color:'+gc.color+'">'+gc.icon+' '+g+'</option>';
             }).join('')}
@@ -3970,16 +4012,10 @@ function recupererCollectes(agent) {
   const collectes = state.collectesEnCours[agent] || [];
   const total = collectes.reduce((s, c) => s + c.montant, 0);
   if (collectes.length === 0) { alert('Aucune collecte à récupérer'); return; }
-  if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Les ninjas concernés repassent en "non payé"\n• Cette récupération est enregistrée dans l'historique de la Direction\n• L'historique global est conservé`)) return;
+  if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Cette récupération est enregistrée dans l'historique de la Direction\n• Les ninjas restent marqués comme PAYÉS\n• Pour remettre les ninjas en "non payé", utilisez "Remettre tout à zéro"`)) return;
 
-  // Remettre les ninjas concernés en "non payé" (mais NE PAS les supprimer du registre !)
-  collectes.forEach(c => {
-    const imp = state.impots.find(i => matchFullname(i.fullname, c.payeur));
-    if (imp) {
-      imp.statut = 'non';
-      imp.collecteur = '';
-    }
-  });
+  // ⚠ NE PAS remettre les ninjas en "non payé" — ils restent payés
+  // (Le bouton "Remettre tout à zéro" s'en charge si besoin)
 
   // Enregistrer dans l'historique direction
   state.impotsHistoriqueDirection = state.impotsHistoriqueDirection || [];
@@ -3993,12 +4029,70 @@ function recupererCollectes(agent) {
     detail: collectes.slice() // copie
   });
 
-  // Vider les collectes en cours de cet agent
+  // Vider les collectes en cours de cet agent (le compteur revient à 0)
   state.collectesEnCours[agent] = [];
 
   saveSession();
-  alert(`✓ ${total.toLocaleString()} Ryos récupérés sur ${agent}\nEnregistré dans l'historique Direction.`);
+  alert(`✓ ${total.toLocaleString()} Ryos récupérés sur ${agent}\nEnregistré dans l'historique Direction.\n\nLes ninjas restent payés.`);
   renderImpots();
+}
+
+// Filtrage de la liste des impôts (recherche + statut)
+let impotFiltreActuel = 'tous';
+function setImpotFiltre(btn) {
+  document.querySelectorAll('.imp-filter-btn').forEach(b => {
+    b.classList.remove('active');
+    const f = b.dataset.filter;
+    if (f === 'tous') {
+      b.style.background = 'transparent';
+      b.style.color = 'var(--text)';
+      b.style.border = '1px solid var(--border)';
+    } else if (f === 'paye') {
+      b.style.background = 'transparent';
+      b.style.color = 'var(--green)';
+      b.style.border = '1px solid rgba(39,174,96,0.4)';
+    } else {
+      b.style.background = 'transparent';
+      b.style.color = 'var(--red2)';
+      b.style.border = '1px solid rgba(231,76,60,0.4)';
+    }
+  });
+  btn.classList.add('active');
+  const f = btn.dataset.filter;
+  if (f === 'tous') {
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#1a1400';
+    btn.style.border = 'none';
+  } else if (f === 'paye') {
+    btn.style.background = 'rgba(39,174,96,0.2)';
+    btn.style.color = 'var(--green)';
+    btn.style.border = '1px solid var(--green)';
+  } else {
+    btn.style.background = 'rgba(231,76,60,0.2)';
+    btn.style.color = 'var(--red2)';
+    btn.style.border = '1px solid var(--red2)';
+  }
+  impotFiltreActuel = f;
+  filtrerImpots();
+}
+
+function filtrerImpots() {
+  const search = document.getElementById('imp-search');
+  const q = search ? normalize(search.value) : '';
+  document.querySelectorAll('.imp-row').forEach(row => {
+    const name = row.dataset.name || '';
+    const statut = row.dataset.statut || '';
+    const exo = row.dataset.exo === 'true';
+
+    let show = true;
+    // Filtre statut
+    if (impotFiltreActuel === 'paye' && statut !== 'paye') show = false;
+    if (impotFiltreActuel === 'non' && (statut === 'paye' || exo)) show = false;
+    // Filtre recherche
+    if (q && !name.includes(q)) show = false;
+
+    row.style.display = show ? '' : 'none';
+  });
 }
 
 function renderAjout() {
