@@ -2644,8 +2644,26 @@ function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint
 function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT
 function canResetImpots(g) { return gradeRank(g) <= 1; } // Dir + Adjoint
 function canTreatPlaintes(g) { return gradeRank(g) <= 4; } // Officier et plus
-function canCreateCasier(g) { return gradeRank(g) <= 4; } // Officier et plus PEUVENT CRÉER
-function canViewCasier(g) { return gradeRank(g) <= 5; } // Recrue et plus PEUVENT CONSULTER
+// Permissions casier — par section + grade
+function canCreateCasier(user) {
+  if (!user) return false;
+  const service = user.service || 'police';
+  if (service === 'avocat') return false; // Avocat NE PEUT JAMAIS créer
+  if (service === 'juge') return true; // Tous les juges peuvent créer
+  // Police : Officier et plus peuvent créer
+  return gradeRank(user.grade) <= 4;
+}
+function canViewCasier(user) {
+  if (!user) return false;
+  // Tout le monde peut consulter (Police, Juge, Avocat)
+  return true;
+}
+// Permission émission d'amendes : Police uniquement (Recrue+), pas Juge ni Avocat
+function canCreateAmende(user) {
+  if (!user) return false;
+  const service = user.service || 'police';
+  return service === 'police';
+}
 function canDiscussInter(g) { return gradeRank(g) <= 2; } // Police : Lieutenant + Adjoint + Directeur
 
 // Sélection de section dans le login
@@ -2942,6 +2960,7 @@ function submitCandidature() {
   }
 
   state.candidatures.push({...data, target: selectedPostSection});
+  saveSession();
   okEl.style.display = 'block';
   ['post-fullname','post-genre','post-niveau','post-section','post-casier','post-motiv','post-password'].forEach(id => {
     const el = document.getElementById(id);
@@ -3032,6 +3051,7 @@ function submitPlainte() {
     submittedAt: new Date().toLocaleDateString('fr-FR'),
     id: Date.now()
   });
+  saveSession();
 
   okEl.style.display = 'block';
   ['pl-pseudo','pl-suspect','pl-type','pl-desc','pl-date'].forEach(id => {
@@ -3438,15 +3458,7 @@ function changeGrade(fullname, dir) {
 function renderAmendes() {
   const u = state.currentUser;
   const el = document.getElementById('amendes-content');
-  let infOptions = '<option value="">-- Sélectionner --</option>';
-  ['palier1','palier2','palier3'].forEach(p => {
-    const label = p === 'palier1' ? 'Palier 1' : p === 'palier2' ? 'Palier 2' : 'Palier 3';
-    infOptions += `<optgroup label="${label}">`;
-    INFRACTIONS[p].forEach(i => {
-      infOptions += `<option data-x1="${i.x1}" data-x2="${i.x2}" data-x3="${i.x3}">${i.label}</option>`;
-    });
-    infOptions += '</optgroup>';
-  });
+  const canEmit = canCreateAmende(u);
 
   // STATS amendes (uniquement non récupérées)
   const actives = state.amendes.filter(a => !a.recupere);
@@ -3456,7 +3468,23 @@ function renderAmendes() {
   const totalImpayees = impayees.reduce((s, a) => s + a.montant, 0);
   const totalGlobal = state.amendes.filter(a => a.recupere).reduce((s, a) => s + a.montant, 0);
 
+  // Bandeau pour les sections qui ne peuvent pas émettre
+  let bandeauHtml = '';
+  if (!canEmit) {
+    const myService = u.service || 'police';
+    if (myService === 'avocat') {
+      bandeauHtml = `<div style="background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:var(--text)">
+        🧑‍⚖️ <strong style="color:#fbbf24">Mode consultation — Cabinet des Avocats</strong> — Vous pouvez consulter toutes les amendes pour la défense de vos clients, mais vous ne pouvez pas en émettre.
+      </div>`;
+    } else if (myService === 'juge') {
+      bandeauHtml = `<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:var(--text)">
+        ⚖️ <strong style="color:#93c5fd">Mode consultation — Tribunal</strong> — Vous pouvez consulter toutes les amendes émises par la Police pour vos décisions judiciaires.
+      </div>`;
+    }
+  }
+
   el.innerHTML = `
+    ${bandeauHtml}
     <!-- KPIs Amendes -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.25rem">
       <div style="background:rgba(196,154,26,0.08);border:1px solid rgba(196,154,26,0.25);border-radius:10px;padding:14px;text-align:center">
@@ -3479,13 +3507,40 @@ function renderAmendes() {
       </div>
     </div>
 
+    ${canEmit ? `
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">💰 Émettre une amende</h3>
       <div class="form-group"><label>Nom et Prénom du contrevenant</label><input type="text" id="am-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
+
+      <!-- Sélection multi-infractions -->
       <div class="form-group">
-        <label>Infraction</label>
-        <select id="am-infraction" onchange="updateAmendeMontant()">${infOptions}</select>
+        <label>Infractions <span style="color:var(--muted);font-size:11px;font-weight:400">(sélection multiple)</span></label>
+
+        <div id="am-inf-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:40px;padding:8px;background:rgba(0,0,0,0.25);border:1px dashed var(--border);border-radius:6px;margin-bottom:8px">
+          <span id="am-inf-empty" style="color:var(--muted);font-style:italic;font-size:12px;align-self:center">Aucune infraction sélectionnée</span>
+        </div>
+
+        <select id="am-inf-picker" onchange="ajouterInfractionAmende(this)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
+          <option value="">+ Ajouter une infraction...</option>
+          <optgroup label="🟢 Palier 1 — Léger">
+            ${INFRACTIONS.palier1.map(i => '<option data-palier="palier1" data-x1="' + i.x1 + '" data-x2="' + i.x2 + '" data-x3="' + i.x3 + '">' + i.label + '</option>').join('')}
+          </optgroup>
+          <optgroup label="🟡 Palier 2 — Grave">
+            ${INFRACTIONS.palier2.map(i => '<option data-palier="palier2" data-x1="' + i.x1 + '" data-x2="' + i.x2 + '" data-x3="' + i.x3 + '">' + i.label + '</option>').join('')}
+          </optgroup>
+          <optgroup label="🔴 Palier 3 — Très grave">
+            ${INFRACTIONS.palier3.map(i => '<option data-palier="palier3" data-x1="' + i.x1 + '" data-x2="' + i.x2 + '" data-x3="' + i.x3 + '">' + i.label + '</option>').join('')}
+          </optgroup>
+        </select>
+
+        <!-- Légende paliers -->
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;font-size:10px">
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;background:rgba(34,197,94,0.12);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-weight:700">🟢 Palier 1 — Léger</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;background:rgba(232,197,71,0.12);color:#fbbf24;border:1px solid rgba(232,197,71,0.3);font-weight:700">🟡 Palier 2 — Grave</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;background:rgba(231,76,60,0.12);color:#fca5a5;border:1px solid rgba(231,76,60,0.3);font-weight:700">🔴 Palier 3 — Très grave</span>
+        </div>
       </div>
+
       <div class="form-group">
         <label>Multiplicateur (récidive)</label>
         <select id="am-mult" onchange="updateAmendeMontant()">
@@ -3494,12 +3549,15 @@ function renderAmendes() {
           <option value="x3">×3 — Récidive multiple</option>
         </select>
       </div>
+
       <div id="am-montant-preview" style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;text-align:center;display:none">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Montant total</div>
         <div style="font-size:26px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif" id="am-montant-display">0 Ryos</div>
       </div>
+
       <button class="btn-primary btn-full" onclick="emettreAmende()">💰 Émettre l'amende</button>
     </div>
+    ` : ''}
 
     <div class="dash-block" style="padding:1.5rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">📋 Liste des amendes (${actives.length})</h3>
@@ -3564,33 +3622,85 @@ function refreshAmendesParAgent() {
   }).join('');
 }
 
-function updateAmendeMontant() {
-  const sel = document.getElementById('am-infraction');
-  const mult = document.getElementById('am-mult').value;
+// État temporaire des infractions sélectionnées pour la nouvelle amende
+let amInfractionsSelectionnees = [];
+
+function ajouterInfractionAmende(sel) {
+  if (!sel.value) return;
   const opt = sel.options[sel.selectedIndex];
-  if (!opt || !opt.value) {
+  const palier = opt.dataset.palier;
+  const label = sel.value;
+  const x1 = parseInt(opt.dataset.x1 || 0);
+  const x2 = parseInt(opt.dataset.x2 || 0);
+  const x3 = parseInt(opt.dataset.x3 || 0);
+
+  // Vérifier doublon
+  if (amInfractionsSelectionnees.some(i => i.label === label)) {
+    sel.value = '';
+    return;
+  }
+
+  amInfractionsSelectionnees.push({ label, palier, x1, x2, x3 });
+  sel.value = '';
+  renderInfractionsAmendeChips();
+  updateAmendeMontant();
+}
+
+function retirerInfractionAmende(idx) {
+  amInfractionsSelectionnees.splice(idx, 1);
+  renderInfractionsAmendeChips();
+  updateAmendeMontant();
+}
+
+function renderInfractionsAmendeChips() {
+  const cont = document.getElementById('am-inf-chips');
+  if (!cont) return;
+  if (amInfractionsSelectionnees.length === 0) {
+    cont.innerHTML = '<span id="am-inf-empty" style="color:var(--muted);font-style:italic;font-size:12px;align-self:center">Aucune infraction sélectionnée</span>';
+    return;
+  }
+  const colors = {
+    palier1: { bg:'rgba(34,197,94,0.18)', color:'#86efac', border:'rgba(34,197,94,0.4)', icon:'🟢' },
+    palier2: { bg:'rgba(232,197,71,0.18)', color:'#fbbf24', border:'rgba(232,197,71,0.4)', icon:'🟡' },
+    palier3: { bg:'rgba(231,76,60,0.18)', color:'#fca5a5', border:'rgba(231,76,60,0.4)', icon:'🔴' }
+  };
+  cont.innerHTML = amInfractionsSelectionnees.map((inf, idx) => {
+    const c = colors[inf.palier] || colors.palier2;
+    const m = inf.x1; // par défaut première fois
+    return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:14px;background:${c.bg};color:${c.color};border:1px solid ${c.border};font-size:11px;font-weight:600">
+      ${c.icon} ${inf.label} <span style="opacity:0.8">(${m.toLocaleString()})</span>
+      <button onclick="retirerInfractionAmende(${idx})" style="background:transparent;border:none;color:${c.color};cursor:pointer;padding:0;margin-left:2px;font-size:14px;line-height:1" title="Retirer">×</button>
+    </span>`;
+  }).join('');
+}
+
+function updateAmendeMontant() {
+  const multEl = document.getElementById('am-mult');
+  if (!multEl) return;
+  const mult = multEl.value;
+  if (amInfractionsSelectionnees.length === 0) {
     document.getElementById('am-montant-preview').style.display = 'none';
     return;
   }
-  const m = parseInt(opt.dataset[mult] || 0);
+  // Somme des montants de toutes les infractions sélectionnées
+  const total = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[mult] || 0), 0);
   document.getElementById('am-montant-preview').style.display = 'block';
-  document.getElementById('am-montant-display').textContent = m.toLocaleString() + ' Ryos';
+  document.getElementById('am-montant-display').textContent = total.toLocaleString() + ' Ryos';
 }
 
 function emettreAmende() {
   let fullname = document.getElementById('am-fullname').value.trim();
-  const sel = document.getElementById('am-infraction');
   const mult = document.getElementById('am-mult').value;
-  if (!fullname || !sel.value) { alert('Champs manquants'); return; }
-  const opt = sel.options[sel.selectedIndex];
-  const total = parseInt(opt.dataset[mult] || 0);
+  if (!fullname) { alert('Nom du contrevenant manquant'); return; }
+  if (amInfractionsSelectionnees.length === 0) { alert('Sélectionnez au moins une infraction'); return; }
 
-  // Si une amende existe déjà pour cette personne (insensible casse/ordre),
-  // on réutilise la graphie existante pour grouper dans le même dossier
+  const total = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[mult] || 0), 0);
+
+  // Réutiliser graphie existante (anti-doublon dossier)
   const existante = state.amendes.find(a => matchFullname(a.fullname, fullname));
   if (existante) fullname = existante.fullname;
 
-  // Vérifier si la personne a déjà un casier "traité" → si oui, le repasser en cours
+  // Récidive auto sur casier traité
   state.casiers.forEach(c => {
     if (matchFullname(c.fullname, fullname) && c.statutJustice === 'traite') {
       c.statutJustice = 'en_cours';
@@ -3598,18 +3708,35 @@ function emettreAmende() {
     }
   });
 
+  // Concaténation des infractions pour le champ texte (compat ancien format)
+  const infractionStr = amInfractionsSelectionnees.map(i => i.label).join(' + ');
+  // Palier le plus haut
+  let palierMax = 'palier1';
+  amInfractionsSelectionnees.forEach(i => {
+    if (i.palier === 'palier3') palierMax = 'palier3';
+    else if (i.palier === 'palier2' && palierMax !== 'palier3') palierMax = 'palier2';
+  });
+
   state.amendes.push({
-    fullname: fullname, infraction: opt.text, montant: total, recidive: mult,
+    fullname: fullname,
+    infraction: infractionStr,
+    infractions: amInfractionsSelectionnees.slice(), // Détails pour affichage
+    palier: palierMax,
+    montant: total,
+    recidive: mult,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
     statut: 'impaye',
     id: Date.now()
   });
   saveSession();
+
+  // Reset
+  const nbInfractionsEmises = amInfractionsSelectionnees.length;
+  amInfractionsSelectionnees = [];
   document.getElementById('am-fullname').value = '';
-  sel.value = '';
   document.getElementById('am-montant-preview').style.display = 'none';
-  alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname);
+  alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))');
   renderAmendes();
 }
 
@@ -3701,7 +3828,19 @@ function refreshAmendesList() {
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                   <div style="flex:1;min-width:160px">
                     <div style="font-size:12px;color:var(--text);font-weight:600">${a.infraction}</div>
-                    <div style="font-size:10px;color:var(--muted);margin-top:2px">
+                    ${(a.infractions && a.infractions.length>0) ? `
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                        ${a.infractions.map(inf => {
+                          const pcolors = {
+                            palier1: { bg:'rgba(34,197,94,0.18)', color:'#86efac', border:'rgba(34,197,94,0.4)', icon:'🟢' },
+                            palier2: { bg:'rgba(232,197,71,0.18)', color:'#fbbf24', border:'rgba(232,197,71,0.4)', icon:'🟡' },
+                            palier3: { bg:'rgba(231,76,60,0.18)', color:'#fca5a5', border:'rgba(231,76,60,0.4)', icon:'🔴' }
+                          };
+                          const pc = pcolors[inf.palier] || pcolors.palier2;
+                          return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;background:${pc.bg};color:${pc.color};border:1px solid ${pc.border};font-size:10px;font-weight:600">${pc.icon} ${inf.label}</span>`;
+                        }).join('')}
+                      </div>` : ''}
+                    <div style="font-size:10px;color:var(--muted);margin-top:4px">
                       ${a.date} · agent ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
                       ${a.recupere ? ' · <span style="color:var(--lgold)">📦 Récupéré le '+a.recupereLe+'</span>' : ''}
                     </div>
@@ -4574,6 +4713,7 @@ function ajouterCellule() {
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
     noteLiberation: ''
   });
+  saveSession();
 
   ['cel-fullname','cel-faits','cel-objets'].forEach(id => document.getElementById(id).value = '');
   ['cel-grade','cel-motif','cel-chakra'].forEach(id => document.getElementById(id).value = '');
@@ -4591,6 +4731,7 @@ function libererDetenu(idx) {
   c.statut = 'libere';
   c.noteLiberation = note || 'Libération autorisée par ' + state.currentUser.fullname;
   c.dateLiberation = new Date().toLocaleDateString('fr-FR');
+  saveSession();
   alert('✓ ' + c.fullname + ' a été libéré.');
   renderCellules();
 }
@@ -4600,6 +4741,7 @@ function supprimerCellule(idx) {
   if (!c) return;
   if (!confirm('Supprimer définitivement le dossier de ' + c.fullname + ' ?')) return;
   state.cellules.splice(idx, 1);
+  saveSession();
   renderCellules();
 }
 
@@ -4862,8 +5004,8 @@ function deleteRapport(idx) {
 function renderCasier() {
   const u = state.currentUser;
   const el = document.getElementById('casier-content');
-  const canCreate = canCreateCasier(u.grade);
-  const canView = canViewCasier(u.grade);
+  const canCreate = canCreateCasier(u);
+  const canView = canViewCasier(u);
 
   if (!canView) {
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section nécessite au moins le grade Recrue.</p></div>';
@@ -4883,46 +5025,75 @@ function renderCasier() {
 
   let html = '';
 
-  // Bandeau d'info pour Recrue (consultation seule)
+  // Bandeau d'info pour les modes consultation
   if (!canCreate) {
-    html += `
-      <div style="background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:var(--text)">
-        ℹ️ <strong style="color:var(--accent)">Mode consultation</strong> — En tant que Recrue, vous pouvez consulter le casier judiciaire mais pas créer de nouvelles fiches. Seuls les Officiers et grades supérieurs peuvent enregistrer des fiches.
-      </div>`;
+    const myService = u.service || 'police';
+    let bandeauHtml = '';
+    if (myService === 'avocat') {
+      bandeauHtml = `
+        <div style="background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:var(--text)">
+          🧑‍⚖️ <strong style="color:#fbbf24">Mode consultation — Cabinet des Avocats</strong> — Vous pouvez consulter tous les casiers (en cours de traitement et traités) pour préparer la défense de vos clients, mais vous ne pouvez pas créer de fiches.
+        </div>`;
+    } else {
+      bandeauHtml = `
+        <div style="background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1rem;font-size:13px;color:var(--text)">
+          ℹ️ <strong style="color:var(--accent)">Mode consultation</strong> — Vous pouvez consulter le casier judiciaire mais pas créer de nouvelles fiches. Seuls les Officiers (Police), les Juges et grades supérieurs peuvent enregistrer des fiches.
+        </div>`;
+    }
+    html += bandeauHtml;
   }
 
   if (canCreate) {
+    const myService = u.service || 'police';
+    const sectionLabel = myService === 'juge' ? 'Tribunal' : 'Police';
     html += `
       <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem">
-        <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.75rem">🗂 Nouvelle fiche au casier judiciaire</h3>
+        <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.75rem">🗂 Nouvelle fiche au casier judiciaire <span style="font-size:11px;color:var(--muted);font-weight:400">(${sectionLabel})</span></h3>
         <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">⚠ Les personnes au casier ne peuvent ni postuler à la Police, ni rejoindre l'Hôpital.</p>
 
         <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="cas-fullname" placeholder="Ex: Orochimaru Senju"/></div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
-          <div class="form-group">
-            <label>Grade Ninja</label>
-            <select id="cas-grade">
-              <option value="">-- Sélectionner --</option>
-              <option>Genin</option><option>Genin Confirmé</option>
-              <option>Tokubetsu Chunin</option><option>Chunin</option>
-              <option>Kakunin</option><option>Tokubetsu Jonin</option>
-              <option>Jonin</option><option>Commandant Jonin</option>
-              <option>Citoyen</option><option>Inconnu</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Palier de gravité</label>
-            <select id="cas-palier">
-              <option value="palier2">Palier 2 — Grave</option>
-              <option value="palier3">Palier 3 — Très grave</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label>Grade Ninja</label>
+          <select id="cas-grade">
+            <option value="">-- Sélectionner --</option>
+            <option>Genin</option><option>Genin Confirmé</option>
+            <option>Tokubetsu Chunin</option><option>Chunin</option>
+            <option>Kakunin</option><option>Tokubetsu Jonin</option>
+            <option>Jonin</option><option>Commandant Jonin</option>
+            <option>Citoyen</option><option>Inconnu</option>
+          </select>
         </div>
 
+        <!-- Sélection multi infractions avec codes couleur -->
         <div class="form-group">
-          <label>Infraction principale *</label>
-          <select id="cas-infraction">${infOptions}</select>
+          <label>Infractions reprochées * <span style="color:var(--muted);font-size:11px;font-weight:400">(sélection multiple — cliquez pour ajouter)</span></label>
+
+          <!-- Chips actives sélectionnées -->
+          <div id="cas-inf-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:40px;padding:8px;background:rgba(0,0,0,0.25);border:1px dashed var(--border);border-radius:6px;margin-bottom:8px">
+            <span id="cas-inf-empty" style="color:var(--muted);font-style:italic;font-size:12px;align-self:center">Aucune infraction sélectionnée</span>
+          </div>
+
+          <!-- Sélecteur d'ajout -->
+          <select id="cas-inf-picker" onchange="ajouterInfractionCasier(this)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
+            <option value="">+ Ajouter une infraction...</option>
+            <optgroup label="🟢 Palier 1 — Léger">
+              ${INFRACTIONS.palier1.map(i => '<option data-palier="palier1">' + i.label + '</option>').join('')}
+            </optgroup>
+            <optgroup label="🟡 Palier 2 — Grave">
+              ${INFRACTIONS.palier2.map(i => '<option data-palier="palier2">' + i.label + '</option>').join('')}
+            </optgroup>
+            <optgroup label="🔴 Palier 3 — Très grave">
+              ${INFRACTIONS.palier3.map(i => '<option data-palier="palier3">' + i.label + '</option>').join('')}
+            </optgroup>
+          </select>
+
+          <!-- Légende paliers -->
+          <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;font-size:10px">
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;background:rgba(34,197,94,0.12);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-weight:700">🟢 Palier 1 — Léger</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;background:rgba(232,197,71,0.12);color:#fbbf24;border:1px solid rgba(232,197,71,0.3);font-weight:700">🟡 Palier 2 — Grave</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;background:rgba(231,76,60,0.12);color:#fca5a5;border:1px solid rgba(231,76,60,0.3);font-weight:700">🔴 Palier 3 — Très grave</span>
+          </div>
         </div>
 
         <div class="form-group">
@@ -5079,31 +5250,94 @@ function reouvrirCasier(idx) {
   renderCasier();
 }
 
+// État temporaire des infractions sélectionnées pour la nouvelle fiche
+let casInfractionsSelectionnees = [];
+
+function ajouterInfractionCasier(sel) {
+  if (!sel.value) return;
+  const opt = sel.options[sel.selectedIndex];
+  const palier = opt.dataset.palier;
+  const label = sel.value;
+
+  // Vérifier doublon
+  if (casInfractionsSelectionnees.some(i => i.label === label)) {
+    sel.value = '';
+    return;
+  }
+
+  casInfractionsSelectionnees.push({ label, palier });
+  sel.value = '';
+  renderInfractionsCasierChips();
+}
+
+function retirerInfractionCasier(idx) {
+  casInfractionsSelectionnees.splice(idx, 1);
+  renderInfractionsCasierChips();
+}
+
+function renderInfractionsCasierChips() {
+  const cont = document.getElementById('cas-inf-chips');
+  if (!cont) return;
+  if (casInfractionsSelectionnees.length === 0) {
+    cont.innerHTML = '<span id="cas-inf-empty" style="color:var(--muted);font-style:italic;font-size:12px;align-self:center">Aucune infraction sélectionnée</span>';
+    return;
+  }
+  const colors = {
+    palier1: { bg:'rgba(34,197,94,0.18)', color:'#86efac', border:'rgba(34,197,94,0.4)', icon:'🟢' },
+    palier2: { bg:'rgba(232,197,71,0.18)', color:'#fbbf24', border:'rgba(232,197,71,0.4)', icon:'🟡' },
+    palier3: { bg:'rgba(231,76,60,0.18)', color:'#fca5a5', border:'rgba(231,76,60,0.4)', icon:'🔴' }
+  };
+  cont.innerHTML = casInfractionsSelectionnees.map((inf, idx) => {
+    const c = colors[inf.palier] || colors.palier2;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:14px;background:${c.bg};color:${c.color};border:1px solid ${c.border};font-size:11px;font-weight:600">
+      ${c.icon} ${inf.label}
+      <button onclick="retirerInfractionCasier(${idx})" style="background:transparent;border:none;color:${c.color};cursor:pointer;padding:0;margin-left:2px;font-size:14px;line-height:1" title="Retirer">×</button>
+    </span>`;
+  }).join('');
+}
+
 function ajouterCasier() {
   let fullname = document.getElementById('cas-fullname').value.trim();
   const grade = document.getElementById('cas-grade').value;
-  const palier = document.getElementById('cas-palier').value;
-  const infraction = document.getElementById('cas-infraction').value;
   const faits = document.getElementById('cas-faits').value.trim();
   const sanction = document.getElementById('cas-sanction').value;
 
-  if (!fullname || !infraction || !faits) { alert('Nom, infraction et faits sont obligatoires.'); return; }
+  if (!fullname || casInfractionsSelectionnees.length === 0 || !faits) {
+    alert('Nom, au moins une infraction et faits sont obligatoires.');
+    return;
+  }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
 
-  // Réutiliser la graphie existante si la personne a déjà un casier (évite doublon)
+  // Réutiliser la graphie existante si la personne a déjà un casier
   const existant = state.casiers.find(c => matchFullname(c.fullname, fullname));
   if (existant) fullname = existant.fullname;
 
+  // Palier le plus élevé parmi les infractions sélectionnées (3 > 2 > 1)
+  let palierMax = 'palier1';
+  casInfractionsSelectionnees.forEach(i => {
+    if (i.palier === 'palier3') palierMax = 'palier3';
+    else if (i.palier === 'palier2' && palierMax !== 'palier3') palierMax = 'palier2';
+  });
+
+  // Concaténer les infractions pour le champ "infraction" (compatibilité ancien format)
+  const infractionStr = casInfractionsSelectionnees.map(i => i.label).join(' + ');
+
   state.casiers.push({
-    fullname, grade, palier, infraction, faits, sanction,
+    fullname, grade,
+    palier: palierMax,
+    infraction: infractionStr,
+    infractions: casInfractionsSelectionnees.slice(), // Copie du tableau pour affichage détaillé
+    faits, sanction,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
     statutJustice: 'en_cours',
-    recidive: existant ? true : false, // récidive si dossier existant
+    recidive: existant ? true : false,
     id: Date.now()
   });
   saveSession();
 
+  // Reset
+  casInfractionsSelectionnees = [];
   ['cas-fullname','cas-faits'].forEach(id => document.getElementById(id).value = '');
   alert('⛓ Fiche ajoutée au dossier de ' + fullname + (existant ? '\n\n⚠ Récidive : nouvelle infraction ajoutée à un dossier existant.' : ''));
   renderCasier();
@@ -5265,6 +5499,7 @@ function ajouterPorte() {
     fullname, grade, statut,
     heureSortie: statut === 'sorti' ? new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : null
   });
+  saveSession();
   document.getElementById('por-fullname').value = '';
   renderPortes();
 }
@@ -5279,6 +5514,7 @@ function togglePorte(idx) {
     p.statut = 'present';
     p.heureSortie = null;
   }
+  saveSession();
   renderPortes();
 }
 
@@ -5455,6 +5691,7 @@ function creerGroupe() {
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR')
   });
+  saveSession();
 
   document.getElementById('grp-modal').remove();
   window._grpNewMembers = [];
@@ -5476,6 +5713,7 @@ function rentrerGroupe(idx) {
       p.heureSortie = null;
     }
   });
+  saveSession();
 
   alert('✓ Groupe rentré, tous les ninjas sont de nouveau dans le village.');
   renderPortes();
@@ -5490,6 +5728,7 @@ function deleteGroupe(idx) {
     if (p.groupeId === g.id) delete p.groupeId;
   });
   state.groupes.splice(idx, 1);
+  saveSession();
   renderPortes();
 }
 
@@ -5973,6 +6212,7 @@ function creerDiscussion() {
     createur: u.fullname,
     date: new Date().toLocaleDateString('fr-FR')
   });
+  saveSession();
 
   document.getElementById('disc-modal').remove();
   alert('✓ Discussion créée !');
@@ -5992,6 +6232,7 @@ function envoyerMessage(idx) {
     texte,
     heure: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
   });
+  saveSession();
 
   ta.value = '';
   renderDiscussions();
@@ -6010,6 +6251,7 @@ function addParticipant(idx, service) {
   const labels = { police:'👮 Police', juge:'⚖️ Juge', avocat:'🧑‍⚖️ Avocat' };
   if (!confirm('Ajouter ' + labels[service] + ' à la discussion ?')) return;
   d.participants.push(service);
+  saveSession();
   renderDiscussions();
   setTimeout(() => {
     const det = document.getElementById('disc-det-' + idx);
@@ -6020,6 +6262,7 @@ function addParticipant(idx, service) {
 function deleteDiscussion(idx) {
   if (!confirm('Supprimer définitivement cette discussion ?')) return;
   state.discussions.splice(idx, 1);
+  saveSession();
   renderDiscussions();
 }
 
@@ -7152,6 +7395,33 @@ if (restored && state.currentUser) {
   showPage('civil-dash');
 }
 updateStats();
+
+// ============================================================
+// PERSISTANCE TOTALE — Sauvegardes de sécurité multiples
+// ============================================================
+// 1. Sauvegarde automatique toutes les 3 secondes
+setInterval(() => {
+  try { saveSession(); } catch(e) { console.warn('Auto-save failed:', e); }
+}, 3000);
+
+// 2. Sauvegarde quand l'onglet/fenêtre devient invisible (changement d'onglet, fermeture)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    try { saveSession(); } catch(e) {}
+  }
+});
+
+// 3. Sauvegarde avant fermeture de la page
+window.addEventListener('beforeunload', () => {
+  try { saveSession(); } catch(e) {}
+});
+
+// 4. Sauvegarde à chaque clic n'importe où sur la page (paranoïaque)
+document.addEventListener('click', () => {
+  try { saveSession(); } catch(e) {}
+}, { passive: true });
+
+console.log('🔒 Persistance totale activée — sauvegardes auto toutes les 3s + à chaque clic + à chaque changement d\'onglet');
 </script>
 </body>
 </html>
