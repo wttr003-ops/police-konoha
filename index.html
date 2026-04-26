@@ -2619,21 +2619,47 @@ function subscribeToSupabaseChanges() {
         const { data } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
         if (data) {
           state[stateKey] = data.map(cfg.mapFrom);
-          // Re-render la vue actuelle si possible
-          try {
-            if (typeof updateNav === 'function') updateNav();
-            if (typeof updateStats === 'function') updateStats();
-            const activeTab = document.querySelector('.dash-nav-btn.active');
-            if (activeTab && state.currentUser) {
-              const tabName = activeTab.dataset.tab;
-              if (typeof switchDashTab === 'function') switchDashTab(tabName, activeTab);
-            }
-          } catch(e) {}
+          // Mettre à jour TOUTE l'UI
+          refreshAllUI();
         }
       })
       .subscribe();
   });
   console.log('📡 Realtime activé sur ' + Object.keys(SUPABASE_TABLES).length + ' tables');
+}
+
+// ============================================================
+// REFRESH COMPLET DE L'UI (KPIs + onglet actif + sidebar + stats publiques)
+// Appelé à chaque changement Realtime ou local
+// ============================================================
+function refreshAllUI() {
+  try {
+    // 1. Stats de la page d'accueil publique
+    if (typeof updateStats === 'function') updateStats();
+
+    // 2. Nav publique
+    if (typeof updateNav === 'function') updateNav();
+
+    // 3. Si on est dans le dashboard (un agent connecté)
+    if (state.currentUser) {
+      // 3a. KPIs de la vue d'ensemble (toujours à jour, même si pas affichée)
+      try { if (typeof renderOverview === 'function' && document.getElementById('kpi-candid-wait')) renderOverview(); } catch(e) {}
+
+      // 3b. Re-render de l'onglet actif
+      const activeTab = document.querySelector('.dash-nav-btn.active');
+      if (activeTab && typeof switchDashTab === 'function') {
+        const tabName = activeTab.dataset.tab;
+        switchDashTab(tabName, activeTab);
+      }
+    }
+
+    // 4. Si on est dans l'espace civil
+    if (typeof civilUser !== 'undefined' && civilUser && typeof renderCivilDash === 'function') {
+      try { renderCivilDash(); } catch(e) {}
+    }
+  } catch(e) {
+    console.warn('⚠️ refreshAllUI:', e);
+  }
 }
 
 // ============================================================
@@ -3479,20 +3505,32 @@ function switchDashTab(name, btn) {
 
 function renderOverview() {
   const u = state.currentUser;
+  if (!u) return; // Pas connecté, on ne fait rien
+
   const wait = state.candidatures.filter(c => c.status === 'wait').length;
   const total = state.candidatures.length;
-  const agents = state.users.filter(x => x.isAgent && (x.service||'police')==='police').length;
+  const myService = u.service || 'police';
+  // Compter les agents de la même section que l'utilisateur connecté
+  const agents = state.users.filter(x => x.isAgent && (x.service||'police') === myService).length;
   const plaintesWait = state.plaintes.filter(p => p.status === 'wait').length;
 
-  document.getElementById('kpi-candid-wait').textContent = wait;
-  document.getElementById('kpi-candid-total').textContent = total + (plaintesWait > 0 ? ' · '+plaintesWait+' plaintes' : '');
-  document.getElementById('kpi-agents').textContent = agents;
-  document.getElementById('kpi-mygrade').textContent = u.grade;
+  const elWait = document.getElementById('kpi-candid-wait');
+  const elTotal = document.getElementById('kpi-candid-total');
+  const elAgents = document.getElementById('kpi-agents');
+  const elGrade = document.getElementById('kpi-mygrade');
 
-  const perms = PERMS[gradeRank(u.grade)] || PERMS[5];
-  document.getElementById('perms-list').innerHTML = perms.map(p =>
-    '<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)"><span style="color:var(--green);margin-right:10px">✓</span>' + p + '</div>'
-  ).join('');
+  if (elWait) elWait.textContent = wait;
+  if (elTotal) elTotal.textContent = total + (plaintesWait > 0 ? ' · '+plaintesWait+' plaintes' : '');
+  if (elAgents) elAgents.textContent = agents;
+  if (elGrade) elGrade.textContent = u.grade;
+
+  const permsList = document.getElementById('perms-list');
+  if (permsList) {
+    const perms = PERMS[gradeRank(u.grade)] || PERMS[5];
+    permsList.innerHTML = perms.map(p =>
+      '<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)"><span style="color:var(--green);margin-right:10px">✓</span>' + p + '</div>'
+    ).join('');
+  }
 }
 
 function renderCandidatures() {
