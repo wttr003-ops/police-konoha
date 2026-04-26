@@ -3220,9 +3220,27 @@ function renderMembres() {
   const agents = state.users.filter(x => x.isAgent && (x.service||'police') === 'police');
   const canManage = canManageMembers(u.grade); // Lieutenant + Direction
 
-  // Récupérer les citoyens : ceux qui ont postulé (candidatures) + comptes citoyens créés
-  // On considère un "citoyen" toute personne qui a postulé (peu importe le statut)
+  // Récupérer les citoyens depuis 3 sources :
+  // 1. Comptes civils créés via Espace Civil (PRIORITAIRE)
+  // 2. Personnes ayant postulé (candidatures)
+  // 3. Personnes ayant porté plainte
   const citoyensMap = {};
+
+  // 1. Comptes civils
+  state.users.filter(x => x.service === 'civil').forEach(c => {
+    const key = normalize(c.fullname);
+    citoyensMap[key] = {
+      fullname: c.fullname,
+      niveau: c.grade || c.ninjaRank || '—',
+      section: c.section || '—',
+      casierDeclare: c.casier || 'non',
+      date: c.inscription || '—',
+      genre: c.genre || '',
+      compteEspaceCivil: true
+    };
+  });
+
+  // 2. Candidatures (n'écrase pas si déjà compte civil)
   state.candidatures.forEach(c => {
     const key = normalize(c.fullname);
     if (!citoyensMap[key]) {
@@ -3232,11 +3250,16 @@ function renderMembres() {
         section: c.section,
         casierDeclare: c.casier,
         date: c.date,
-        statut: c.status
+        statut: c.status,
+        viaCandidature: true
       };
+    } else {
+      // Enrichir le compte civil avec les infos de candidature
+      citoyensMap[key].viaCandidature = true;
     }
   });
-  // Ajouter aussi les personnes des plaintes (mais seulement si pas déjà dans la liste)
+
+  // 3. Plaintes
   state.plaintes.forEach(p => {
     const key = normalize(p.pseudo);
     if (!citoyensMap[key]) {
@@ -3247,6 +3270,8 @@ function renderMembres() {
         date: p.submittedAt,
         viaPlainte: true
       };
+    } else {
+      citoyensMap[key].viaPlainte = true;
     }
   });
   // Tri par grade décroissant (haut gradé en haut), puis alpha
@@ -3332,19 +3357,34 @@ function renderMembres() {
       const init = getInitialsFromFullname(c.fullname);
       const fiche = checkCasierIntelligent(c.fullname);
       const sectionLabels = { aucune:'Indépendant', diplomate:'Diplomate', strategie:'Stratégie', medecin:'Médecin' };
+
+      // Badges sources
+      let badges = '';
+      if (c.compteEspaceCivil) badges += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4)" title="Compte créé via Espace Civil">🍃 Compte civil</span>';
+      if (c.viaCandidature) badges += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(196,154,26,0.15);color:var(--accent);border:1px solid rgba(196,154,26,0.4);margin-left:4px" title="A postulé">📝 Candidature</span>';
+      if (c.viaPlainte) badges += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(217,119,6,0.15);color:#fbbf24;border:1px solid rgba(217,119,6,0.4);margin-left:4px" title="A déposé une plainte">⚖️ Plainte</span>';
+
+      // Couleur de l'avatar selon la source principale
+      const isCivil = c.compteEspaceCivil;
+      const avatarBg = fiche ? 'rgba(231,76,60,0.15)' : isCivil ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)';
+      const avatarBorder = fiche ? 'rgba(231,76,60,0.4)' : isCivil ? 'rgba(34,197,94,0.4)' : 'rgba(59,130,246,0.4)';
+      const avatarColor = fiche ? 'var(--red2)' : isCivil ? '#86efac' : '#93c5fd';
+
       html += `
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);${fiche?'background:rgba(231,76,60,0.04)':''}">
-          <div style="width:34px;height:34px;border-radius:50%;background:${fiche?'rgba(231,76,60,0.15)':'rgba(59,130,246,0.15)'};border:1px solid ${fiche?'rgba(231,76,60,0.4)':'rgba(59,130,246,0.4)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${fiche?'var(--red2)':'#93c5fd'};flex-shrink:0">${init}</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;${fiche?'background:rgba(231,76,60,0.04)':''}">
+          <div style="width:34px;height:34px;border-radius:50%;background:${avatarBg};border:1px solid ${avatarBorder};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${avatarColor};flex-shrink:0">${init}</div>
           <div style="flex:1;min-width:120px">
-            <div style="font-weight:700;color:var(--text);font-size:13px">${c.fullname}</div>
-            <div style="font-size:10px;color:var(--muted)">${c.niveau||'—'} · ${sectionLabels[c.section]||c.section||'—'} · inscrit le ${c.date}</div>
+            <div style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              ${c.fullname}
+              ${badges}
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">${c.niveau||'—'} · ${sectionLabels[c.section]||c.section||'—'} · inscrit le ${c.date||'—'}</div>
           </div>
           ${fiche ? `
             <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(231,76,60,0.15);color:var(--red2);border:1px solid rgba(231,76,60,0.4)" title="${fiche.infraction}">⚠ Casier ${fiche.palier === 'palier3' ? 'P3' : 'P2'}</span>
           ` : `
             <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(39,174,96,0.1);color:var(--green);border:1px solid rgba(39,174,96,0.3)">✓ Vierge</span>
           `}
-          ${c.viaPlainte ? '<span style="font-size:10px;color:var(--muted);font-style:italic">(via plainte)</span>' : ''}
         </div>`;
     });
   }
