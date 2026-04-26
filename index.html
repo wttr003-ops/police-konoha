@@ -201,6 +201,18 @@
   .gp-b { background: rgba(196,154,26,0.2); color: var(--accent); border: 1px solid rgba(196,154,26,0.4); }
   .gp-c { background: rgba(16,185,129,0.2); color: var(--green); border: 1px solid rgba(16,185,129,0.4); }
   .gp-d { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid rgba(100,116,139,0.4); }
+  /* Grades Juge (bleu) */
+  .gp-j1 { background: rgba(59,130,246,0.25); color: #93c5fd; border: 1px solid rgba(59,130,246,0.5); font-weight: 700; }
+  .gp-j2 { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); }
+  .gp-j3 { background: rgba(96,165,250,0.15); color: #93c5fd; border: 1px solid rgba(96,165,250,0.35); }
+  .gp-j4 { background: rgba(125,180,255,0.12); color: #bfdbfe; border: 1px solid rgba(125,180,255,0.3); }
+  .gp-j5 { background: rgba(125,180,255,0.08); color: #c7dfff; border: 1px solid rgba(125,180,255,0.25); }
+  /* Grades Avocat (ambré) */
+  .gp-a1 { background: rgba(217,119,6,0.25); color: #fbbf24; border: 1px solid rgba(217,119,6,0.5); font-weight: 700; }
+  .gp-a2 { background: rgba(217,119,6,0.18); color: #fbbf24; border: 1px solid rgba(217,119,6,0.4); }
+  .gp-a3 { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.35); }
+  .gp-a4 { background: rgba(245,158,11,0.12); color: #fde68a; border: 1px solid rgba(245,158,11,0.3); }
+  .gp-a5 { background: rgba(245,158,11,0.08); color: #fef3c7; border: 1px solid rgba(245,158,11,0.25); }
 
   /* === HERO with FIRE === */
   .hero {
@@ -2213,7 +2225,7 @@
         <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
         <button class="dash-nav-btn" data-tab="plaintes" data-services="police" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
-        <button class="dash-nav-btn" data-tab="membres" data-services="police" onclick="switchDashTab('membres', this)">👥 Membres</button>
+        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
         <button class="dash-nav-btn" data-tab="amendes" data-services="police,juge,avocat" onclick="switchDashTab('amendes', this)">💰 Amendes</button>
         <button class="dash-nav-btn" data-tab="casier" data-services="police,juge,avocat" onclick="switchDashTab('casier', this)">🗂 Casier judiciaire</button>
@@ -2861,8 +2873,53 @@ const GRADE_RANK = {
 const GRADE_CLASS = {
   'Directeur': 'gp-s', 'Directeur Adjoint': 'gp-s',
   'Lieutenant': 'gp-a', 'Sergent': 'gp-b', 'Officier': 'gp-c', 'Recrue': 'gp-d',
-  'Citoyen': 'gp-d'
+  'Citoyen': 'gp-d',
+  // Juges (bleu, du plus haut au plus bas)
+  'Premier Président': 'gp-j1', 'Premier President': 'gp-j1',
+  'Président de Chambre': 'gp-j2', 'President de Chambre': 'gp-j2',
+  'Juge Senior': 'gp-j3',
+  'Juge Confirmé': 'gp-j4', 'Juge Confirme': 'gp-j4',
+  'Juge': 'gp-j4',
+  'Juge Auditeur': 'gp-j5',
+  'Juge Stagiaire': 'gp-j5',
+  // Avocats (ambré, du plus haut au plus bas)
+  'Bâtonnier': 'gp-a1', 'Batonnier': 'gp-a1',
+  'Maître': 'gp-a2', 'Maitre': 'gp-a2',
+  'Avocat Senior': 'gp-a3',
+  'Avocat Confirmé': 'gp-a4', 'Avocat Confirme': 'gp-a4',
+  'Avocat': 'gp-a4',
+  'Avocat Junior': 'gp-a5',
+  'Avocat Stagiaire': 'gp-a5'
 };
+
+// Rank pour les grades Juge (0 = plus haut)
+const GRADE_RANK_JUGE = {
+  'Premier Président': 0, 'Premier President': 0,
+  'Président de Chambre': 1, 'President de Chambre': 1,
+  'Juge Senior': 2,
+  'Juge Confirmé': 3, 'Juge Confirme': 3,
+  'Juge': 4,
+  'Juge Auditeur': 5,
+  'Juge Stagiaire': 6
+};
+
+// Rank pour les grades Avocat (0 = plus haut)
+const GRADE_RANK_AVOCAT = {
+  'Bâtonnier': 0, 'Batonnier': 0,
+  'Maître': 1, 'Maitre': 1,
+  'Avocat Senior': 2,
+  'Avocat Confirmé': 3, 'Avocat Confirme': 3,
+  'Avocat': 4,
+  'Avocat Junior': 5,
+  'Avocat Stagiaire': 6
+};
+
+// Helper pour obtenir le rank selon le service
+function gradeRankForService(service, grade) {
+  if (service === 'juge') return GRADE_RANK_JUGE[grade] !== undefined ? GRADE_RANK_JUGE[grade] : 99;
+  if (service === 'avocat') return GRADE_RANK_AVOCAT[grade] !== undefined ? GRADE_RANK_AVOCAT[grade] : 99;
+  return gradeRank(grade); // police par défaut
+}
 
 const PERMS = {
   0: ['Toutes les permissions', 'Voir les candidatures', 'Traiter les candidatures', 'Gérer les membres', 'Ajouter des agents', 'Modifier les grades', 'Gérer les amendes', 'Gérer les impôts'],
@@ -3727,8 +3784,20 @@ function treatCandid(idx, decision) {
 function renderMembres() {
   const u = state.currentUser;
   const el = document.getElementById('membres-content');
-  const agents = state.users.filter(x => x.isAgent && (x.service||'police') === 'police');
-  const canManage = canManageMembers(u.grade); // Lieutenant + Direction
+  const myService = u.service || 'police';
+
+  // Filtrer les agents selon la section connectée
+  const agents = state.users.filter(x => x.isAgent && (x.service||'police') === myService);
+
+  // Permission de gérer les membres selon la section
+  let canManage = false;
+  if (myService === 'police') {
+    canManage = canManageMembers(u.grade); // Lieutenant + Direction
+  } else if (myService === 'juge') {
+    canManage = _gradeIn(u.grade, ['Premier Président', 'Président de Chambre']);
+  } else if (myService === 'avocat') {
+    canManage = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
+  }
 
   // Récupérer les citoyens depuis 3 sources :
   // 1. Comptes civils créés via Espace Civil (PRIORITAIRE)
@@ -3784,9 +3853,9 @@ function renderMembres() {
       citoyensMap[key].viaPlainte = true;
     }
   });
-  // Tri par grade décroissant (haut gradé en haut), puis alpha
+  // Tri par grade décroissant (haut gradé en haut), puis alpha — adapté à la section
   agents.sort((a,b) => {
-    const r = gradeRank(a.grade) - gradeRank(b.grade);
+    const r = gradeRankForService(myService, a.grade) - gradeRankForService(myService, b.grade);
     if (r !== 0) return r;
     return normalize(a.fullname).localeCompare(normalize(b.fullname));
   });
@@ -3841,11 +3910,11 @@ function renderMembres() {
             <div style="font-size:10px;color:var(--muted)">${a.matricule||'—'} · ${a.hireDate||'Fondateur'}</div>
           </div>
           <span class="grade-pill ${GRADE_CLASS[a.grade]||'gp-d'}">${a.grade}</span>
-          ${canManage && !isMe && gradeRank(a.grade) > 1 ? `
+          ${canManage && !isMe && gradeRankForService(myService, a.grade) > 0 ? `
             <button class="btn-sm btn-sm-green" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', -1)" title="Promouvoir">▲</button>
             <button class="btn-sm btn-sm-red" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', +1)" title="Rétrograder">▼</button>
           ` : ''}
-          ${canAddAgent(u.grade) && !isMe ? `<button class="btn-sm btn-sm-red" onclick="supprimerCompte('${a.fullname.replace(/'/g,"\\'")}', 'police')" title="Supprimer le compte" style="background:rgba(192,57,43,0.3)">🗑</button>` : ''}
+          ${canManage && !isMe ? `<button class="btn-sm btn-sm-red" onclick="supprimerCompte('${a.fullname.replace(/'/g,"\\'")}', '${myService}')" title="Supprimer le compte" style="background:rgba(192,57,43,0.3)">🗑</button>` : ''}
         </div>`;
     });
   }
@@ -3931,17 +4000,52 @@ function switchMembresTab(tab) {
 }
 
 async function changeGrade(fullname, dir) {
-  const a = state.users.find(x => x.isAgent && x.fullname === fullname && (x.service||'police') === 'police');
+  const u = state.currentUser;
+  if (!u) return;
+  const myService = u.service || 'police';
+
+  // Vérifier permission
+  let canDo = false;
+  if (myService === 'police') canDo = canManageMembers(u.grade);
+  else if (myService === 'juge') canDo = _gradeIn(u.grade, ['Premier Président', 'Président de Chambre']);
+  else if (myService === 'avocat') canDo = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
+  if (!canDo) { alert('Vous n\'avez pas la permission de gérer les grades.'); return; }
+
+  // Trouver l'agent dans la même section
+  const a = state.users.find(x => x.isAgent && x.fullname === fullname && (x.service||'police') === myService);
   if (!a) return;
-  const r = gradeRank(a.grade) + dir;
-  const newG = Object.entries(GRADE_RANK).find(([g, rr]) => rr === r);
-  if (!newG) return;
-  if (!confirm((dir < 0 ? 'Promouvoir' : 'Rétrograder') + ' ' + a.fullname + ' au grade ' + newG[0] + ' ?')) return;
-  a.grade = newG[0];
+
+  // Récupérer la map de grades selon la section
+  let gradeMap;
+  if (myService === 'juge') gradeMap = GRADE_RANK_JUGE;
+  else if (myService === 'avocat') gradeMap = GRADE_RANK_AVOCAT;
+  else gradeMap = GRADE_RANK;
+
+  // Calculer nouveau rank et trouver le nom du grade correspondant (en prenant la 1ère version sans accent identique)
+  const currentRank = gradeRankForService(myService, a.grade);
+  const newRank = currentRank + dir;
+
+  // Trouver le grade correspondant au nouveau rank (préférer les versions avec accents si elles existent)
+  let newGradeName = null;
+  for (const [gradeName, rank] of Object.entries(gradeMap)) {
+    if (rank === newRank) {
+      // Préférer les versions avec accents (Premier Président plutôt que Premier President)
+      if (!newGradeName || /[éèêëàâäîïôöûü]/i.test(gradeName)) {
+        newGradeName = gradeName;
+      }
+    }
+  }
+
+  if (!newGradeName) {
+    alert(dir < 0 ? 'Cet agent est déjà au grade le plus élevé.' : 'Cet agent est déjà au grade le plus bas.');
+    return;
+  }
+  if (!confirm((dir < 0 ? 'Promouvoir' : 'Rétrograder') + ' ' + a.fullname + ' au grade ' + newGradeName + ' ?')) return;
+  a.grade = newGradeName;
 
   // Push le changement vers Supabase
   if (supabaseReady && a._id) {
-    try { await pushToSupabase('users', a); } catch(e) { console.warn('Erreur changeGrade cloud:', e); }
+    try { await pushToSupabase('users', a); } catch(e) {}
   }
 
   saveSession();
