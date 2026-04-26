@@ -206,6 +206,23 @@
   .gp-b { background: rgba(196,154,26,0.2); color: var(--accent); border: 1px solid rgba(196,154,26,0.4); }
   .gp-c { background: rgba(16,185,129,0.2); color: var(--green); border: 1px solid rgba(16,185,129,0.4); }
   .gp-d { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid rgba(100,116,139,0.4); }
+  /* Hokage (doré flamboyant — au-dessus de tout) */
+  .gp-hokage {
+    background: linear-gradient(135deg, rgba(255,180,0,0.4), rgba(232,197,71,0.5));
+    color: #fff7c0;
+    border: 1px solid #e8c547;
+    font-weight: 800;
+    text-shadow: 0 0 8px rgba(232,197,71,0.6);
+    box-shadow: 0 0 12px rgba(232,197,71,0.3);
+  }
+  /* Staff (violet/argent — équipe technique) */
+  .gp-staff {
+    background: linear-gradient(135deg, rgba(168,85,247,0.35), rgba(196,154,255,0.45));
+    color: #f3e8ff;
+    border: 1px solid #c084fc;
+    font-weight: 800;
+    text-shadow: 0 0 6px rgba(192,132,252,0.6);
+  }
   /* Grades Juge (bleu) */
   .gp-j1 { background: rgba(59,130,246,0.25); color: #93c5fd; border: 1px solid rgba(59,130,246,0.5); font-weight: 700; }
   .gp-j2 { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4); }
@@ -3044,12 +3061,14 @@ setTimeout(function() {
 // ============================================================
 // CONSTANTES & ÉTAT
 // ============================================================
-const GRADES = ['Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Recrue'];
+const GRADES = ['Hokage', 'Staff', 'Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Recrue'];
 const GRADE_RANK = {
+  'Hokage': -2, 'Staff': -1,
   'Directeur': 0, 'Directeur Adjoint': 1, 'Lieutenant': 2,
   'Sergent': 3, 'Officier': 4, 'Recrue': 5, 'Citoyen': 9
 };
 const GRADE_CLASS = {
+  'Hokage': 'gp-hokage', 'Staff': 'gp-staff',
   'Directeur': 'gp-s', 'Directeur Adjoint': 'gp-s',
   'Lieutenant': 'gp-a', 'Sergent': 'gp-b', 'Officier': 'gp-c', 'Recrue': 'gp-d',
   'Citoyen': 'gp-d',
@@ -3289,8 +3308,18 @@ function getInitialsFromFullname(fullname) {
 function gradeRank(g) { return GRADE_RANK[g] === undefined ? 99 : GRADE_RANK[g]; }
 function canTreatCandid(g) { return gradeRank(g) <= 4; } // Officier et plus
 function canManageMembers(g) { return gradeRank(g) <= 2; } // Lieutenant et plus
-function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint
+function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint + Hokage + Staff
 function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT
+
+// === RÔLES SPÉCIAUX HOKAGE & STAFF ===
+function isSpecialRole(grade) {
+  return grade === 'Hokage' || grade === 'Staff';
+}
+// Seul le Directeur Police peut créer/supprimer/voir les Hokage et Staff
+function canManageSpecialRoles(user) {
+  if (!user) return false;
+  return (user.service || 'police') === 'police' && user.grade === 'Directeur';
+}
 function canResetImpots(g) { return gradeRank(g) <= 1; } // Dir + Adjoint
 function canTreatPlaintes(g) { return gradeRank(g) <= 4; } // Officier et plus
 // Permissions casier — par section + grade
@@ -3998,7 +4027,11 @@ function renderMembres() {
   const myService = u.service || 'police';
 
   // Filtrer les agents selon la section connectée
-  const agents = state.users.filter(x => x.isAgent && (x.service||'police') === myService);
+  // Cacher les Hokage/Staff sauf pour le Directeur Police (sécurité)
+  const showSpecialMembers = canManageSpecialRoles(u);
+  const agents = state.users
+    .filter(x => x.isAgent && (x.service||'police') === myService)
+    .filter(x => showSpecialMembers || !isSpecialRole(x.grade) || x.fullname === u.fullname);
 
   // Permission de gérer les membres selon la section
   let canManage = false;
@@ -4225,6 +4258,12 @@ async function changeGrade(fullname, dir) {
   // Trouver l'agent dans la même section
   const a = state.users.find(x => x.isAgent && x.fullname === fullname && (x.service||'police') === myService);
   if (!a) return;
+
+  // Protection : un Hokage/Staff ne peut être touché que par le Directeur Police
+  if (isSpecialRole(a.grade) && !canManageSpecialRoles(u)) {
+    alert('⚠️ Le grade ' + a.grade + ' ne peut être modifié que par le Directeur (Police).');
+    return;
+  }
 
   // Récupérer la map de grades selon la section
   let gradeMap;
@@ -5408,20 +5447,42 @@ function renderAjout() {
   }
 
   // Liste des grades disponibles selon la section
-  let gradesDispo = GRADES;
+  let gradesDispo = GRADES.filter(g => !isSpecialRole(g)); // Par défaut : pas de Hokage/Staff
   let titreSection = 'Police de Konoha';
   let labelBouton = 'Ajouter l\'agent';
-  if (myService === 'juge') { gradesDispo = ALL_GRADES_JUGE; titreSection = 'Tribunal de Konoha'; labelBouton = 'Ajouter le juge'; }
-  if (myService === 'avocat') { gradesDispo = ALL_GRADES_AVOCAT; titreSection = 'Cabinet des Avocats'; labelBouton = 'Ajouter l\'avocat'; }
+
+  if (myService === 'juge') {
+    gradesDispo = ALL_GRADES_JUGE;
+    titreSection = 'Tribunal de Konoha';
+    labelBouton = 'Ajouter le juge';
+  } else if (myService === 'avocat') {
+    gradesDispo = ALL_GRADES_AVOCAT;
+    titreSection = 'Cabinet des Avocats';
+    labelBouton = 'Ajouter l\'avocat';
+  } else if (myService === 'police') {
+    // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
+    if (canManageSpecialRoles(u)) {
+      gradesDispo = ['Hokage', 'Staff', ...gradesDispo];
+    }
+  }
 
   el.innerHTML = `
-    <div class="dash-block" style="padding:1.5rem;max-width:520px">
+    <div class="dash-block" style="padding:1.5rem;max-width:560px">
       <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">➕ Ajouter un membre — ${titreSection}</h3>
       <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Le compte sera créé immédiatement et automatiquement sauvegardé.</p>
+
+      ${myService === 'police' && canManageSpecialRoles(u) ? `
+        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(168,85,247,0.08));border:1px solid rgba(232,197,71,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
+          👑 <strong style="color:#fff7c0">Hokage</strong> &nbsp;·&nbsp; ⭐ <strong style="color:#f3e8ff">Staff</strong> — Ces 2 grades spéciaux créent automatiquement <strong>3 comptes</strong> (Police + Tribunal + Cabinet) avec les mêmes identifiants. Réservés au Directeur.
+        </div>` : ''}
+
       <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="aj-fullname" placeholder="Ex: Sasuke Uchiha"/></div>
       <div class="form-group">
         <label>Grade *</label>
-        <select id="aj-grade">${gradesDispo.map(g => '<option>' + g + '</option>').join('')}</select>
+        <select id="aj-grade">${gradesDispo.map(g => {
+          const icon = g === 'Hokage' ? '👑 ' : g === 'Staff' ? '⭐ ' : '';
+          return '<option>' + icon + g + '</option>';
+        }).join('')}</select>
       </div>
       <div class="form-group">
         <label>Mot de passe *</label>
@@ -5445,11 +5506,65 @@ async function addAgent() {
   const u = state.currentUser;
   const myService = u.service || 'police';
   const fullname = document.getElementById('aj-fullname').value.trim();
-  const g = document.getElementById('aj-grade').value;
+  // Le sélecteur peut contenir l'icône en préfixe (👑 / ⭐) — on la retire
+  let g = document.getElementById('aj-grade').value;
+  g = g.replace(/^(👑|⭐)\s*/, '').trim();
   const p = document.getElementById('aj-password').value;
+
   if (!fullname || !p) { alert('Champs manquants'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
   if (p.length < 6) { alert('Mot de passe trop court'); return; }
+
+  // === CAS SPÉCIAL : HOKAGE / STAFF ===
+  if (isSpecialRole(g)) {
+    // Vérifier que c'est bien le Directeur Police
+    if (!canManageSpecialRoles(u)) {
+      alert('Seul le Directeur (Police) peut créer un compte Hokage ou Staff.');
+      return;
+    }
+
+    // Vérifier qu'aucun compte de ce nom n'existe dans aucune des 3 sections
+    const services = ['police', 'juge', 'avocat'];
+    for (const svc of services) {
+      if (state.users.some(uu => matchFullnameStrict(uu.fullname, fullname) && (uu.service||'police') === svc)) {
+        alert('Un compte existe déjà pour cette personne dans la section ' + svc + '. Supprimez-le avant de créer un compte ' + g + '.');
+        return;
+      }
+    }
+
+    if (!confirm('Créer le compte ' + g + ' pour ' + fullname + ' ?\n\n3 comptes seront créés automatiquement avec les mêmes identifiants :\n• Police\n• Tribunal (Juge)\n• Cabinet (Avocat)\n\nCes 3 comptes ont les pouvoirs maximum dans chaque section.')) return;
+
+    const hireDate = new Date().toLocaleDateString('fr-FR');
+    const matricule = generateMatriculeFromGrade(g === 'Hokage' ? 'Directeur' : 'Directeur');
+    // On crée un seul matricule partagé entre les 3 comptes
+    const sharedMatricule = (g === 'Hokage' ? 'KNH-HKG-' : 'KNH-STF-') + Math.floor(1000 + Math.random()*9000);
+
+    const createdAccounts = [];
+    for (const svc of services) {
+      const newUser = {
+        fullname, password: p, grade: g,
+        isAgent: true, casier: 'non', service: svc,
+        hireDate, matricule: sharedMatricule
+      };
+      if (supabaseReady) {
+        try {
+          const inserted = await pushToSupabase('users', newUser);
+          if (inserted && inserted._id) Object.assign(newUser, { _id: inserted._id });
+        } catch(e) {}
+      }
+      state.users.push(newUser);
+      createdAccounts.push(svc);
+    }
+
+    saveSession();
+    ['aj-fullname','aj-password'].forEach(id => document.getElementById(id).value = '');
+    alert('✓ Compte ' + g + ' créé pour ' + fullname + '\n\n3 comptes simultanés :\n• 👮 Police\n• ⚖️ Tribunal\n• 🧑‍⚖️ Cabinet\n\nMatricule partagé : ' + sharedMatricule + '\n\nIl peut se connecter avec le même mot de passe dans n\'importe laquelle des 3 sections.');
+    updateStats();
+    if (typeof refreshAllUI === 'function') refreshAllUI();
+    return;
+  }
+
+  // === CAS NORMAL : grade standard ===
   if (state.users.some(uu => matchFullnameStrict(uu.fullname, fullname) && (uu.service||'police') === myService)) {
     alert('Un compte existe déjà pour cette personne dans cette section.');
     return;
@@ -5464,7 +5579,6 @@ async function addAgent() {
   };
   if (matricule) newUser.matricule = matricule;
 
-  // 1. PUSH IMMÉDIAT vers Supabase (et attente du résultat)
   if (supabaseReady) {
     try {
       const inserted = await pushToSupabase('users', newUser);
@@ -5480,7 +5594,6 @@ async function addAgent() {
     }
   }
 
-  // 2. Ajout local
   state.users.push(newUser);
   saveSession();
 
@@ -6838,10 +6951,14 @@ function renderLogs() {
     return;
   }
 
-  const agents = state.users.filter(x => x.isAgent && (x.service||'police')==='police');
+  const showSpecial = canManageSpecialRoles(u);
+  // Filtrer les comptes Hokage/Staff : seul le Directeur peut les voir
+  const hideSpecial = (acc) => showSpecial ? acc : acc.filter(x => !isSpecialRole(x.grade));
+
+  const agents = hideSpecial(state.users.filter(x => x.isAgent && (x.service||'police')==='police'));
   const civils = state.users.filter(x => x.service === 'civil');
-  const juges = state.users.filter(x => x.isAgent && x.service === 'juge');
-  const avocats = state.users.filter(x => x.isAgent && x.service === 'avocat');
+  const juges = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'juge'));
+  const avocats = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'avocat'));
 
   // Détermine quels onglets afficher selon la section
   const showPolice = (myService === 'police');
@@ -7864,28 +7981,49 @@ setInterval(updateChronoService, 1000);
 async function supprimerCompte(fullname, service) {
   const u = state.currentUser;
   if (!canAddAgent(u.grade)) { alert('Réservé à la Direction'); return; }
-  if (!confirm('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son compte sera supprimé du serveur partagé\n\nConfirmer la suppression ?')) return;
 
-  // Trouver le compte (et son _id Supabase) AVANT de le retirer du state local
+  // Trouver le compte
   const compte = state.users.find(x => x.fullname === fullname && (x.service||'police') === (service||'police'));
+  if (!compte) return;
 
-  // 1. Supprimer dans Supabase si l'utilisateur est synchronisé (a un _id)
-  if (compte && compte._id && supabaseReady) {
-    try {
-      await deleteFromSupabase('users', compte._id);
-    } catch(e) { console.warn('Erreur suppression cloud:', e); }
+  // === CAS SPÉCIAL : Hokage / Staff = supprimer les 3 comptes en même temps ===
+  if (isSpecialRole(compte.grade)) {
+    if (!canManageSpecialRoles(u)) {
+      alert('⚠️ Seul le Directeur (Police) peut supprimer un compte ' + compte.grade + '.');
+      return;
+    }
+    if (!confirm('⚠️ Supprimer le compte ' + compte.grade + ' de ' + fullname + ' ?\n\nLes 3 comptes (Police + Tribunal + Cabinet) seront supprimés simultanément.\n\nConfirmer ?')) return;
+
+    // Supprimer les 3 comptes (Police + Juge + Avocat) ayant ce nom + grade Hokage/Staff
+    const services = ['police', 'juge', 'avocat'];
+    for (const svc of services) {
+      const c = state.users.find(x => x.fullname === fullname && (x.service||'police') === svc && isSpecialRole(x.grade));
+      if (c && c._id && supabaseReady) {
+        try { await deleteFromSupabase('users', c._id); } catch(e) {}
+      }
+    }
+    state.users = state.users.filter(x => !(x.fullname === fullname && isSpecialRole(x.grade)));
+    saveSession();
+    alert('✓ Compte ' + compte.grade + ' de ' + fullname + ' entièrement supprimé (3 comptes).');
+    renderMembres();
+    updateStats();
+    if (typeof refreshAllUI === 'function') refreshAllUI();
+    return;
   }
 
-  // 2. Supprimer du state local
+  // === CAS NORMAL : suppression d'un seul compte ===
+  if (!confirm('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son compte sera supprimé du serveur partagé\n\nConfirmer la suppression ?')) return;
+
+  if (compte._id && supabaseReady) {
+    try { await deleteFromSupabase('users', compte._id); } catch(e) {}
+  }
+
   state.users = state.users.filter(x => !(x.fullname === fullname && (x.service||'police') === (service||'police')));
-
-  // 3. Sauvegarder localement
   saveSession();
-
-  // 4. Re-render
   alert('✓ Compte de ' + fullname + ' supprimé définitivement.');
   renderMembres();
   updateStats();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // ============================================================
