@@ -2546,6 +2546,44 @@ const SUPABASE_TABLES = {
       collecteur: r.collector, _id: r.id
     })
   },
+  impotsHistorique: {
+    table: 'tax_history',
+    mapTo: h => ({
+      payer: h.payeur, grade: h.grade || null,
+      amount: h.montant || 0, agent: h.agent || null,
+      date: h.date || null
+    }),
+    mapFrom: r => ({
+      payeur: r.payer, grade: r.grade, montant: r.amount,
+      agent: r.agent, date: r.date, _id: r.id
+    })
+  },
+  impotsHistoriqueDirection: {
+    table: 'tax_recoveries',
+    mapTo: h => ({
+      director: h.direction, source_agent: h.agentSource,
+      amount: h.montant || 0, collection_count: h.nbCollectes || 0,
+      date: h.date || null, detail: h.detail || []
+    }),
+    mapFrom: r => ({
+      id: r.id, direction: r.director, agentSource: r.source_agent,
+      montant: r.amount, nbCollectes: r.collection_count,
+      date: r.date, detail: r.detail, _id: r.id
+    })
+  },
+  amendesHistoriqueDirection: {
+    table: 'fine_recoveries',
+    mapTo: h => ({
+      director: h.direction, source_agent: h.agentSource,
+      amount: h.montant || 0, fine_count: h.nbAmendes || 0,
+      date: h.date || null, detail: h.detail || []
+    }),
+    mapFrom: r => ({
+      id: r.id, direction: r.director, agentSource: r.source_agent,
+      montant: r.amount, nbAmendes: r.fine_count,
+      date: r.date, detail: r.detail, _id: r.id
+    })
+  },
   groupes: {
     table: 'teams',
     mapTo: g => ({
@@ -4489,15 +4527,21 @@ function refreshAmendesList() {
   }).join('');
 }
 
-function toggleAmendeStatut(idx, statut) {
+async function toggleAmendeStatut(idx, statut) {
   if (!state.amendes[idx]) return;
-  state.amendes[idx].statut = statut;
+  const a = state.amendes[idx];
+  a.statut = statut;
   if (statut === 'paye') {
-    state.amendes[idx].datePaiement = new Date().toLocaleDateString('fr-FR');
-    state.amendes[idx].agentEncaisseur = state.currentUser.fullname;
+    a.datePaiement = new Date().toLocaleDateString('fr-FR');
+    a.agentEncaisseur = state.currentUser.fullname;
+  }
+  // Push vers Supabase
+  if (supabaseReady) {
+    try { await pushToSupabase('amendes', a); } catch(e) {}
   }
   saveSession();
   renderAmendes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 async function deleteAmende(idx) {
@@ -4982,6 +5026,13 @@ async function setCollecteur(idx, agent) {
     if (state.collectesEnCours[oldCollecteur]) {
       state.collectesEnCours[oldCollecteur] = state.collectesEnCours[oldCollecteur].filter(c => !matchFullname(c.payeur, i.fullname));
     }
+    // Retirer les anciennes entrées d'historique pour cet ancien collecteur (local + cloud)
+    const oldEntries = state.impotsHistorique.filter(h => matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur);
+    for (const old of oldEntries) {
+      if (old._id && supabaseReady) {
+        try { await deleteFromSupabase('impotsHistorique', old._id); } catch(e) {}
+      }
+    }
     state.impotsHistorique = state.impotsHistorique.filter(h => !(matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur));
   }
 
@@ -4999,13 +5050,25 @@ async function setCollecteur(idx, agent) {
       });
     }
 
-    state.impotsHistorique.push({
-      payeur: i.fullname, grade: i.grade, montant: montant, agent: agent, date: date
-    });
+    // Vérifier si l'entrée existe déjà dans impotsHistorique (éviter doublons)
+    const histExists = state.impotsHistorique.some(h => matchFullname(h.payeur, i.fullname) && h.agent === agent);
+    if (!histExists) {
+      const histEntry = {
+        payeur: i.fullname, grade: i.grade, montant: montant, agent: agent, date: date
+      };
+      // Push vers Supabase
+      if (supabaseReady) {
+        try {
+          const inserted = await pushToSupabase('impotsHistorique', histEntry);
+          if (inserted && inserted._id) histEntry._id = inserted._id;
+        } catch(e) {}
+      }
+      state.impotsHistorique.push(histEntry);
+    }
   }
 
-  // Push le changement vers Supabase
-  if (supabaseReady && i._id) {
+  // Push le changement de l'impôt vers Supabase
+  if (supabaseReady) {
     try { await pushToSupabase('impots', i); } catch(e) {}
   }
 
@@ -5014,33 +5077,53 @@ async function setCollecteur(idx, agent) {
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function recupererCollectes(agent) {
+async function recupererCollectes(agent) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const collectes = state.collectesEnCours[agent] || [];
   const total = collectes.reduce((s, c) => s + c.montant, 0);
   if (collectes.length === 0) { alert('Aucune collecte à récupérer'); return; }
   if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Cette récupération est enregistrée dans l'historique de la Direction\n• Les ninjas restent marqués comme PAYÉS\n• Le compteur "Total historique" de l'agent revient à 0`)) return;
 
-  // Enregistrer dans l'historique direction (preuve permanente)
-  state.impotsHistoriqueDirection = state.impotsHistoriqueDirection || [];
-  state.impotsHistoriqueDirection.push({
+  // 1. Créer l'entrée historique Direction
+  const histDirEntry = {
     id: Date.now(),
     direction: state.currentUser.fullname,
     agentSource: agent,
     montant: total,
     nbCollectes: collectes.length,
     date: new Date().toLocaleDateString('fr-FR'),
-    detail: collectes.slice() // copie
-  });
+    detail: collectes.slice()
+  };
 
-  // Retirer les entrées correspondantes de impotsHistorique pour reset le compteur de l'agent
+  // Push vers Supabase (tax_recoveries)
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('impotsHistoriqueDirection', histDirEntry);
+      if (inserted && inserted._id) histDirEntry._id = inserted._id;
+    } catch(e) {}
+  }
+  state.impotsHistoriqueDirection = state.impotsHistoriqueDirection || [];
+  state.impotsHistoriqueDirection.push(histDirEntry);
+
+  // 2. Supprimer les entrées du tax_history (cloud + local)
+  const toDelete = state.impotsHistorique.filter(h => h.agent === agent);
+  if (supabaseReady) {
+    for (const h of toDelete) {
+      if (h._id) {
+        try { await deleteFromSupabase('impotsHistorique', h._id); } catch(e) {}
+      }
+    }
+  }
   state.impotsHistorique = state.impotsHistorique.filter(h => h.agent !== agent);
 
-  // Vider les collectes en cours de cet agent
+  // Vider les collectes en cours
   state.collectesEnCours[agent] = [];
 
   saveSession();
   alert(`✓ ${total.toLocaleString()} Ryos récupérés sur ${agent}\n\nEnregistré dans l'historique Direction.\nLe compteur de l'agent revient à 0.`);
   renderImpots();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // Filtrage de la liste des impôts (recherche + statut)
@@ -7510,27 +7593,19 @@ function getAmendesParAgent() {
   return par;
 }
 
-function recupererAmendesAgent(agentName) {
+async function recupererAmendesAgent(agentName) {
+  const u = state.currentUser;
+  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
   const par = getAmendesParAgent();
   const data = par[agentName];
   if (!data || data.total === 0) { alert('Rien à récupérer (aucune amende payée par cet agent).'); return; }
   if (!confirm('Récupérer ' + data.total.toLocaleString() + ' Ryos des amendes payées de ' + agentName + ' ?\n\nCette récupération sera enregistrée dans l\'historique de la Direction.')) return;
 
-  // Marquer comme récupérées
   const recupId = Date.now();
   const dateRecup = new Date().toLocaleDateString('fr-FR');
-  state.amendes.forEach(a => {
-    if (a.agent === agentName && !a.recupere && a.statut === 'paye') {
-      a.recupere = true;
-      a.recupereLe = dateRecup;
-      a.recupereParDirection = state.currentUser.fullname;
-      a.recupId = recupId;
-    }
-  });
 
-  // Ajouter à l'historique direction
-  state.amendesHistoriqueDirection = state.amendesHistoriqueDirection || [];
-  state.amendesHistoriqueDirection.push({
+  // 1. Créer l'entrée historique direction
+  const histDirEntry = {
     id: recupId,
     direction: state.currentUser.fullname,
     agentSource: agentName,
@@ -7538,11 +7613,33 @@ function recupererAmendesAgent(agentName) {
     nbAmendes: data.entries.length,
     date: dateRecup,
     detail: data.entries.map(a => ({ fullname: a.fullname, infraction: a.infraction, montant: a.montant }))
-  });
+  };
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('amendesHistoriqueDirection', histDirEntry);
+      if (inserted && inserted._id) histDirEntry._id = inserted._id;
+    } catch(e) {}
+  }
+  state.amendesHistoriqueDirection = state.amendesHistoriqueDirection || [];
+  state.amendesHistoriqueDirection.push(histDirEntry);
+
+  // 2. Marquer les amendes comme récupérées (local + Supabase)
+  for (const a of state.amendes) {
+    if (a.agent === agentName && !a.recupere && a.statut === 'paye') {
+      a.recupere = true;
+      a.recupereLe = dateRecup;
+      a.recupereParDirection = state.currentUser.fullname;
+      a.recupId = recupId;
+      if (supabaseReady && a._id) {
+        try { await pushToSupabase('amendes', a); } catch(e) {}
+      }
+    }
+  }
 
   saveSession();
   alert('✓ ' + data.total.toLocaleString() + ' Ryos récupérés sur ' + agentName + '\nEnregistré dans l\'historique Direction.');
   renderAmendes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function refreshHistoriqueDirectionAmendes() {
