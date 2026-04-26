@@ -3187,7 +3187,7 @@ function updateStats() {
 // ============================================================
 // AUTH
 // ============================================================
-function doLogin() {
+async function doLogin() {
   const fullname = document.getElementById('login-fullname').value.trim();
   const p = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-err');
@@ -3200,12 +3200,35 @@ function doLogin() {
   }
 
   const section = state.selectedSection || 'police';
-  const user = state.users.find(u =>
+
+  // Recherche locale d'abord
+  let user = state.users.find(u =>
     u.isAgent &&
     matchFullname(u.fullname, fullname) &&
     u.password === p &&
     (u.service || 'police') === section
   );
+
+  // Si pas trouvé localement et Supabase dispo, rafraîchir depuis Supabase et réessayer
+  if (!user && supabaseReady) {
+    errEl.textContent = '⏳ Vérification en ligne...';
+    errEl.style.display = 'block';
+    errEl.style.color = 'var(--accent)';
+    try {
+      const cfg = SUPABASE_TABLES.users;
+      const { data } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
+      if (data) {
+        state.users = data.map(cfg.mapFrom);
+      }
+    } catch(e) {}
+    user = state.users.find(u =>
+      u.isAgent &&
+      matchFullname(u.fullname, fullname) &&
+      u.password === p &&
+      (u.service || 'police') === section
+    );
+    errEl.style.color = '';
+  }
 
   if (!user) {
     errEl.textContent = 'Identifiants incorrects pour cette section.';
@@ -3263,6 +3286,9 @@ function saveSession() {
 
 // Synchronise toutes les listes vers Supabase (insert/update différentiel)
 let _lastSyncSnapshot = {};
+// Tables qu'on ne synchronise JAMAIS automatiquement (gestion manuelle uniquement)
+const SUPABASE_NO_AUTO_SYNC = new Set(['users']);
+
 async function syncAllStateToSupabase() {
   if (!supabaseReady) return;
   if (window._supabaseSyncInProgress) return;
@@ -3270,17 +3296,17 @@ async function syncAllStateToSupabase() {
 
   try {
     for (const [stateKey, cfg] of Object.entries(SUPABASE_TABLES)) {
+      // ⛔ Skip les tables en gestion manuelle (users)
+      if (SUPABASE_NO_AUTO_SYNC.has(stateKey)) continue;
+
       const items = state[stateKey] || [];
       const snapshot = JSON.stringify(items);
-      // Skip si identique au dernier snapshot
       if (_lastSyncSnapshot[stateKey] === snapshot) continue;
 
-      // Pour chaque item sans _id, on insère
       for (const item of items) {
         if (!item._id) {
           const inserted = await pushToSupabase(stateKey, item);
           if (inserted && inserted._id) {
-            // Lier le _id de Supabase à l'item local
             Object.assign(item, { _id: inserted._id });
           }
         }
@@ -7902,12 +7928,16 @@ async function initSupabase() {
 
   if (loaded) {
     // FUSION : on garde les éléments locaux qui n'existent pas dans Supabase
-    // (les éléments locaux sans _id signifient qu'ils n'ont jamais été synchronisés)
+    // ⛔ EXCEPTION : pour les `users`, on prend UNIQUEMENT ce qui est dans Supabase
+    //    (ne pas re-créer les comptes supprimés à partir du cache local)
     for (const stateKey of Object.keys(SUPABASE_TABLES)) {
+      // Skip la fusion pour les users (Supabase = source de vérité absolue)
+      if (SUPABASE_NO_AUTO_SYNC.has(stateKey)) continue;
+
       const cloud = state[stateKey] || [];
       const local = localBackup[stateKey] || [];
 
-      // Identifier les locaux non synchronisés (sans _id ou non présents dans cloud par fullname/id)
+      // Identifier les locaux non synchronisés
       const cloudKeys = new Set();
       cloud.forEach(item => {
         if (item.fullname) cloudKeys.add(item.fullname.toLowerCase().trim() + '|' + (item.service || ''));
@@ -7915,8 +7945,7 @@ async function initSupabase() {
       });
 
       const localOnly = local.filter(item => {
-        if (item._id) return false; // déjà sync (_id Supabase)
-        // Vérifier doublon par fullname+service ou id
+        if (item._id) return false;
         const k1 = (item.fullname || '').toLowerCase().trim() + '|' + (item.service || '');
         const k2 = item.id ? 'id:' + item.id : null;
         if (cloudKeys.has(k1)) return false;
@@ -7924,7 +7953,6 @@ async function initSupabase() {
         return true;
       });
 
-      // Ajouter les locaux non sync dans le state (et les pousser vers Supabase)
       if (localOnly.length > 0) {
         console.log('📤 Migration vers Supabase :', localOnly.length, stateKey);
         for (const item of localOnly) {
@@ -7932,15 +7960,25 @@ async function initSupabase() {
           if (inserted) {
             state[stateKey].push(inserted);
           } else {
-            // Échec push → on garde au moins localement
             state[stateKey].push(item);
           }
         }
       }
     }
 
-    // Garantir les comptes Owner
-    if (typeof ensureOwnerAccounts === 'function') ensureOwnerAccounts();
+    // Si l'utilisateur connecté n'existe plus dans Supabase, le déconnecter
+    if (state.currentUser) {
+      const stillExists = state.users.find(u =>
+        u.fullname === state.currentUser.fullname &&
+        (u.service||'police') === (state.currentUser.service||'police')
+      );
+      if (!stillExists) {
+        console.warn('⚠️ Compte connecté supprimé du serveur — déconnexion');
+        state.currentUser = null;
+        try { localStorage.removeItem('konaSession'); } catch(e) {}
+        if (typeof showPage === 'function') showPage('home');
+      }
+    }
 
     // Sauver localement
     try {
