@@ -2473,6 +2473,29 @@ const IMPOTS_MONTANTS = {
   'Tokubetsu Chunin': 2400, 'Genin Confirmé': 1200, 'Genin': 0
 };
 
+// Couleurs des grades ninja
+const NINJA_GRADE_COLORS = {
+  'Hokage':            { bg:'rgba(232,197,71,0.18)',  color:'#e8c547', border:'rgba(232,197,71,0.5)',  icon:'👑' },
+  'Commandant Jonin':  { bg:'rgba(231,76,60,0.18)',   color:'#e74c3c', border:'rgba(231,76,60,0.5)',   icon:'⚔️' },
+  'Jonin':             { bg:'rgba(250,204,21,0.18)',  color:'#fbbf24', border:'rgba(250,204,21,0.5)',  icon:'🌸' },
+  'Tokubetsu Jonin':   { bg:'rgba(249,115,22,0.18)',  color:'#fb923c', border:'rgba(249,115,22,0.5)',  icon:'🌊' },
+  'Kakunin':           { bg:'rgba(34,197,94,0.18)',   color:'#4ade80', border:'rgba(34,197,94,0.5)',   icon:'🍃' },
+  'Chunin':            { bg:'rgba(168,85,247,0.18)',  color:'#c084fc', border:'rgba(168,85,247,0.5)',  icon:'🔥' },
+  'Tokubetsu Chunin':  { bg:'rgba(99,102,241,0.18)',  color:'#818cf8', border:'rgba(99,102,241,0.5)',  icon:'💠' },
+  'Genin Confirmé':    { bg:'rgba(100,116,139,0.18)', color:'#94a3b8', border:'rgba(100,116,139,0.5)', icon:'🌱' },
+  'Genin':             { bg:'rgba(148,163,184,0.12)', color:'#cbd5e1', border:'rgba(148,163,184,0.3)', icon:'🌿' },
+  'Citoyen':           { bg:'rgba(120,113,108,0.15)', color:'#a8a29e', border:'rgba(120,113,108,0.3)', icon:'🍀' }
+};
+
+function ninjaGradePill(grade) {
+  const c = NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
+  return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;background:${c.bg};color:${c.color};border:1px solid ${c.border};font-size:11px;font-weight:700">${c.icon} ${grade}</span>`;
+}
+
+function ninjaGradeColor(grade) {
+  return NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
+}
+
 // État en mémoire (sera remplacé par Supabase)
 let state = {
   currentUser: null,
@@ -2498,7 +2521,11 @@ let state = {
   // Discussions inter-sections (Police HC ↔ Juge HC ↔ Avocat HC)
   discussions: [],
   // Dossiers / contrats avocats
-  dossiersAvocat: []
+  dossiersAvocat: [],
+  // Historique des récupérations Direction (amendes)
+  amendesHistoriqueDirection: [],
+  // Historique des récupérations Direction (impôts)
+  impotsHistoriqueDirection: []
 };
 
 // Grades hauts de la Justice et du Barreau (les 3 plus hauts)
@@ -2752,6 +2779,8 @@ function saveSession() {
       cellules: state.cellules,
       discussions: state.discussions,
       dossiersAvocat: state.dossiersAvocat || [],
+      amendesHistoriqueDirection: state.amendesHistoriqueDirection || [],
+      impotsHistoriqueDirection: state.impotsHistoriqueDirection || [],
       presences: state.presences || []
     };
     localStorage.setItem('konaSession', JSON.stringify(data));
@@ -2777,6 +2806,8 @@ function restoreSession() {
     if (data.cellules) state.cellules = data.cellules;
     if (data.discussions) state.discussions = data.discussions;
     if (data.dossiersAvocat) state.dossiersAvocat = data.dossiersAvocat;
+    if (data.amendesHistoriqueDirection) state.amendesHistoriqueDirection = data.amendesHistoriqueDirection;
+    if (data.impotsHistoriqueDirection) state.impotsHistoriqueDirection = data.impotsHistoriqueDirection;
     if (data.presences) state.presences = data.presences;
 
     if (data.currentUser) {
@@ -3299,6 +3330,7 @@ function changeGrade(fullname, dir) {
 }
 
 function renderAmendes() {
+  const u = state.currentUser;
   const el = document.getElementById('amendes-content');
   let infOptions = '<option value="">-- Sélectionner --</option>';
   ['palier1','palier2','palier3'].forEach(p => {
@@ -3310,7 +3342,37 @@ function renderAmendes() {
     infOptions += '</optgroup>';
   });
 
+  // STATS amendes (uniquement non récupérées)
+  const actives = state.amendes.filter(a => !a.recupere);
+  const payees = actives.filter(a => a.statut === 'paye');
+  const impayees = actives.filter(a => a.statut !== 'paye');
+  const totalPayees = payees.reduce((s, a) => s + a.montant, 0);
+  const totalImpayees = impayees.reduce((s, a) => s + a.montant, 0);
+  const totalGlobal = state.amendes.filter(a => a.recupere).reduce((s, a) => s + a.montant, 0);
+
   el.innerHTML = `
+    <!-- KPIs Amendes -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.25rem">
+      <div style="background:rgba(196,154,26,0.08);border:1px solid rgba(196,154,26,0.25);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total amendes</div>
+        <div style="font-size:24px;font-weight:800;color:var(--accent);font-family:'Cinzel',serif">${actives.length}</div>
+      </div>
+      <div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.25);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Payées</div>
+        <div style="font-size:24px;font-weight:800;color:var(--green);font-family:'Cinzel',serif">${payees.length}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${totalPayees.toLocaleString()} Ryos</div>
+      </div>
+      <div style="background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.25);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Impayées</div>
+        <div style="font-size:24px;font-weight:800;color:var(--red2);font-family:'Cinzel',serif">${impayees.length}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${totalImpayees.toLocaleString()} Ryos</div>
+      </div>
+      <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Récupéré (historique)</div>
+        <div style="font-size:18px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${totalGlobal.toLocaleString()} Ryos</div>
+      </div>
+    </div>
+
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">💰 Émettre une amende</h3>
       <div class="form-group"><label>Nom et Prénom du contrevenant</label><input type="text" id="am-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
@@ -3332,18 +3394,26 @@ function renderAmendes() {
       </div>
       <button class="btn-primary btn-full" onclick="emettreAmende()">💰 Émettre l'amende</button>
     </div>
+
     <div class="dash-block" style="padding:1.5rem">
-      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">Amendes émises (${state.amendes.length})</h3>
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">📋 Liste des amendes (${actives.length})</h3>
       <div id="amendes-list"></div>
     </div>
 
     <div class="dash-block" style="padding:1.5rem;margin-top:1rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:0.75rem">📊 Historique par agent collecteur</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Cliquez sur "Récupérer" pour archiver les amendes d'un agent et remettre son compteur à zéro.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Cliquez sur "Récupérer" pour archiver les amendes payées d'un agent et remettre son compteur à zéro.</p>
       <div id="amendes-par-agent"></div>
+    </div>
+
+    <div class="dash-block" style="padding:1.5rem;margin-top:1rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:0.75rem">👑 Historique récupérations Direction</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Toutes les récupérations effectuées par la Direction depuis le début.</p>
+      <div id="amendes-historique-direction"></div>
     </div>`;
   refreshAmendesList();
   refreshAmendesParAgent();
+  refreshHistoriqueDirectionAmendes();
 }
 
 function refreshAmendesParAgent() {
@@ -3421,6 +3491,7 @@ function emettreAmende() {
     fullname: fullname, infraction: opt.text, montant: total, recidive: mult,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
+    statut: 'impaye', // par défaut impayée
     id: Date.now()
   });
   document.getElementById('am-fullname').value = '';
@@ -3434,19 +3505,34 @@ function refreshAmendesList() {
   const u = state.currentUser;
   const el = document.getElementById('amendes-list');
   if (!el) return;
-  if (state.amendes.length === 0) { el.innerHTML = '<p style="color:var(--muted)">Aucune amende.</p>'; return; }
-  const canDelete = canAddAgent(u.grade); // Directeur + Adjoint
+  const actives = state.amendes.filter(a => !a.recupere);
+  if (actives.length === 0) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:1rem">Aucune amende.</p>'; return; }
+  const canDelete = canAddAgent(u.grade);
 
-  el.innerHTML = state.amendes.slice().reverse().map((a, i) => {
-    const idx = state.amendes.length - 1 - i;
+  // Tri : impayées d'abord, puis par date récente
+  actives.sort((a,b) => {
+    if (a.statut !== b.statut) return a.statut === 'paye' ? 1 : -1;
+    return (b.id||0) - (a.id||0);
+  });
+
+  el.innerHTML = actives.map(a => {
+    const idx = state.amendes.indexOf(a);
+    const isPaye = a.statut === 'paye';
+    const bgColor = isPaye ? 'rgba(39,174,96,0.08)' : 'rgba(231,76,60,0.06)';
+    const borderColor = isPaye ? 'rgba(39,174,96,0.3)' : 'rgba(231,76,60,0.3)';
+    const statusLabel = isPaye ? '✓ Payée' : '✗ Impayée';
+    const statusColor = isPaye ? 'var(--green)' : 'var(--red2)';
     return `
-      <div style="background:var(--mid);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;overflow:hidden">
-        <div onclick="toggleDetail('am-det-${idx}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer">
-          <div style="flex:1">
-            <div style="font-weight:700;color:var(--text)">${a.fullname}</div>
-            <div style="font-size:11px;color:var(--muted)">${a.infraction.length>50?a.infraction.substring(0,50)+'...':a.infraction} · ${a.date}</div>
+      <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:6px;margin-bottom:6px;overflow:hidden">
+        <div onclick="toggleDetail('am-det-${idx}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              ${a.fullname}
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${isPaye?'rgba(39,174,96,0.2)':'rgba(231,76,60,0.2)'};color:${statusColor};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'}">${statusLabel}</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${a.infraction.length>50?a.infraction.substring(0,50)+'...':a.infraction} · ${a.date} · agent ${a.agent}</div>
           </div>
-          <div style="font-weight:700;color:var(--lgold);font-size:16px;margin:0 12px">${a.montant.toLocaleString()} Ryos</div>
+          <div style="font-weight:800;color:${statusColor};font-size:16px;font-family:'Cinzel',serif">${a.montant.toLocaleString()} Ryos</div>
           <span style="color:var(--muted);font-size:11px">▼</span>
         </div>
         <div id="am-det-${idx}" style="display:none;background:rgba(0,0,0,0.25);border-top:1px solid var(--border);padding:1rem 1.25rem">
@@ -3457,6 +3543,12 @@ function refreshAmendesList() {
             <div class="detail-field"><span class="detail-field-label">Montant</span><span class="detail-field-val" style="color:var(--lgold)">${a.montant.toLocaleString()} Ryos</span></div>
             <div class="detail-field"><span class="detail-field-label">Agent émetteur</span><span class="detail-field-val">${a.agent}</span></div>
             <div class="detail-field"><span class="detail-field-label">Date</span><span class="detail-field-val">${a.date}</span></div>
+            <div class="detail-field"><span class="detail-field-label">Statut</span>
+              <select onchange="toggleAmendeStatut(${idx}, this.value)" style="background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${statusColor};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'};padding:5px 10px;border-radius:5px;font-weight:700;font-size:11px;cursor:pointer;width:100%">
+                <option value="impaye" ${!isPaye?'selected':''}>✗ Impayée</option>
+                <option value="paye" ${isPaye?'selected':''}>✓ Payée</option>
+              </select>
+            </div>
           </div>
           ${canDelete ? `<button class="btn-sm btn-sm-red" style="margin-top:0.75rem" onclick="deleteAmende(${idx})">🗑 Supprimer (Direction)</button>` : ''}
         </div>
@@ -3464,9 +3556,21 @@ function refreshAmendesList() {
   }).join('');
 }
 
+function toggleAmendeStatut(idx, statut) {
+  if (!state.amendes[idx]) return;
+  state.amendes[idx].statut = statut;
+  if (statut === 'paye') {
+    state.amendes[idx].datePaiement = new Date().toLocaleDateString('fr-FR');
+    state.amendes[idx].agentEncaisseur = state.currentUser.fullname;
+  }
+  saveSession();
+  renderAmendes();
+}
+
 function deleteAmende(idx) {
   if (!confirm('Supprimer définitivement cette amende ?\n\n⚠ Cette action est irréversible et réservée à la Direction.')) return;
   state.amendes.splice(idx, 1);
+  saveSession();
   refreshAmendesList();
 }
 
@@ -3573,11 +3677,15 @@ function renderImpots() {
       const isPaye = i.statut === 'paye';
       const isExo = i.grade === 'Genin';
       const collecteur = i.collecteur || '';
+      const gradeColor = ninjaGradeColor(i.grade);
       html += `<tr>
         <td><strong>${i.fullname}</strong></td>
         <td>
-          <select onchange="changerGradeImpot(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer">
-            ${Object.keys(IMPOTS_MONTANTS).map(g => '<option ' + (i.grade===g?'selected':'') + '>'+g+'</option>').join('')}
+          <select onchange="changerGradeImpot(${idx}, this.value)" style="background:${gradeColor.bg};border:1px solid ${gradeColor.border};color:${gradeColor.color};padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">
+            ${Object.keys(IMPOTS_MONTANTS).map(g => {
+              const gc = ninjaGradeColor(g);
+              return '<option ' + (i.grade===g?'selected':'') + ' style="background:#1a1a1a;color:'+gc.color+'">'+gc.icon+' '+g+'</option>';
+            }).join('')}
           </select>
           ${isExo?'<span style="font-size:10px;color:var(--muted);margin-left:4px">(exonéré)</span>':''}
         </td>
@@ -3636,8 +3744,8 @@ function renderImpots() {
               : `
                 <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Collectes en cours (${enCours.length})</div>
                 ${enCours.map(c => `
-                  <div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--panel);border-radius:5px;margin-bottom:4px;font-size:12px">
-                    <span>${c.payeur} <span style="color:var(--muted)">· ${c.grade}</span></span>
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--panel);border-radius:5px;margin-bottom:4px;font-size:12px">
+                    <span style="display:flex;align-items:center;gap:8px">${c.payeur} ${ninjaGradePill(c.grade)}</span>
                     <strong style="color:var(--lgold)">${c.montant.toLocaleString()} Ryos</strong>
                   </div>
                 `).join('')}
@@ -3654,18 +3762,62 @@ function renderImpots() {
   }
   html += '</div>';
 
+  // Historique récupérations Direction
+  const histoDir = state.impotsHistoriqueDirection || [];
+  const totalDir = histoDir.reduce((s, h) => s + (h.montant||0), 0);
+  html += `
+    <div class="dash-block" style="padding:1.5rem;margin-top:1rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.75rem">👑 Historique récupérations Direction</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Toutes les récupérations effectuées par la Direction depuis le début.</p>`;
+
+  if (histoDir.length === 0) {
+    html += '<p style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">Aucune récupération effectuée.</p>';
+  } else {
+    html += `<div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;text-align:center">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total récupéré (toutes opérations)</div>
+      <div style="font-size:24px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${totalDir.toLocaleString()} Ryos</div>
+    </div>`;
+    histoDir.slice().reverse().forEach(h => {
+      const safeId = 'idir-' + h.id;
+      html += `
+        <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+          <div onclick="toggleDetail('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(232,197,71,0.15);border:1px solid rgba(232,197,71,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">👑</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:var(--text);font-size:13px">Récupération par ${h.direction}</div>
+              <div style="font-size:11px;color:var(--muted)">Sur ${h.agentSource} · ${h.nbCollectes} collecte(s) · ${h.date}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${h.montant.toLocaleString()}</div>
+              <div style="font-size:10px;color:var(--muted)">Ryos</div>
+            </div>
+            <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
+          </div>
+          <div id="${safeId}" style="display:none;background:rgba(0,0,0,0.25);padding:10px 14px">
+            ${(h.detail||[]).map(d => `
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+                <span>${d.payeur} ${ninjaGradePill(d.grade)}</span>
+                <strong style="color:var(--lgold)">${d.montant.toLocaleString()} Ryos</strong>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    });
+  }
+  html += '</div>';
+
   el.innerHTML = html;
 }
 
 function resetTousImpots() {
-  if (!confirm('⚠️ ATTENTION : Cette action va remettre TOUS les ninjas en "Non payé".\n\nL\'historique global est conservé. Confirmer ?')) return;
+  if (!confirm('⚠️ ATTENTION : Cette action va remettre TOUS les ninjas en "Non payé".\n\n• Aucun ninja ne sera supprimé du registre\n• L\'historique global est conservé\n\nConfirmer ?')) return;
   state.impots.forEach(i => {
     if (i.grade !== 'Genin') {
       i.statut = 'non';
       i.collecteur = '';
     }
   });
-  alert('✓ Tous les impôts ont été réinitialisés à "Non payé".\nLes ninjas devront repayer pour la prochaine collecte.');
+  saveSession();
+  alert('✓ Tous les statuts ont été remis à "Non payé".\nLe registre des ninjas est intact.');
   renderImpots();
 }
 
@@ -3763,6 +3915,7 @@ function ajouterImpot() {
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (ex: Naruto Uzumaki)'); return; }
   if (state.impots.some(i => matchFullname(i.fullname, fullname))) { alert('Ce ninja est déjà dans le registre'); return; }
   state.impots.push({ fullname: fullname, grade: g, statut: 'non', collecteur: '' });
+  saveSession();
   document.getElementById('imp-fullname').value = '';
   renderImpots();
 }
@@ -3772,8 +3925,9 @@ function toggleImpot(idx, newStatut) {
   if (!i) return;
   i.statut = newStatut;
   if (newStatut === 'non') {
-    i.collecteur = ''; // Reset collecteur si non payé
+    i.collecteur = '';
   }
+  saveSession();
   renderImpots();
 }
 
@@ -3781,14 +3935,11 @@ function setCollecteur(idx, agent) {
   const i = state.impots[idx];
   if (!i) return;
 
-  // Si on change de collecteur ou on enlève un ancien collecteur
   const oldCollecteur = i.collecteur;
   if (oldCollecteur && oldCollecteur !== agent) {
-    // Retirer de l'ancien collecteur
     if (state.collectesEnCours[oldCollecteur]) {
       state.collectesEnCours[oldCollecteur] = state.collectesEnCours[oldCollecteur].filter(c => !matchFullname(c.payeur, i.fullname));
     }
-    // Retirer de l'historique permanent l'entrée correspondante
     state.impotsHistorique = state.impotsHistorique.filter(h => !(matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur));
   }
 
@@ -3798,7 +3949,6 @@ function setCollecteur(idx, agent) {
     const montant = IMPOTS_MONTANTS[i.grade] || 0;
     const date = new Date().toLocaleDateString('fr-FR');
 
-    // Vérifier si déjà dans les collectes en cours
     if (!state.collectesEnCours[agent]) state.collectesEnCours[agent] = [];
     const exists = state.collectesEnCours[agent].some(c => matchFullname(c.payeur, i.fullname));
     if (!exists) {
@@ -3807,12 +3957,12 @@ function setCollecteur(idx, agent) {
       });
     }
 
-    // Ajouter à l'historique permanent (jamais effacé)
     state.impotsHistorique.push({
       payeur: i.fullname, grade: i.grade, montant: montant, agent: agent, date: date
     });
   }
 
+  saveSession();
   renderImpots();
 }
 
@@ -3820,9 +3970,9 @@ function recupererCollectes(agent) {
   const collectes = state.collectesEnCours[agent] || [];
   const total = collectes.reduce((s, c) => s + c.montant, 0);
   if (collectes.length === 0) { alert('Aucune collecte à récupérer'); return; }
-  if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\nCela va :\n- Vider la liste des collectes en cours de cet agent\n- Remettre tous ses ninjas en "non payé" pour la prochaine collecte\n- L'historique global est conservé`)) return;
+  if (!confirm(`Récupérer ${total.toLocaleString()} Ryos collectés par ${agent} ?\n\n• Les ninjas concernés repassent en "non payé"\n• Cette récupération est enregistrée dans l'historique de la Direction\n• L'historique global est conservé`)) return;
 
-  // Remettre les ninjas concernés en "non payé"
+  // Remettre les ninjas concernés en "non payé" (mais NE PAS les supprimer du registre !)
   collectes.forEach(c => {
     const imp = state.impots.find(i => matchFullname(i.fullname, c.payeur));
     if (imp) {
@@ -3831,10 +3981,23 @@ function recupererCollectes(agent) {
     }
   });
 
-  // Vider les collectes en cours de cet agent (mais l'historique reste)
+  // Enregistrer dans l'historique direction
+  state.impotsHistoriqueDirection = state.impotsHistoriqueDirection || [];
+  state.impotsHistoriqueDirection.push({
+    id: Date.now(),
+    direction: state.currentUser.fullname,
+    agentSource: agent,
+    montant: total,
+    nbCollectes: collectes.length,
+    date: new Date().toLocaleDateString('fr-FR'),
+    detail: collectes.slice() // copie
+  });
+
+  // Vider les collectes en cours de cet agent
   state.collectesEnCours[agent] = [];
 
-  alert(`✓ ${total.toLocaleString()} Ryos récupérés sur ${agent} !\nL'historique global est conservé.`);
+  saveSession();
+  alert(`✓ ${total.toLocaleString()} Ryos récupérés sur ${agent}\nEnregistré dans l'historique Direction.`);
   renderImpots();
 }
 
@@ -5737,8 +5900,10 @@ function supprimerCompte(fullname, service) {
 // ============================================================
 function getAmendesParAgent() {
   const par = {};
+  // Seules les amendes PAYÉES NON RÉCUPÉRÉES comptent pour la récupération
   state.amendes.forEach(a => {
-    if (a.recupere) return; // ne pas compter les amendes déjà récupérées
+    if (a.recupere) return;
+    if (a.statut !== 'paye') return; // doit être payée pour être récupérable
     if (!par[a.agent]) par[a.agent] = { entries: [], total: 0 };
     par[a.agent].entries.push(a);
     par[a.agent].total += a.montant;
@@ -5749,18 +5914,81 @@ function getAmendesParAgent() {
 function recupererAmendesAgent(agentName) {
   const par = getAmendesParAgent();
   const data = par[agentName];
-  if (!data || data.total === 0) { alert('Rien à récupérer'); return; }
-  if (!confirm('Récupérer ' + data.total.toLocaleString() + ' Ryos des amendes de ' + agentName + ' ?\n\nCes amendes seront archivées dans l\'historique global.')) return;
+  if (!data || data.total === 0) { alert('Rien à récupérer (aucune amende payée par cet agent).'); return; }
+  if (!confirm('Récupérer ' + data.total.toLocaleString() + ' Ryos des amendes payées de ' + agentName + ' ?\n\nCette récupération sera enregistrée dans l\'historique de la Direction.')) return;
+
+  // Marquer comme récupérées
+  const recupId = Date.now();
+  const dateRecup = new Date().toLocaleDateString('fr-FR');
   state.amendes.forEach(a => {
-    if (a.agent === agentName && !a.recupere) {
+    if (a.agent === agentName && !a.recupere && a.statut === 'paye') {
       a.recupere = true;
-      a.recupereLe = new Date().toLocaleDateString('fr-FR');
+      a.recupereLe = dateRecup;
       a.recupereParDirection = state.currentUser.fullname;
+      a.recupId = recupId;
     }
   });
+
+  // Ajouter à l'historique direction
+  state.amendesHistoriqueDirection = state.amendesHistoriqueDirection || [];
+  state.amendesHistoriqueDirection.push({
+    id: recupId,
+    direction: state.currentUser.fullname,
+    agentSource: agentName,
+    montant: data.total,
+    nbAmendes: data.entries.length,
+    date: dateRecup,
+    detail: data.entries.map(a => ({ fullname: a.fullname, infraction: a.infraction, montant: a.montant }))
+  });
+
   saveSession();
-  alert('✓ ' + data.total.toLocaleString() + ' Ryos récupérés sur ' + agentName);
+  alert('✓ ' + data.total.toLocaleString() + ' Ryos récupérés sur ' + agentName + '\nEnregistré dans l\'historique Direction.');
   renderAmendes();
+}
+
+function refreshHistoriqueDirectionAmendes() {
+  const u = state.currentUser;
+  const el = document.getElementById('amendes-historique-direction');
+  if (!el) return;
+  const histo = state.amendesHistoriqueDirection || [];
+  if (histo.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:1rem">Aucune récupération effectuée.</p>';
+    return;
+  }
+  const totalGlobal = histo.reduce((s, h) => s + (h.montant||0), 0);
+
+  let html = `<div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;text-align:center">
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total récupéré (toutes opérations)</div>
+    <div style="font-size:24px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${totalGlobal.toLocaleString()} Ryos</div>
+  </div>`;
+
+  // Tri du plus récent au plus ancien
+  histo.slice().reverse().forEach(h => {
+    const safeId = 'hr-' + h.id;
+    html += `
+      <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+        <div onclick="toggleDetail('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(232,197,71,0.15);border:1px solid rgba(232,197,71,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">👑</div>
+          <div style="flex:1">
+            <div style="font-weight:700;color:var(--text);font-size:13px">Récupération par ${h.direction}</div>
+            <div style="font-size:11px;color:var(--muted)">Sur ${h.agentSource} · ${h.nbAmendes} amende(s) · ${h.date}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${h.montant.toLocaleString()}</div>
+            <div style="font-size:10px;color:var(--muted)">Ryos</div>
+          </div>
+          <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
+        </div>
+        <div id="${safeId}" style="display:none;background:rgba(0,0,0,0.25);padding:10px 14px">
+          ${(h.detail||[]).map(d => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+              <span>${d.fullname} · ${d.infraction.length>40?d.infraction.substring(0,40)+'...':d.infraction}</span>
+              <strong style="color:var(--lgold)">${d.montant.toLocaleString()} Ryos</strong>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  });
+  el.innerHTML = html;
 }
 
 // ============================================================
