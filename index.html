@@ -4532,7 +4532,7 @@ function renderCandidatures() {
   el.innerHTML = html;
 }
 
-// Envoyer un message au candidat
+// Envoyer un message au candidat (depuis l'agent)
 async function envoyerMessageCandid(idx) {
   const c = state.candidatures[idx];
   if (!c) return;
@@ -4540,8 +4540,9 @@ async function envoyerMessageCandid(idx) {
   const texte = ta.value.trim();
   if (!texte) return;
 
-  c.messages = c.messages || [];
-  c.messages.push({
+  const candidId = c._id;
+  const newMessages = (c.messages || []).slice();
+  newMessages.push({
     from: 'agent',
     fullname: state.currentUser.fullname,
     grade: state.currentUser.grade,
@@ -4549,13 +4550,28 @@ async function envoyerMessageCandid(idx) {
     heure: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
   });
 
-  if (supabaseReady && c._id) {
-    try { await pushToSupabase('candidatures', c); } catch(e) {}
+  // Push DIRECT vers Supabase (uniquement la colonne messages)
+  if (supabaseReady && candidId) {
+    try {
+      const { error } = await sb.from('applications').update({ messages: newMessages }).eq('id', candidId);
+      if (error) {
+        console.warn('Erreur push message:', error.message);
+        alert('⚠️ Erreur d\'envoi : ' + error.message);
+        return;
+      }
+    } catch(e) {
+      alert('⚠️ Erreur d\'envoi : ' + (e.message || e));
+      return;
+    }
   }
+
+  // Mise à jour locale (par _id pour résister au Realtime)
+  const cLocal = candidId ? state.candidatures.find(x => x._id === candidId) : c;
+  if (cLocal) cLocal.messages = newMessages;
+
   saveSession();
   ta.value = '';
   renderCandidatures();
-  // Réouvrir le détail
   setTimeout(() => {
     const body = document.getElementById('candid-body-' + idx);
     if (body) body.style.display = 'block';
@@ -4594,41 +4610,59 @@ function toggleDetail(id) {
 }
 
 async function treatCandid(idx, decision) {
-  const c = state.candidatures[idx];
-  if (!c) return;
-  const target = c.target || 'police';
+  const cOriginal = state.candidatures[idx];
+  if (!cOriginal) return;
+  const candidId = cOriginal._id; // sauvegarder l'_id pour retrouver après reload
+  const target = cOriginal.target || 'police';
   const gradeInitial = target === 'police' ? 'Recrue' : target === 'juge' ? 'Juge Stagiaire' : 'Avocat Stagiaire';
   const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
 
   if (decision === 'ok') {
-    if (!(await confirmAsync('Accepter ' + c.fullname + ' au ' + labels[target] + ' ? Un compte sera créé au grade ' + gradeInitial + '.'))) return;
+    if (!(await confirmAsync('Accepter ' + cOriginal.fullname + ' au ' + labels[target] + ' ? Un compte sera créé au grade ' + gradeInitial + '.'))) return;
+
+    // 1. Créer le compte agent
     const newUser = {
-      fullname: c.fullname, password: c.password,
-      grade: gradeInitial, genre: c.genre, section: c.section,
-      isAgent: true, casier: c.casier, ninjaRank: c.niveau, service: target,
+      fullname: cOriginal.fullname, password: cOriginal.password,
+      grade: gradeInitial, genre: cOriginal.genre, section: cOriginal.section,
+      isAgent: true, casier: cOriginal.casier, ninjaRank: cOriginal.niveau, service: target,
       hireDate: new Date().toLocaleDateString('fr-FR')
     };
-    // Push le nouveau compte vers Supabase
     if (supabaseReady) {
       try {
         const inserted = await pushToSupabase('users', newUser);
         if (inserted && inserted._id) newUser._id = inserted._id;
-      } catch(e) {}
+      } catch(e) { console.warn('Erreur création user:', e); }
     }
     state.users.push(newUser);
-    c.status = 'ok';
-    // Push update candidature
-    if (supabaseReady && c._id) {
-      try { await pushToSupabase('candidatures', c); } catch(e) {}
+
+    // 2. Mettre à jour le STATUT de la candidature DIRECTEMENT dans Supabase
+    if (supabaseReady && candidId) {
+      try {
+        const { error } = await sb.from('applications').update({ status: 'ok' }).eq('id', candidId);
+        if (error) console.warn('Erreur update status:', error.message);
+      } catch(e) { console.warn('Erreur push status:', e); }
     }
+
+    // 3. Mettre à jour le state local (par _id pour être robuste au Realtime)
+    const c = candidId ? state.candidatures.find(x => x._id === candidId) : cOriginal;
+    if (c) c.status = 'ok';
+
     saveSession();
-    alert('✓ Candidature acceptée ! ' + c.fullname + ' rejoint ' + labels[target] + ' au grade ' + gradeInitial + '.');
+    alert('✓ Candidature acceptée ! ' + cOriginal.fullname + ' rejoint ' + labels[target] + ' au grade ' + gradeInitial + '.');
   } else {
     if (!(await confirmAsync('Refuser cette candidature ?'))) return;
-    c.status = 'no';
-    if (supabaseReady && c._id) {
-      try { await pushToSupabase('candidatures', c); } catch(e) {}
+
+    // Push direct vers Supabase
+    if (supabaseReady && candidId) {
+      try {
+        const { error } = await sb.from('applications').update({ status: 'no' }).eq('id', candidId);
+        if (error) console.warn('Erreur update status:', error.message);
+      } catch(e) {}
     }
+
+    const c = candidId ? state.candidatures.find(x => x._id === candidId) : cOriginal;
+    if (c) c.status = 'no';
+
     saveSession();
     alert('Candidature refusée.');
   }
@@ -9508,17 +9542,33 @@ async function repondreMessageCandid(idx) {
   const texte = ta.value.trim();
   if (!texte) return;
 
-  c.messages = c.messages || [];
-  c.messages.push({
+  const candidId = c._id;
+  const newMessages = (c.messages || []).slice();
+  newMessages.push({
     from: 'civil',
     fullname: civilUser.fullname,
     texte,
     heure: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
   });
 
-  if (supabaseReady && c._id) {
-    try { await pushToSupabase('candidatures', c); } catch(e) {}
+  // Push DIRECT vers Supabase
+  if (supabaseReady && candidId) {
+    try {
+      const { error } = await sb.from('applications').update({ messages: newMessages }).eq('id', candidId);
+      if (error) {
+        alert('⚠️ Erreur d\'envoi : ' + error.message);
+        return;
+      }
+    } catch(e) {
+      alert('⚠️ Erreur d\'envoi : ' + (e.message || e));
+      return;
+    }
   }
+
+  // Mise à jour locale
+  const cLocal = candidId ? state.candidatures.find(x => x._id === candidId) : c;
+  if (cLocal) cLocal.messages = newMessages;
+
   saveSession();
   ta.value = '';
   renderCivilDash();
