@@ -2887,13 +2887,14 @@ const SUPABASE_TABLES = {
       ninja_level: c.niveau || null, section: c.section || null,
       has_record: c.casier || null, motivation: c.motiv || null,
       target: c.target || 'police', status: c.status || 'wait',
-      date: c.date || null
+      date: c.date || null,
+      messages: c.messages || []
     }),
     mapFrom: r => ({
       fullname: r.fullname, password: r.password, genre: r.gender,
       niveau: r.ninja_level, section: r.section, casier: r.has_record,
       motiv: r.motivation, target: r.target, status: r.status,
-      date: r.date, _id: r.id
+      date: r.date, messages: r.messages || [], _id: r.id
     })
   },
   plaintes: {
@@ -3719,6 +3720,7 @@ function getInitialsFromFullname(fullname) {
 }
 function gradeRank(g) { return GRADE_RANK[g] === undefined ? 99 : GRADE_RANK[g]; }
 function canTreatCandid(g) { return gradeRank(g) <= 4; } // Officier et plus
+function canDeleteCandid(g) { return gradeRank(g) <= 3; } // Sergent et plus (Sgt + Lt + Adj + Dir)
 function canManageMembers(g) { return gradeRank(g) <= 2; } // Lieutenant et plus
 function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint + Hokage + Staff
 function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT
@@ -4134,7 +4136,7 @@ setInterval(() => {
 // ============================================================
 // CANDIDATURE PUBLIQUE
 // ============================================================
-function submitCandidature() {
+async function submitCandidature() {
   const errEl = document.getElementById('post-err');
   const okEl = document.getElementById('post-ok');
   errEl.style.display = 'none';
@@ -4149,13 +4151,13 @@ function submitCandidature() {
   }
 
   const data = {
-    fullname: civilUser.fullname, // ⚠️ Nom forcé depuis le compte civil connecté
+    fullname: civilUser.fullname,
     genre: document.getElementById('post-genre').value,
     niveau: document.getElementById('post-niveau').value,
     section: document.getElementById('post-section').value,
     casier: document.getElementById('post-casier').value,
     motiv: document.getElementById('post-motiv').value.trim(),
-    password: civilUser.password, // ⚠️ Mot de passe = celui du compte civil (donné aux Direction)
+    password: civilUser.password,
     status: 'wait',
     date: new Date().toLocaleDateString('fr-FR'),
     id: Date.now()
@@ -4168,8 +4170,23 @@ function submitCandidature() {
   }
 
   // === VÉRIFICATION 2 : anti-doublon par section ===
+  // Rafraîchir d'abord les candidatures depuis Supabase pour avoir l'état réel
   const sectionTarget = selectedPostSection;
   const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
+
+  if (supabaseReady) {
+    errEl.textContent = '⏳ Vérification en cours...';
+    errEl.style.color = 'var(--accent)';
+    errEl.style.display = 'block';
+    try {
+      const cfg = SUPABASE_TABLES.candidatures;
+      const { data: cloud } = await sb.from(cfg.table).select('*');
+      if (cloud) state.candidatures = cloud.map(cfg.mapFrom);
+    } catch(e) {}
+    errEl.style.display = 'none';
+    errEl.style.color = '';
+  }
+
   const candidatureExistante = state.candidatures.find(c =>
     matchFullname(c.fullname, data.fullname) &&
     (c.target || 'police') === sectionTarget &&
@@ -4192,14 +4209,18 @@ function submitCandidature() {
     return;
   }
 
-  const newCand = {...data, target: selectedPostSection};
-  state.candidatures.push(newCand);
+  const newCand = {...data, target: selectedPostSection, messages: []};
+
+  // Push immédiat vers Supabase (synchronisé pour vrai)
   if (supabaseReady) {
-    pushToSupabase('candidatures', newCand).then(inserted => {
+    try {
+      const inserted = await pushToSupabase('candidatures', newCand);
       if (inserted && inserted._id) newCand._id = inserted._id;
-    }).catch(()=>{});
+    } catch(e) {}
   }
+  state.candidatures.push(newCand);
   saveSession();
+
   okEl.innerHTML = '✓ Votre candidature pour <strong>' + labels[sectionTarget] + '</strong> a été envoyée !<br>Vous serez contacté(e) après examen de votre dossier.';
   okEl.style.display = 'block';
   ['post-genre','post-niveau','post-section','post-casier','post-motiv'].forEach(id => {
@@ -4407,13 +4428,11 @@ function renderCandidatures() {
   const el = document.getElementById('candid-content');
   const myService = u.service || 'police';
 
-  // Police nécessite Officier+ ; Juge et Avocat : tous les grades de leur section
   if (myService === 'police' && !canTreatCandid(u.grade)) {
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Le traitement des candidatures est réservé aux Officiers et grades supérieurs.</p></div>';
     return;
   }
 
-  // Filtrer par section visée
   const candidsForMe = state.candidatures.filter(c => (c.target||'police') === myService);
 
   if (candidsForMe.length === 0) {
@@ -4421,13 +4440,28 @@ function renderCandidatures() {
     return;
   }
 
+  // Permission de suppression
+  const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
+                    (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
+                    (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior']));
+
   let html = '<div class="dash-block">';
-  // Trier par ordre alphabétique des noms
-  candidsForMe.slice().sort((a,b) => normalize(a.fullname).localeCompare(normalize(b.fullname))).forEach((c) => {
+  // Tri par date récente (id = timestamp ms, donc on trie par id décroissant)
+  // Si pas d'id (anciennes), on utilise la date textuelle
+  candidsForMe.slice().sort((a, b) => {
+    const ta = a.id || 0;
+    const tb = b.id || 0;
+    return tb - ta; // récent en premier
+  }).forEach((c) => {
     const realIdx = state.candidatures.indexOf(c);
     const sc = c.status === 'wait' ? 's-wait' : c.status === 'ok' ? 's-ok' : 's-no';
     const sl = c.status === 'wait' ? 'En attente' : c.status === 'ok' ? 'Acceptée' : 'Refusée';
     const sectionLabels = { aucune:'Indépendant', diplomate:'Diplomate', strategie:'Stratégie', medecin:'Médecin' };
+
+    // Compter les messages
+    const nbMessages = (c.messages || []).length;
+    const lastMsg = nbMessages > 0 ? c.messages[c.messages.length - 1] : null;
+    const hasUnread = lastMsg && lastMsg.from !== 'agent'; // dernier message du candidat = nouveau
 
     html += `
       <div class="detail-card">
@@ -4435,7 +4469,7 @@ function renderCandidatures() {
           <div style="display:flex;align-items:center;gap:12px;flex:1">
             <span class="detail-id">#${realIdx+1}</span>
             <div>
-              <div class="detail-title">${c.fullname}</div>
+              <div class="detail-title">${c.fullname}${nbMessages > 0 ? ` <span style="font-size:10px;background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:700">💬 ${nbMessages}</span>` : ''}</div>
               <div class="detail-meta">
                 <span class="grade-pill gp-c">${c.niveau}</span>
                 <span>${c.date}</span>
@@ -4459,16 +4493,98 @@ function renderCandidatures() {
             <div class="detail-section-label">Motivation</div>
             <div class="detail-section-text">${c.motiv}</div>
           </div>
-          ${c.status === 'wait' ? `
-          <div class="detail-actions">
-            <button class="btn-sm btn-sm-green" onclick="treatCandid(${realIdx}, 'ok')">✓ Accepter (devient Recrue)</button>
-            <button class="btn-sm btn-sm-red" onclick="treatCandid(${realIdx}, 'no')">✗ Refuser</button>
-          </div>` : ''}
+
+          <!-- Messagerie avec le candidat -->
+          <div class="detail-section">
+            <div class="detail-section-label" style="color:#93c5fd">💬 Messages avec le candidat</div>
+            <div style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:0.75rem;max-height:300px;overflow-y:auto;margin-bottom:8px">
+              ${nbMessages === 0 ? '<p style="color:var(--muted);font-size:12px;text-align:center;padding:0.75rem;font-style:italic">Aucun message échangé. Envoyez-en un pour communiquer avec le candidat.</p>' :
+                c.messages.map(m => {
+                  const isAgent = m.from === 'agent';
+                  return `
+                    <div style="display:flex;${isAgent?'flex-direction:row-reverse;':''}gap:8px;margin-bottom:10px">
+                      <div style="width:28px;height:28px;border-radius:50%;background:${isAgent?'rgba(196,154,26,0.15)':'rgba(34,197,94,0.15)'};border:1px solid ${isAgent?'rgba(196,154,26,0.4)':'rgba(34,197,94,0.4)'};display:flex;align-items:center;justify-content:center;font-size:11px;color:${isAgent?'var(--accent)':'#86efac'};font-weight:700;flex-shrink:0">${getInitialsFromFullname(m.fullname || (isAgent ? 'Agent' : c.fullname))}</div>
+                      <div style="${isAgent?'text-align:right;':''}max-width:75%">
+                        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">${m.fullname || (isAgent ? 'Agent' : c.fullname)} · ${m.heure}</div>
+                        <div style="background:${isAgent?'rgba(196,154,26,0.12)':'rgba(34,197,94,0.1)'};border:1px solid ${isAgent?'rgba(196,154,26,0.3)':'rgba(34,197,94,0.3)'};border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text);line-height:1.5;display:inline-block;text-align:left">${escapeHtml(m.texte)}</div>
+                      </div>
+                    </div>`;
+                }).join('')
+              }
+            </div>
+            <div style="display:flex;gap:8px">
+              <textarea id="candid-msg-${realIdx}" rows="2" placeholder="Écrire un message au candidat..." style="flex:1;background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical"></textarea>
+              <button class="btn-primary" onclick="envoyerMessageCandid(${realIdx})" style="white-space:nowrap">📤 Envoyer</button>
+            </div>
+          </div>
+
+          <div class="detail-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem">
+            ${c.status === 'wait' ? `
+              <button class="btn-sm btn-sm-green" onclick="treatCandid(${realIdx}, 'ok')">✓ Accepter</button>
+              <button class="btn-sm btn-sm-red" onclick="treatCandid(${realIdx}, 'no')">✗ Refuser</button>
+            ` : ''}
+            ${canDelete ? `<button class="btn-sm btn-sm-red" style="background:rgba(192,57,43,0.3)" onclick="supprimerCandidature(${realIdx})">🗑 Supprimer</button>` : ''}
+          </div>
         </div>
       </div>`;
   });
   html += '</div>';
   el.innerHTML = html;
+}
+
+// Envoyer un message au candidat
+async function envoyerMessageCandid(idx) {
+  const c = state.candidatures[idx];
+  if (!c) return;
+  const ta = document.getElementById('candid-msg-' + idx);
+  const texte = ta.value.trim();
+  if (!texte) return;
+
+  c.messages = c.messages || [];
+  c.messages.push({
+    from: 'agent',
+    fullname: state.currentUser.fullname,
+    grade: state.currentUser.grade,
+    texte,
+    heure: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
+  });
+
+  if (supabaseReady && c._id) {
+    try { await pushToSupabase('candidatures', c); } catch(e) {}
+  }
+  saveSession();
+  ta.value = '';
+  renderCandidatures();
+  // Réouvrir le détail
+  setTimeout(() => {
+    const body = document.getElementById('candid-body-' + idx);
+    if (body) body.style.display = 'block';
+  }, 50);
+}
+
+// Supprimer une candidature (Sergent+ Police, Juge Senior+, Avocat Senior+)
+async function supprimerCandidature(idx) {
+  const u = state.currentUser;
+  const myService = u.service || 'police';
+  const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
+                    (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
+                    (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior']));
+  if (!canDelete) {
+    alert('Réservé aux Sergents et grades supérieurs (Police), Juge Senior+ (Tribunal), Avocat Senior+ (Cabinet).');
+    return;
+  }
+  const c = state.candidatures[idx];
+  if (!c) return;
+  if (!(await confirmAsync('Supprimer définitivement la candidature de ' + c.fullname + ' ?\n\nLe candidat pourra renvoyer une nouvelle candidature.'))) return;
+
+  if (c._id && supabaseReady) {
+    try { await deleteFromSupabase('candidatures', c._id); } catch(e) {}
+  }
+  state.candidatures.splice(idx, 1);
+  saveSession();
+  alert('✓ Candidature de ' + c.fullname + ' supprimée.');
+  renderCandidatures();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function toggleDetail(id) {
@@ -9324,7 +9440,92 @@ function renderCivilDash() {
       </div>
     </div>`;
 
+  // === Mes candidatures avec messagerie ===
+  const mesCandidatures = state.candidatures.filter(c => matchFullname(c.fullname, u.fullname));
+  if (mesCandidatures.length > 0) {
+    html += `
+      <div class="dash-block" style="padding:1.5rem;margin-top:1.25rem">
+        <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">📝 Mes candidatures (${mesCandidatures.length})</h3>`;
+
+    // Trier par date récente
+    mesCandidatures.slice().sort((a, b) => (b.id||0) - (a.id||0)).forEach((c, i) => {
+      const realIdx = state.candidatures.indexOf(c);
+      const labels = { police:'👮 Police', juge:'⚖️ Tribunal', avocat:'🧑‍⚖️ Cabinet des Avocats' };
+      const sectionLabel = labels[c.target||'police'];
+      const statutColor = c.status === 'wait' ? 'var(--lgold)' : c.status === 'ok' ? 'var(--green)' : 'var(--red2)';
+      const statutBg = c.status === 'wait' ? 'rgba(232,197,71,0.15)' : c.status === 'ok' ? 'rgba(39,174,96,0.15)' : 'rgba(231,76,60,0.15)';
+      const statutLabel = c.status === 'wait' ? '⏳ En attente' : c.status === 'ok' ? '✓ Acceptée' : '✗ Refusée';
+      const nbMsg = (c.messages || []).length;
+
+      html += `
+        <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden">
+          <div onclick="toggleDetail('civ-cand-${realIdx}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">
+            <div style="font-size:24px">${c.target === 'juge' ? '⚖️' : c.target === 'avocat' ? '🧑‍⚖️' : '👮'}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:var(--text);font-size:14px">${sectionLabel}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">Envoyée le ${c.date} ${nbMsg > 0 ? '· <span style="color:#93c5fd;font-weight:700">💬 '+nbMsg+' message(s)</span>' : ''}</div>
+            </div>
+            <span style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:14px;background:${statutBg};color:${statutColor};border:1px solid ${statutColor}44">${statutLabel}</span>
+            <span style="color:var(--muted);font-size:11px">▼</span>
+          </div>
+          <div id="civ-cand-${realIdx}" style="display:none;padding:1rem 1.25rem;background:rgba(0,0,0,0.25);border-top:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">💬 Messagerie avec la ${sectionLabel}</div>
+            <div style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:0.75rem;max-height:300px;overflow-y:auto;margin-bottom:8px">
+              ${nbMsg === 0 ? '<p style="color:var(--muted);font-size:12px;text-align:center;padding:0.75rem;font-style:italic">Aucun message reçu pour le moment.</p>' :
+                c.messages.map(m => {
+                  const isAgent = m.from === 'agent';
+                  return `
+                    <div style="display:flex;${isAgent?'':'flex-direction:row-reverse;'}gap:8px;margin-bottom:10px">
+                      <div style="width:28px;height:28px;border-radius:50%;background:${isAgent?'rgba(196,154,26,0.15)':'rgba(34,197,94,0.15)'};border:1px solid ${isAgent?'rgba(196,154,26,0.4)':'rgba(34,197,94,0.4)'};display:flex;align-items:center;justify-content:center;font-size:11px;color:${isAgent?'var(--accent)':'#86efac'};font-weight:700;flex-shrink:0">${getInitialsFromFullname(m.fullname || (isAgent?'Agent':u.fullname))}</div>
+                      <div style="${isAgent?'':'text-align:right;'}max-width:75%">
+                        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">${m.fullname || (isAgent?'Agent':u.fullname)} · ${m.heure}</div>
+                        <div style="background:${isAgent?'rgba(196,154,26,0.12)':'rgba(34,197,94,0.1)'};border:1px solid ${isAgent?'rgba(196,154,26,0.3)':'rgba(34,197,94,0.3)'};border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text);line-height:1.5;display:inline-block;text-align:left">${escapeHtml(m.texte)}</div>
+                      </div>
+                    </div>`;
+                }).join('')
+              }
+            </div>
+            ${c.status === 'wait' ? `
+              <div style="display:flex;gap:8px">
+                <textarea id="civ-msg-${realIdx}" rows="2" placeholder="Répondre à la ${sectionLabel}..." style="flex:1;background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical"></textarea>
+                <button class="btn-primary" onclick="repondreMessageCandid(${realIdx})" style="white-space:nowrap">📤 Envoyer</button>
+              </div>` : '<p style="font-size:11px;color:var(--muted);font-style:italic;text-align:center">Candidature traitée — messagerie fermée.</p>'}
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  }
+
   document.getElementById('civ-dash-content').innerHTML = html;
+}
+
+// Le citoyen répond à un message
+async function repondreMessageCandid(idx) {
+  if (!civilUser) return;
+  const c = state.candidatures[idx];
+  if (!c) return;
+  const ta = document.getElementById('civ-msg-' + idx);
+  const texte = ta.value.trim();
+  if (!texte) return;
+
+  c.messages = c.messages || [];
+  c.messages.push({
+    from: 'civil',
+    fullname: civilUser.fullname,
+    texte,
+    heure: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
+  });
+
+  if (supabaseReady && c._id) {
+    try { await pushToSupabase('candidatures', c); } catch(e) {}
+  }
+  saveSession();
+  ta.value = '';
+  renderCivilDash();
+  setTimeout(() => {
+    const body = document.getElementById('civ-cand-' + idx);
+    if (body) body.style.display = 'block';
+  }, 50);
 }
 
 // Restauration session civile
