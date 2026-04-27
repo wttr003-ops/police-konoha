@@ -8222,7 +8222,8 @@ function grpRemoveNew(idx) {
   }
 }
 
-function creerGroupe() {
+async function creerGroupe() {
+  const btn = event && event.target;
   const nom = document.getElementById('grp-nom').value.trim();
   const motif = document.getElementById('grp-motif').value.trim();
   if (!nom) { alert('Nom du groupe requis'); return; }
@@ -8234,9 +8235,7 @@ function creerGroupe() {
     grade: c.dataset.grade
   }));
 
-  // Récupérer les nouveaux ajoutés
   const newOnes = window._grpNewMembers || [];
-
   const tousMembres = [...fromRegister, ...newOnes];
 
   if (tousMembres.length === 0) {
@@ -8244,33 +8243,12 @@ function creerGroupe() {
     return;
   }
 
+  // Anti-double-clic : désactiver le bouton
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Création...'; }
+
   const heureSortie = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
   const groupeId = 'grp_' + Date.now();
 
-  // Ajouter les nouveaux ninjas au registre s'ils n'y sont pas
-  newOnes.forEach(m => {
-    if (!state.portes.some(p => matchFullname(p.fullname, m.fullname))) {
-      state.portes.push({
-        fullname: m.fullname,
-        grade: m.grade,
-        statut: 'sorti',
-        heureSortie,
-        groupeId
-      });
-    }
-  });
-
-  // Marquer comme "sorti" tous les ninjas du registre qui font partie du groupe
-  fromRegister.forEach(m => {
-    const p = state.portes.find(x => matchFullname(x.fullname, m.fullname));
-    if (p) {
-      p.statut = 'sorti';
-      p.heureSortie = heureSortie;
-      p.groupeId = groupeId;
-    }
-  });
-
-  // Créer le groupe
   const newGroupe = {
     id: groupeId,
     nom,
@@ -8281,16 +8259,72 @@ function creerGroupe() {
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR')
   };
-  state.groupes.push(newGroupe);
-  // Push vers Supabase
+
+  // 1. PUSH D'ABORD vers Supabase et ATTENDRE le résultat
   if (supabaseReady) {
-    pushToSupabase('groupes', newGroupe).then(inserted => {
-      if (inserted && inserted._id) newGroupe._id = inserted._id;
-    }).catch(()=>{});
+    try {
+      const inserted = await pushToSupabase('groupes', newGroupe);
+      if (inserted && inserted._id) {
+        newGroupe._id = inserted._id;
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = '👥 Créer le groupe'; }
+        alert('⚠️ Erreur de création sur le serveur. Réessayez.');
+        return;
+      }
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = '👥 Créer le groupe'; }
+      alert('⚠️ Erreur : ' + (e.message || e));
+      return;
+    }
   }
+
+  // 2. UNIQUEMENT après succès cloud : ajouter au state local
+  // Vérifier qu'il n'y a pas déjà un groupe avec ce nom + heure (anti-doublon Realtime)
+  const dejaPresent = state.groupes.some(g =>
+    (newGroupe._id && g._id === newGroupe._id) ||
+    (g.id === groupeId)
+  );
+  if (!dejaPresent) {
+    state.groupes.push(newGroupe);
+  }
+
+  // 3. Ajouter les nouveaux ninjas au registre s'ils n'y sont pas
+  for (const m of newOnes) {
+    if (!state.portes.some(p => matchFullname(p.fullname, m.fullname))) {
+      const newPorte = {
+        fullname: m.fullname,
+        grade: m.grade,
+        statut: 'sorti',
+        heureSortie,
+        groupeId
+      };
+      if (supabaseReady) {
+        try {
+          const ins = await pushToSupabase('portes', newPorte);
+          if (ins && ins._id) newPorte._id = ins._id;
+        } catch(e) {}
+      }
+      state.portes.push(newPorte);
+    }
+  }
+
+  // 4. Marquer comme "sorti" tous les ninjas du registre du groupe
+  for (const m of fromRegister) {
+    const p = state.portes.find(x => matchFullname(x.fullname, m.fullname));
+    if (p) {
+      p.statut = 'sorti';
+      p.heureSortie = heureSortie;
+      p.groupeId = groupeId;
+      if (supabaseReady && p._id) {
+        try { await pushToSupabase('portes', p); } catch(e) {}
+      }
+    }
+  }
+
   saveSession();
 
-  document.getElementById('grp-modal').remove();
+  const modal = document.getElementById('grp-modal');
+  if (modal) modal.remove();
   window._grpNewMembers = [];
   alert('✓ Groupe "' + nom + '" créé avec ' + tousMembres.length + ' membre(s) !');
   renderPortes();
