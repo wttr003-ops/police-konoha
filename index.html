@@ -3937,9 +3937,10 @@ function updateStats() {
   const jugesEl = document.getElementById('stat-juges');
   const avocatsEl = document.getElementById('stat-avocats');
   const candidEl = document.getElementById('stat-candid');
-  if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent && (u.service||'police') === 'police').length;
-  if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge').length;
-  if (avocatsEl) avocatsEl.textContent = state.users.filter(u => u.isAgent && u.service === 'avocat').length;
+  // Exclure les comptes Hokage/Staff des compteurs publics (discrétion)
+  if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent && (u.service||'police') === 'police' && !isSpecialRole(u.grade)).length;
+  if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge' && !isSpecialRole(u.grade)).length;
+  if (avocatsEl) avocatsEl.textContent = state.users.filter(u => u.isAgent && u.service === 'avocat' && !isSpecialRole(u.grade)).length;
   if (candidEl) candidEl.textContent = state.candidatures.filter(c => c.status === 'ok').length;
 }
 
@@ -4400,8 +4401,13 @@ function renderOverview() {
   const wait = state.candidatures.filter(c => c.status === 'wait').length;
   const total = state.candidatures.length;
   const myService = u.service || 'police';
-  // Compter les agents de la même section que l'utilisateur connecté
-  const agents = state.users.filter(x => x.isAgent && (x.service||'police') === myService).length;
+  // Compter les agents de la même section, en excluant Hokage/Staff (sauf pour le Directeur Police qui peut tout voir)
+  const showSpecialOverview = canManageSpecialRoles(u);
+  const agents = state.users.filter(x =>
+    x.isAgent &&
+    (x.service||'police') === myService &&
+    (showSpecialOverview || !isSpecialRole(x.grade))
+  ).length;
   const plaintesWait = state.plaintes.filter(p => p.status === 'wait').length;
 
   const elWait = document.getElementById('kpi-candid-wait');
