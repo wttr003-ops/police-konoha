@@ -8233,6 +8233,10 @@ function renderPresences() {
   const el = document.getElementById('presences-content');
   const isDir = canAddAgent(u.grade); // Directeur + Adjoint
 
+  // === COUPURE AUTOMATIQUE À 02h00 ===
+  // À chaque chargement, on vérifie si des services dépassent 02h00 et on les clôture
+  verifierCoupureAuto02h();
+
   // État du service de l'utilisateur connecté
   const monService = state.serviceActif[u.fullname];
   const enService = monService && !monService.fin;
@@ -8573,10 +8577,36 @@ async function enregistrerService(fullname, service, fin) {
 }
 
 async function forcerFinService(fullname) {
-  if (!(await confirmAsync('Forcer la fin de service de ' + fullname + ' ?'))) return;
+  if (!(await confirmAsync('Forcer la fin de service de ' + fullname + ' ?\n\nLe salaire sera calculé sur la durée écoulée et ajouté à sa fiche de paye.'))) return;
   const service = state.serviceActif[fullname];
   if (!service) return;
   enregistrerService(fullname, service, new Date());
+}
+
+// Vérifier les services qui dépassent 02h00 et les clôturer automatiquement
+async function verifierCoupureAuto02h() {
+  if (!state.serviceActif) return;
+  const now = new Date();
+  for (const [fullname, service] of Object.entries(state.serviceActif)) {
+    if (!service || service.fin) continue;
+    const debut = new Date(service.debut);
+    // Calculer le 02h00 de "lendemain du début" (= la coupure cible)
+    const cutoff = new Date(debut);
+    // Si début après 20h, le 02h cible est le lendemain matin
+    // Si début avant 02h (cas rare), le 02h cible est le même jour
+    if (debut.getHours() >= 20) {
+      cutoff.setDate(cutoff.getDate() + 1);
+    }
+    cutoff.setHours(2, 0, 0, 0);
+
+    // Si l'heure actuelle a dépassé le cutoff → clôture automatique
+    if (now.getTime() >= cutoff.getTime()) {
+      console.log('⏰ Coupure auto pour', fullname, '— service depuis', debut.toLocaleString('fr-FR'));
+      try {
+        await enregistrerService(fullname, service, cutoff);
+      } catch(e) { console.warn('Erreur coupure auto:', e); }
+    }
+  }
 }
 
 async function payerAgent(fullname, montant) {
@@ -8593,12 +8623,71 @@ async function payerAgent(fullname, montant) {
 }
 
 function ouvrirRetrait(fullname, soldeActuel) {
-  const montant = prompt('Montant à retirer du solde de ' + fullname + ' (en Ryos)\nSolde actuel : ' + soldeActuel.toLocaleString() + ' Ryos', '');
-  if (!montant) return;
-  const m = parseInt(montant);
-  if (isNaN(m) || m <= 0) { alert('Montant invalide'); return; }
-  const motif = prompt('Motif du retrait :', 'Sanction disciplinaire');
-  if (!motif) return;
+  // Supprimer un éventuel modal existant
+  const existing = document.getElementById('retrait-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'retrait-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" role="dialog" style="max-width:480px">
+      <div class="confirm-icon" style="background:rgba(232,197,71,0.15);border-color:#e8c547">💸</div>
+      <div class="confirm-title">Retirer de l'argent</div>
+      <div class="confirm-message" style="margin-bottom:1rem">
+        Agent : <strong style="color:var(--accent)">${fullname}</strong><br>
+        Solde actuel : <strong style="color:var(--lgold)">${soldeActuel.toLocaleString()} Ryos</strong>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Montant à retirer (Ryos)</label>
+        <input type="number" id="retrait-montant" placeholder="Ex: 500" min="1"
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:#f0e8d0;font-size:14px;font-family:monospace"/>
+      </div>
+
+      <div style="margin-bottom:1.25rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Motif du retrait</label>
+        <select id="retrait-motif-preset" onchange="document.getElementById('retrait-motif').value = this.value === '__custom__' ? '' : this.value"
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;margin-bottom:6px">
+          <option value="Sanction disciplinaire">⚠️ Sanction disciplinaire</option>
+          <option value="Retard répété">⏰ Retard répété</option>
+          <option value="Manquement de service">📝 Manquement de service</option>
+          <option value="Faute professionnelle">🚨 Faute professionnelle</option>
+          <option value="Avance déduite">💰 Avance déduite</option>
+          <option value="__custom__">✏️ Autre (saisie libre)</option>
+        </select>
+        <input type="text" id="retrait-motif" value="Sanction disciplinaire" placeholder="Précisez le motif..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px"/>
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('retrait-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok danger" onclick="confirmerRetrait('${fullname.replace(/'/g,"\\'")}')">💸 Retirer</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('retrait-montant').focus(), 100);
+}
+
+function confirmerRetrait(fullname) {
+  const montantStr = document.getElementById('retrait-montant').value;
+  const motif = document.getElementById('retrait-motif').value.trim();
+
+  const m = parseInt(montantStr);
+  if (isNaN(m) || m <= 0) {
+    alert('⚠️ Montant invalide. Entrez un nombre positif.');
+    return;
+  }
+  if (!motif) {
+    alert('⚠️ Le motif est obligatoire.');
+    return;
+  }
 
   state.presences.push({
     fullname,
@@ -8612,7 +8701,9 @@ function ouvrirRetrait(fullname, soldeActuel) {
     statut: 'a_payer'
   });
   saveSession();
-  alert('✓ Retrait de ' + m.toLocaleString() + ' Ryos appliqué');
+
+  document.getElementById('retrait-modal').remove();
+  alert('✓ Retrait de ' + m.toLocaleString() + ' Ryos appliqué à ' + fullname + '\nMotif : ' + motif);
   renderPresences();
 }
 
@@ -8677,20 +8768,9 @@ function updateChronoService() {
   }
 }
 
-// Vérifier toutes les minutes si on doit forcer la coupure 02h00
+// Vérifier toutes les minutes si des services dépassent 02h00 → coupure automatique
 setInterval(() => {
-  const now = new Date();
-  if (now.getHours() === 2 && now.getMinutes() < 5) {
-    // Coupure automatique pour tous les services actifs
-    Object.entries(state.serviceActif || {}).forEach(([fullname, service]) => {
-      if (service && !service.fin) {
-        const cutoff = new Date(service.debut);
-        cutoff.setHours(2, 0, 0, 0);
-        if (cutoff < new Date(service.debut)) cutoff.setDate(cutoff.getDate() + 1);
-        enregistrerService(fullname, service, cutoff);
-      }
-    });
-  }
+  try { verifierCoupureAuto02h(); } catch(e) {}
 }, 60000);
 
 // Tick chrono toutes les secondes
