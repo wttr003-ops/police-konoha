@@ -4612,30 +4612,14 @@ function toggleDetail(id) {
 async function treatCandid(idx, decision) {
   const cOriginal = state.candidatures[idx];
   if (!cOriginal) return;
-  const candidId = cOriginal._id; // sauvegarder l'_id pour retrouver après reload
+  const candidId = cOriginal._id;
   const target = cOriginal.target || 'police';
-  const gradeInitial = target === 'police' ? 'Recrue' : target === 'juge' ? 'Juge Stagiaire' : 'Avocat Stagiaire';
   const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
 
   if (decision === 'ok') {
-    if (!(await confirmAsync('Accepter ' + cOriginal.fullname + ' au ' + labels[target] + ' ? Un compte sera créé au grade ' + gradeInitial + '.'))) return;
+    if (!(await confirmAsync('Marquer la candidature de ' + cOriginal.fullname + ' comme acceptée ?\n\nℹ️ Cette action change uniquement le statut de la candidature.\nAucun compte agent ne sera créé automatiquement.\nPour créer un compte, utilisez "➕ Ajouter membre".'))) return;
 
-    // 1. Créer le compte agent
-    const newUser = {
-      fullname: cOriginal.fullname, password: cOriginal.password,
-      grade: gradeInitial, genre: cOriginal.genre, section: cOriginal.section,
-      isAgent: true, casier: cOriginal.casier, ninjaRank: cOriginal.niveau, service: target,
-      hireDate: new Date().toLocaleDateString('fr-FR')
-    };
-    if (supabaseReady) {
-      try {
-        const inserted = await pushToSupabase('users', newUser);
-        if (inserted && inserted._id) newUser._id = inserted._id;
-      } catch(e) { console.warn('Erreur création user:', e); }
-    }
-    state.users.push(newUser);
-
-    // 2. Mettre à jour le STATUT de la candidature DIRECTEMENT dans Supabase
+    // Update SEULEMENT le statut dans Supabase
     if (supabaseReady && candidId) {
       try {
         const { error } = await sb.from('applications').update({ status: 'ok' }).eq('id', candidId);
@@ -4643,16 +4627,14 @@ async function treatCandid(idx, decision) {
       } catch(e) { console.warn('Erreur push status:', e); }
     }
 
-    // 3. Mettre à jour le state local (par _id pour être robuste au Realtime)
     const c = candidId ? state.candidatures.find(x => x._id === candidId) : cOriginal;
     if (c) c.status = 'ok';
 
     saveSession();
-    alert('✓ Candidature acceptée ! ' + cOriginal.fullname + ' rejoint ' + labels[target] + ' au grade ' + gradeInitial + '.');
+    alert('✓ Candidature de ' + cOriginal.fullname + ' marquée comme acceptée.');
   } else {
     if (!(await confirmAsync('Refuser cette candidature ?'))) return;
 
-    // Push direct vers Supabase
     if (supabaseReady && candidId) {
       try {
         const { error } = await sb.from('applications').update({ status: 'no' }).eq('id', candidId);
