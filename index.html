@@ -7365,26 +7365,37 @@ function renderPortes() {
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:1px">
         🟢 Équipes actuellement en mission (${equipesEnMission.length})
       </div>
-      ${equipesEnMission.map(r => `
+      ${equipesEnMission.map(r => {
+        const realIdx = state.exitRequests.indexOf(r);
+        return `
         <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <div style="font-size:18px">📤</div>
-            <div style="flex:1;min-width:200px">
-              <div style="font-size:13px;font-weight:700;color:white">${escapeHtml(r.teamName)}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">Sortie : ${r.exitTime} · Validée par ${escapeHtml(r.validatedBy||'')} · ${r.members.length} membres</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:200px">
+              <div style="font-size:18px">📤</div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:white">${escapeHtml(r.teamName)}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Sortie : ${r.exitTime} · Validée par ${escapeHtml(r.validatedBy||'')} · ${r.members.length} membres</div>
+              </div>
             </div>
+            <button class="btn-sm" style="background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);font-size:11px;padding:6px 12px" onclick="retourForceParPolice(${realIdx})" title="Forcer le retour si le demandeur a oublié">🚨 Retour forcé</button>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
             ${r.members.map(m => `<span style="background:rgba(59,130,246,0.1);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);padding:2px 8px;border-radius:10px;font-size:11px">${escapeHtml(m.fullname)}</span>`).join('')}
           </div>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>` : ''}
 
     ${canSeeHistory ? `
     <div class="dash-block" style="margin-bottom:1.25rem">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📜 Historique des sorties (${(state.exitRequests||[]).length})</div>
-        ${u.grade === 'Directeur' ? `<button class="btn-primary" onclick="genererPDFSorties()" style="padding:6px 14px;font-size:11px">📄 Générer PDF</button>` : ''}
+        ${u.grade === 'Directeur' ? `
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-primary" onclick="genererPDFSorties()" style="padding:6px 14px;font-size:11px">📄 Générer PDF</button>
+            <button class="btn-sm btn-sm-red" onclick="reinitialiserHistoriqueSorties()" style="padding:6px 14px;font-size:11px;background:rgba(192,57,43,0.3)">🔄 Réinitialiser</button>
+          </div>
+        ` : ''}
       </div>
       ${(state.exitRequests || []).length === 0 ? '<p style="padding:1rem;text-align:center;color:var(--muted);font-size:12px">Aucune sortie enregistrée.</p>' :
         (state.exitRequests || []).slice().sort((a,b) => (b._id||0) - (a._id||0)).map(r => {
@@ -8009,6 +8020,153 @@ async function supprimerSortie(idx) {
   renderPortes();
 }
 
+// Réinitialiser TOUT l'historique des sorties (Directeur uniquement)
+async function reinitialiserHistoriqueSorties() {
+  const u = state.currentUser;
+  if (!u || u.grade !== 'Directeur') { alert('Réservé au Directeur de la Police.'); return; }
+
+  const total = (state.exitRequests || []).length;
+  if (total === 0) { alert('L\'historique est déjà vide.'); return; }
+
+  if (!(await confirmAsync('🔄 RÉINITIALISER l\'historique des sorties ?\n\n• ' + total + ' entrée(s) seront DÉFINITIVEMENT supprimées\n• Les équipes encore en mission seront aussi supprimées\n• Cette action est irréversible\n\n💡 Pensez à générer le PDF AVANT de réinitialiser pour conserver l\'historique.\n\nConfirmer ?'))) return;
+
+  if (!(await confirmAsync('⚠️ DERNIÈRE CONFIRMATION\n\nÊtes-vous absolument certain de vouloir tout effacer ?\n\nCette action ne peut PAS être annulée.'))) return;
+
+  // Supprimer toutes les entrées dans Supabase
+  if (supabaseReady) {
+    for (const r of state.exitRequests.slice()) {
+      if (r._id) {
+        try { await deleteFromSupabase('exitRequests', r._id); } catch(e) {}
+      }
+    }
+  }
+
+  state.exitRequests = [];
+  saveSession();
+  alert('✓ Historique des sorties réinitialisé.\n' + total + ' entrée(s) supprimée(s).');
+  renderPortes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+// Retour de mission FORCÉ par la Police (si le citoyen oublie)
+async function retourForceParPolice(idx) {
+  const u = state.currentUser;
+  if (!u) return;
+  const r = state.exitRequests[idx];
+  if (!r || r.status !== 'validated') return;
+
+  // Ouvrir le même modal que pour le civil mais en mode "police"
+  const existing = document.getElementById('dissolve-modal');
+  if (existing) existing.remove();
+
+  const membresHtml = r.members.map((m, i) => `
+    <div style="background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:6px">
+      <div style="font-size:13px;color:#f0e8d0;font-weight:600;margin-bottom:6px">${escapeHtml(m.fullname)} <span style="color:var(--muted);font-size:11px">— ${escapeHtml(m.grade)}</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#86efac;cursor:pointer">
+          <input type="radio" name="msf-${i}" value="sain" checked style="accent-color:#22c55e"/>
+          ✓ Sain et sauf
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#fbbf24;cursor:pointer">
+          <input type="radio" name="msf-${i}" value="blesse" style="accent-color:#f59e0b"/>
+          🩹 Blessé
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#fca5a5;cursor:pointer">
+          <input type="radio" name="msf-${i}" value="capture" style="accent-color:#ef4444"/>
+          ⛓ Capturé
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#94a3b8;cursor:pointer">
+          <input type="radio" name="msf-${i}" value="mort" style="accent-color:#94a3b8"/>
+          💀 Décédé
+        </label>
+      </div>
+    </div>
+  `).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'dissolve-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:560px;max-height:90vh;overflow-y:auto">
+      <div class="confirm-icon warning" style="background:rgba(232,197,71,0.15);border-color:#e8c547">🚨</div>
+      <div class="confirm-title">Retour forcé par la Police</div>
+      <div class="confirm-message" style="margin-bottom:14px">
+        Équipe : <strong>${escapeHtml(r.teamName)}</strong><br>
+        Demandeur initial : <strong>${escapeHtml(r.requestedBy)}</strong><br>
+        <span style="color:var(--lgold);font-size:12px">⚠️ Vous clôturez cette mission à la place du demandeur</span>
+      </div>
+
+      <div style="margin-bottom:14px">${membresHtml}</div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Note de clôture (motif obligatoire)</label>
+        <textarea id="dissolve-note" rows="3" placeholder="Ex: Clôture forcée — l'équipe n'est pas revenue depuis 3 jours, dernier signal..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('dissolve-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="confirmerRetourForce(${idx})">🚨 Clôturer la mission</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function confirmerRetourForce(idx) {
+  const r = state.exitRequests[idx];
+  if (!r) return;
+  const note = document.getElementById('dissolve-note').value.trim();
+  if (!note) { alert('La note de clôture est obligatoire pour un retour forcé.'); return; }
+
+  const membersStatus = r.members.map((m, i) => {
+    const radio = document.querySelector('input[name="msf-' + i + '"]:checked');
+    return { fullname: m.fullname, grade: m.grade, status: radio ? radio.value : 'sain' };
+  });
+
+  const now = new Date();
+  const heureRetour = now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+  const blesses = membersStatus.filter(m => m.status === 'blesse').length;
+  const captures = membersStatus.filter(m => m.status === 'capture').length;
+  const morts = membersStatus.filter(m => m.status === 'mort').length;
+  let globalStatus = 'success';
+  if (morts > 0) globalStatus = 'tragedy';
+  else if (captures > 0) globalStatus = 'capture';
+  else if (blesses > 0) globalStatus = 'injured';
+
+  r.status = 'returned';
+  r.returnTime = heureRetour;
+  r.returnStatus = globalStatus;
+  r.returnNote = '[RETOUR FORCÉ par ' + state.currentUser.fullname + '] ' + note;
+  r.membersStatus = membersStatus;
+
+  if (supabaseReady && r._id) {
+    try { await pushToSupabase('exitRequests', r); } catch(e) {}
+  }
+
+  // Marquer les membres dans le registre des portes
+  for (const m of membersStatus) {
+    if (m.status === 'sain' || m.status === 'blesse') {
+      const porte = state.portes.find(p => matchFullname(p.fullname, m.fullname));
+      if (porte) {
+        porte.statut = 'present';
+        porte.heureSortie = null;
+        if (supabaseReady && porte._id) {
+          try { await pushToSupabase('portes', porte); } catch(e) {}
+        }
+      }
+    }
+  }
+
+  saveSession();
+  document.getElementById('dissolve-modal').remove();
+  alert('✓ Mission clôturée par la Police.');
+  renderPortes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
 function genererPDFSorties() {
   const u = state.currentUser;
   if (!u || u.grade !== 'Directeur') {
@@ -8080,26 +8238,64 @@ function genererPDFSorties() {
     <div class="stat-card"><div class="stat-num" style="color:#991b1b">${totalCaptures}</div><div class="stat-label">Capturés</div></div>
     <div class="stat-card"><div class="stat-num" style="color:#374151">${totalMorts}</div><div class="stat-label">Décédés</div></div>
   </div>
-  <h2>Détail des missions terminées (${terminees.length})</h2>
+  <h2>Détail complet de chaque mission terminée (${terminees.length})</h2>
   ${terminees.length === 0 ? '<p style="font-size:12px;color:#666;font-style:italic;padding:10px">Aucune mission terminée.</p>' :
-    terminees.map(s => {
+    terminees.map((s, idx) => {
       const sains = s.membersStatus.filter(m => m.status === 'sain').length;
       const bl = s.membersStatus.filter(m => m.status === 'blesse').length;
       const cap = s.membersStatus.filter(m => m.status === 'capture').length;
       const mor = s.membersStatus.filter(m => m.status === 'mort').length;
+      const statusLabels = { sain: '✓ Sain et sauf', blesse: '🩹 BLESSÉ', capture: '⛓ CAPTURÉ', mort: '💀 DÉCÉDÉ' };
+      const statusColors = { sain: '#065f46', blesse: '#92400e', capture: '#991b1b', mort: '#374151' };
       return `
-      <div class="row">
-        <strong>${s.teamName}</strong> · par ${s.requestedBy}<br>
-        <span style="color:#666;font-size:11px">${s.date} → retour ${s.returnTime}</span><br>
-        <span class="badge b-green">${sains} sain(s)</span>
-        ${bl > 0 ? '<span class="badge b-yellow">'+bl+' blessé(s)</span>' : ''}
-        ${cap > 0 ? '<span class="badge b-red">'+cap+' capturé(s)</span>' : ''}
-        ${mor > 0 ? '<span class="badge b-gray">'+mor+' décédé(s)</span>' : ''}
-        <div class="members">Membres : ${s.members.map(m => m.fullname).join(', ')}</div>
-        ${s.returnNote ? '<div style="margin-top:6px;font-size:11px;color:#444;background:#f9f5e8;padding:6px 8px;border-radius:4px"><em>Note : '+escapeHtml(s.returnNote)+'</em></div>' : ''}
+      <div style="border:1px solid #c49a1a;border-radius:6px;padding:14px;margin-bottom:14px;background:#fcfaf3;page-break-inside:avoid">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #e0d4a8;padding-bottom:6px">
+          <strong style="font-size:14px;color:#7c2d12">Mission #${idx+1} — ${escapeHtml(s.teamName)}</strong>
+          <span style="font-size:11px;color:#666">${s.date}</span>
+        </div>
+        <div style="font-size:11px;color:#444;margin-bottom:8px">
+          <strong>Demandeur :</strong> ${escapeHtml(s.requestedBy)} (${escapeHtml(s.requesterGrade||'—')})<br>
+          <strong>Validée par :</strong> ${escapeHtml(s.validatedBy||'—')} le ${escapeHtml(s.validatedAt||'—')}<br>
+          <strong>Sortie :</strong> ${s.exitTime||'—'} · <strong>Retour :</strong> ${s.returnTime||'—'}
+        </div>
+        <div style="background:#fff;border-left:3px solid #c49a1a;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#555;font-style:italic">
+          <strong>Motif :</strong> ${escapeHtml(s.reason||'—')}
+        </div>
+        <div style="margin-bottom:8px;font-size:11px">
+          <strong>Bilan :</strong>
+          <span class="badge b-green">${sains} sain(s)</span>
+          ${bl > 0 ? '<span class="badge b-yellow">'+bl+' blessé(s)</span>' : ''}
+          ${cap > 0 ? '<span class="badge b-red">'+cap+' capturé(s)</span>' : ''}
+          ${mor > 0 ? '<span class="badge b-gray">'+mor+' décédé(s)</span>' : ''}
+        </div>
+        <div style="font-size:11px;margin-bottom:6px;font-weight:700;color:#7c2d12">Détail des ${s.membersStatus.length} membres :</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
+          <thead><tr style="background:#f5f0e8">
+            <th style="text-align:left;padding:5px 8px;border:0.5px solid #ddd">Nom</th>
+            <th style="text-align:left;padding:5px 8px;border:0.5px solid #ddd">Grade</th>
+            <th style="text-align:left;padding:5px 8px;border:0.5px solid #ddd">État au retour</th>
+          </tr></thead>
+          <tbody>
+          ${s.membersStatus.map(m => `
+            <tr>
+              <td style="padding:4px 8px;border:0.5px solid #ddd">${escapeHtml(m.fullname)}</td>
+              <td style="padding:4px 8px;border:0.5px solid #ddd;color:#666">${escapeHtml(m.grade||'—')}</td>
+              <td style="padding:4px 8px;border:0.5px solid #ddd;color:${statusColors[m.status]||'#000'};font-weight:700">${statusLabels[m.status]||'?'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        ${s.returnNote ? '<div style="font-size:11px;color:#444;background:#fff8e0;padding:6px 10px;border-radius:4px;border-left:2px solid #c49a1a"><strong>Note finale :</strong> '+escapeHtml(s.returnNote)+'</div>' : ''}
       </div>`;
     }).join('')
   }
+  ${refusees.length > 0 ? `
+  <h2>Demandes refusées (${refusees.length})</h2>
+  ${refusees.map(s => `
+    <div class="row">
+      <strong>${escapeHtml(s.teamName)}</strong> · par ${escapeHtml(s.requestedBy)} · ${s.date}<br>
+      <span style="color:#991b1b;font-size:11px"><strong>Refusée par :</strong> ${escapeHtml(s.validatedBy||'—')} — Motif : ${escapeHtml(s.refusalReason||'—')}</span>
+    </div>`).join('')}
+  ` : ''}
   <div class="footer">Police de Konoha · Document confidentiel · ${today}</div>
 </div>
 </body></html>`;
@@ -8110,8 +8306,16 @@ function genererPDFSorties() {
 
 // ===== GROUPES =====
 function ouvrirCreationGroupe() {
-  // Récupérer les ninjas du registre déjà présents
-  const ninjasDisponibles = state.portes.filter(p => p.statut === 'present');
+  // Récupérer TOUS les ninjas du registre, et marquer ceux en mission comme indisponibles
+  const tousNinjas = state.portes.slice();
+  const ninjasDisponibles = tousNinjas.filter(p => p.statut === 'present');
+  const ninjasIndispo = tousNinjas.filter(p => p.statut !== 'present');
+
+  // Récupérer aussi les noms qui sont déjà dans une équipe en mission validée
+  const enMission = new Set();
+  (state.exitRequests || []).filter(r => r.status === 'validated').forEach(r => {
+    (r.members || []).forEach(m => enMission.add(normalize(m.fullname)));
+  });
 
   const existing = document.getElementById('grp-modal');
   if (existing) existing.remove();
@@ -8120,13 +8324,33 @@ function ouvrirCreationGroupe() {
   overlay.id = 'grp-modal';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px);overflow-y:auto';
 
-  const ninjasOptions = ninjasDisponibles.length === 0
-    ? '<p style="color:var(--muted);font-size:12px;font-style:italic;padding:8px">Aucun ninja présent dans le registre. Ajoutez-en un nouveau ci-dessous.</p>'
-    : ninjasDisponibles.map((n, i) => `
+  // Disponibles : cochables
+  const ninjasDispoHtml = ninjasDisponibles.length === 0
+    ? '<p style="color:var(--muted);font-size:12px;font-style:italic;padding:8px">Aucun ninja disponible. Ajoutez-en un nouveau ci-dessous.</p>'
+    : ninjasDisponibles.map((n, i) => {
+        const indispo = enMission.has(normalize(n.fullname));
+        if (indispo) {
+          return `
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:13px;color:var(--muted);background:rgba(100,116,139,0.1);border:1px dashed rgba(100,116,139,0.3);border-radius:5px;margin-bottom:4px;opacity:0.5;cursor:not-allowed" title="Déjà en mission">
+            <input type="checkbox" disabled style="width:15px;height:15px;cursor:not-allowed"/>
+            <span>${escapeHtml(n.fullname)} <span style="font-size:11px">— ${escapeHtml(n.grade)}</span> <span style="color:#fbbf24;font-size:10px">🔒 déjà en mission</span></span>
+          </label>`;
+        }
+        return `
         <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:13px;color:var(--text);background:var(--mid);border-radius:5px;margin-bottom:4px">
-          <input type="checkbox" class="grp-ninja-check" data-idx="${i}" data-fullname="${n.fullname}" data-grade="${n.grade}" style="width:15px;height:15px;cursor:pointer;accent-color:#3b82f6"/>
-          <span>${n.fullname} <span style="color:var(--muted);font-size:11px">— ${n.grade}</span></span>
-        </label>`).join('');
+          <input type="checkbox" class="grp-ninja-check" data-idx="${i}" data-fullname="${escapeHtml(n.fullname)}" data-grade="${escapeHtml(n.grade)}" style="width:15px;height:15px;cursor:pointer;accent-color:#3b82f6"/>
+          <span>${escapeHtml(n.fullname)} <span style="color:var(--muted);font-size:11px">— ${escapeHtml(n.grade)}</span></span>
+        </label>`;
+      }).join('');
+
+  // Ninjas déjà sortis (info)
+  const ninjasIndispoHtml = ninjasIndispo.length === 0 ? '' : `
+    <div style="margin-top:8px;padding:8px;background:rgba(100,116,139,0.05);border-radius:5px;font-size:11px;color:var(--muted)">
+      <strong style="color:#fbbf24">🔒 ${ninjasIndispo.length} ninja(s) déjà sorti(s) du village :</strong>
+      <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">
+        ${ninjasIndispo.map(n => `<span style="background:rgba(100,116,139,0.15);padding:2px 7px;border-radius:8px;font-size:10px">${escapeHtml(n.fullname)}</span>`).join('')}
+      </div>
+    </div>`;
 
   overlay.innerHTML = `
     <div style="background:#0a0a0a;border:2px solid #3b82f6;border-radius:14px;padding:1.75rem 2rem;max-width:560px;width:100%;max-height:90vh;overflow-y:auto">
@@ -8134,7 +8358,7 @@ function ouvrirCreationGroupe() {
         <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">👥</div>
         <h2 style="color:#93c5fd;font-family:'Cinzel',serif;font-size:18px;margin:0">Créer un groupe de sortie</h2>
       </div>
-      <p style="color:var(--muted);font-size:12px;margin-bottom:1.25rem">Sélectionne les ninjas du registre OU ajoute-en de nouveaux. Les nouveaux seront ajoutés automatiquement au registre.</p>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:1.25rem">Sélectionne les ninjas du registre OU ajoute-en de nouveaux. Les ninjas déjà en mission sont grisés et ne peuvent pas être sélectionnés.</p>
 
       <div class="form-group">
         <label>Nom du groupe / motif *</label>
@@ -8150,7 +8374,8 @@ function ouvrirCreationGroupe() {
       <div style="margin-bottom:1rem">
         <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">📋 Ninjas du registre (présents)</label>
         <div style="background:#111;border:1px solid var(--border);border-radius:6px;padding:10px;max-height:200px;overflow-y:auto">
-          ${ninjasOptions}
+          ${ninjasDispoHtml}
+          ${ninjasIndispoHtml}
         </div>
       </div>
 
