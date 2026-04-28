@@ -3198,6 +3198,22 @@ async function loadAllFromSupabase() {
       state[stateKey] = (data || []).map(cfg.mapFrom);
       console.log('  ↳', cfg.table, ':', state[stateKey].length, 'éléments chargés');
     }
+
+    // === Auto-nettoyage des grades corrompus (avec icônes en préfixe) ===
+    if (state.impots) {
+      const iconRegex = /^[👑⚔️🌸🌊🍃🔥💠🌱🌿🍀]\s*/;
+      for (const item of state.impots) {
+        if (item.grade && iconRegex.test(item.grade)) {
+          const cleanGrade = item.grade.replace(iconRegex, '').trim();
+          console.log('🧹 Nettoyage grade corrompu : "' + item.grade + '" → "' + cleanGrade + '"');
+          item.grade = cleanGrade;
+          if (item._id) {
+            try { await pushToSupabase('impots', item); } catch(e) {}
+          }
+        }
+      }
+    }
+
     console.log('✅ Données chargées depuis Supabase');
     return true;
   } catch(e) {
@@ -5634,7 +5650,7 @@ function renderImpots() {
           <select onchange="changerGradeImpot(${idx}, this.value)" style="background:${gradeColor.bg};border:1px solid ${gradeColor.border};color:${gradeColor.color};padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">
             ${NINJA_GRADE_ORDER.filter(g => IMPOTS_MONTANTS[g] !== undefined).map(g => {
               const gc = ninjaGradeColor(g);
-              return '<option ' + (i.grade===g?'selected':'') + ' style="background:#1a1a1a;color:'+gc.color+'">'+gc.icon+' '+g+'</option>';
+              return '<option value="' + g + '" ' + (i.grade===g?'selected':'') + ' style="background:#1a1a1a;color:'+gc.color+'">'+gc.icon+' '+g+'</option>';
             }).join('')}
           </select>
           ${isExo?'<span style="font-size:10px;color:var(--muted);margin-left:4px">(exonéré)</span>':''}
@@ -10199,6 +10215,10 @@ async function deleteHistoDirAmendes(id) {
 async function changerGradeImpot(idx, nouveauGrade) {
   const i = state.impots[idx];
   if (!i) return;
+  // Nettoyer le grade : retirer l'éventuelle icône en préfixe
+  if (nouveauGrade) {
+    nouveauGrade = nouveauGrade.replace(/^[👑⚔️🌸🌊🍃🔥💠🌱🌿🍀]\s*/, '').trim();
+  }
   const oldGrade = i.grade;
   i.grade = nouveauGrade;
   // Reset le statut si on change de grade (pour éviter incohérences)
