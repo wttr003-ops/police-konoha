@@ -2507,6 +2507,7 @@
         <button class="dash-nav-btn" data-tab="portes" data-services="police" onclick="switchDashTab('portes', this)">🏯 Portes du village</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
         <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
         <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
         <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
@@ -2581,6 +2582,11 @@
       <div class="dash-tab" id="dash-discussions">
         <h2 class="dash-section-title">💬 Discussions inter-sections</h2>
         <div id="discussions-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-documents">
+        <h2 class="dash-section-title">📚 Documents</h2>
+        <div id="documents-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-dossiers">
@@ -3071,6 +3077,28 @@ const SUPABASE_TABLES = {
       returnStatus: r.return_status,
       returnNote: r.return_note,
       membersStatus: r.members_status || [],
+      date: r.date,
+      _id: r.id
+    })
+  },
+  documents: {
+    table: 'documents',
+    mapTo: d => ({
+      title: d.title,
+      description: d.description || null,
+      url: d.url,
+      category: d.category,
+      added_by: d.addedBy || null,
+      service_target: d.serviceTarget || 'all',
+      date: d.date || null
+    }),
+    mapFrom: r => ({
+      title: r.title,
+      description: r.description,
+      url: r.url,
+      category: r.category,
+      addedBy: r.added_by,
+      serviceTarget: r.service_target,
       date: r.date,
       _id: r.id
     })
@@ -3655,7 +3683,9 @@ let state = {
   // Historique des récupérations Direction (impôts)
   impotsHistoriqueDirection: [],
   // Demandes de sortie du village (Civil → Police)
-  exitRequests: []
+  exitRequests: [],
+  // Documents partagés (liens vers Google Docs, etc.)
+  documents: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4077,6 +4107,7 @@ function saveSession() {
       amendesHistoriqueDirection: state.amendesHistoriqueDirection || [],
       impotsHistoriqueDirection: state.impotsHistoriqueDirection || [],
       exitRequests: state.exitRequests || [],
+      documents: state.documents || [],
       presences: state.presences || [],
       serviceActif: state.serviceActif || {}
     };
@@ -4147,6 +4178,7 @@ function restoreSession() {
     if (data.amendesHistoriqueDirection) state.amendesHistoriqueDirection = data.amendesHistoriqueDirection;
     if (data.impotsHistoriqueDirection) state.impotsHistoriqueDirection = data.impotsHistoriqueDirection;
     if (data.exitRequests) state.exitRequests = data.exitRequests;
+    if (data.documents) state.documents = data.documents;
     if (data.presences) state.presences = data.presences;
     if (data.serviceActif) state.serviceActif = data.serviceActif;
 
@@ -4434,6 +4466,7 @@ function switchDashTab(name, btn) {
   if (name === 'portes') renderPortes();
   if (name === 'presences') renderPresences();
   if (name === 'discussions') renderDiscussions();
+  if (name === 'documents') renderDocuments();
   if (name === 'dossiers') renderDossiersAvocat();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
@@ -5803,7 +5836,7 @@ async function resetTousImpots() {
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function genererPDFImpots() {
+async function genererPDFImpots() {
   const ninjasImposables = state.impots.filter(i => i.grade !== 'Genin');
   const payes = ninjasImposables.filter(i => i.statut === 'paye');
   const nonPayes = ninjasImposables.filter(i => i.statut !== 'paye');
@@ -5872,12 +5905,18 @@ function genererPDFImpots() {
 </div>
 </body></html>`;
 
-  const win = window.open('', '_blank');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
+  const choix = await confirmAsync('📄 Document Impôts généré.\n\nVoulez-vous générer un LIEN PARTAGEABLE ?\n\n✓ OK = Lien partageable\n✗ Annuler = Juste un aperçu local');
+  if (choix) {
+    const url = await genererLienPartageable('tax_report', 'Rapport Impôts — ' + today, html);
+    if (url) afficherLienGenere(url, 'Rapport Impôts — ' + today);
   } else {
-    alert('Veuillez autoriser les popups pour générer le document.');
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    } else {
+      alert('Veuillez autoriser les popups pour générer le document.');
+    }
   }
 }
 
@@ -8167,7 +8206,7 @@ async function confirmerRetourForce(idx) {
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function genererPDFSorties() {
+async function genererPDFSorties() {
   const u = state.currentUser;
   if (!u || u.grade !== 'Directeur') {
     alert('Réservé au Directeur de la Police.');
@@ -8299,9 +8338,17 @@ function genererPDFSorties() {
   <div class="footer">Police de Konoha · Document confidentiel · ${today}</div>
 </div>
 </body></html>`;
-  const win = window.open('', '_blank');
-  if (win) { win.document.write(html); win.document.close(); }
-  else alert('Veuillez autoriser les popups.');
+
+  // Proposer le choix : aperçu local ou lien partageable
+  const choix = await confirmAsync('📄 Rapport généré.\n\nVoulez-vous générer un LIEN PARTAGEABLE ?\n\n✓ OK = Lien partageable (à envoyer aux personnes)\n✗ Annuler = Juste un aperçu local');
+  if (choix) {
+    const url = await genererLienPartageable('exit_report', 'Rapport des sorties — ' + today, html);
+    if (url) afficherLienGenere(url, 'Rapport des sorties — ' + today);
+  } else {
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+    else alert('Veuillez autoriser les popups.');
+  }
 }
 
 // ===== GROUPES =====
@@ -9908,11 +9955,13 @@ async function deleteHistoDirAmendes(id) {
 async function changerGradeImpot(idx, nouveauGrade) {
   const i = state.impots[idx];
   if (!i) return;
+  const oldGrade = i.grade;
   i.grade = nouveauGrade;
   // Reset le statut si on change de grade (pour éviter incohérences)
   if (i.statut === 'paye') {
     if (!(await confirmAsync('Changer le grade vers ' + nouveauGrade + ' ?\nLe statut "Payé" sera réinitialisé en "Non payé" et le collecteur effacé.'))) {
-      return; // annulation
+      i.grade = oldGrade; // restaurer
+      return;
     }
     i.statut = 'non';
     i.collecteur = '';
@@ -9921,6 +9970,20 @@ async function changerGradeImpot(idx, nouveauGrade) {
   if (supabaseReady && i._id) {
     try { await pushToSupabase('impots', i); } catch(e) {}
   }
+
+  // === SYNCHRONISATION : mettre à jour le grade dans le compte civil correspondant ===
+  const civil = state.users.find(u =>
+    u.service === 'civil' && matchFullname(u.fullname, i.fullname)
+  );
+  if (civil && civil.grade !== nouveauGrade) {
+    civil.grade = nouveauGrade;
+    civil.ninjaRank = nouveauGrade;
+    if (supabaseReady && civil._id) {
+      try { await pushToSupabase('users', civil); } catch(e) {}
+    }
+    console.log('🔄 Grade civil synchronisé pour ' + i.fullname + ' : ' + nouveauGrade);
+  }
+
   saveSession();
   renderImpots();
   if (typeof refreshAllUI === 'function') refreshAllUI();
@@ -10289,7 +10352,291 @@ function genererFacture(idx) {
   else alert('Veuillez autoriser les popups.');
 }
 
+// ============================================================
+// DOCUMENTS — Section partagée pour cours, formations, annonces
+// ============================================================
+const DOC_CATEGORIES = [
+  { id: 'cours', label: '📖 Cours', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+  { id: 'formation', label: '🎓 Formations', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  { id: 'rappel', label: '⚠️ Rappels', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  { id: 'annonce', label: '📢 Annonces', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+  { id: 'reglement', label: '📜 Règlement', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+  { id: 'autre', label: '📂 Autre', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' }
+];
 
+function renderDocuments() {
+  const u = state.currentUser;
+  const el = document.getElementById('documents-content');
+  if (!el) return;
+  const myService = u.service || 'police';
+
+  // Filtrer les documents : ceux qui sont pour "all" ou pour ma section
+  const mesDocs = (state.documents || []).filter(d =>
+    !d.serviceTarget || d.serviceTarget === 'all' || d.serviceTarget === myService
+  );
+
+  // Permission d'ajouter : Officier+ Police, ou tous les Juges/Avocats
+  const canAdd = (myService === 'police' && gradeRank(u.grade) <= 4) ||
+                 myService === 'juge' || myService === 'avocat';
+  // Permission de supprimer : Sergent+ Police ou hauts gradés Juge/Avocat
+  const canDelete = (myService === 'police' && gradeRank(u.grade) <= 3) ||
+                    (myService === 'juge' && _gradeIn(u.grade, GRADES_JUGE_HC)) ||
+                    (myService === 'avocat' && _gradeIn(u.grade, GRADES_AVOCAT_HC));
+
+  // Compter par catégorie
+  const parCategorie = {};
+  DOC_CATEGORIES.forEach(c => parCategorie[c.id] = []);
+  mesDocs.forEach(d => {
+    const cat = parCategorie[d.category] ? d.category : 'autre';
+    parCategorie[cat].push(d);
+  });
+
+  let html = `
+    <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:12px 16px;margin-bottom:1.25rem;font-size:13px;color:var(--text)">
+      📚 <strong style="color:#93c5fd">Documents partagés</strong> — Cours, formations, rappels et annonces accessibles à tous les membres de la section.
+    </div>
+
+    ${canAdd ? `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">📤 Ajouter un document</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label>Catégorie *</label>
+          <select id="doc-category">
+            ${DOC_CATEGORIES.map(c => '<option value="' + c.id + '">' + c.label + '</option>').join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Visibilité</label>
+          <select id="doc-target">
+            <option value="all">🌐 Toutes les sections</option>
+            <option value="${myService}" selected>🔒 Ma section uniquement</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Titre du document *</label>
+        <input type="text" id="doc-title" placeholder="Ex: Manuel de procédures Police 2026"/>
+      </div>
+      <div class="form-group">
+        <label>Lien (Google Doc, URL...) *</label>
+        <input type="text" id="doc-url" placeholder="https://docs.google.com/..."/>
+      </div>
+      <div class="form-group">
+        <label>Description (optionnel)</label>
+        <textarea id="doc-description" rows="2" placeholder="Brève description du document..."></textarea>
+      </div>
+      <button class="btn-primary btn-full" onclick="ajouterDocument()">📤 Ajouter le document</button>
+    </div>
+    ` : ''}
+
+    <div class="dash-block">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">
+        📁 Bibliothèque de documents (${mesDocs.length})
+      </div>`;
+
+  if (mesDocs.length === 0) {
+    html += '<div style="padding:2rem;text-align:center;color:var(--muted)">Aucun document partagé pour le moment.</div>';
+  } else {
+    DOC_CATEGORIES.forEach(cat => {
+      const docs = parCategorie[cat.id] || [];
+      if (docs.length === 0) return;
+
+      const safeId = 'doc-cat-' + cat.id;
+      html += `
+        <div style="border-bottom:1px solid var(--border)">
+          <div onclick="toggleDetail('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;background:${cat.bg}">
+            <div style="width:40px;height:40px;border-radius:8px;background:${cat.bg};border:1px solid ${cat.color}44;display:flex;align-items:center;justify-content:center;font-size:18px">${cat.label.split(' ')[0]}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:${cat.color};font-size:14px">${cat.label}</div>
+              <div style="font-size:11px;color:var(--muted)">${docs.length} document(s)</div>
+            </div>
+            <span style="color:var(--muted);font-size:11px">▼</span>
+          </div>
+          <div id="${safeId}" style="display:block;padding:0.75rem 1rem;background:rgba(0,0,0,0.15)">
+            ${docs.slice().sort((a,b) => (b._id||0) - (a._id||0)).map(d => {
+              const realIdx = state.documents.indexOf(d);
+              return `
+                <div style="background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:200px">
+                      <a href="${escapeHtml(d.url)}" target="_blank" rel="noopener noreferrer" style="font-size:14px;font-weight:700;color:${cat.color};text-decoration:none;display:flex;align-items:center;gap:6px">
+                        🔗 ${escapeHtml(d.title)}
+                      </a>
+                      ${d.description ? `<div style="font-size:12px;color:var(--text);margin-top:4px;line-height:1.5">${escapeHtml(d.description)}</div>` : ''}
+                      <div style="font-size:10px;color:var(--muted);margin-top:6px">
+                        Ajouté ${d.date ? 'le ' + d.date : ''} ${d.addedBy ? 'par <strong>' + escapeHtml(d.addedBy) + '</strong>' : ''}
+                        ${d.serviceTarget && d.serviceTarget !== 'all' ? '· <span style="color:var(--lgold)">🔒 ' + d.serviceTarget + '</span>' : ' · <span style="color:#86efac">🌐 Toutes sections</span>'}
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                      <a href="${escapeHtml(d.url)}" target="_blank" rel="noopener noreferrer" class="btn-sm" style="background:${cat.bg};color:${cat.color};border:1px solid ${cat.color}44;text-decoration:none;padding:6px 12px;font-size:11px">🔗 Ouvrir</a>
+                      ${canDelete ? `<button class="btn-sm btn-sm-red" onclick="supprimerDocument(${realIdx})" style="font-size:11px;padding:6px 10px">🗑</button>` : ''}
+                    </div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+    });
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+async function ajouterDocument() {
+  const u = state.currentUser;
+  const title = document.getElementById('doc-title').value.trim();
+  const url = document.getElementById('doc-url').value.trim();
+  const description = document.getElementById('doc-description').value.trim();
+  const category = document.getElementById('doc-category').value;
+  const target = document.getElementById('doc-target').value;
+
+  if (!title || !url) { alert('Le titre et le lien sont obligatoires.'); return; }
+  // Vérification basique d'URL
+  if (!url.match(/^https?:\/\//i)) {
+    alert('Le lien doit commencer par http:// ou https://');
+    return;
+  }
+
+  const newDoc = {
+    title, url, description, category,
+    addedBy: u.fullname,
+    serviceTarget: target,
+    date: new Date().toLocaleDateString('fr-FR')
+  };
+
+  // Push immédiat vers Supabase
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('documents', newDoc);
+      if (inserted && inserted._id) newDoc._id = inserted._id;
+    } catch(e) {
+      alert('⚠️ Erreur : ' + (e.message || e));
+      return;
+    }
+  }
+
+  state.documents = state.documents || [];
+  state.documents.push(newDoc);
+  saveSession();
+
+  ['doc-title','doc-url','doc-description'].forEach(id => document.getElementById(id).value = '');
+  alert('✓ Document "' + title + '" ajouté.');
+  renderDocuments();
+}
+
+async function supprimerDocument(idx) {
+  const d = state.documents[idx];
+  if (!d) return;
+  if (!(await confirmAsync('Supprimer le document "' + d.title + '" ?\n\n⚠ Cette action est irréversible.'))) return;
+
+  if (d._id && supabaseReady) {
+    try { await deleteFromSupabase('documents', d._id); } catch(e) {}
+  }
+  state.documents.splice(idx, 1);
+  saveSession();
+  renderDocuments();
+}
+
+// ============================================================
+// SHARED REPORTS — Lien partageable pour rapports
+// ============================================================
+async function genererLienPartageable(reportType, title, contentHtml) {
+  if (!supabaseReady) {
+    alert('⚠️ Supabase non disponible. Impossible de générer un lien partageable.');
+    return null;
+  }
+  // Générer un ID court unique
+  const shareId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+  try {
+    const { data, error } = await sb.from('shared_reports').insert({
+      share_id: shareId,
+      report_type: reportType,
+      title: title,
+      content_html: contentHtml,
+      generated_by: state.currentUser ? state.currentUser.fullname : 'Anonymous'
+    }).select().single();
+    if (error) {
+      alert('⚠️ Erreur : ' + error.message);
+      return null;
+    }
+    const baseUrl = window.location.origin + window.location.pathname;
+    return baseUrl + '#rapport=' + shareId;
+  } catch(e) {
+    alert('⚠️ Erreur : ' + (e.message || e));
+    return null;
+  }
+}
+
+// Charger un rapport depuis son share_id et l'afficher en plein écran
+async function afficherRapportPartage(shareId) {
+  if (!supabaseReady) return;
+  try {
+    const { data } = await sb.from('shared_reports').select('*').eq('share_id', shareId).maybeSingle();
+    if (!data) {
+      document.body.innerHTML = '<div style="padding:2rem;text-align:center;color:#fff;font-family:sans-serif"><h1>❌ Rapport introuvable</h1><p>Ce lien est invalide ou a expiré.</p><a href="' + window.location.pathname + '" style="color:#c49a1a">← Retour à l\'accueil</a></div>';
+      return;
+    }
+    // Afficher en plein écran
+    document.open();
+    document.write(data.content_html);
+    document.close();
+  } catch(e) {
+    console.warn('Erreur chargement rapport:', e);
+  }
+}
+
+// Modal pour afficher le lien généré
+function afficherLienGenere(url, title) {
+  const existing = document.getElementById('share-link-modal');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'share-link-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:560px">
+      <div class="confirm-icon" style="background:rgba(59,130,246,0.15);border-color:#3b82f6">🔗</div>
+      <div class="confirm-title">Lien partageable généré</div>
+      <div class="confirm-message" style="margin-bottom:14px">
+        <strong style="color:#93c5fd">${escapeHtml(title)}</strong><br>
+        <span style="font-size:12px;color:var(--muted)">Toute personne avec ce lien pourra voir le rapport.</span>
+      </div>
+      <div style="margin-bottom:14px">
+        <input type="text" id="share-url-input" value="${escapeHtml(url)}" readonly
+          style="width:100%;background:#1a1a1a;border:1px solid #3b82f6;border-radius:6px;padding:10px 12px;color:#93c5fd;font-size:12px;font-family:monospace"/>
+      </div>
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('share-link-modal').remove()">Fermer</button>
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="confirm-btn confirm-btn-ok" style="text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center">👁 Aperçu</a>
+        <button class="confirm-btn confirm-btn-ok" onclick="copierLien()">📋 Copier</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    const inp = document.getElementById('share-url-input');
+    if (inp) { inp.select(); inp.focus(); }
+  }, 100);
+}
+
+function copierLien() {
+  const inp = document.getElementById('share-url-input');
+  if (!inp) return;
+  inp.select();
+  try {
+    document.execCommand('copy');
+    alert('✓ Lien copié dans le presse-papier !');
+  } catch(e) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(inp.value).then(() => alert('✓ Lien copié !'));
+    } else {
+      alert('Sélectionnez le lien et faites Ctrl+C');
+    }
+  }
+}
 
 function switchCivilTab(tab) {
   const tL = document.getElementById('civ-tab-login');
@@ -10640,6 +10987,15 @@ function restoreCivilSession() {
 }
 
 // Init
+// Vérifier si on doit afficher un rapport partagé (URL avec #rapport=XXX)
+const _hashMatch = window.location.hash.match(/^#rapport=(.+)$/);
+if (_hashMatch && _hashMatch[1]) {
+  // Afficher uniquement le rapport (en plein écran), bloquer tout le reste
+  document.addEventListener('DOMContentLoaded', () => {
+    afficherRapportPartage(_hashMatch[1]);
+  });
+}
+
 const restored = restoreSession();
 state.presences = state.presences || [];
 state.serviceActif = state.serviceActif || {};
