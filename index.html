@@ -3405,7 +3405,24 @@ function refreshAllUI() {
       // 3a. KPIs de la vue d'ensemble (toujours à jour, même si pas affichée)
       try { if (typeof renderOverview === 'function' && document.getElementById('kpi-candid-wait')) renderOverview(); } catch(e) {}
 
-      // 3b. Re-render de l'onglet actif
+      // 3b. PROTECTION : si l'utilisateur est en train de saisir un formulaire, ne PAS re-render
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        activeEl.isContentEditable
+      );
+      // Vérifier aussi si un modal de saisie est ouvert
+      const modalOpen = document.querySelector('.confirm-overlay');
+      if (isTyping || modalOpen) {
+        console.log('⏸ Re-render différé (formulaire en cours d\'écriture)');
+        // Marquer pour faire le refresh une fois que le user a fini
+        window._pendingRefresh = true;
+        return;
+      }
+
+      // 3c. Re-render de l'onglet actif
       const activeTab = document.querySelector('.dash-nav-btn.active');
       if (activeTab && typeof switchDashTab === 'function') {
         const tabName = activeTab.dataset.tab;
@@ -3415,12 +3432,34 @@ function refreshAllUI() {
 
     // 4. Si on est dans l'espace civil
     if (typeof civilUser !== 'undefined' && civilUser && typeof renderCivilDash === 'function') {
+      // Même protection
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        activeEl.isContentEditable
+      );
+      if (isTyping || document.querySelector('.confirm-overlay')) {
+        window._pendingRefresh = true;
+        return;
+      }
       try { renderCivilDash(); } catch(e) {}
     }
   } catch(e) {
     console.warn('⚠️ refreshAllUI:', e);
   }
 }
+
+// Quand l'utilisateur quitte un champ, faire le refresh différé si nécessaire
+document.addEventListener('blur', () => {
+  setTimeout(() => {
+    if (window._pendingRefresh && !document.activeElement?.matches('input,textarea,select')) {
+      window._pendingRefresh = false;
+      refreshAllUI();
+    }
+  }, 1500);
+}, true);
 
 // ============================================================
 // FIRE PARTICLES — HERO
@@ -7574,60 +7613,100 @@ function renderInfractionsCasierChips() {
   }).join('');
 }
 
-function ajouterCasier() {
-  let fullname = document.getElementById('cas-fullname').value.trim();
-  const grade = document.getElementById('cas-grade').value;
-  const faits = document.getElementById('cas-faits').value.trim();
-  const sanction = document.getElementById('cas-sanction').value;
-
-  if (!fullname || casInfractionsSelectionnees.length === 0 || !faits) {
-    alert('Nom, au moins une infraction et faits sont obligatoires.');
+async function ajouterCasier() {
+  // Anti-double-clic : utiliser un drapeau global
+  if (window._addCasierLock) {
+    console.log('⏳ Ajout casier en cours, ignoré');
     return;
   }
-  // Nettoyer le nom : retirer tout ce qui suit un séparateur de détails
-  fullname = extractBaseName(fullname);
-  if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (sans détails après)'); return; }
+  window._addCasierLock = true;
 
-  // Réutiliser la graphie existante si la personne a déjà un casier
-  const existant = state.casiers.find(c => matchFullname(c.fullname, fullname));
-  if (existant) fullname = existant.fullname;
+  // Désactiver le bouton
+  const btn = document.querySelector('button[onclick="ajouterCasier()"]');
+  const oldText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Ajout en cours...'; }
 
-  // Palier le plus élevé parmi les infractions sélectionnées (3 > 2 > 1)
-  let palierMax = 'palier1';
-  casInfractionsSelectionnees.forEach(i => {
-    if (i.palier === 'palier3') palierMax = 'palier3';
-    else if (i.palier === 'palier2' && palierMax !== 'palier3') palierMax = 'palier2';
-  });
+  try {
+    let fullname = document.getElementById('cas-fullname').value.trim();
+    const grade = document.getElementById('cas-grade').value;
+    const faits = document.getElementById('cas-faits').value.trim();
+    const sanction = document.getElementById('cas-sanction').value;
 
-  // Concaténer les infractions pour le champ "infraction" (compatibilité ancien format)
-  const infractionStr = casInfractionsSelectionnees.map(i => i.label).join(' + ');
+    if (!fullname || casInfractionsSelectionnees.length === 0 || !faits) {
+      alert('Nom, au moins une infraction et faits sont obligatoires.');
+      return;
+    }
+    // Nettoyer le nom : retirer tout ce qui suit un séparateur de détails
+    fullname = extractBaseName(fullname);
+    if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (sans détails après)'); return; }
 
-  const newCasier = {
-    fullname, grade,
-    palier: palierMax,
-    infraction: infractionStr,
-    infractions: casInfractionsSelectionnees.slice(),
-    faits, sanction,
-    agent: state.currentUser.fullname,
-    date: new Date().toLocaleDateString('fr-FR'),
-    statutJustice: 'en_cours',
-    recidive: existant ? true : false,
-    id: Date.now()
-  };
-  state.casiers.push(newCasier);
-  // Push vers Supabase
-  if (supabaseReady) {
-    pushToSupabase('casiers', newCasier).then(inserted => {
-      if (inserted && inserted._id) newCasier._id = inserted._id;
-    }).catch(()=>{});
+    // Réutiliser la graphie existante si la personne a déjà un casier
+    const existant = state.casiers.find(c => matchFullname(c.fullname, fullname));
+    if (existant) fullname = existant.fullname;
+
+    // Palier le plus élevé parmi les infractions sélectionnées (3 > 2 > 1)
+    let palierMax = 'palier1';
+    casInfractionsSelectionnees.forEach(i => {
+      if (i.palier === 'palier3') palierMax = 'palier3';
+      else if (i.palier === 'palier2' && palierMax !== 'palier3') palierMax = 'palier2';
+    });
+
+    // Concaténer les infractions pour le champ "infraction" (compatibilité ancien format)
+    const infractionStr = casInfractionsSelectionnees.map(i => i.label).join(' + ');
+
+    const casierUid = 'cas_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const newCasier = {
+      fullname, grade,
+      palier: palierMax,
+      infraction: infractionStr,
+      infractions: casInfractionsSelectionnees.slice(),
+      faits, sanction,
+      agent: state.currentUser.fullname,
+      date: new Date().toLocaleDateString('fr-FR'),
+      statutJustice: 'en_cours',
+      recidive: existant ? true : false,
+      id: Date.now(),
+      casierUid: casierUid
+    };
+
+    // 1. Push d'abord vers Supabase et ATTENDRE le résultat
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('casiers', newCasier);
+        if (inserted && inserted._id) {
+          newCasier._id = inserted._id;
+        } else {
+          alert('⚠️ Erreur de création sur le serveur. Réessayez.');
+          return;
+        }
+      } catch(e) {
+        alert('⚠️ Erreur : ' + (e.message || e));
+        return;
+      }
+    }
+
+    // 2. Vérifier doublon avant d'ajouter au state local (Realtime peut l'avoir déjà ajouté)
+    const dejaPresent = state.casiers.some(c =>
+      (newCasier._id && c._id === newCasier._id) ||
+      (c.casierUid === casierUid)
+    );
+    if (!dejaPresent) {
+      state.casiers.push(newCasier);
+    }
+
+    saveSession();
+
+    // Reset
+    casInfractionsSelectionnees = [];
+    ['cas-fullname','cas-faits'].forEach(id => document.getElementById(id).value = '');
+    if (typeof renderInfractionsCasierChips === 'function') renderInfractionsCasierChips();
+    alert('⛓ Fiche ajoutée au dossier de ' + fullname + (existant ? '\n\n⚠ Récidive : nouvelle infraction ajoutée à un dossier existant.' : ''));
+    renderCasier();
+  } finally {
+    // Toujours libérer le lock et restaurer le bouton
+    window._addCasierLock = false;
+    if (btn && oldText) { btn.disabled = false; btn.innerHTML = oldText; }
   }
-  saveSession();
-
-  // Reset
-  casInfractionsSelectionnees = [];
-  ['cas-fullname','cas-faits'].forEach(id => document.getElementById(id).value = '');
-  alert('⛓ Fiche ajoutée au dossier de ' + fullname + (existant ? '\n\n⚠ Récidive : nouvelle infraction ajoutée à un dossier existant.' : ''));
-  renderCasier();
 }
 
 async function deleteCasier(idx) {
