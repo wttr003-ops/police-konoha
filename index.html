@@ -5844,6 +5844,22 @@ async function genererPDFImpots() {
   const totalCollecte = payes.reduce((s, i) => s + (IMPOTS_MONTANTS[i.grade]||0), 0);
   const today = new Date().toLocaleDateString('fr-FR');
 
+  // Tri par hiérarchie : haut gradé en premier
+  const triHierarchique = (a, b) => {
+    const r = ninjaGradeRank(a.grade) - ninjaGradeRank(b.grade);
+    if (r !== 0) return r;
+    return normalize(a.fullname).localeCompare(normalize(b.fullname));
+  };
+  payes.sort(triHierarchique);
+  nonPayes.sort(triHierarchique);
+
+  // Regroupement par grade pour le rapport "non payés"
+  const nonPayesParGrade = {};
+  nonPayes.forEach(i => {
+    if (!nonPayesParGrade[i.grade]) nonPayesParGrade[i.grade] = [];
+    nonPayesParGrade[i.grade].push(i);
+  });
+
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><title>Rapport Impôts — Police de Konoha</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -5862,15 +5878,21 @@ async function genererPDFImpots() {
   h2{font-size:14px;margin:18px 0 8px;padding-bottom:6px;border-bottom:1.5px solid #c49a1a;color:#1a1400}
   h2.green{border-color:#27ae60;color:#1a6e3c}
   h2.red{border-color:#c0392b;color:#8b1a1a}
-  table{width:100%;border-collapse:collapse;font-size:12px}
+  h3{font-size:13px;margin:14px 0 6px;color:#7c2d12;padding-left:8px;border-left:3px solid #c49a1a}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
   th{background:#0a0a0a;color:#c49a1a;padding:8px;text-align:left;font-size:11px}
   td{padding:6px 8px;border-bottom:0.5px solid #e0e0e0}
   tr:nth-child(even) td{background:#faf7f0}
   td.amount{font-weight:700;color:#c49a1a;text-align:right}
+  td.due{color:#8b1a1a}
+  .grade-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
   .footer{margin-top:24px;padding-top:12px;border-top:1px solid #ccc;font-size:10px;color:#888;text-align:center}
   @media print{body{background:#fff;padding:0}.doc{border:none;padding:20px;max-width:100%}}
   .actions{text-align:center;margin-bottom:20px}
   .actions button{padding:10px 24px;background:#c49a1a;color:#fff;border:none;border-radius:5px;font-size:13px;cursor:pointer;margin:0 5px}
+  .total-row{background:#0a0a0a;color:#fff;font-size:13px}
+  .total-row td{padding:10px 8px;border:none}
+  .summary-cat{background:#fdf6e3;border:1px solid #c49a1a;border-radius:6px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;font-size:12px}
 </style>
 </head><body>
 <div class="actions">
@@ -5879,7 +5901,7 @@ async function genererPDFImpots() {
 </div>
 <div class="doc">
   <div class="header">
-    <h1>🏯 RAPPORT DES IMPÔTS — POLICE DE KONA</h1>
+    <h1>🏯 RAPPORT DES IMPÔTS NON PAYÉS — POLICE DE KONOHA</h1>
     <p>Document officiel · Généré le ${today}</p>
   </div>
 
@@ -5887,21 +5909,51 @@ async function genererPDFImpots() {
     <div class="stat s-paye"><div class="stat-v" style="color:#1a6e3c">${payes.length}</div><div class="stat-l">Ninjas payés</div></div>
     <div class="stat s-non"><div class="stat-v" style="color:#8b1a1a">${nonPayes.length}</div><div class="stat-l">Non payés</div></div>
     <div class="stat s-or"><div class="stat-v" style="color:#c49a1a">${totalCollecte.toLocaleString()}</div><div class="stat-l">Ryos collectés</div></div>
-    <div class="stat s-non"><div class="stat-v" style="color:#8b1a1a">${totalDu.toLocaleString()}</div><div class="stat-l">Ryos restants</div></div>
+    <div class="stat s-non"><div class="stat-v" style="color:#8b1a1a">${totalDu.toLocaleString()}</div><div class="stat-l">Ryos restants à encaisser</div></div>
   </div>
 
-  <h2 class="green">✓ NINJAS AYANT PAYÉ (${payes.length})</h2>
-  <table><thead><tr><th>Nom et Prénom</th><th>Grade</th><th>Montant</th><th>Collecteur</th></tr></thead><tbody>
-  ${payes.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:#999;padding:15px">Aucun</td></tr>' : payes.map(i => `<tr><td><strong>${i.fullname}</strong></td><td>${i.grade}</td><td class="amount">${(IMPOTS_MONTANTS[i.grade]||0).toLocaleString()}</td><td>${i.collecteur||'—'}</td></tr>`).join('')}
-  </tbody></table>
+  <h2 class="red">⚠ LISTE DES NINJAS N'AYANT PAS PAYÉ — par grade hiérarchique</h2>
+  <p style="font-size:11px;color:#666;font-style:italic;margin-bottom:14px">Document à transmettre aux agents collecteurs. Les hauts gradés sont en premier (Hokage > Commandant Jonin > ... > Genin Confirmé).</p>
 
-  <h2 class="red">✗ NINJAS N'AYANT PAS PAYÉ (${nonPayes.length})</h2>
-  <table><thead><tr><th>Nom et Prénom</th><th>Grade</th><th>Montant dû</th></tr></thead><tbody>
-  ${nonPayes.length === 0 ? '<tr><td colspan="3" style="text-align:center;color:#999;padding:15px">Tout le monde a payé !</td></tr>' : nonPayes.map(i => `<tr><td><strong>${i.fullname}</strong></td><td>${i.grade}</td><td class="amount" style="color:#8b1a1a">${(IMPOTS_MONTANTS[i.grade]||0).toLocaleString()}</td></tr>`).join('')}
-  <tr style="background:#0a0a0a;color:#fff"><td colspan="2"><strong>TOTAL RESTANT À ENCAISSER</strong></td><td class="amount" style="color:#c49a1a">${totalDu.toLocaleString()} Ryos</td></tr>
-  </tbody></table>
+  ${nonPayes.length === 0 ? '<p style="text-align:center;padding:20px;color:#1a6e3c;font-weight:700">✓ Tous les ninjas ont payé leurs impôts. Aucune action requise.</p>' :
+    NINJA_GRADE_ORDER.filter(g => nonPayesParGrade[g] && nonPayesParGrade[g].length > 0).map(grade => {
+      const list = nonPayesParGrade[grade];
+      const montantUnit = IMPOTS_MONTANTS[grade] || 0;
+      const sousTotal = list.length * montantUnit;
+      const gradeColors = NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
+      return `
+        <h3 style="border-color:${gradeColors.color}">${gradeColors.icon} ${grade} — ${list.length} ninja(s) · ${montantUnit.toLocaleString()} Ryos chacun</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:50%">Nom et Prénom</th>
+              <th style="width:30%">Grade</th>
+              <th style="width:20%;text-align:right">Montant dû</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${list.map(i => `
+            <tr>
+              <td><strong>${escapeHtml(i.fullname)}</strong></td>
+              <td><span class="grade-pill" style="background:${gradeColors.bg.replace('rgba','rgba').replace('0.18','0.25')};color:${gradeColors.color};border:1px solid ${gradeColors.color}44">${escapeHtml(i.grade)}</span></td>
+              <td class="amount due">${montantUnit.toLocaleString()} Ryos</td>
+            </tr>`).join('')}
+            <tr style="background:#fdf6e3">
+              <td colspan="2" style="font-style:italic;color:#7c2d12"><strong>Sous-total ${grade}</strong></td>
+              <td class="amount" style="color:#7c2d12">${sousTotal.toLocaleString()} Ryos</td>
+            </tr>
+          </tbody>
+        </table>`;
+    }).join('') + `
+    <table style="margin-top:14px">
+      <tr class="total-row">
+        <td colspan="2"><strong>💰 TOTAL GÉNÉRAL À ENCAISSER</strong></td>
+        <td class="amount" style="color:#c49a1a;font-size:15px;text-align:right">${totalDu.toLocaleString()} Ryos</td>
+      </tr>
+    </table>`
+  }
 
-  <div class="footer">Document confidentiel · Police de Konoha · À transmettre à la Direction et aux Hauts Gradés</div>
+  <div class="footer">Document confidentiel · Police de Konoha · À transmettre à la Direction et aux Agents collecteurs</div>
 </div>
 </body></html>`;
 
