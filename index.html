@@ -5568,7 +5568,8 @@ function renderImpots() {
           <div style="font-size:12px;color:var(--muted)">Réservé Directeur & Directeur Adjoint</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-outline" onclick="genererPDFImpots()">📄 Générer document à transmettre</button>
+          <button class="btn-outline" onclick="genererPDFImpots()">📄 Document à transmettre (Direction)</button>
+          <button class="btn-outline" style="background:rgba(192,57,43,0.08);border-color:rgba(192,57,43,0.4);color:#fca5a5" onclick="genererDocumentAcademie()">🎓 Document Académie (interdits d'examen)</button>
           <button class="btn-danger" onclick="resetTousImpots()">🔄 Remettre tout à zéro (non payé)</button>
         </div>
       </div>
@@ -5953,6 +5954,55 @@ async function genererPDFImpots() {
     </table>`
   }
 
+  ${payes.length > 0 ? (() => {
+    // Regrouper les payés par grade pour respecter la hiérarchie
+    const payesParGrade = {};
+    payes.forEach(i => {
+      if (!payesParGrade[i.grade]) payesParGrade[i.grade] = [];
+      payesParGrade[i.grade].push(i);
+    });
+    return `
+      <h2 class="green" style="margin-top:30px">✓ NINJAS AYANT DÉJÀ PAYÉ (${payes.length}) — par grade hiérarchique</h2>
+      ${NINJA_GRADE_ORDER.filter(g => payesParGrade[g] && payesParGrade[g].length > 0).map(grade => {
+        const list = payesParGrade[grade];
+        const montantUnit = IMPOTS_MONTANTS[grade] || 0;
+        const sousTotal = list.length * montantUnit;
+        const gc = NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
+        return `
+          <h3 style="border-color:${gc.color}">${gc.icon} ${grade} — ${list.length} ninja(s) · ${montantUnit.toLocaleString()} Ryos chacun</h3>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40%">Nom et Prénom</th>
+                <th style="width:25%">Grade</th>
+                <th style="width:20%;text-align:right">Montant payé</th>
+                <th style="width:15%">Collecteur</th>
+              </tr>
+            </thead>
+            <tbody>
+            ${list.map(i => `
+              <tr>
+                <td><strong>${escapeHtml(i.fullname)}</strong></td>
+                <td><span class="grade-pill" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.color}44">${gc.icon} ${escapeHtml(i.grade)}</span></td>
+                <td class="amount">${montantUnit.toLocaleString()} Ryos</td>
+                <td style="font-size:11px;color:#666">${escapeHtml(i.collecteur||'—')}</td>
+              </tr>`).join('')}
+              <tr style="background:#e8f5ee">
+                <td colspan="2" style="font-style:italic;color:#1a6e3c"><strong>Sous-total ${grade}</strong></td>
+                <td class="amount" style="color:#1a6e3c">${sousTotal.toLocaleString()} Ryos</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>`;
+      }).join('')}
+      <table style="margin-top:14px">
+        <tr style="background:#1a6e3c;color:#fff;font-size:13px">
+          <td style="padding:10px 8px"><strong>💚 TOTAL DÉJÀ COLLECTÉ</strong></td>
+          <td class="amount" style="color:#fff;font-size:15px;text-align:right;padding:10px 8px">${totalCollecte.toLocaleString()} Ryos</td>
+        </tr>
+      </table>`;
+  })() : ''}
+
   <div class="footer">Document confidentiel · Police de Konoha · À transmettre à la Direction et aux Agents collecteurs</div>
 </div>
 </body></html>`;
@@ -5961,6 +6011,148 @@ async function genererPDFImpots() {
   if (choix) {
     const url = await genererLienPartageable('tax_report', 'Rapport Impôts — ' + today, html);
     if (url) afficherLienGenere(url, 'Rapport Impôts — ' + today);
+  } else {
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    } else {
+      alert('Veuillez autoriser les popups pour générer le document.');
+    }
+  }
+}
+
+// ============================================================
+// DOCUMENT ACADÉMIE — Liste des ninjas non payés (interdits d'examen)
+// ============================================================
+async function genererDocumentAcademie() {
+  const ninjasImposables = state.impots.filter(i => i.grade !== 'Genin');
+  const nonPayes = ninjasImposables.filter(i => i.statut !== 'paye');
+  const totalDu = nonPayes.reduce((s, i) => s + (IMPOTS_MONTANTS[i.grade]||0), 0);
+  const today = new Date().toLocaleDateString('fr-FR');
+
+  // Tri hiérarchique
+  const triHierarchique = (a, b) => {
+    const r = ninjaGradeRank(a.grade) - ninjaGradeRank(b.grade);
+    if (r !== 0) return r;
+    return normalize(a.fullname).localeCompare(normalize(b.fullname));
+  };
+  nonPayes.sort(triHierarchique);
+
+  // Regroupement par grade
+  const nonPayesParGrade = {};
+  nonPayes.forEach(i => {
+    if (!nonPayesParGrade[i.grade]) nonPayesParGrade[i.grade] = [];
+    nonPayesParGrade[i.grade].push(i);
+  });
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><title>Document Académie — Liste des interdits d'examen</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,serif;background:#f5f0e8;color:#1a1a1a;padding:20px}
+  .doc{background:#fff;max-width:900px;margin:0 auto;padding:30px;border:2px solid #c0392b;border-radius:10px;position:relative}
+  .doc::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#c0392b,#e74c3c,#c0392b);border-radius:8px 8px 0 0}
+  .header{background:#1a1400;color:#fff;padding:24px;border-radius:8px;margin-bottom:24px;text-align:center;border:1px solid #c49a1a}
+  .header h1{color:#fbbf24;font-size:24px;margin-bottom:8px;letter-spacing:1px}
+  .header .subtitle{color:#fca5a5;font-size:13px;font-weight:600;margin-bottom:6px}
+  .header p{color:#94a3b8;font-size:12px}
+  .warning-box{background:#fef2f2;border:2px solid #c0392b;border-left:5px solid #c0392b;padding:16px 20px;border-radius:6px;margin-bottom:20px}
+  .warning-box h3{color:#8b1a1a;font-size:14px;margin-bottom:8px}
+  .warning-box p{font-size:12px;color:#444;line-height:1.6}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+  .stat{padding:14px;border-radius:6px;text-align:center;background:#fef2f2;border:1px solid #c0392b}
+  .stat-v{font-size:22px;font-weight:700;font-family:Georgia,serif;color:#8b1a1a}
+  .stat-l{font-size:11px;color:#666;margin-top:4px;text-transform:uppercase;letter-spacing:1px}
+  h2{font-size:14px;margin:18px 0 8px;padding-bottom:6px;border-bottom:1.5px solid #c0392b;color:#8b1a1a}
+  h3{font-size:13px;margin:14px 0 6px;color:#7c2d12;padding:4px 10px;background:#fdf6e3;border-left:4px solid #c49a1a;border-radius:3px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
+  th{background:#1a1400;color:#fbbf24;padding:8px;text-align:left;font-size:11px}
+  td{padding:7px 10px;border-bottom:0.5px solid #e0e0e0}
+  tr:nth-child(even) td{background:#faf7f0}
+  .grade-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+  .interdit{color:#8b1a1a;font-weight:700;text-align:center}
+  .footer{margin-top:30px;padding-top:14px;border-top:1px solid #ccc;font-size:10px;color:#888;text-align:center}
+  .footer strong{color:#7c2d12}
+  @media print{body{background:#fff;padding:0}.doc{border:1px solid #c0392b;padding:20px;max-width:100%}.actions{display:none}}
+  .actions{text-align:center;margin-bottom:20px}
+  .actions button{padding:10px 24px;background:#c0392b;color:#fff;border:none;border-radius:5px;font-size:13px;cursor:pointer;margin:0 5px;font-weight:600}
+  .seal{display:inline-block;padding:6px 14px;border:2px dashed #c0392b;border-radius:50%;color:#8b1a1a;font-size:11px;font-weight:700;letter-spacing:1px;transform:rotate(-3deg)}
+</style>
+</head><body>
+<div class="actions">
+  <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+  <button onclick="window.close()">Fermer</button>
+</div>
+<div class="doc">
+  <div class="header">
+    <h1>🎓 ACADÉMIE NINJA DE KONOHA</h1>
+    <div class="subtitle">⚠ LISTE OFFICIELLE DES INTERDITS D'EXAMEN ⚠</div>
+    <p>Document officiel transmis par la Police de Konoha · ${today}</p>
+  </div>
+
+  <div class="warning-box">
+    <h3>📜 NOTIFICATION OFFICIELLE</h3>
+    <p>Conformément au règlement fiscal du village, les ninjas listés ci-dessous <strong>n'ont pas réglé leurs impôts</strong> auprès de la Police de Konoha. En vertu de l'article fiscal en vigueur, ces ninjas <strong>ne sont PAS autorisés à passer leur examen d'évolution de grade</strong> tant qu'ils n'auront pas régularisé leur situation fiscale.</p>
+    <p style="margin-top:8px"><strong>Action requise :</strong> Refuser l'inscription à l'examen pour les noms listés ci-dessous jusqu'à confirmation du paiement par la Police.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-v">${nonPayes.length}</div><div class="stat-l">Ninjas interdits d'examen</div></div>
+    <div class="stat"><div class="stat-v">${totalDu.toLocaleString()}</div><div class="stat-l">Ryos d'impôts impayés</div></div>
+  </div>
+
+  <h2>📋 LISTE DES INTERDITS D'EXAMEN — par grade hiérarchique</h2>
+
+  ${nonPayes.length === 0 ? `
+    <div style="text-align:center;padding:30px;background:#e8f5ee;border:2px solid #27ae60;border-radius:8px">
+      <div style="font-size:48px;margin-bottom:10px">✓</div>
+      <h3 style="color:#1a6e3c;font-size:16px;margin-bottom:6px;border:none;padding:0;background:none">AUCUN INTERDIT D'EXAMEN</h3>
+      <p style="font-size:12px;color:#444">Tous les ninjas du registre sont à jour de leurs impôts. Tous les candidats peuvent passer leur examen.</p>
+    </div>` :
+    NINJA_GRADE_ORDER.filter(g => nonPayesParGrade[g] && nonPayesParGrade[g].length > 0).map(grade => {
+      const list = nonPayesParGrade[grade];
+      const gc = NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
+      return `
+        <h3>${gc.icon} ${grade} — ${list.length} ninja(s) interdit(s) d'examen</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:55%">Nom et Prénom du ninja</th>
+              <th style="width:25%">Grade actuel</th>
+              <th style="width:20%;text-align:center">Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${list.map((i, idx) => `
+            <tr>
+              <td><strong style="font-size:13px">${idx+1}. ${escapeHtml(i.fullname)}</strong></td>
+              <td><span class="grade-pill" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.color}44">${gc.icon} ${escapeHtml(i.grade)}</span></td>
+              <td class="interdit">⛔ INTERDIT</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }).join('')
+  }
+
+  <div style="margin-top:30px;padding:16px;background:#1a1400;color:#fff;border-radius:8px;text-align:center">
+    <p style="color:#fbbf24;font-size:13px;margin-bottom:8px"><strong>📜 Document à conserver dans les archives de l'Académie</strong></p>
+    <p style="font-size:11px;color:#94a3b8">Cette liste fait foi pour la période en cours. Une nouvelle version sera émise après chaque régularisation.</p>
+    <div style="margin-top:14px">
+      <span class="seal" style="color:#fbbf24;border-color:#fbbf24">🏯 POLICE DE KONOHA</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Document officiel émis par la <strong>Police de Konoha</strong> · ${today}<br>
+    Pour toute question : contacter la Direction de la Police · Document strictement confidentiel
+  </div>
+</div>
+</body></html>`;
+
+  const choix = await confirmAsync('🎓 Document Académie généré.\n\nCe document liste les ninjas INTERDITS d\'examen (non payés).\n\nVoulez-vous générer un LIEN PARTAGEABLE à envoyer à l\'Académie ?\n\n✓ OK = Lien partageable\n✗ Annuler = Juste un aperçu local');
+  if (choix) {
+    const url = await genererLienPartageable('academy_report', 'Liste interdits d\'examen — ' + today, html);
+    if (url) afficherLienGenere(url, 'Document Académie — ' + today);
   } else {
     const win = window.open('', '_blank');
     if (win) {
