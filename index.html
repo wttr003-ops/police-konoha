@@ -3791,11 +3791,52 @@ const INFRACTIONS = {
 
 // Helpers
 function normalize(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
+// Extrait le nom "propre" en retirant tout ce qui suit un séparateur de détails (-, :, (, etc.)
+function extractBaseName(s) {
+  if (!s) return '';
+  // Couper sur " - ", " : ", " (", "  " (deux espaces) ou retour ligne
+  let name = s.split(/\s+[-:]\s+|\s+\(|\n|\t/)[0];
+  // Si pas de coupure trouvée et que ça contient un tiret collé, couper aussi
+  if (name === s && s.includes('-')) {
+    // "Daiki Fubatsu -voilence phisique" → "Daiki Fubatsu"
+    name = s.split(/\s*-\s*/)[0];
+  }
+  return name.trim();
+}
+
+// Distance de Levenshtein simple (pour tolérance fautes de frappe)
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const m = [];
+  for (let i = 0; i <= b.length; i++) m[i] = [i];
+  for (let j = 0; j <= a.length; j++) m[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i-1) === a.charAt(j-1)) m[i][j] = m[i-1][j-1];
+      else m[i][j] = Math.min(m[i-1][j-1]+1, Math.min(m[i][j-1]+1, m[i-1][j]+1));
+    }
+  }
+  return m[b.length][a.length];
+}
+
 function matchFullname(a, b) {
-  // Compare insensible casse/accents/ordre des mots — utile pour casiers, amendes, etc.
-  const na = normalize(a).split(' ').filter(x => x).sort().join(' ');
-  const nb = normalize(b).split(' ').filter(x => x).sort().join(' ');
-  return na === nb;
+  // 1. Extraction du nom de base (avant tout séparateur de détails)
+  const ba = extractBaseName(a || '');
+  const bb = extractBaseName(b || '');
+  // 2. Comparer mots triés (insensible ordre/casse/accents)
+  const na = normalize(ba).split(' ').filter(x => x).sort().join(' ');
+  const nb = normalize(bb).split(' ').filter(x => x).sort().join(' ');
+  if (na === nb) return true;
+  if (!na || !nb) return false;
+  // 3. Tolérance aux fautes de frappe : si la distance est ≤ 2 caractères ET que ça représente moins de 25% des caractères
+  const maxLen = Math.max(na.length, nb.length);
+  if (maxLen >= 6) {
+    const dist = levenshtein(na, nb);
+    if (dist <= 2 && dist / maxLen <= 0.25) return true;
+  }
+  return false;
 }
 // Comparaison stricte : exactement le même nom dans le même ordre (utile pour les comptes uniques)
 function matchFullnameStrict(a, b) {
@@ -5301,6 +5342,13 @@ async function emettreAmende() {
   const mult = document.getElementById('am-mult').value;
   if (!fullname) { alert('Nom du contrevenant manquant'); return; }
   if (amInfractionsSelectionnees.length === 0) { alert('Sélectionnez au moins une infraction'); return; }
+
+  // Nettoyer le nom : retirer tout ce qui suit un séparateur de détails
+  fullname = extractBaseName(fullname);
+  if (!fullname || fullname.split(/\s+/).length < 2) {
+    alert('Veuillez entrer un nom valide (prénom + nom). Les infractions seront enregistrées séparément, ne les mettez pas dans le nom.');
+    return;
+  }
 
   const total = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[mult] || 0), 0);
 
@@ -7536,7 +7584,9 @@ function ajouterCasier() {
     alert('Nom, au moins une infraction et faits sont obligatoires.');
     return;
   }
-  if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
+  // Nettoyer le nom : retirer tout ce qui suit un séparateur de détails
+  fullname = extractBaseName(fullname);
+  if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (sans détails après)'); return; }
 
   // Réutiliser la graphie existante si la personne a déjà un casier
   const existant = state.casiers.find(c => matchFullname(c.fullname, fullname));
