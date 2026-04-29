@@ -7262,34 +7262,68 @@ function renderRapports() {
   el.innerHTML = html;
 }
 
-function submitRapport() {
-  const type = document.getElementById('rap-type').value;
-  const desc = document.getElementById('rap-desc').value.trim();
-  const checks = document.querySelectorAll('.rap-agent-check:checked');
-  const agentsPresents = Array.from(checks).map(c => c.value);
+async function submitRapport() {
+  // Anti-double-clic
+  if (window._addRapportLock) return;
+  window._addRapportLock = true;
 
-  if (!type || !desc) { alert('Type et description obligatoires.'); return; }
+  const btn = document.querySelector('button[onclick="submitRapport()"]');
+  const oldText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Envoi en cours...'; }
 
-  const now = new Date();
-  const newRapport = {
-    type, desc, agentsPresents,
-    agent: state.currentUser.fullname,
-    date: now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
-    dateISO: now.toISOString(),
-    id: Date.now()
-  };
-  state.rapports.push(newRapport);
-  // Push vers Supabase
-  if (supabaseReady) {
-    pushToSupabase('rapports', newRapport).then(inserted => {
-      if (inserted && inserted._id) newRapport._id = inserted._id;
-    }).catch(()=>{});
+  try {
+    const type = document.getElementById('rap-type').value;
+    const desc = document.getElementById('rap-desc').value.trim();
+    const checks = document.querySelectorAll('.rap-agent-check:checked');
+    const agentsPresents = Array.from(checks).map(c => c.value);
+
+    if (!type || !desc) { alert('Type et description obligatoires.'); return; }
+
+    const now = new Date();
+    const rapportUid = 'rap_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const newRapport = {
+      type, desc, agentsPresents,
+      agent: state.currentUser.fullname,
+      date: now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+      dateISO: now.toISOString(),
+      id: Date.now(),
+      rapportUid: rapportUid
+    };
+
+    // 1. Push d'abord vers Supabase et ATTENDRE le résultat
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('rapports', newRapport);
+        if (inserted && inserted._id) {
+          newRapport._id = inserted._id;
+        } else {
+          alert('⚠️ Erreur de création sur le serveur. Réessayez.');
+          return;
+        }
+      } catch(e) {
+        alert('⚠️ Erreur : ' + (e.message || e));
+        return;
+      }
+    }
+
+    // 2. Vérifier doublon avant d'ajouter au state local
+    const dejaPresent = state.rapports.some(r =>
+      (newRapport._id && r._id === newRapport._id) ||
+      (r.rapportUid === rapportUid)
+    );
+    if (!dejaPresent) {
+      state.rapports.push(newRapport);
+    }
+
+    saveSession();
+    document.getElementById('rap-desc').value = '';
+    document.getElementById('rap-type').value = '';
+    alert('✓ Rapport ajouté à votre dossier !');
+    renderRapports();
+  } finally {
+    window._addRapportLock = false;
+    if (btn && oldText) { btn.disabled = false; btn.innerHTML = oldText; }
   }
-  saveSession();
-  document.getElementById('rap-desc').value = '';
-  document.getElementById('rap-type').value = '';
-  alert('✓ Rapport ajouté à votre dossier !');
-  renderRapports();
 }
 
 async function deleteRapport(idx) {
