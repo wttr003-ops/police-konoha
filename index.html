@@ -3431,19 +3431,21 @@ function refreshAllUI() {
       // 3a. KPIs de la vue d'ensemble (toujours à jour, même si pas affichée)
       try { if (typeof renderOverview === 'function' && document.getElementById('kpi-candid-wait')) renderOverview(); } catch(e) {}
 
-      // 3b. PROTECTION : si l'utilisateur est en train de saisir un formulaire, ne PAS re-render
+      // 3b. PROTECTION : ne pas re-render si l'utilisateur a réellement saisi du texte
       const activeEl = document.activeElement;
-      const isTyping = activeEl && (
-        activeEl.tagName === 'INPUT' ||
+      // ⚠️ La protection se déclenche uniquement si l'élément actif est un INPUT TEXT/EMAIL/PASSWORD ou TEXTAREA
+      // Les SELECT ou les BUTTON ne doivent PAS déclencher la protection
+      const isTextInput = activeEl && (
+        (activeEl.tagName === 'INPUT' && ['text','email','password','number','tel','url','search'].includes((activeEl.type||'text').toLowerCase())) ||
         activeEl.tagName === 'TEXTAREA' ||
-        activeEl.tagName === 'SELECT' ||
         activeEl.isContentEditable
       );
+      // ET il faut que le champ ait du contenu (sinon on protège pour rien)
+      const hasContent = isTextInput && (activeEl.value && activeEl.value.length > 0);
       // Vérifier aussi si un modal de saisie est ouvert
       const modalOpen = document.querySelector('.confirm-overlay');
-      if (isTyping || modalOpen) {
+      if ((isTextInput && hasContent) || modalOpen) {
         console.log('⏸ Re-render différé (formulaire en cours d\'écriture)');
-        // Marquer pour faire le refresh une fois que le user a fini
         window._pendingRefresh = true;
         return;
       }
@@ -3460,13 +3462,13 @@ function refreshAllUI() {
     if (typeof civilUser !== 'undefined' && civilUser && typeof renderCivilDash === 'function') {
       // Même protection
       const activeEl = document.activeElement;
-      const isTyping = activeEl && (
-        activeEl.tagName === 'INPUT' ||
+      const isTextInput = activeEl && (
+        (activeEl.tagName === 'INPUT' && ['text','email','password','number','tel','url','search'].includes((activeEl.type||'text').toLowerCase())) ||
         activeEl.tagName === 'TEXTAREA' ||
-        activeEl.tagName === 'SELECT' ||
         activeEl.isContentEditable
       );
-      if (isTyping || document.querySelector('.confirm-overlay')) {
+      const hasContent = isTextInput && (activeEl.value && activeEl.value.length > 0);
+      if ((isTextInput && hasContent) || document.querySelector('.confirm-overlay')) {
         window._pendingRefresh = true;
         return;
       }
