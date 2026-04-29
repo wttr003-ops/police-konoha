@@ -4966,11 +4966,36 @@ function renderMembres() {
             <div style="font-size:10px;color:var(--muted)">${a.matricule||'—'} · ${a.hireDate||'Fondateur'}</div>
           </div>
           <span class="grade-pill ${GRADE_CLASS[a.grade]||'gp-d'}">${a.grade}</span>
-          ${canManage && !isMe && gradeRankForService(myService, a.grade) > 0 ? `
-            <button class="btn-sm btn-sm-green" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', -1)" title="Promouvoir">▲</button>
-            <button class="btn-sm btn-sm-red" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', +1)" title="Rétrograder">▼</button>
-          ` : ''}
-          ${canManage && !isMe ? `<button class="btn-sm btn-sm-red" onclick="supprimerCompte('${a.fullname.replace(/'/g,"\\'")}', '${myService}')" title="Supprimer le compte" style="background:rgba(192,57,43,0.3)">🗑</button>` : ''}
+          ${(() => {
+            // Logique permission de boutons promote/demote
+            // Promouvoir : possible uniquement si l'agent n'est PAS au rang 0 (sauf si promu vers Hokage/Staff)
+            // Rétrograder : possible si l'agent n'est PAS au dernier rang
+            // CAS SPÉCIAL : Le Premier Président (Juge), Bâtonnier (Avocat), Directeur (Police) peuvent
+            // gérer même les agents de leur même rang (sauf eux-mêmes)
+            if (!canManage || isMe) return '';
+            const myRank = gradeRankForService(myService, u.grade);
+            const targetRank = gradeRankForService(myService, a.grade);
+            // Le top de chaque hiérarchie (rang 0) peut gérer ses pairs
+            const isTopOfHierarchy = myRank === 0;
+            const canPromote = targetRank > 0;
+            const canDemote = targetRank >= 0; // tous peuvent être rétrogradés sauf le grade le plus bas (vérifié dans changeGrade)
+            const showButtons = isTopOfHierarchy || targetRank > myRank;
+            if (!showButtons) return '';
+            return `
+              ${canPromote ? `<button class="btn-sm btn-sm-green" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', -1)" title="Promouvoir">▲</button>` : ''}
+              ${canDemote ? `<button class="btn-sm btn-sm-red" onclick="changeGrade('${a.fullname.replace(/'/g,"\\'")}', +1)" title="Rétrograder">▼</button>` : ''}
+            `;
+          })()}
+          ${canManage && !isMe ? (() => {
+            const myRank = gradeRankForService(myService, u.grade);
+            const targetRank = gradeRankForService(myService, a.grade);
+            // Suppression : le top peut supprimer ses pairs ; sinon il faut un grade plus haut
+            const isTopOfHierarchy = myRank === 0;
+            if (isTopOfHierarchy || targetRank > myRank) {
+              return `<button class="btn-sm btn-sm-red" onclick="supprimerCompte('${a.fullname.replace(/'/g,"\\'")}', '${myService}')" title="Supprimer le compte" style="background:rgba(192,57,43,0.3)">🗑</button>`;
+            }
+            return '';
+          })() : ''}
         </div>`;
     });
   }
@@ -9940,48 +9965,87 @@ function cloturerHeurePersonnalisee() {
   enregistrerService(u.fullname, service, finCustom);
 }
 
-async function enregistrerService(fullname, service, fin) {
-  const debut = new Date(service.debut);
-  const dureeMs = fin.getTime() - debut.getTime();
-  const dureeMin = Math.max(1, Math.round(dureeMs / 60000));
-  const taux = getTarif(service.grade);
-  const salaire = Math.round((dureeMin / 60) * taux);
+async function enregistrerService(fullname, service, fin, options) {
+  options = options || {};
+  const isAuto = options.auto === true; // Coupure automatique → pas d'alert
 
-  state.presences = state.presences || [];
-  const newPresence = {
-    fullname,
-    grade: service.grade,
-    date: debut.toLocaleDateString('fr-FR'),
-    heureDebut: debut.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
-    heureFin: fin.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
-    duree: dureeMin,
-    salaire,
-    statut: 'a_payer'
-  };
-
-  // Push presence vers Supabase via le mapping standard
-  if (supabaseReady) {
-    try {
-      const inserted = await pushToSupabase('presences', newPresence);
-      if (inserted && inserted._id) newPresence._id = inserted._id;
-    } catch(e) {}
+  // ANTI-DOUBLON STRICT : verrou immédiat sur ce service
+  if (!window._serviceClosingLock) window._serviceClosingLock = new Set();
+  const lockKey = fullname + '|' + (service.debut || '');
+  if (window._serviceClosingLock.has(lockKey)) {
+    console.log('⏸ Service déjà en cours de clôture pour', fullname, '— ignoré');
+    return;
   }
+  window._serviceClosingLock.add(lockKey);
 
-  state.presences.push(newPresence);
+  try {
+    // SUPPRIMER IMMÉDIATEMENT du serviceActif (avant tout push)
+    // → empêche un autre tick (ou un autre device) de retraiter ce service
+    delete state.serviceActif[fullname];
+    if (supabaseReady) {
+      try { await deleteServiceActifFromSupabase(fullname); } catch(e) {}
+    }
 
-  // Supprimer du active_shifts (cloud + local)
-  if (supabaseReady) {
-    try { await deleteServiceActifFromSupabase(fullname); } catch(e) {}
+    const debut = new Date(service.debut);
+    const dureeMs = fin.getTime() - debut.getTime();
+    const dureeMin = Math.max(1, Math.round(dureeMs / 60000));
+    const taux = getTarif(service.grade);
+    const salaire = Math.round((dureeMin / 60) * taux);
+
+    state.presences = state.presences || [];
+
+    // VÉRIFIER si une presence identique existe déjà (anti-doublon Supabase)
+    const debutISO = debut.toISOString();
+    const existante = state.presences.find(p =>
+      p.fullname === fullname &&
+      p.heureDebut === debut.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) &&
+      p.date === debut.toLocaleDateString('fr-FR') &&
+      p.statut !== 'paye'
+    );
+    if (existante) {
+      console.log('⏸ Presence déjà enregistrée pour', fullname, debutISO, '— ignorée');
+      return;
+    }
+
+    const newPresence = {
+      fullname,
+      grade: service.grade,
+      date: debut.toLocaleDateString('fr-FR'),
+      heureDebut: debut.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+      heureFin: fin.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+      duree: dureeMin,
+      salaire,
+      statut: 'a_payer'
+    };
+
+    // Push presence vers Supabase via le mapping standard
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('presences', newPresence);
+        if (inserted && inserted._id) newPresence._id = inserted._id;
+      } catch(e) {}
+    }
+
+    state.presences.push(newPresence);
+
+    saveSession();
+
+    // Alert SEULEMENT si clôture manuelle (pas auto)
+    if (!isAuto) {
+      const h = Math.floor(dureeMin / 60);
+      const m = dureeMin % 60;
+      alert('✓ Service terminé\nDurée : ' + h + 'h' + String(m).padStart(2,'0') + '\nSalaire : ' + salaire.toLocaleString() + ' Ryos');
+    } else {
+      console.log('⏰ Coupure auto enregistrée pour', fullname, '—', salaire, 'Ryos');
+    }
+    renderPresences();
+    if (typeof refreshAllUI === 'function') refreshAllUI();
+  } finally {
+    // Libérer le verrou après 5 secondes (laisse le temps aux opérations)
+    setTimeout(() => {
+      if (window._serviceClosingLock) window._serviceClosingLock.delete(lockKey);
+    }, 5000);
   }
-  delete state.serviceActif[fullname];
-
-  saveSession();
-
-  const h = Math.floor(dureeMin / 60);
-  const m = dureeMin % 60;
-  alert('✓ Service terminé\nDurée : ' + h + 'h' + String(m).padStart(2,'0') + '\nSalaire : ' + salaire.toLocaleString() + ' Ryos');
-  renderPresences();
-  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 async function forcerFinService(fullname) {
@@ -9994,26 +10058,33 @@ async function forcerFinService(fullname) {
 // Vérifier les services qui dépassent 02h00 et les clôturer automatiquement
 async function verifierCoupureAuto02h() {
   if (!state.serviceActif) return;
-  const now = new Date();
-  for (const [fullname, service] of Object.entries(state.serviceActif)) {
-    if (!service || service.fin) continue;
-    const debut = new Date(service.debut);
-    // Calculer le 02h00 de "lendemain du début" (= la coupure cible)
-    const cutoff = new Date(debut);
-    // Si début après 20h, le 02h cible est le lendemain matin
-    // Si début avant 02h (cas rare), le 02h cible est le même jour
-    if (debut.getHours() >= 20) {
-      cutoff.setDate(cutoff.getDate() + 1);
-    }
-    cutoff.setHours(2, 0, 0, 0);
+  // Anti-réentrance globale
+  if (window._verifyingAutoCutoff) return;
+  window._verifyingAutoCutoff = true;
+  try {
+    const now = new Date();
+    for (const [fullname, service] of Object.entries(state.serviceActif)) {
+      if (!service || service.fin) continue;
+      const debut = new Date(service.debut);
+      // Calculer le 02h00 de "lendemain du début" (= la coupure cible)
+      const cutoff = new Date(debut);
+      // Si début après 20h, le 02h cible est le lendemain matin
+      // Si début avant 02h (cas rare), le 02h cible est le même jour
+      if (debut.getHours() >= 20) {
+        cutoff.setDate(cutoff.getDate() + 1);
+      }
+      cutoff.setHours(2, 0, 0, 0);
 
-    // Si l'heure actuelle a dépassé le cutoff → clôture automatique
-    if (now.getTime() >= cutoff.getTime()) {
-      console.log('⏰ Coupure auto pour', fullname, '— service depuis', debut.toLocaleString('fr-FR'));
-      try {
-        await enregistrerService(fullname, service, cutoff);
-      } catch(e) { console.warn('Erreur coupure auto:', e); }
+      // Si l'heure actuelle a dépassé le cutoff → clôture automatique
+      if (now.getTime() >= cutoff.getTime()) {
+        console.log('⏰ Coupure auto pour', fullname, '— service depuis', debut.toLocaleString('fr-FR'));
+        try {
+          await enregistrerService(fullname, service, cutoff, { auto: true });
+        } catch(e) { console.warn('Erreur coupure auto:', e); }
+      }
     }
+  } finally {
+    window._verifyingAutoCutoff = false;
   }
 }
 
