@@ -2477,8 +2477,8 @@
     <div class="dash-topbar-left">
       <div class="nav-logo-img" style="width:36px;height:36px;font-size:14px;cursor:pointer" onclick="showPage('home')">PK</div>
       <div>
-        <div class="dash-topbar-title">Espace Agent — Police de Konoha</div>
-        <div class="dash-topbar-sub">Tableau de bord interne</div>
+        <div class="dash-topbar-title" id="dash-section-title">Espace Agent — Police de Konoha</div>
+        <div class="dash-topbar-sub" id="dash-section-sub">Tableau de bord interne</div>
       </div>
     </div>
     <div class="dash-topbar-right">
@@ -2496,8 +2496,8 @@
     <aside class="dash-sidebar">
       <nav class="dash-nav">
         <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
-        <button class="dash-nav-btn" data-tab="plaintes" data-services="police" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
-        <button class="dash-nav-btn" data-tab="candidatures" data-services="police" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
+        <button class="dash-nav-btn" data-tab="plaintes" data-services="police,juge" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
+        <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
         <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
         <button class="dash-nav-btn" data-tab="amendes" data-services="police,juge,avocat" onclick="switchDashTab('amendes', this)">💰 Amendes</button>
@@ -4556,6 +4556,21 @@ function renderDashboard(tab) {
 
   // Filtrer la sidebar selon la section connectée
   const myService = u.service || 'police';
+
+  // === Titre dynamique selon la section ===
+  const titleEl = document.getElementById('dash-section-title');
+  const subEl = document.getElementById('dash-section-sub');
+  if (myService === 'police') {
+    if (titleEl) titleEl.textContent = 'Espace Agent — Police de Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord interne';
+  } else if (myService === 'juge') {
+    if (titleEl) titleEl.textContent = 'Tribunal — Palais de Justice de Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord — Magistrats';
+  } else if (myService === 'avocat') {
+    if (titleEl) titleEl.textContent = 'Cabinet des Avocats — Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord — Barreau';
+  }
+
   document.querySelectorAll('.dash-nav-btn').forEach(btn => {
     const services = (btn.dataset.services || 'police').split(',');
     btn.style.display = services.includes(myService) ? '' : 'none';
@@ -4602,9 +4617,19 @@ function renderOverview() {
   const u = state.currentUser;
   if (!u) return; // Pas connecté, on ne fait rien
 
-  const wait = state.candidatures.filter(c => c.status === 'wait').length;
-  const total = state.candidatures.length;
   const myService = u.service || 'police';
+
+  // Filtrer les candidatures et plaintes selon la section connectée
+  const myCandid = state.candidatures.filter(c => (c.target||'police') === myService);
+  const wait = myCandid.filter(c => c.status === 'wait').length;
+  const total = myCandid.length;
+
+  // Plaintes : Police voit "citoyen", Tribunal voit "agent", Avocat n'a pas de plaintes
+  let myPlaintes = [];
+  if (myService === 'police') myPlaintes = state.plaintes.filter(p => (p.target||'citoyen') === 'citoyen');
+  else if (myService === 'juge') myPlaintes = state.plaintes.filter(p => p.target === 'agent');
+  const plaintesWait = myPlaintes.filter(p => p.status === 'wait').length;
+
   // Compter les agents de la même section, en excluant Hokage/Staff (sauf pour le Directeur Police qui peut tout voir)
   const showSpecialOverview = canManageSpecialRoles(u);
   const agents = state.users.filter(x =>
@@ -4612,7 +4637,6 @@ function renderOverview() {
     (x.service||'police') === myService &&
     (showSpecialOverview || !isSpecialRole(x.grade))
   ).length;
-  const plaintesWait = state.plaintes.filter(p => p.status === 'wait').length;
 
   const elWait = document.getElementById('kpi-candid-wait');
   const elTotal = document.getElementById('kpi-candid-total');
@@ -4626,7 +4650,90 @@ function renderOverview() {
 
   const permsList = document.getElementById('perms-list');
   if (permsList) {
-    const perms = PERMS[gradeRank(u.grade)] || PERMS[5];
+    let perms;
+    // === Permissions adaptées selon la section ===
+    if (myService === 'juge') {
+      const grade = u.grade || '';
+      if (_gradeIn(grade, ['Premier Président'])) {
+        perms = [
+          '👑 Pouvoirs maximaux du Tribunal',
+          '⚖️ Traiter les casiers judiciaires (juger, rouvrir)',
+          '📤 Demander des rapports à la Police',
+          '💰 Émettre et consulter les amendes',
+          '📝 Recevoir et traiter les candidatures Tribunal',
+          '⚖️ Recevoir les plaintes contre les agents de Police',
+          '🔒 Consulter les détentions en cellules',
+          '➕ Ajouter de nouveaux juges',
+          '🔑 Voir les identifiants du Tribunal',
+          '🗑 Supprimer / promouvoir / rétrograder tout juge (même Premier Président)',
+          '💬 Discussions inter-sections',
+          '📚 Gérer les documents partagés'
+        ];
+      } else if (_gradeIn(grade, ['Président de Chambre'])) {
+        perms = [
+          '⚖️ Traiter les casiers judiciaires',
+          '📤 Demander des rapports à la Police',
+          '💰 Émettre et consulter les amendes',
+          '📝 Traiter les candidatures Tribunal',
+          '⚖️ Plaintes contre agents de Police',
+          '🔒 Consulter les cellules',
+          '➕ Ajouter de nouveaux juges',
+          '🔑 Voir les identifiants du Tribunal',
+          '🗑 Supprimer / promouvoir / rétrograder les juges sous votre rang',
+          '💬 Discussions inter-sections'
+        ];
+      } else if (_gradeIn(grade, ['Juge Senior'])) {
+        perms = [
+          '⚖️ Traiter les casiers judiciaires',
+          '📤 Demander des rapports à la Police',
+          '💰 Émettre et consulter les amendes',
+          '📝 Traiter les candidatures Tribunal',
+          '⚖️ Plaintes contre agents de Police',
+          '🔒 Consulter les cellules',
+          '🗑 Supprimer les candidatures'
+        ];
+      } else {
+        perms = [
+          '⚖️ Traiter les casiers judiciaires',
+          '📤 Demander des rapports à la Police',
+          '💰 Émettre et consulter les amendes',
+          '🔒 Consulter les cellules (lecture seule)',
+          '📋 Rédiger des rapports internes',
+          '📚 Consulter les documents'
+        ];
+      }
+    } else if (myService === 'avocat') {
+      const grade = u.grade || '';
+      if (_gradeIn(grade, ['Bâtonnier'])) {
+        perms = [
+          '👑 Pouvoirs maximaux du Cabinet',
+          '📁 Gérer tous les dossiers clients',
+          '➕ Ajouter de nouveaux avocats',
+          '🔑 Voir les identifiants du Cabinet',
+          '🗑 Supprimer / promouvoir / rétrograder tout avocat',
+          '💬 Discussions inter-sections',
+          '📚 Gérer les documents partagés'
+        ];
+      } else if (_gradeIn(grade, ['Maître'])) {
+        perms = [
+          '📁 Gérer les dossiers clients',
+          '➕ Ajouter de nouveaux avocats',
+          '🔑 Voir les identifiants du Cabinet',
+          '🗑 Supprimer les avocats sous votre rang',
+          '💬 Discussions inter-sections'
+        ];
+      } else {
+        perms = [
+          '📁 Gérer ses propres dossiers clients',
+          '🗂 Consulter les casiers (lecture seule)',
+          '💰 Consulter les amendes',
+          '📚 Consulter les documents'
+        ];
+      }
+    } else {
+      // Police : permissions par grade existantes
+      perms = PERMS[gradeRank(u.grade)] || PERMS[5];
+    }
     permsList.innerHTML = perms.map(p =>
       '<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)"><span style="color:var(--green);margin-right:10px">✓</span>' + p + '</div>'
     ).join('');
