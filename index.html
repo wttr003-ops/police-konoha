@@ -10440,22 +10440,36 @@ async function verifierCoupureAuto02h() {
     for (const [fullname, service] of Object.entries(state.serviceActif)) {
       if (!service || service.fin) continue;
       const debut = new Date(service.debut);
-      // Calculer le 02h00 de "lendemain du début" (= la coupure cible)
+
+      // Trouver le PROCHAIN 02h00 strictement APRÈS le début du service
+      // (pas un 02h00 dans le passé)
       const cutoff = new Date(debut);
-      // Si début après 20h, le 02h cible est le lendemain matin
-      // Si début avant 02h (cas rare), le 02h cible est le même jour
-      if (debut.getHours() >= 20) {
+      cutoff.setHours(2, 0, 0, 0);
+      // Si ce 02h00 est avant ou égal au début → on prend le 02h00 du JOUR SUIVANT
+      if (cutoff.getTime() <= debut.getTime()) {
         cutoff.setDate(cutoff.getDate() + 1);
       }
-      cutoff.setHours(2, 0, 0, 0);
 
-      // Si l'heure actuelle a dépassé le cutoff → clôture automatique
-      if (now.getTime() >= cutoff.getTime()) {
-        console.log('⏰ Coupure auto pour', fullname, '— service depuis', debut.toLocaleString('fr-FR'));
-        try {
-          await enregistrerService(fullname, service, cutoff, { auto: true });
-        } catch(e) { console.warn('Erreur coupure auto:', e); }
+      // SÉCURITÉ : ne couper que si la durée prévue (jusqu'au cutoff) est raisonnable
+      // → max 8 heures (un service ne devrait jamais durer plus que ça)
+      const dureeMaxMs = 8 * 60 * 60 * 1000; // 8h en millisecondes
+      if (cutoff.getTime() - debut.getTime() > dureeMaxMs) {
+        console.warn('⚠️ Coupure ignorée pour', fullname, '— durée incohérente (>8h)');
+        continue;
       }
+
+      // SÉCURITÉ : ne couper que si on est VRAIMENT après le cutoff
+      // (avec une marge de 5 minutes pour éviter les race conditions)
+      const margeSec = 5 * 60 * 1000;
+      if (now.getTime() < cutoff.getTime() + margeSec) {
+        // Pas encore l'heure de couper
+        continue;
+      }
+
+      console.log('⏰ Coupure auto pour', fullname, '— début:', debut.toLocaleString('fr-FR'), '→ coupure à', cutoff.toLocaleString('fr-FR'));
+      try {
+        await enregistrerService(fullname, service, cutoff, { auto: true });
+      } catch(e) { console.warn('Erreur coupure auto:', e); }
     }
   } finally {
     window._verifyingAutoCutoff = false;
@@ -10634,10 +10648,30 @@ setInterval(updateChronoService, 1000);
 // ============================================================
 async function supprimerCompte(fullname, service) {
   const u = state.currentUser;
-  if (!canAddAgent(u.grade)) { alert('Réservé à la Direction'); return; }
 
-  // Trouver le compte
-  const compte = state.users.find(x => x.fullname === fullname && (x.service||'police') === (service||'police'));
+  // Permission adaptée selon la section connectée
+  const myService = u.service || 'police';
+  let hasPermission = false;
+  let labelSection = 'la Direction';
+  if (myService === 'police') {
+    hasPermission = canAddAgent(u.grade); // Directeur + Adjoint Police
+    labelSection = 'au Directeur ou Directeur Adjoint';
+  } else if (myService === 'juge') {
+    hasPermission = _gradeIn(u.grade, ['Premier Président', 'Président de Chambre']);
+    labelSection = 'au Premier Président ou Président de Chambre';
+  } else if (myService === 'avocat') {
+    hasPermission = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
+    labelSection = 'au Bâtonnier ou Maître';
+  }
+
+  if (!hasPermission) {
+    alert('⚠️ Réservé ' + labelSection + '.');
+    return;
+  }
+
+  // Trouver le compte (par fullname + service)
+  const targetService = service || myService;
+  const compte = state.users.find(x => x.fullname === fullname && (x.service||'police') === targetService);
   if (!compte) return;
 
   // === CAS SPÉCIAL : Hokage / Staff = supprimer les 3 comptes en même temps ===
@@ -10666,13 +10700,13 @@ async function supprimerCompte(fullname, service) {
   }
 
   // === CAS NORMAL : suppression d'un seul compte ===
-  if (!(await confirmAsync('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cet agent ne pourra plus se connecter\n• Son compte sera supprimé du serveur partagé\n\nConfirmer la suppression ?'))) return;
+  if (!(await confirmAsync('⚠️ Supprimer définitivement le compte de ' + fullname + ' ?\n\n• Cette personne ne pourra plus se connecter\n• Son compte sera supprimé du serveur partagé\n\nConfirmer la suppression ?'))) return;
 
   if (compte._id && supabaseReady) {
     try { await deleteFromSupabase('users', compte._id); } catch(e) {}
   }
 
-  state.users = state.users.filter(x => !(x.fullname === fullname && (x.service||'police') === (service||'police')));
+  state.users = state.users.filter(x => !(x.fullname === fullname && (x.service||'police') === targetService));
   saveSession();
   alert('✓ Compte de ' + fullname + ' supprimé définitivement.');
   renderMembres();
