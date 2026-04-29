@@ -3103,6 +3103,32 @@ const SUPABASE_TABLES = {
       _id: r.id
     })
   },
+  reportRequests: {
+    table: 'report_requests',
+    mapTo: r => ({
+      requested_by: r.requestedBy,
+      requester_grade: r.requesterGrade || null,
+      target_fullname: r.targetFullname,
+      motif: r.motif || null,
+      status: r.status || 'pending',
+      response: r.response || null,
+      responded_by: r.respondedBy || null,
+      responded_at: r.respondedAt || null,
+      date: r.date || null
+    }),
+    mapFrom: r => ({
+      requestedBy: r.requested_by,
+      requesterGrade: r.requester_grade,
+      targetFullname: r.target_fullname,
+      motif: r.motif,
+      status: r.status,
+      response: r.response,
+      respondedBy: r.responded_by,
+      respondedAt: r.responded_at,
+      date: r.date,
+      _id: r.id
+    })
+  },
   presences: {
     table: 'shifts',
     mapTo: p => ({
@@ -3740,7 +3766,9 @@ let state = {
   // Demandes de sortie du village (Civil → Police)
   exitRequests: [],
   // Documents partagés (liens vers Google Docs, etc.)
-  documents: []
+  documents: [],
+  // Demandes de rapport (Tribunal → Police)
+  reportRequests: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4204,6 +4232,7 @@ function saveSession() {
       impotsHistoriqueDirection: state.impotsHistoriqueDirection || [],
       exitRequests: state.exitRequests || [],
       documents: state.documents || [],
+      reportRequests: state.reportRequests || [],
       presences: state.presences || [],
       serviceActif: state.serviceActif || {}
     };
@@ -4275,6 +4304,7 @@ function restoreSession() {
     if (data.impotsHistoriqueDirection) state.impotsHistoriqueDirection = data.impotsHistoriqueDirection;
     if (data.exitRequests) state.exitRequests = data.exitRequests;
     if (data.documents) state.documents = data.documents;
+    if (data.reportRequests) state.reportRequests = data.reportRequests;
     if (data.presences) state.presences = data.presences;
     if (data.serviceActif) state.serviceActif = data.serviceActif;
 
@@ -7168,7 +7198,94 @@ function renderRapports() {
   // Filtrer les agents selon la section connectée (un juge ne voit que les juges, etc.)
   const allAgents = state.users.filter(x => x.isAgent && (x.service||'police') === myService);
 
-  let html = `
+  // === Section : Demandes de rapport (Tribunal ↔ Police) ===
+  let demandesHtml = '';
+  if (myService === 'police') {
+    const demandesPolice = (state.reportRequests || []).slice().sort((a,b) => (b._id||0) - (a._id||0));
+    const enAttente = demandesPolice.filter(r => r.status === 'pending');
+    if (demandesPolice.length > 0) {
+      demandesHtml = `
+        <div class="dash-block" style="padding:0;margin-bottom:1rem;border:1px solid rgba(59,130,246,0.3)">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:1px;background:rgba(59,130,246,0.05)">
+            ⚖️ Demandes de rapport du Tribunal ${enAttente.length > 0 ? '<span style="background:rgba(232,197,71,0.2);color:var(--lgold);padding:2px 8px;border-radius:10px;font-size:10px;margin-left:6px">'+enAttente.length+' en attente</span>' : ''}
+          </div>
+          ${demandesPolice.map(r => {
+            const rIdx = state.reportRequests.indexOf(r);
+            const isPending = r.status === 'pending';
+            const stColor = isPending ? 'var(--lgold)' : 'var(--green)';
+            const stBg = isPending ? 'rgba(232,197,71,0.15)' : 'rgba(39,174,96,0.15)';
+            const stLbl = isPending ? '⏳ En attente' : '✓ Répondue';
+            return `
+              <div style="padding:14px 16px;border-bottom:1px solid var(--border);${isPending?'background:rgba(232,197,71,0.04);':''}">
+                <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+                  <div style="flex:1;min-width:200px">
+                    <div style="font-size:13px;font-weight:700;color:var(--text)">📤 Demande concernant <strong style="color:#93c5fd">${escapeHtml(r.targetFullname)}</strong></div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:3px">Par ${escapeHtml(r.requestedBy)} (${escapeHtml(r.requesterGrade||'')}) · ${escapeHtml(r.date)}</div>
+                  </div>
+                  <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;background:${stBg};color:${stColor};border:1px solid ${stColor}44">${stLbl}</span>
+                </div>
+                <div style="font-size:12px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:5px;margin-bottom:8px">
+                  <strong style="color:var(--accent);font-size:10px;text-transform:uppercase;letter-spacing:1px">Motif :</strong><br>${escapeHtml(r.motif)}
+                </div>
+                ${r.response ? `
+                  <div style="background:rgba(39,174,96,0.06);border-left:2px solid var(--green);padding:8px 10px;border-radius:0 4px 4px 0;font-size:12px;color:var(--text)">
+                    <strong style="color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:1px">Votre rapport (${escapeHtml(r.respondedBy||'')}) :</strong><br>${escapeHtml(r.response)}
+                    <div style="font-size:10px;color:var(--muted);margin-top:4px">Transmis le ${escapeHtml(r.respondedAt||'')}</div>
+                  </div>
+                ` : ''}
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                  ${isPending ? `<button class="btn-sm btn-sm-green" onclick="ouvrirReponseRapport(${rIdx})" style="font-size:11px">📩 Répondre</button>` : ''}
+                  ${canAddAgent(u.grade) ? `<button class="btn-sm btn-sm-red" onclick="supprimerDemandeRapport(${rIdx})" style="font-size:11px;background:rgba(192,57,43,0.3)">🗑</button>` : ''}
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`;
+    }
+  } else if (myService === 'juge') {
+    // Côté Juge : voir les réponses reçues à ses demandes
+    const mesDemandes = (state.reportRequests || [])
+      .filter(r => matchFullname(r.requestedBy, u.fullname) || (state.currentUser && r.requesterGrade && _gradeIn(u.grade, GRADES_JUGE_HC)))
+      .slice().sort((a,b) => (b._id||0) - (a._id||0));
+    if (mesDemandes.length > 0) {
+      demandesHtml = `
+        <div class="dash-block" style="padding:0;margin-bottom:1rem;border:1px solid rgba(59,130,246,0.3)">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:1px;background:rgba(59,130,246,0.05)">
+            📩 Mes demandes de rapport à la Police (${mesDemandes.length})
+          </div>
+          ${mesDemandes.map(r => {
+            const rIdx = state.reportRequests.indexOf(r);
+            const isPending = r.status === 'pending';
+            const stColor = isPending ? 'var(--lgold)' : 'var(--green)';
+            const stBg = isPending ? 'rgba(232,197,71,0.15)' : 'rgba(39,174,96,0.15)';
+            const stLbl = isPending ? '⏳ En attente' : '✓ Répondue';
+            return `
+              <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+                  <div style="flex:1;min-width:200px">
+                    <div style="font-size:13px;font-weight:700;color:var(--text)">📤 Concernant <strong style="color:#93c5fd">${escapeHtml(r.targetFullname)}</strong></div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:3px">Demande envoyée le ${escapeHtml(r.date)}</div>
+                  </div>
+                  <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;background:${stBg};color:${stColor};border:1px solid ${stColor}44">${stLbl}</span>
+                </div>
+                <div style="font-size:12px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:5px;margin-bottom:8px">
+                  <strong style="color:var(--accent);font-size:10px;text-transform:uppercase;letter-spacing:1px">Mon motif :</strong><br>${escapeHtml(r.motif)}
+                </div>
+                ${r.response ? `
+                  <div style="background:rgba(39,174,96,0.06);border-left:2px solid var(--green);padding:8px 10px;border-radius:0 4px 4px 0;font-size:12px;color:var(--text)">
+                    <strong style="color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:1px">Réponse de la Police (${escapeHtml(r.respondedBy||'')}) :</strong><br>${escapeHtml(r.response)}
+                    <div style="font-size:10px;color:var(--muted);margin-top:4px">Reçue le ${escapeHtml(r.respondedAt||'')}</div>
+                  </div>
+                ` : '<p style="font-size:11px;color:var(--muted);font-style:italic">En attente de réponse de la Police...</p>'}
+                <div style="display:flex;gap:6px;margin-top:8px">
+                  <button class="btn-sm btn-sm-red" onclick="supprimerDemandeRapport(${rIdx})" style="font-size:11px;background:rgba(192,57,43,0.3)">🗑</button>
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`;
+    }
+  }
+
+  let html = demandesHtml + `
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
       <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">📋 Nouveau rapport de mission</h3>
 
@@ -7578,6 +7695,7 @@ function renderCasier() {
                   <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
                     ${isJuge && !isTraite ? `<button class="btn-sm btn-sm-green" onclick="traiterCasier(${idx})" style="font-size:10px;padding:3px 8px">⚖️ Traiter</button>` : ''}
                     ${isJuge && isTraite ? `<button class="btn-sm" style="background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);font-size:10px;padding:3px 8px" onclick="reouvrirCasier(${idx})">↩ Rouvrir</button>` : ''}
+                    ${isJuge ? `<button class="btn-sm" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:10px;padding:3px 8px" onclick="ouvrirDemandeRapport('${(d.fullname||'').replace(/'/g,"\\'")}')">📤 Demander rapport à la Police</button>` : ''}
                     ${canDelete ? `<button class="btn-sm btn-sm-red" onclick="deleteCasier(${idx})" style="font-size:10px;padding:3px 8px">🗑 Supprimer</button>` : ''}
                   </div>
                 </div>`;
@@ -7624,6 +7742,155 @@ async function reouvrirCasier(idx) {
   saveSession();
   renderCasier();
   if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+// ============================================================
+// DEMANDE DE RAPPORT (Tribunal → Police)
+// ============================================================
+function ouvrirDemandeRapport(targetFullname) {
+  const u = state.currentUser;
+  if (!u || (u.service||'police') !== 'juge') {
+    alert('Réservé au Tribunal.');
+    return;
+  }
+
+  const existing = document.getElementById('rapport-req-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'rapport-req-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:520px">
+      <div class="confirm-icon" style="background:rgba(59,130,246,0.15);border-color:#3b82f6">📤</div>
+      <div class="confirm-title">Demande de rapport à la Police</div>
+      <div class="confirm-message" style="margin-bottom:14px">
+        Demande concernant : <strong style="color:#93c5fd">${escapeHtml(targetFullname)}</strong><br>
+        <span style="font-size:11px;color:var(--muted)">Demandeur : ${escapeHtml(u.fullname)} (${escapeHtml(u.grade)})</span>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Motif de la demande *</label>
+        <textarea id="rap-req-motif" rows="3" placeholder="Précisez ce que vous souhaitez savoir : circonstances de l'arrestation, témoins, déroulement des faits..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('rapport-req-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="envoyerDemandeRapport('${targetFullname.replace(/'/g,"\\'")}')">📤 Envoyer la demande</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('rap-req-motif').focus(), 100);
+}
+
+async function envoyerDemandeRapport(targetFullname) {
+  const u = state.currentUser;
+  const motif = document.getElementById('rap-req-motif').value.trim();
+  if (!motif) { alert('Le motif est obligatoire.'); return; }
+
+  const newReq = {
+    requestedBy: u.fullname,
+    requesterGrade: u.grade,
+    targetFullname,
+    motif,
+    status: 'pending',
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  };
+
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('reportRequests', newReq);
+      if (inserted && inserted._id) newReq._id = inserted._id;
+    } catch(e) { alert('Erreur : ' + e.message); return; }
+  }
+
+  state.reportRequests = state.reportRequests || [];
+  state.reportRequests.push(newReq);
+  saveSession();
+  document.getElementById('rapport-req-modal').remove();
+  alert('✓ Demande envoyée à la Police.\nVous recevrez la réponse dans cette section.');
+  renderCasier();
+}
+
+// CÔTÉ POLICE — Répondre à une demande de rapport
+async function ouvrirReponseRapport(idx) {
+  const u = state.currentUser;
+  if (!u || (u.service||'police') !== 'police') return;
+  const r = state.reportRequests[idx];
+  if (!r) return;
+
+  const existing = document.getElementById('rapport-rep-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'rapport-rep-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:560px;max-height:90vh;overflow-y:auto">
+      <div class="confirm-icon" style="background:rgba(59,130,246,0.15);border-color:#3b82f6">📩</div>
+      <div class="confirm-title">Répondre à la demande du Tribunal</div>
+      <div class="confirm-message" style="margin-bottom:14px;text-align:left">
+        <strong>Concernant :</strong> ${escapeHtml(r.targetFullname)}<br>
+        <strong>Demandeur :</strong> ${escapeHtml(r.requestedBy)} (${escapeHtml(r.requesterGrade||'')})<br>
+        <strong>Date :</strong> ${escapeHtml(r.date)}<br>
+        <strong>Motif :</strong>
+        <div style="background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:5px;margin-top:6px;font-size:12px">${escapeHtml(r.motif)}</div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Votre rapport au Tribunal *</label>
+        <textarea id="rap-resp" rows="6" placeholder="Rédigez le rapport demandé en détail (faits, témoins, circonstances, etc.)..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('rapport-rep-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="envoyerReponseRapport(${idx})">📩 Transmettre au Tribunal</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('rap-resp').focus(), 100);
+}
+
+async function envoyerReponseRapport(idx) {
+  const r = state.reportRequests[idx];
+  if (!r) return;
+  const reponse = document.getElementById('rap-resp').value.trim();
+  if (!reponse) { alert('Le rapport est obligatoire.'); return; }
+
+  r.response = reponse;
+  r.respondedBy = state.currentUser.fullname;
+  r.respondedAt = new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  r.status = 'answered';
+
+  if (supabaseReady && r._id) {
+    try { await pushToSupabase('reportRequests', r); } catch(e) {}
+  }
+  saveSession();
+  document.getElementById('rapport-rep-modal').remove();
+  alert('✓ Rapport transmis au Tribunal.');
+  if (typeof renderRapports === 'function') renderRapports();
+}
+
+async function supprimerDemandeRapport(idx) {
+  const r = state.reportRequests[idx];
+  if (!r) return;
+  if (!(await confirmAsync('Supprimer cette demande de rapport ?'))) return;
+  if (r._id && supabaseReady) {
+    try { await deleteFromSupabase('reportRequests', r._id); } catch(e) {}
+  }
+  state.reportRequests.splice(idx, 1);
+  saveSession();
+  if (state.currentUser && (state.currentUser.service||'police') === 'juge') {
+    renderCasier();
+  } else {
+    if (typeof renderRapports === 'function') renderRapports();
+  }
 }
 
 // État temporaire des infractions sélectionnées pour la nouvelle fiche
