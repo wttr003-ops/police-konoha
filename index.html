@@ -10268,6 +10268,7 @@ function renderPresences() {
               <div style="padding:12px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                   ${data.total > 0 ? `<button class="btn-primary" onclick="payerAgent('${name.replace(/'/g,"\\'")}', ${data.total})">✓ Marquer payé (${data.total.toLocaleString()} Ryos)</button>` : ''}
+                  <button class="btn-outline" style="background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.4);color:#86efac" onclick="ouvrirAjout('${name.replace(/'/g,"\\'")}', ${data.total})">💸 Ajouter de l'argent</button>
                   <button class="btn-outline" onclick="ouvrirRetrait('${name.replace(/'/g,"\\'")}', ${data.total})">✂ Retirer de l'argent</button>
                 </div>
               </div>
@@ -10544,7 +10545,7 @@ function ouvrirRetrait(fullname, soldeActuel) {
   setTimeout(() => document.getElementById('retrait-montant').focus(), 100);
 }
 
-function confirmerRetrait(fullname) {
+async function confirmerRetrait(fullname) {
   const montantStr = document.getElementById('retrait-montant').value;
   const motif = document.getElementById('retrait-motif').value.trim();
 
@@ -10558,7 +10559,7 @@ function confirmerRetrait(fullname) {
     return;
   }
 
-  state.presences.push({
+  const newEntry = {
     fullname,
     grade: state.users.find(u => u.fullname === fullname)?.grade || '—',
     date: new Date().toLocaleDateString('fr-FR'),
@@ -10568,11 +10569,119 @@ function confirmerRetrait(fullname) {
     salaire: -m,
     motif,
     statut: 'a_payer'
-  });
+  };
+
+  // Push vers Supabase
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('presences', newEntry);
+      if (inserted && inserted._id) newEntry._id = inserted._id;
+    } catch(e) {}
+  }
+
+  state.presences.push(newEntry);
   saveSession();
 
   document.getElementById('retrait-modal').remove();
   alert('✓ Retrait de ' + m.toLocaleString() + ' Ryos appliqué à ' + fullname + '\nMotif : ' + motif);
+  renderPresences();
+}
+
+// === AJOUT D'ARGENT (bonus / correction) ===
+function ouvrirAjout(fullname, soldeActuel) {
+  // Supprimer un éventuel modal existant
+  const existing = document.getElementById('ajout-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'ajout-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" role="dialog" style="max-width:480px">
+      <div class="confirm-icon" style="background:rgba(34,197,94,0.15);border-color:#22c55e">💸</div>
+      <div class="confirm-title">Ajouter de l'argent</div>
+      <div class="confirm-message" style="margin-bottom:1rem">
+        Agent : <strong style="color:var(--accent)">${fullname}</strong><br>
+        Solde actuel : <strong style="color:var(--lgold)">${soldeActuel.toLocaleString()} Ryos</strong>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Montant à ajouter (Ryos)</label>
+        <input type="number" id="ajout-montant" placeholder="Ex: 500" min="1"
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:#f0e8d0;font-size:14px;font-family:monospace"/>
+      </div>
+
+      <div style="margin-bottom:1.25rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Motif de l'ajout</label>
+        <select id="ajout-motif-preset" onchange="document.getElementById('ajout-motif').value = this.value === '__custom__' ? '' : this.value"
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;margin-bottom:6px">
+          <option value="Bonus de performance">⭐ Bonus de performance</option>
+          <option value="Prime de mission">🎖️ Prime de mission</option>
+          <option value="Compensation heures supplémentaires">⏰ Heures supplémentaires</option>
+          <option value="Bonne mission accomplie">✓ Bonne mission accomplie</option>
+          <option value="Récompense engagement">🏅 Récompense engagement</option>
+          <option value="Correction d'erreur de saisie">📝 Correction d'erreur</option>
+          <option value="Régularisation oublié de service">↩️ Régularisation</option>
+          <option value="__custom__">✏️ Autre (saisie libre)</option>
+        </select>
+        <input type="text" id="ajout-motif" value="Bonus de performance" placeholder="Précisez le motif..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px"/>
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('ajout-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="confirmerAjout('${fullname.replace(/'/g,"\\'")}')" style="background:linear-gradient(135deg,#22c55e,#16a34a)">💸 Ajouter</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('ajout-montant').focus(), 100);
+}
+
+async function confirmerAjout(fullname) {
+  const montantStr = document.getElementById('ajout-montant').value;
+  const motif = document.getElementById('ajout-motif').value.trim();
+
+  const m = parseInt(montantStr);
+  if (isNaN(m) || m <= 0) {
+    alert('⚠️ Montant invalide. Entrez un nombre positif.');
+    return;
+  }
+  if (!motif) {
+    alert('⚠️ Le motif est obligatoire.');
+    return;
+  }
+
+  const newEntry = {
+    fullname,
+    grade: state.users.find(u => u.fullname === fullname)?.grade || '—',
+    date: new Date().toLocaleDateString('fr-FR'),
+    heureDebut: '—',
+    heureFin: '—',
+    duree: 0,
+    salaire: m,  // Positif (ajout) au contraire du retrait (négatif)
+    motif: '💸 ' + motif,  // Préfixe pour distinguer visuellement les ajouts
+    statut: 'a_payer'
+  };
+
+  // Push vers Supabase
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('presences', newEntry);
+      if (inserted && inserted._id) newEntry._id = inserted._id;
+    } catch(e) {}
+  }
+
+  state.presences.push(newEntry);
+  saveSession();
+
+  document.getElementById('ajout-modal').remove();
+  alert('✓ Ajout de ' + m.toLocaleString() + ' Ryos pour ' + fullname + '\nMotif : ' + motif);
   renderPresences();
 }
 
