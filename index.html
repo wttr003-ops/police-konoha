@@ -12648,43 +12648,185 @@ async function supprimerWanted(idx) {
 }
 
 // Rendu pour la page publique (accueil)
+// État de navigation du Bingo Book (page courante = paire de fiches affichées)
+window._bingoBookPage = window._bingoBookPage || 0;
+
 function renderWantedPublic() {
   const el = document.getElementById('wanted-public-list');
   if (!el) return;
   const actifs = (state.wantedPersons || []).filter(w => w.status === 'active');
 
   if (actifs.length === 0) {
-    el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-style:italic">Le Bingo Book est vide pour le moment. La paix règne sur Konoha.</div>';
+    el.innerHTML = `
+      <div style="background:linear-gradient(180deg,#1a0f05,#0a0500);padding:40px 20px;border-radius:12px;text-align:center">
+        <div style="font-family:'Cinzel',serif;font-size:22px;color:#c49a1a;letter-spacing:4px;margin-bottom:8px">📕 BINGO BOOK 📕</div>
+        <div style="font-size:13px;color:var(--muted);font-style:italic">Le Bingo Book est vide pour le moment.<br>La paix règne sur Konoha.</div>
+      </div>`;
     return;
   }
 
-  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
-  actifs.forEach(w => {
+  // Calcul de la page courante (2 fiches par "double-page")
+  const ficheParPage = 2;
+  const totalPages = Math.ceil(actifs.length / ficheParPage);
+  // Borner la page courante
+  if (window._bingoBookPage >= totalPages) window._bingoBookPage = totalPages - 1;
+  if (window._bingoBookPage < 0) window._bingoBookPage = 0;
+  const pageIdx = window._bingoBookPage;
+
+  const fichesAffichees = actifs.slice(pageIdx * ficheParPage, (pageIdx + 1) * ficheParPage);
+  const numFicheBase = pageIdx * ficheParPage + 1;
+
+  // Romain pour numéro de fiche
+  function toRoman(n) {
+    const values = [50,40,10,9,5,4,1];
+    const symbols = ['L','XL','X','IX','V','IV','I'];
+    let r = '';
+    for (let i = 0; i < values.length; i++) {
+      while (n >= values[i]) { r += symbols[i]; n -= values[i]; }
+    }
+    return r;
+  }
+
+  // Construction du HTML d'une fiche (page de gauche ou de droite)
+  function ficheHtml(w, numFiche, isLeft) {
     const danger = DANGER_LEVELS[w.dangerLevel] || DANGER_LEVELS.medium;
-    const placeholder = `<div style="width:100%;height:180px;background:linear-gradient(135deg,#1a1a1a,#0a0a0a);display:flex;align-items:center;justify-content:center;font-size:54px;color:rgba(255,255,255,0.15)">👤</div>`;
-    const imageHtml = w.imageUrl
-      ? `<div style="width:100%;height:180px;background:#0a0a0a;overflow:hidden;display:flex;align-items:center;justify-content:center"><img src="${escapeHtml(w.imageUrl)}" alt="${escapeHtml(w.fullname)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='👤';this.parentElement.style.fontSize='54px';this.parentElement.style.color='rgba(255,255,255,0.15)'"/></div>`
-      : placeholder;
-    html += `
-      <div style="background:#0a0a0a;border:2px solid ${danger.border};border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.5)">
-        <div style="position:relative">
-          ${imageHtml}
-          <div style="position:absolute;top:10px;left:10px;background:${danger.bg};color:${danger.color};border:1px solid ${danger.border};padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;backdrop-filter:blur(6px)">⚠ ${danger.label}</div>
-          <div style="position:absolute;top:0;left:0;right:0;background:linear-gradient(180deg,rgba(220,38,38,0.85),transparent);padding:8px 12px;text-align:center;font-size:10px;color:white;font-weight:700;letter-spacing:2px;text-transform:uppercase">📕 BINGO BOOK 📕</div>
-        </div>
-        <div style="padding:16px">
-          <div style="font-family:'Cinzel',serif;font-size:18px;color:white;font-weight:700;margin-bottom:4px">${escapeHtml(w.fullname)}</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${escapeHtml(w.ninjaGrade || 'Grade inconnu')}</div>
-          ${w.description ? `<div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:6px;border-left:3px solid ${danger.color}">${escapeHtml(w.description)}</div>` : ''}
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
-            ${w.reward > 0 ? `<div style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:5px;padding:8px;text-align:center"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px">💰 Récompense</div><div style="color:var(--lgold);font-weight:700;font-family:'Cinzel',serif">${w.reward.toLocaleString()} Ryos</div></div>` : '<div></div>'}
-            ${w.lastLocation ? `<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:5px;padding:8px;text-align:center"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px">📍 Vu à</div><div style="color:#93c5fd;font-weight:600;font-size:11px">${escapeHtml(w.lastLocation)}</div></div>` : '<div></div>'}
+    // Couleurs adaptées au papier vieilli (foncées sur fond clair)
+    const dangerColors = {
+      low:     { color: '#374151', bg: 'rgba(100,116,139,0.15)', border: 'rgba(55,65,81,0.5)' },
+      medium:  { color: '#92400e', bg: 'rgba(245,158,11,0.18)', border: 'rgba(146,64,14,0.5)' },
+      high:    { color: '#9a3412', bg: 'rgba(249,115,22,0.18)', border: 'rgba(154,52,18,0.5)' },
+      extreme: { color: '#7f1d1d', bg: 'rgba(220,38,38,0.18)', border: 'rgba(127,29,29,0.5)' }
+    };
+    const dc = dangerColors[w.dangerLevel] || dangerColors.medium;
+    const dangerLabel = (w.dangerLevel === 'extreme' ? 'DANGER EXTRÊME' :
+                        w.dangerLevel === 'high' ? 'DANGER ÉLEVÉ' :
+                        w.dangerLevel === 'medium' ? 'DANGER MOYEN' : 'DANGER FAIBLE');
+
+    // Photo (ou placeholder)
+    const photoContent = w.imageUrl
+      ? `<img src="${escapeHtml(w.imageUrl)}" alt="${escapeHtml(w.fullname)}" style="width:100%;height:100%;object-fit:cover;border-radius:2px" onerror="this.style.display='none';this.parentElement.innerHTML='👤';this.parentElement.style.fontSize='38px';this.parentElement.style.color='rgba(196,154,26,0.4)';this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center';this.parentElement.style.background='linear-gradient(135deg,#2a1a0a,#1a0f05)'"/>`
+      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#2a1a0a,#1a0f05);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:38px;color:rgba(196,154,26,0.4)">👤</div>`;
+
+    // Découper le nom en prénom / nom
+    const parts = w.fullname.trim().split(/\s+/);
+    const prenom = parts[0] || w.fullname;
+    const nom = parts.slice(1).join(' ') || '';
+
+    // Padding asymétrique pour la reliure (gauche : marge gauche large ; droite : marge droite large)
+    const padding = isLeft ? '26px 22px 26px 30px' : '26px 30px 26px 22px';
+    const innerShadow = isLeft
+      ? 'inset -16px 0 25px rgba(0,0,0,0.25), inset 4px 4px 8px rgba(255,255,255,0.15)'
+      : 'inset 16px 0 25px rgba(0,0,0,0.25), inset -4px 4px 8px rgba(255,255,255,0.15)';
+    const radius = isLeft ? '6px 0 0 6px' : '0 6px 6px 0';
+
+    return `
+      <div style="flex:1;background:linear-gradient(${isLeft?'135deg':'225deg'},#d4b896 0%,#c4a47a 50%,#a88b5e 100%);padding:${padding};min-height:480px;position:relative;box-shadow:${innerShadow};border-radius:${radius}">
+        <div style="position:absolute;inset:12px;border:1.5px solid rgba(120,80,40,0.4);border-radius:4px;pointer-events:none"></div>
+        <div style="position:absolute;inset:16px;border:0.5px dashed rgba(120,80,40,0.3);border-radius:3px;pointer-events:none"></div>
+        <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:10px;color:#6b4520;letter-spacing:4px;font-style:italic;font-family:Georgia,serif">~ FICHE ${toRoman(numFiche)} ~</div>
+
+        <div style="margin-top:28px;display:flex;gap:14px;margin-bottom:14px">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;color:#3d1c0a;font-weight:700;line-height:1.1;margin-bottom:4px;text-shadow:1px 1px 0 rgba(255,255,255,0.3);word-break:break-word">${escapeHtml(prenom)}</div>
+            ${nom ? `<div style="font-family:Georgia,serif;font-size:17px;color:#5c2d12;font-style:italic;margin-bottom:10px;word-break:break-word">${escapeHtml(nom)}</div>` : ''}
+            <div style="display:inline-block;background:${dc.bg};color:${dc.color};border:1px solid ${dc.border};padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:1.5px">⚠ ${dangerLabel}</div>
+          </div>
+
+          <div style="width:92px;height:110px;background:#f4dec0;border:2px solid #6b4520;border-radius:4px;padding:4px;box-shadow:2px 2px 8px rgba(0,0,0,0.3);flex-shrink:0;display:flex;flex-direction:column;align-items:center">
+            <div style="flex:1;width:100%;border-radius:2px;overflow:hidden">${photoContent}</div>
+            <div style="font-size:7px;color:#6b4520;letter-spacing:2px;margin-top:2px;font-family:Georgia,serif">PORTRAIT</div>
           </div>
         </div>
+
+        <div style="border-top:1.5px solid rgba(120,80,40,0.4);padding-top:10px;font-size:11px;color:#3d1c0a;line-height:1.7;font-family:Georgia,serif;margin-bottom:10px">
+          <div style="margin-bottom:4px"><span style="color:#6b4520;font-weight:600">▸ Grade :</span> ${escapeHtml(w.ninjaGrade || 'Inconnu')}</div>
+          ${w.reward > 0 ? `<div style="margin-bottom:4px"><span style="color:#6b4520;font-weight:600">▸ Récompense :</span> <span style="color:#92400e;font-weight:700">${w.reward.toLocaleString()} Ryos</span></div>` : ''}
+          ${w.lastLocation ? `<div style="margin-bottom:4px"><span style="color:#6b4520;font-weight:600">▸ Vu pour la dernière fois :</span> ${escapeHtml(w.lastLocation)}</div>` : ''}
+        </div>
+
+        ${w.description ? `
+          <div style="background:rgba(70,40,15,0.12);border-left:3px solid ${dc.color};padding:10px 12px;border-radius:0 4px 4px 0">
+            <div style="font-size:9px;color:#6b4520;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;font-weight:700;font-family:Georgia,serif">— Description —</div>
+            <div style="font-size:11px;color:#3d1c0a;line-height:1.6;font-style:italic;font-family:Georgia,serif">${escapeHtml(w.description)}</div>
+          </div>
+        ` : ''}
+
+        <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:10px;color:#6b4520;font-family:Georgia,serif;font-style:italic">— page ${numFiche} —</div>
       </div>`;
-  });
-  html += '</div>';
-  el.innerHTML = html;
+  }
+
+  // Page de gauche
+  const leftFiche = fichesAffichees[0];
+  const rightFiche = fichesAffichees[1];
+
+  // Si pas de fiche à droite, afficher une page vierge
+  const rightPageHtml = rightFiche
+    ? ficheHtml(rightFiche, numFicheBase + 1, false)
+    : `
+      <div style="flex:1;background:linear-gradient(225deg,#d4b896 0%,#c4a47a 50%,#a88b5e 100%);padding:26px 30px 26px 22px;min-height:480px;position:relative;box-shadow:inset 16px 0 25px rgba(0,0,0,0.25),inset -4px 4px 8px rgba(255,255,255,0.15);border-radius:0 6px 6px 0;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center">
+        <div style="position:absolute;inset:12px;border:1.5px solid rgba(120,80,40,0.4);border-radius:4px;pointer-events:none"></div>
+        <div style="position:absolute;inset:16px;border:0.5px dashed rgba(120,80,40,0.3);border-radius:3px;pointer-events:none"></div>
+        <div style="font-family:Georgia,serif;font-size:36px;color:#6b4520;opacity:0.4;margin-bottom:8px">📕</div>
+        <div style="font-family:Georgia,serif;font-size:13px;color:#6b4520;font-style:italic;opacity:0.6">— Page vierge —</div>
+        <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:10px;color:#6b4520;font-family:Georgia,serif;font-style:italic">— page ${numFicheBase + 1} —</div>
+      </div>`;
+
+  // Affichage du livre
+  el.innerHTML = `
+    <div style="background:linear-gradient(180deg,#1a0f05,#0a0500);padding:30px 16px;border-radius:12px">
+
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-family:'Cinzel',serif;font-size:24px;color:#c49a1a;letter-spacing:4px;text-shadow:0 0 12px rgba(196,154,26,0.3)">📕 BINGO BOOK 📕</div>
+        <div style="font-size:11px;color:#8b6810;margin-top:4px;letter-spacing:2px;font-style:italic">— Registre officiel des fugitifs —</div>
+      </div>
+
+      <div style="position:relative;max-width:760px;margin:0 auto">
+
+        <div style="display:flex;gap:0;box-shadow:0 25px 60px rgba(0,0,0,0.7),0 0 0 1px rgba(0,0,0,0.5);border-radius:6px;overflow:hidden;transform:perspective(1500px) rotateX(2deg)">
+          ${ficheHtml(leftFiche, numFicheBase, true)}
+          <div style="width:4px;background:linear-gradient(90deg,#3a1f08,#1a0f05,#3a1f08);box-shadow:0 0 8px rgba(0,0,0,0.6)"></div>
+          ${rightPageHtml}
+        </div>
+
+        ${pageIdx > 0 ? `
+          <div onclick="bingoBookPrev()" style="position:absolute;top:50%;left:-22px;transform:translateY(-50%);background:linear-gradient(135deg,#c49a1a,#8b6810);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1400;font-size:22px;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,0.6);border:2px solid #1a0f05;font-weight:700;transition:transform 0.2s;user-select:none" onmouseover="this.style.transform='translateY(-50%) scale(1.1)'" onmouseout="this.style.transform='translateY(-50%) scale(1)'">‹</div>
+        ` : ''}
+
+        ${pageIdx < totalPages - 1 ? `
+          <div onclick="bingoBookNext()" style="position:absolute;top:50%;right:-22px;transform:translateY(-50%);background:linear-gradient(135deg,#c49a1a,#8b6810);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1400;font-size:22px;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,0.6);border:2px solid #1a0f05;font-weight:700;transition:transform 0.2s;user-select:none" onmouseover="this.style.transform='translateY(-50%) scale(1.1)'" onmouseout="this.style.transform='translateY(-50%) scale(1)'">›</div>
+        ` : ''}
+
+      </div>
+
+      <div style="text-align:center;margin-top:16px">
+        <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(196,154,26,0.08);border:1px solid rgba(196,154,26,0.3);padding:6px 16px;border-radius:20px">
+          <span style="font-size:11px;color:#c49a1a;letter-spacing:1.5px;font-family:Georgia,serif;font-style:italic">📖 Pages ${numFicheBase}${rightFiche ? '-' + (numFicheBase + 1) : ''} sur ${actifs.length}</span>
+        </div>
+      </div>
+
+    </div>`;
+}
+
+// Navigation Bingo Book
+function bingoBookPrev() {
+  if (window._bingoBookPage > 0) {
+    window._bingoBookPage--;
+    renderWantedPublic();
+    // Scroll vers le livre pour bonne visibilité
+    const el = document.getElementById('wanted-public-list');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function bingoBookNext() {
+  const actifs = (state.wantedPersons || []).filter(w => w.status === 'active');
+  const totalPages = Math.ceil(actifs.length / 2);
+  if (window._bingoBookPage < totalPages - 1) {
+    window._bingoBookPage++;
+    renderWantedPublic();
+    const el = document.getElementById('wanted-public-list');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 }
 
 // ============================================================
