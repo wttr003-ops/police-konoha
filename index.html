@@ -1641,6 +1641,7 @@
     <li><a onclick="showSection('missions')">Missions</a></li>
     <li><a onclick="showSection('grades')">Grades</a></li>
     <li><a onclick="showSection('penal')">Code Pénal</a></li>
+    <li><a onclick="showSection('wanted')" style="color:#fca5a5">📕 Bingo Book</a></li>
     <li><a onclick="showSection('impots-public')">Impôts</a></li>
     <li><a onclick="showSection('deontologie')">Déontologie</a></li>
     <li><a onclick="showSection('reglement')">Règlement</a></li>
@@ -2065,6 +2066,16 @@
           </table>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- RECHERCHÉS -->
+  <section class="section section-dark" id="wanted">
+    <div class="section-inner">
+      <p class="section-tag" style="color:#ef4444">📕 Avis officiel</p>
+      <h2 class="section-title">Bingo <span>Book</span></h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Registre officiel des ninjas recherchés par la Police de Konoha. Toute information menant à la capture sera récompensée.</p>
+      <div id="wanted-public-list"></div>
     </div>
   </section>
 
@@ -2536,6 +2547,7 @@
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
         <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
         <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat" onclick="switchDashTab('documents', this)">📚 Documents</button>
+        <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
         <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
         <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
@@ -2615,6 +2627,11 @@
       <div class="dash-tab" id="dash-documents">
         <h2 class="dash-section-title">📚 Documents</h2>
         <div id="documents-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-wanted">
+        <h2 class="dash-section-title" style="color:#fca5a5">📕 Bingo Book — Ninjas recherchés</h2>
+        <div id="wanted-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-dossiers">
@@ -3171,6 +3188,37 @@ const SUPABASE_TABLES = {
       respondedBy: r.responded_by,
       respondedAt: r.responded_at,
       date: r.date,
+      _id: r.id
+    })
+  },
+  wantedPersons: {
+    table: 'wanted_persons',
+    mapTo: w => ({
+      fullname: w.fullname,
+      ninja_grade: w.ninjaGrade || null,
+      description: w.description || null,
+      image_url: w.imageUrl || null,
+      danger_level: w.dangerLevel || 'medium',
+      reward: w.reward || 0,
+      last_location: w.lastLocation || null,
+      status: w.status || 'active',
+      added_by: w.addedBy || null,
+      resolved_by: w.resolvedBy || null,
+      resolved_at: w.resolvedAt || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname,
+      ninjaGrade: r.ninja_grade,
+      description: r.description,
+      imageUrl: r.image_url,
+      dangerLevel: r.danger_level,
+      reward: r.reward,
+      lastLocation: r.last_location,
+      status: r.status,
+      addedBy: r.added_by,
+      addedAt: r.added_at,
+      resolvedBy: r.resolved_by,
+      resolvedAt: r.resolved_at,
       _id: r.id
     })
   },
@@ -3815,7 +3863,9 @@ let state = {
   // Documents partagés (liens vers Google Docs, etc.)
   documents: [],
   // Demandes de rapport (Tribunal → Police)
-  reportRequests: []
+  reportRequests: [],
+  // Avis de recherche
+  wantedPersons: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4203,6 +4253,10 @@ function updateStats() {
   if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge' && !isSpecialRole(u.grade)).length;
   if (avocatsEl) avocatsEl.textContent = state.users.filter(u => u.isAgent && u.service === 'avocat' && !isSpecialRole(u.grade)).length;
   if (candidEl) candidEl.textContent = state.candidatures.filter(c => c.status === 'ok').length;
+  // Mettre à jour la section Recherchés sur la page d'accueil
+  if (typeof renderWantedPublic === 'function') {
+    try { renderWantedPublic(); } catch(e) {}
+  }
 }
 
 // ============================================================
@@ -4297,6 +4351,7 @@ function saveSession() {
       exitRequests: state.exitRequests || [],
       documents: state.documents || [],
       reportRequests: state.reportRequests || [],
+      wantedPersons: state.wantedPersons || [],
       presences: state.presences || [],
       serviceActif: state.serviceActif || {}
     };
@@ -4369,6 +4424,7 @@ function restoreSession() {
     if (data.exitRequests) state.exitRequests = data.exitRequests;
     if (data.documents) state.documents = data.documents;
     if (data.reportRequests) state.reportRequests = data.reportRequests;
+    if (data.wantedPersons) state.wantedPersons = data.wantedPersons;
     if (data.presences) state.presences = data.presences;
     if (data.serviceActif) state.serviceActif = data.serviceActif;
 
@@ -4672,6 +4728,7 @@ function switchDashTab(name, btn) {
   if (name === 'presences') renderPresences();
   if (name === 'discussions') renderDiscussions();
   if (name === 'documents') renderDocuments();
+  if (name === 'wanted') renderWantedAgents();
   if (name === 'dossiers') renderDossiersAvocat();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
@@ -11949,6 +12006,333 @@ async function supprimerDocument(idx) {
   state.documents.splice(idx, 1);
   saveSession();
   renderDocuments();
+}
+
+// ============================================================
+// PERSONNES RECHERCHÉES (Direction Police uniquement)
+// ============================================================
+const DANGER_LEVELS = {
+  low:     { label: 'Faible',  color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', border: 'rgba(148,163,184,0.4)' },
+  medium:  { label: 'Moyen',   color: '#fbbf24', bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.4)' },
+  high:    { label: 'Élevé',   color: '#f97316', bg: 'rgba(249,115,22,0.15)',  border: 'rgba(249,115,22,0.4)' },
+  extreme: { label: 'EXTRÊME', color: '#dc2626', bg: 'rgba(220,38,38,0.2)',    border: 'rgba(220,38,38,0.5)' }
+};
+
+function renderWantedAgents() {
+  const u = state.currentUser;
+  const el = document.getElementById('wanted-content');
+  if (!el) return;
+  const myService = u.service || 'police';
+  if (myService !== 'police') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée à la Police.</p></div>';
+    return;
+  }
+  const isDirection = canAddAgent(u.grade);
+
+  const wanted = state.wantedPersons || [];
+  const actifs = wanted.filter(w => w.status === 'active');
+  const traites = wanted.filter(w => w.status === 'resolved');
+
+  let html = `
+    <div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1.25rem">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between">
+        <div style="font-size:13px;color:var(--text)">📕 <strong style="color:#fca5a5">Bingo Book</strong> — visible publiquement sur la page d'accueil</div>
+        <div style="font-size:12px;color:var(--muted)">${actifs.length} actif${actifs.length>1?'s':''} · ${traites.length} capturé${traites.length>1?'s':''}</div>
+      </div>
+    </div>`;
+
+  if (isDirection) {
+    html += `
+      <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border:1px solid rgba(231,76,60,0.3)">
+        <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">📋 Nouvelle entrée Bingo Book</h3>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div class="form-group">
+            <label>Nom et Prénom *</label>
+            <input type="text" id="w-fullname" placeholder="Ex: Orochimaru Senju"/>
+          </div>
+          <div class="form-group">
+            <label>Grade ninja</label>
+            <select id="w-grade">
+              <option value="">—</option>
+              <option>Genin</option>
+              <option>Genin Confirmé</option>
+              <option>Tokubetsu Chunin</option>
+              <option>Chunin</option>
+              <option>Kakunin</option>
+              <option>Tokubetsu Jonin</option>
+              <option>Jonin</option>
+              <option>Commandant Jonin</option>
+              <option>Inconnu</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Description (faits, méthodes, signalement particulier)</label>
+          <textarea id="w-description" rows="3" placeholder="Ex: Recherché pour kidnapping et tentative d'homicide. Utilise des techniques de manipulation. Cicatrice visible sur le visage..."></textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem">
+          <div class="form-group">
+            <label>Niveau de danger *</label>
+            <select id="w-danger">
+              <option value="low">🟢 Faible</option>
+              <option value="medium" selected>🟡 Moyen</option>
+              <option value="high">🟠 Élevé</option>
+              <option value="extreme">🔴 EXTRÊME</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Récompense (Ryos)</label>
+            <input type="number" id="w-reward" placeholder="0" min="0"/>
+          </div>
+          <div class="form-group">
+            <label>Dernière localisation</label>
+            <input type="text" id="w-location" placeholder="Ex: Forêt de la Mort"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>URL de la photo (Imgur, Discord, autre service d'image)</label>
+          <input type="text" id="w-image" placeholder="https://i.imgur.com/..."/>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Pour héberger une photo : poste-la sur Discord, fais clic-droit → "Copier le lien", puis colle-le ici.</div>
+        </div>
+
+        <button class="btn-primary btn-full" onclick="ajouterWanted()" style="background:linear-gradient(135deg,#dc2626,#991b1b);color:white">
+          📕 Ajouter au Bingo Book
+        </button>
+      </div>`;
+  }
+
+  // Liste des recherchés actifs
+  if (actifs.length > 0) {
+    html += `<h3 style="font-family:'Cinzel',serif;font-size:14px;color:#fca5a5;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(231,76,60,0.3);padding-bottom:6px">📕 Actifs dans le Bingo Book (${actifs.length})</h3>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+    actifs.forEach(w => {
+      const realIdx = state.wantedPersons.indexOf(w);
+      html += renderWantedCard(w, realIdx, isDirection, true);
+    });
+    html += '</div>';
+  }
+
+  // Liste des traités (historique)
+  if (traites.length > 0) {
+    html += `<h3 style="font-family:'Cinzel',serif;font-size:14px;color:var(--green);margin:1.5rem 0 1rem;border-bottom:1px solid rgba(39,174,96,0.3);padding-bottom:6px">✓ Capturés / Traités (${traites.length})</h3>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+    traites.forEach(w => {
+      const realIdx = state.wantedPersons.indexOf(w);
+      html += renderWantedCard(w, realIdx, isDirection, false);
+    });
+    html += '</div>';
+  }
+
+  if (actifs.length === 0 && traites.length === 0) {
+    html += '<div style="text-align:center;color:var(--muted);padding:2rem;font-style:italic">Aucun avis de recherche.</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+function renderWantedCard(w, idx, isDirection, isActive) {
+  const danger = DANGER_LEVELS[w.dangerLevel] || DANGER_LEVELS.medium;
+  const placeholder = `<div style="width:100%;height:160px;background:linear-gradient(135deg,#1a1a1a,#0a0a0a);display:flex;align-items:center;justify-content:center;font-size:48px;color:rgba(255,255,255,0.15)">👤</div>`;
+  const imageHtml = w.imageUrl
+    ? `<div style="width:100%;height:160px;background:#0a0a0a;overflow:hidden;display:flex;align-items:center;justify-content:center"><img src="${escapeHtml(w.imageUrl)}" alt="${escapeHtml(w.fullname)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='👤';this.parentElement.style.fontSize='48px';this.parentElement.style.color='rgba(255,255,255,0.15)'"/></div>`
+    : placeholder;
+
+  const opacity = isActive ? '1' : '0.7';
+  const overlay = isActive ? '' : `<div style="position:absolute;top:8px;right:8px;background:rgba(34,197,94,0.85);color:white;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px">✓ Capturé</div>`;
+
+  return `
+    <div style="background:#0a0a0a;border:2px solid ${isActive?danger.border:'rgba(39,174,96,0.4)'};border-radius:12px;overflow:hidden;opacity:${opacity};box-shadow:0 4px 16px rgba(0,0,0,0.4);position:relative">
+      <div style="position:relative">
+        ${imageHtml}
+        ${overlay}
+        ${isActive ? `<div style="position:absolute;top:8px;left:8px;background:${danger.bg};color:${danger.color};border:1px solid ${danger.border};padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;backdrop-filter:blur(4px)">⚠ ${danger.label}</div>` : ''}
+      </div>
+      <div style="padding:14px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;color:white;font-weight:700;margin-bottom:4px">${escapeHtml(w.fullname)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${escapeHtml(w.ninjaGrade || 'Grade inconnu')}</div>
+
+        ${w.description ? `<div style="font-size:12px;color:var(--text);line-height:1.5;margin-bottom:10px;padding:8px;background:rgba(0,0,0,0.3);border-radius:6px;border-left:2px solid ${isActive?danger.color:'var(--green)'}">${escapeHtml(w.description)}</div>` : ''}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;margin-bottom:10px">
+          ${w.reward > 0 ? `<div style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:5px;padding:6px 8px"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px">💰 Récompense</div><div style="color:var(--lgold);font-weight:700;font-family:Georgia,serif">${w.reward.toLocaleString()} Ryos</div></div>` : ''}
+          ${w.lastLocation ? `<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:5px;padding:6px 8px"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px">📍 Vu à</div><div style="color:#93c5fd;font-weight:600">${escapeHtml(w.lastLocation)}</div></div>` : ''}
+        </div>
+
+        ${w.resolvedBy ? `<div style="font-size:10px;color:var(--green);margin-bottom:8px;font-style:italic">✓ Capturé par ${escapeHtml(w.resolvedBy)}</div>` : ''}
+
+        ${isDirection ? `
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+            ${isActive
+              ? `<button class="btn-sm btn-sm-green" onclick="resolverWanted(${idx})" style="font-size:11px;flex:1">✓ Marquer capturé</button>`
+              : `<button class="btn-sm" onclick="reactiverWanted(${idx})" style="font-size:11px;background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);flex:1">↩ Réactiver</button>`
+            }
+            <button class="btn-sm btn-sm-red" onclick="supprimerWanted(${idx})" style="font-size:11px;background:rgba(192,57,43,0.3)">🗑</button>
+          </div>
+        ` : ''}
+      </div>
+    </div>`;
+}
+
+async function ajouterWanted() {
+  const u = state.currentUser;
+  if (!canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
+
+  if (window._addWantedLock) return;
+  window._addWantedLock = true;
+  const btn = document.querySelector('button[onclick="ajouterWanted()"]');
+  const oldText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Émission...'; }
+
+  try {
+    const fullname = document.getElementById('w-fullname').value.trim();
+    const ninjaGrade = document.getElementById('w-grade').value;
+    const description = document.getElementById('w-description').value.trim();
+    const dangerLevel = document.getElementById('w-danger').value;
+    const reward = parseInt(document.getElementById('w-reward').value) || 0;
+    const lastLocation = document.getElementById('w-location').value.trim();
+    const imageUrl = document.getElementById('w-image').value.trim();
+
+    if (!fullname) { alert('Le nom est obligatoire.'); return; }
+    if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
+
+    // Anti-doublon : vérifier si une personne avec ce nom est déjà recherchée et active
+    const existante = state.wantedPersons.find(w =>
+      matchFullname(w.fullname, fullname) && w.status === 'active'
+    );
+    if (existante) {
+      alert('⚠️ ' + fullname + ' est déjà actif dans le Bingo Book.');
+      return;
+    }
+
+    const newWanted = {
+      fullname, ninjaGrade, description, dangerLevel, reward, lastLocation, imageUrl,
+      status: 'active',
+      addedBy: u.fullname
+    };
+
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('wantedPersons', newWanted);
+        if (inserted && inserted._id) {
+          newWanted._id = inserted._id;
+        } else {
+          alert('⚠️ Erreur de création sur le serveur. Réessayez.');
+          return;
+        }
+      } catch(e) {
+        alert('⚠️ Erreur : ' + (e.message || e));
+        return;
+      }
+    }
+
+    // Vérifier doublon avant ajout local
+    const dejaPresent = newWanted._id && state.wantedPersons.some(w => w._id === newWanted._id);
+    if (!dejaPresent) state.wantedPersons.push(newWanted);
+
+    saveSession();
+    ['w-fullname','w-grade','w-description','w-reward','w-location','w-image'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('w-danger').value = 'medium';
+
+    alert('📕 ' + fullname + ' ajouté au Bingo Book');
+    renderWantedAgents();
+  } finally {
+    window._addWantedLock = false;
+    if (btn && oldText) { btn.disabled = false; btn.innerHTML = oldText; }
+  }
+}
+
+async function resolverWanted(idx) {
+  const u = state.currentUser;
+  if (!canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
+  const w = state.wantedPersons[idx];
+  if (!w) return;
+  if (!(await confirmAsync('Marquer ' + w.fullname + ' comme CAPTURÉ / TRAITÉ ?\n\nL\'avis passera dans l\'historique.'))) return;
+  w.status = 'resolved';
+  w.resolvedBy = u.fullname;
+  w.resolvedAt = new Date().toISOString();
+  if (supabaseReady && w._id) {
+    try { await pushToSupabase('wantedPersons', w); } catch(e) {}
+  }
+  saveSession();
+  alert('✓ ' + w.fullname + ' marqué comme capturé.');
+  renderWantedAgents();
+}
+
+async function reactiverWanted(idx) {
+  const u = state.currentUser;
+  if (!canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
+  const w = state.wantedPersons[idx];
+  if (!w) return;
+  if (!(await confirmAsync('Réintégrer ' + w.fullname + ' dans le Bingo Book actif ?'))) return;
+  w.status = 'active';
+  w.resolvedBy = null;
+  w.resolvedAt = null;
+  if (supabaseReady && w._id) {
+    try { await pushToSupabase('wantedPersons', w); } catch(e) {}
+  }
+  saveSession();
+  alert('↩ ' + w.fullname + ' à nouveau recherché.');
+  renderWantedAgents();
+}
+
+async function supprimerWanted(idx) {
+  const u = state.currentUser;
+  if (!canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
+  const w = state.wantedPersons[idx];
+  if (!w) return;
+  if (!(await confirmAsync('Retirer ' + w.fullname + ' du Bingo Book définitivement ?\n\n⚠ Cette action est irréversible.'))) return;
+  if (w._id && supabaseReady) {
+    try { await deleteFromSupabase('wantedPersons', w._id); } catch(e) {}
+  }
+  state.wantedPersons.splice(idx, 1);
+  saveSession();
+  renderWantedAgents();
+}
+
+// Rendu pour la page publique (accueil)
+function renderWantedPublic() {
+  const el = document.getElementById('wanted-public-list');
+  if (!el) return;
+  const actifs = (state.wantedPersons || []).filter(w => w.status === 'active');
+
+  if (actifs.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-style:italic">Le Bingo Book est vide pour le moment. La paix règne sur Konoha.</div>';
+    return;
+  }
+
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
+  actifs.forEach(w => {
+    const danger = DANGER_LEVELS[w.dangerLevel] || DANGER_LEVELS.medium;
+    const placeholder = `<div style="width:100%;height:180px;background:linear-gradient(135deg,#1a1a1a,#0a0a0a);display:flex;align-items:center;justify-content:center;font-size:54px;color:rgba(255,255,255,0.15)">👤</div>`;
+    const imageHtml = w.imageUrl
+      ? `<div style="width:100%;height:180px;background:#0a0a0a;overflow:hidden;display:flex;align-items:center;justify-content:center"><img src="${escapeHtml(w.imageUrl)}" alt="${escapeHtml(w.fullname)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='👤';this.parentElement.style.fontSize='54px';this.parentElement.style.color='rgba(255,255,255,0.15)'"/></div>`
+      : placeholder;
+    html += `
+      <div style="background:#0a0a0a;border:2px solid ${danger.border};border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.5)">
+        <div style="position:relative">
+          ${imageHtml}
+          <div style="position:absolute;top:10px;left:10px;background:${danger.bg};color:${danger.color};border:1px solid ${danger.border};padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;backdrop-filter:blur(6px)">⚠ ${danger.label}</div>
+          <div style="position:absolute;top:0;left:0;right:0;background:linear-gradient(180deg,rgba(220,38,38,0.85),transparent);padding:8px 12px;text-align:center;font-size:10px;color:white;font-weight:700;letter-spacing:2px;text-transform:uppercase">📕 BINGO BOOK 📕</div>
+        </div>
+        <div style="padding:16px">
+          <div style="font-family:'Cinzel',serif;font-size:18px;color:white;font-weight:700;margin-bottom:4px">${escapeHtml(w.fullname)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${escapeHtml(w.ninjaGrade || 'Grade inconnu')}</div>
+          ${w.description ? `<div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:6px;border-left:3px solid ${danger.color}">${escapeHtml(w.description)}</div>` : ''}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
+            ${w.reward > 0 ? `<div style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:5px;padding:8px;text-align:center"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px">💰 Récompense</div><div style="color:var(--lgold);font-weight:700;font-family:'Cinzel',serif">${w.reward.toLocaleString()} Ryos</div></div>` : '<div></div>'}
+            ${w.lastLocation ? `<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:5px;padding:8px;text-align:center"><div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px">📍 Vu à</div><div style="color:#93c5fd;font-weight:600;font-size:11px">${escapeHtml(w.lastLocation)}</div></div>` : '<div></div>'}
+          </div>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 // ============================================================
