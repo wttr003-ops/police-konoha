@@ -3965,6 +3965,8 @@ function canTreatCandid(g) { return gradeRank(g) <= 4; } // Officier et plus
 function canDeleteCandid(g) { return gradeRank(g) <= 3; } // Sergent et plus (Sgt + Lt + Adj + Dir)
 function canManageMembers(g) { return gradeRank(g) <= 2; } // Lieutenant et plus
 function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint + Hokage + Staff
+// Récupération des impôts/amendes : Lieutenant + Adjoint + Directeur + Hokage + Staff
+function canRecupererImpots(g) { return gradeRank(g) <= 2; }
 function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT
 
 // === RÔLES SPÉCIAUX HOKAGE & STAFF ===
@@ -6043,25 +6045,18 @@ function renderImpots() {
         }
 
         return `
-        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(232,197,71,0.02));border:1px solid rgba(232,197,71,0.4);border-radius:10px;padding:18px 22px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 0 24px rgba(232,197,71,0.1)">
-          <div>
-            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">💰 Total du groupe à récupérer</div>
-            <div style="font-size:32px;color:var(--lgold);font-family:'Cinzel',serif;font-weight:700;line-height:1">${totalGroupe.toLocaleString()} <span style="font-size:18px;color:var(--accent)">Ryos</span></div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Détail</div>
-            <div style="font-size:13px;color:var(--text);margin-top:4px"><strong style="color:var(--accent)">${nbAgents}</strong> agent${nbAgents>1?'s':''} concerné${nbAgents>1?'s':''}</div>
-            <div style="font-size:13px;color:var(--text)"><strong style="color:var(--accent)">${totalCollectes}</strong> collecte${totalCollectes>1?'s':''} en cours</div>
-          </div>
+        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(232,197,71,0.02));border:1px solid rgba(232,197,71,0.4);border-radius:10px;padding:18px 22px;margin-bottom:1rem;text-align:center;box-shadow:0 0 24px rgba(232,197,71,0.1)">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">💰 Total du groupe à récupérer</div>
+          <div style="font-size:32px;color:var(--lgold);font-family:'Cinzel',serif;font-weight:700;line-height:1">${totalGroupe.toLocaleString()} <span style="font-size:18px;color:var(--accent)">Ryos</span></div>
         </div>`;
       })()}
 
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Cliquez sur un agent pour voir qui a payé. Le bouton "Récupérer" archive les collectes (Direction uniquement) et remet le compteur de l'agent à zéro.</p>`;
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Cliquez sur un agent pour voir qui a payé. Le bouton "Récupérer" archive les collectes et remet le compteur de l'agent à zéro.</p>`;
 
   if (Object.keys(totauxParAgent).length === 0) {
     html += '<p style="color:var(--muted);padding:1rem;text-align:center">Aucun agent n\'a encore collecté d\'impôts.</p>';
   } else {
-    const isDirection = canAddAgent(u.grade);
+    const isDirection = canRecupererImpots(u.grade); // Lieutenant + Adjoint + Directeur
     html += '<div style="display:grid;gap:8px">';
     Object.entries(totauxParAgent).sort((a,b) => b[1].total - a[1].total).forEach(([agent, d]) => {
       const init = getInitialsFromFullname(agent);
@@ -6748,7 +6743,7 @@ async function setCollecteur(idx, agent) {
 
 async function recupererCollectes(agent) {
   const u = state.currentUser;
-  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
+  if (!u || !canRecupererImpots(u.grade)) { alert('Réservé au Lieutenant, Directeur Adjoint et Directeur'); return; }
   // Utiliser impotsHistorique (partagé via Supabase) comme source de vérité
   const collectes = state.impotsHistorique.filter(h => h.agent === agent);
   const total = collectes.reduce((s, c) => s + (c.montant||0), 0);
@@ -11004,7 +10999,7 @@ function getAmendesParAgent() {
 
 async function recupererAmendesAgent(agentName) {
   const u = state.currentUser;
-  if (!u || !canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
+  if (!u || !canRecupererImpots(u.grade)) { alert('Réservé au Lieutenant, Directeur Adjoint et Directeur'); return; }
   const par = getAmendesParAgent();
   const data = par[agentName];
   if (!data || data.total === 0) { alert('Rien à récupérer (aucune amende payée par cet agent).'); return; }
