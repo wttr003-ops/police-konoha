@@ -3350,7 +3350,14 @@ async function loadServiceActifFromSupabase() {
   try {
     const { data, error } = await sb.from('active_shifts').select('*');
     if (error) return;
-    // Reconstituer state.serviceActif depuis Supabase (source de vérité partagée)
+
+    // PROTECTION : sauvegarder mon service local AVANT de recharger
+    // Si Supabase me dit que je n'ai pas de service mais qu'on vient juste d'en démarrer un,
+    // on garde le service local au lieu de l'écraser
+    const myFullname = state.currentUser ? state.currentUser.fullname : null;
+    const myLocalService = myFullname ? state.serviceActif[myFullname] : null;
+
+    // Reconstituer state.serviceActif depuis Supabase
     const newState = {};
     if (data) {
       data.forEach(row => {
@@ -3361,6 +3368,31 @@ async function loadServiceActifFromSupabase() {
         };
       });
     }
+
+    // PROTECTION : si j'avais un service local actif et qu'il n'est PAS dans Supabase,
+    // c'est probablement un événement Realtime obsolète OU une race condition.
+    // On garde mon service local sauf si :
+    //   - Le service local a un _id et qu'il a vraiment été supprimé de Supabase (vraie suppression)
+    //   - OU le service local n'a pas de _id (c'est qu'il vient juste d'être créé, on attend la confirmation)
+    if (myFullname && myLocalService && !newState[myFullname]) {
+      // Mon service local existe mais n'est plus dans Supabase
+      if (myLocalService._id) {
+        // Vérifier s'il existait vraiment dans Supabase avant (par _id)
+        const stillExists = data && data.some(r => r.id === myLocalService._id);
+        if (!stillExists) {
+          // Vraie suppression — on accepte
+          console.log('🔓 Mon service a été terminé (confirmé par Supabase)');
+        } else {
+          // Bizarre : il existe mais pas dans newState ? On garde le local
+          newState[myFullname] = myLocalService;
+        }
+      } else {
+        // Service tout fraîchement créé sans _id → garder local en attendant la confirmation
+        console.log('⏳ Mon service vient juste d\'être créé, je garde le local');
+        newState[myFullname] = myLocalService;
+      }
+    }
+
     state.serviceActif = newState;
     console.log('  ↳ active_shifts :', (data||[]).length, 'agents en service');
   } catch(e) {
@@ -3499,7 +3531,36 @@ function subscribeToSupabaseChanges() {
   sb.channel('rt-active_shifts')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'active_shifts' }, async (payload) => {
       console.log('🔄 Realtime active_shifts', payload.eventType);
-      await loadServiceActifFromSupabase();
+      const myFullname = state.currentUser ? state.currentUser.fullname : null;
+
+      // Mise à jour incrémentale au lieu de tout recharger
+      // → évite d'écraser le service local pendant une race condition
+      if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+        const row = payload.new;
+        if (row && row.fullname) {
+          state.serviceActif[row.fullname] = {
+            debut: row.start_time,
+            grade: row.grade,
+            _id: row.id
+          };
+        }
+      } else if (payload.eventType === 'DELETE') {
+        const row = payload.old;
+        if (row && row.fullname) {
+          // PROTECTION : ne supprimer que si l'_id local correspond exactement
+          // (évite de supprimer un service tout neuf à cause d'un DELETE obsolète)
+          const local = state.serviceActif[row.fullname];
+          if (local && local._id === row.id) {
+            delete state.serviceActif[row.fullname];
+          } else if (!local) {
+            // Aucun service local, ok pour ignorer
+          } else {
+            // Service local avec _id différent → on garde, c'est un nouveau service
+            console.log('⚠️ DELETE Realtime ignoré pour', row.fullname, '— _id ne correspond pas (ancien fantôme)');
+          }
+        }
+      }
+
       refreshAllUI();
     })
     .subscribe();
