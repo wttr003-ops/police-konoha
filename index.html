@@ -6026,7 +6026,37 @@ function renderImpots() {
     <!-- Historique des collecteurs -->
     <div class="dash-block" style="padding:1.5rem">
       <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">📊 Historique des collecteurs</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Cliquez sur un agent pour voir qui a payé. Le bouton "Récupérer" archive les collectes (Direction uniquement) et remet le compteur à zéro.</p>`;
+
+      ${(() => {
+        // Total du groupe = somme de tout ce qui est actuellement à récupérer chez tous les agents
+        const totalGroupe = Object.values(totauxParAgent).reduce((s, d) => s + d.total, 0);
+        const nbAgents = Object.values(totauxParAgent).filter(d => d.total > 0).length;
+        const totalCollectes = Object.values(totauxParAgent).reduce((s, d) => s + d.count, 0);
+
+        if (totalGroupe === 0) {
+          return `
+          <div style="background:linear-gradient(135deg,rgba(100,116,139,0.08),rgba(100,116,139,0.02));border:1px solid rgba(100,116,139,0.3);border-radius:10px;padding:18px 22px;margin-bottom:1rem;text-align:center">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">💰 Total du groupe à récupérer</div>
+            <div style="font-size:28px;color:#94a3b8;font-family:'Cinzel',serif;font-weight:700;line-height:1">0 Ryos</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">Tout a été récupéré</div>
+          </div>`;
+        }
+
+        return `
+        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(232,197,71,0.02));border:1px solid rgba(232,197,71,0.4);border-radius:10px;padding:18px 22px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 0 24px rgba(232,197,71,0.1)">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">💰 Total du groupe à récupérer</div>
+            <div style="font-size:32px;color:var(--lgold);font-family:'Cinzel',serif;font-weight:700;line-height:1">${totalGroupe.toLocaleString()} <span style="font-size:18px;color:var(--accent)">Ryos</span></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Détail</div>
+            <div style="font-size:13px;color:var(--text);margin-top:4px"><strong style="color:var(--accent)">${nbAgents}</strong> agent${nbAgents>1?'s':''} concerné${nbAgents>1?'s':''}</div>
+            <div style="font-size:13px;color:var(--text)"><strong style="color:var(--accent)">${totalCollectes}</strong> collecte${totalCollectes>1?'s':''} en cours</div>
+          </div>
+        </div>`;
+      })()}
+
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Cliquez sur un agent pour voir qui a payé. Le bouton "Récupérer" archive les collectes (Direction uniquement) et remet le compteur de l'agent à zéro.</p>`;
 
   if (Object.keys(totauxParAgent).length === 0) {
     html += '<p style="color:var(--muted);padding:1rem;text-align:center">Aucun agent n\'a encore collecté d\'impôts.</p>';
