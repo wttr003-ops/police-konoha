@@ -2994,18 +2994,35 @@ const SUPABASE_TABLES = {
     mapTo: c => ({
       fullname: c.fullname, grade: c.grade || null, section: c.section || null,
       chakra: c.chakra || null, reason: c.motif || null,
-      facts: c.faits || null, duration: c.duree || null,
+      facts: c.faits || null,
+      // Stocker à la fois la durée texte ET la fin de détention (séparées par |)
+      duration: c.duree ? (c.duree + (c.finDetention ? '|' + c.finDetention : '')) : (c.finDetention || null),
       seized_items: c.objets || null, agent: c.agent || null,
       status: c.statut || 'detenu', date: c.date || null,
       release_note: c.noteLiberation || null, release_date: c.dateLiberation || null
     }),
-    mapFrom: r => ({
-      fullname: r.fullname, grade: r.grade, section: r.section,
-      chakra: r.chakra, motif: r.reason, faits: r.facts,
-      duree: r.duration, objets: r.seized_items, agent: r.agent,
-      statut: r.status, date: r.date, noteLiberation: r.release_note,
-      dateLiberation: r.release_date, _id: r.id
-    })
+    mapFrom: r => {
+      // Re-séparer la durée et finDetention si stocké en fusion
+      let duree = r.duration;
+      let finDetention = null;
+      if (r.duration && r.duration.includes('|')) {
+        const parts = r.duration.split('|');
+        duree = parts[0];
+        finDetention = parts[1];
+      } else if (r.duration && r.duration.match(/^\d{4}-\d{2}-\d{2}T/)) {
+        // Si c'est juste une date ISO, c'est finDetention
+        finDetention = r.duration;
+        duree = null;
+      }
+      return {
+        fullname: r.fullname, grade: r.grade, section: r.section,
+        chakra: r.chakra, motif: r.reason, faits: r.facts,
+        duree, finDetention,
+        objets: r.seized_items, agent: r.agent,
+        statut: r.status, date: r.date, noteLiberation: r.release_note,
+        dateLiberation: r.release_date, _id: r.id
+      };
+    }
   },
   rapports: {
     table: 'reports',
@@ -7180,14 +7197,9 @@ function renderCellules() {
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
         <div class="form-group">
-          <label>Durée prévue</label>
-          <select id="cel-duree">
-            <option value="indeterminee">Indéterminée</option>
-            <option value="1h">1 heure</option>
-            <option value="2h">2 heures</option>
-            <option value="session">1 session RP</option>
-            <option value="jugement">Jusqu'au jugement</option>
-          </select>
+          <label>Durée d'emprisonnement (en minutes)</label>
+          <input type="number" id="cel-duree-min" value="30" min="1" max="480" placeholder="30" style="font-size:14px;font-weight:700"/>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">Par défaut : 30 min · Max : 480 min (8h)</div>
         </div>
         <div class="form-group">
           <label>Objets saisis</label>
@@ -7214,6 +7226,15 @@ function renderCellules() {
       const realIdx = state.cellules.length - 1 - idx;
       const isDetenu = c.statut === 'detenu';
       const sectionLabels = { aucune:'Indépendant', diplomate:'Diplomate', strategie:'Stratégie', medecin:'Médecin', police:'Police', anbu:'ANBU', autre:'Autre' };
+
+      // Calcul du compte à rebours
+      let countdownHtml = '';
+      if (isDetenu && c.finDetention) {
+        const finMs = new Date(c.finDetention).getTime();
+        const dataAttr = ` data-fin="${finMs}"`;
+        countdownHtml = `<div class="cel-countdown" data-idx="${realIdx}"${dataAttr} style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);font-family:Georgia,serif">⏱ ...</div>`;
+      }
+
       html += `
         <div style="border-bottom:1px solid var(--border)">
           <div onclick="toggleCellule(${realIdx})" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer">
@@ -7224,6 +7245,7 @@ function renderCellules() {
               <div style="font-weight:700;color:var(--text);font-size:14px">${c.fullname}</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px">${c.grade} · <span style="color:var(--red2)">${c.motif}</span> · ${c.date}</div>
             </div>
+            ${countdownHtml}
             <span class="status-badge ${isDetenu?'s-no':'s-ok'}">${isDetenu?'🔒 Détenu':'✓ Libéré'}</span>
             <span style="color:var(--muted);font-size:11px;margin-left:6px" id="cel-arr-${realIdx}">▼</span>
           </div>
@@ -7271,48 +7293,99 @@ function toggleCellule(idx) {
   if (arr) arr.textContent = open ? '▼' : '▲';
 }
 
-function ajouterCellule() {
-  const u = state.currentUser;
-  if (!canCreateCell(u)) { alert('La mise en cellule est réservée à la Police.'); return; }
-  const fullname = document.getElementById('cel-fullname').value.trim();
-  const grade = document.getElementById('cel-grade').value;
-  const section = document.getElementById('cel-section').value;
-  const chakra = document.getElementById('cel-chakra').value;
-  const motif = document.getElementById('cel-motif').value;
-  const faits = document.getElementById('cel-faits').value.trim();
-  const duree = document.getElementById('cel-duree').value;
-  const objets = document.getElementById('cel-objets').value.trim();
-
-  if (!fullname || !grade || !motif || !faits) {
-    alert('Nom, grade, motif et description sont obligatoires.');
+async function ajouterCellule() {
+  // Anti-double-clic : verrou global
+  if (window._addCelluleLock) {
+    console.log('⏳ Mise en cellule en cours, ignoré');
     return;
   }
-  if (fullname.split(/\s+/).length < 2) {
-    alert('Veuillez entrer le prénom ET le nom du détenu');
-    return;
+  window._addCelluleLock = true;
+
+  const btn = document.querySelector('button[onclick="ajouterCellule()"]');
+  const oldText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Mise en cellule en cours...'; }
+
+  try {
+    const u = state.currentUser;
+    if (!canCreateCell(u)) { alert('La mise en cellule est réservée à la Police.'); return; }
+    const fullname = document.getElementById('cel-fullname').value.trim();
+    const grade = document.getElementById('cel-grade').value;
+    const section = document.getElementById('cel-section').value;
+    const chakra = document.getElementById('cel-chakra').value;
+    const motif = document.getElementById('cel-motif').value;
+    const faits = document.getElementById('cel-faits').value.trim();
+    const dureeMinStr = document.getElementById('cel-duree-min').value;
+    const dureeMin = parseInt(dureeMinStr) || 30; // Par défaut 30 min
+    const objets = document.getElementById('cel-objets').value.trim();
+
+    if (!fullname || !grade || !motif || !faits) {
+      alert('Nom, grade, motif et description sont obligatoires.');
+      return;
+    }
+    if (fullname.split(/\s+/).length < 2) {
+      alert('Veuillez entrer le prénom ET le nom du détenu');
+      return;
+    }
+    if (dureeMin < 1) {
+      alert('La durée doit être d\'au moins 1 minute.');
+      return;
+    }
+
+    const debutDetention = new Date();
+    const finDetention = new Date(debutDetention.getTime() + dureeMin * 60000);
+    const celluleUid = 'cel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+
+    const newCellule = {
+      fullname, grade, section, chakra, motif, faits,
+      duree: dureeMin + ' min', // affichage texte
+      dureeMin: dureeMin, // valeur numérique
+      finDetention: finDetention.toISOString(), // pour le compte à rebours
+      objets,
+      agent: state.currentUser.fullname,
+      statut: 'detenu',
+      date: debutDetention.toLocaleDateString('fr-FR') + ' à ' + debutDetention.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+      noteLiberation: '',
+      celluleUid
+    };
+
+    // 1. PUSH D'ABORD vers Supabase et ATTENDRE le résultat
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('cellules', newCellule);
+        if (inserted && inserted._id) {
+          newCellule._id = inserted._id;
+        } else {
+          alert('⚠️ Erreur de création sur le serveur. Réessayez.');
+          return;
+        }
+      } catch(e) {
+        alert('⚠️ Erreur : ' + (e.message || e));
+        return;
+      }
+    }
+
+    // 2. Vérifier doublon avant d'ajouter au state local
+    const dejaPresent = state.cellules.some(c =>
+      (newCellule._id && c._id === newCellule._id) ||
+      (c.celluleUid === celluleUid)
+    );
+    if (!dejaPresent) {
+      state.cellules.push(newCellule);
+    }
+
+    saveSession();
+
+    // Reset
+    ['cel-fullname','cel-faits','cel-objets'].forEach(id => document.getElementById(id).value = '');
+    ['cel-grade','cel-motif','cel-chakra'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cel-duree-min').value = 30;
+
+    alert('⛓ ' + fullname + ' a été mis en cellule pour ' + dureeMin + ' minutes !');
+    renderCellules();
+  } finally {
+    window._addCelluleLock = false;
+    if (btn && oldText) { btn.disabled = false; btn.innerHTML = oldText; }
   }
-
-  const newCellule = {
-    fullname, grade, section, chakra, motif, faits, duree, objets,
-    agent: state.currentUser.fullname,
-    statut: 'detenu',
-    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
-    noteLiberation: ''
-  };
-  state.cellules.push(newCellule);
-  // Push vers Supabase
-  if (supabaseReady) {
-    pushToSupabase('cellules', newCellule).then(inserted => {
-      if (inserted && inserted._id) newCellule._id = inserted._id;
-    }).catch(()=>{});
-  }
-  saveSession();
-
-  ['cel-fullname','cel-faits','cel-objets'].forEach(id => document.getElementById(id).value = '');
-  ['cel-grade','cel-motif','cel-chakra'].forEach(id => document.getElementById(id).value = '');
-
-  alert('⛓ ' + fullname + ' a été mis en cellule !');
-  renderCellules();
 }
 
 async function libererDetenu(idx) {
@@ -10966,6 +11039,38 @@ setInterval(() => {
 
 // Tick chrono toutes les secondes
 setInterval(updateChronoService, 1000);
+
+// === Compte à rebours détentions cellules ===
+function updateCountdownsCellules() {
+  document.querySelectorAll('.cel-countdown').forEach(el => {
+    const finMs = parseInt(el.dataset.fin);
+    if (isNaN(finMs)) return;
+    const remainMs = finMs - Date.now();
+    if (remainMs <= 0) {
+      el.innerHTML = '⏰ Terminé';
+      el.style.background = 'rgba(231,76,60,0.2)';
+      el.style.color = 'var(--red2)';
+      el.style.borderColor = 'rgba(231,76,60,0.5)';
+    } else {
+      const totalSec = Math.floor(remainMs / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      let display;
+      if (h > 0) display = h + 'h ' + String(m).padStart(2,'0') + 'm';
+      else if (m > 0) display = m + 'm ' + String(s).padStart(2,'0') + 's';
+      else display = s + 's';
+      el.innerHTML = '⏱ ' + display;
+      // Dernières 5 minutes en rouge
+      if (remainMs < 5 * 60 * 1000) {
+        el.style.background = 'rgba(231,76,60,0.15)';
+        el.style.color = 'var(--red2)';
+        el.style.borderColor = 'rgba(231,76,60,0.4)';
+      }
+    }
+  });
+}
+setInterval(updateCountdownsCellules, 1000);
 
 // ============================================================
 // SUPPRESSION DE COMPTE (Direction uniquement)
