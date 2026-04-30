@@ -10629,9 +10629,7 @@ function renderPresences() {
   const el = document.getElementById('presences-content');
   const isDir = canAddAgent(u.grade); // Directeur + Adjoint
 
-  // === COUPURE AUTOMATIQUE À 02h00 ===
-  // À chaque chargement, on vérifie si des services dépassent 02h00 et on les clôture
-  verifierCoupureAuto02h();
+  // ⛔ Plus de coupure automatique — l'agent gère son service lui-même
 
   // État du service de l'utilisateur connecté
   const monService = state.serviceActif[u.fullname];
@@ -10693,10 +10691,6 @@ function renderPresences() {
           <strong id="bonus-or" style="color:var(--lgold);font-size:14px;font-family:Georgia,serif">+ 0 Ryos</strong>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px;font-style:italic">⚠️ Plafond maximum : 1 500 Ryos par service (salaire + bonus)</div>
-        <div style="margin-top:14px;background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:10px 14px;display:inline-block">
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">⏳ Coupure auto à 02h00 dans</div>
-          <div id="countdown-2h" style="font-size:20px;font-weight:700;color:var(--lgold);font-family:Georgia,serif">--:--:--</div>
-        </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-primary btn-full" style="background:linear-gradient(135deg,#c0392b,#922b21);color:white;flex:1" onclick="finService()">■ Fin de service (heure actuelle)</button>
@@ -10716,7 +10710,7 @@ function renderPresences() {
       html += `
         <div style="background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.25);border-radius:8px;padding:14px 18px;text-align:center;margin-bottom:1rem">
           <div style="font-size:13px;color:var(--text)">✓ Vous pouvez prendre votre service</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">Heure actuelle : <strong>${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</strong> · Coupure auto à 02h00</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Heure actuelle : <strong>${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</strong></div>
         </div>
         <button class="btn-primary btn-full" style="background:linear-gradient(135deg,#27ae60,#1e8449);color:white" onclick="prendreService()">▶ Prise de service</button>`;
     }
@@ -11057,49 +11051,11 @@ async function forcerFinService(fullname) {
 
 // Vérifier les services qui dépassent 02h00 et les clôturer automatiquement
 async function verifierCoupureAuto02h() {
-  if (!state.serviceActif) return;
-  // Anti-réentrance globale
-  if (window._verifyingAutoCutoff) return;
-  window._verifyingAutoCutoff = true;
-  try {
-    const now = new Date();
-    for (const [fullname, service] of Object.entries(state.serviceActif)) {
-      if (!service || service.fin) continue;
-      const debut = new Date(service.debut);
-
-      // Trouver le PROCHAIN 02h00 strictement APRÈS le début du service
-      // (pas un 02h00 dans le passé)
-      const cutoff = new Date(debut);
-      cutoff.setHours(2, 0, 0, 0);
-      // Si ce 02h00 est avant ou égal au début → on prend le 02h00 du JOUR SUIVANT
-      if (cutoff.getTime() <= debut.getTime()) {
-        cutoff.setDate(cutoff.getDate() + 1);
-      }
-
-      // SÉCURITÉ : ne couper que si la durée prévue (jusqu'au cutoff) est raisonnable
-      // → max 8 heures (un service ne devrait jamais durer plus que ça)
-      const dureeMaxMs = 8 * 60 * 60 * 1000; // 8h en millisecondes
-      if (cutoff.getTime() - debut.getTime() > dureeMaxMs) {
-        console.warn('⚠️ Coupure ignorée pour', fullname, '— durée incohérente (>8h)');
-        continue;
-      }
-
-      // SÉCURITÉ : ne couper que si on est VRAIMENT après le cutoff
-      // (avec une marge de 5 minutes pour éviter les race conditions)
-      const margeSec = 5 * 60 * 1000;
-      if (now.getTime() < cutoff.getTime() + margeSec) {
-        // Pas encore l'heure de couper
-        continue;
-      }
-
-      console.log('⏰ Coupure auto pour', fullname, '— début:', debut.toLocaleString('fr-FR'), '→ coupure à', cutoff.toLocaleString('fr-FR'));
-      try {
-        await enregistrerService(fullname, service, cutoff, { auto: true });
-      } catch(e) { console.warn('Erreur coupure auto:', e); }
-    }
-  } finally {
-    window._verifyingAutoCutoff = false;
-  }
+  // ⛔ DÉSACTIVÉ : la coupure automatique du service est désactivée.
+  // Seul l'agent peut clôturer son propre service en cliquant manuellement
+  // sur "Fin de service" ou "Clôturer avec heure personnalisée".
+  // Aucune action automatique ne supprime un service.
+  return;
 }
 
 async function payerAgent(fullname, montant) {
@@ -11381,8 +11337,8 @@ function updateChronoService() {
     const diff = cutoff.getTime() - now.getTime();
     if (diff <= 0) {
       cdEl.textContent = '00:00:00';
-      // Forcer la fin de service
-      enregistrerService(u.fullname, service, new Date(cutoff));
+      // ⛔ Plus de coupure automatique du service à 02h00
+      // L'agent doit cliquer manuellement sur "Fin de service" pour clôturer
       return;
     }
     const rh = Math.floor(diff / 3600000);
