@@ -7391,17 +7391,93 @@ async function ajouterCellule() {
 async function libererDetenu(idx) {
   const c = state.cellules[idx];
   if (!c) return;
-  const note = prompt('Note de libération (optionnel) :', '');
-  if (note === null) return;
-  if (!(await confirmAsync('Libérer ' + c.fullname + ' ?'))) return;
+  ouvrirModalLiberation(idx);
+}
+
+function ouvrirModalLiberation(idx) {
+  const c = state.cellules[idx];
+  if (!c) return;
+
+  // Supprimer modal existant
+  const existing = document.getElementById('liberation-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'liberation-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" role="dialog" style="max-width:520px">
+      <div class="confirm-icon" style="background:rgba(34,197,94,0.15);border-color:#22c55e">🔓</div>
+      <div class="confirm-title">Libération du détenu</div>
+      <div class="confirm-message" style="margin-bottom:14px">
+        Détenu : <strong style="color:var(--accent)">${c.fullname}</strong><br>
+        Grade : <strong style="color:var(--text)">${c.grade||'—'}</strong><br>
+        Motif d'arrestation : <strong style="color:var(--red2)">${c.motif||'—'}</strong>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Motif de la libération *</label>
+        <select id="lib-motif-preset" onchange="document.getElementById('lib-motif').value = this.value === '__custom__' ? '' : this.value"
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;margin-bottom:6px">
+          <option value="Peine purgée">⏱️ Peine purgée (durée terminée)</option>
+          <option value="Décision du Tribunal">⚖️ Décision du Tribunal</option>
+          <option value="Charges abandonnées">📋 Charges abandonnées (preuves insuffisantes)</option>
+          <option value="Caution payée">💰 Caution payée</option>
+          <option value="Bonne conduite">✓ Bonne conduite — remise de peine</option>
+          <option value="Erreur d'arrestation">⚠️ Erreur d'arrestation</option>
+          <option value="Ordre de la Direction">👑 Ordre de la Direction</option>
+          <option value="Coopération avec l'enquête">🤝 Coopération avec l'enquête</option>
+          <option value="__custom__">✏️ Autre (saisie libre)</option>
+        </select>
+        <input type="text" id="lib-motif" value="Peine purgée" placeholder="Précisez le motif..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px"/>
+      </div>
+
+      <div style="margin-bottom:1.25rem">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Note complémentaire (optionnel)</label>
+        <textarea id="lib-note" rows="2" placeholder="Détails supplémentaires sur la libération..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('liberation-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="confirmerLiberation(${idx})" style="background:linear-gradient(135deg,#22c55e,#16a34a)">🔓 Libérer ${c.fullname.replace(/'/g,"\\'")}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('lib-motif').focus(), 100);
+}
+
+async function confirmerLiberation(idx) {
+  const c = state.cellules[idx];
+  if (!c) return;
+  const motif = document.getElementById('lib-motif').value.trim();
+  const note = document.getElementById('lib-note').value.trim();
+
+  if (!motif) {
+    alert('⚠️ Le motif de libération est obligatoire.');
+    return;
+  }
+
+  // Construire la note de libération complète
+  let noteFinale = '🔓 ' + motif;
+  if (note) noteFinale += ' — ' + note;
+  noteFinale += ' (libération autorisée par ' + state.currentUser.fullname + ')';
+
   c.statut = 'libere';
-  c.noteLiberation = note || 'Libération autorisée par ' + state.currentUser.fullname;
-  c.dateLiberation = new Date().toLocaleDateString('fr-FR');
+  c.noteLiberation = noteFinale;
+  c.dateLiberation = new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
   if (supabaseReady && c._id) {
     try { await pushToSupabase('cellules', c); } catch(e) {}
   }
   saveSession();
-  alert('✓ ' + c.fullname + ' a été libéré.');
+
+  document.getElementById('liberation-modal').remove();
+  alert('✓ ' + c.fullname + ' a été libéré.\nMotif : ' + motif);
   renderCellules();
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
