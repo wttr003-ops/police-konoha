@@ -5266,7 +5266,12 @@ function renderMembres() {
       </div>
 
       <div class="dash-block">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:1px">📋 Citoyens recensés (${citoyens.length})</div>`;
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div style="font-size:12px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:1px">📋 Citoyens recensés (${citoyens.length})</div>
+          ${citoyens.length > 0 && (myService === 'police') && canAddAgent(u.grade) ? `
+            <button class="btn-outline" onclick="genererDocRecensement()" style="background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.4);color:#93c5fd;padding:6px 14px;font-size:11px">📄 Générer document recensement</button>
+          ` : ''}
+        </div>`;
 
   if (citoyens.length === 0) {
     html += '<div style="padding:2rem;text-align:center;color:var(--muted)">Aucun citoyen recensé. Les inscriptions et plaintes apparaîtront ici.</div>';
@@ -6622,6 +6627,220 @@ async function genererDocumentAcademie() {
     } else {
       alert('Veuillez autoriser les popups pour générer le document.');
     }
+  }
+}
+
+// === Document de Recensement Citoyen — Direction Police ===
+async function genererDocRecensement() {
+  const u = state.currentUser;
+  if (!u || (u.service||'police') !== 'police' || !canAddAgent(u.grade)) {
+    alert('Réservé à la Direction Police.');
+    return;
+  }
+
+  // Construire la liste des citoyens (3 sources : compte civil, candidature, plainte)
+  const citoyensMap = {};
+
+  // 1. Comptes civils
+  state.users.filter(x => x.service === 'civil').forEach(c => {
+    const key = normalize(c.fullname);
+    if (!citoyensMap[key]) {
+      citoyensMap[key] = {
+        fullname: c.fullname, niveau: c.grade || c.ninjaRank || 'Inconnu',
+        section: 'aucune', date: c.inscription || c.date || '—',
+        casier: 'non',
+        compteEspaceCivil: true, viaCandidature: false, viaPlainte: false
+      };
+    } else {
+      citoyensMap[key].compteEspaceCivil = true;
+    }
+  });
+
+  // 2. Candidatures
+  state.candidatures.forEach(c => {
+    const key = normalize(c.fullname);
+    if (!citoyensMap[key]) {
+      citoyensMap[key] = {
+        fullname: c.fullname, niveau: c.niveau || 'Inconnu',
+        section: c.section || 'aucune', date: c.date || '—', casier: c.casier || 'non',
+        compteEspaceCivil: false, viaCandidature: true, viaPlainte: false
+      };
+    } else {
+      citoyensMap[key].viaCandidature = true;
+      if (citoyensMap[key].niveau === 'Inconnu' && c.niveau) citoyensMap[key].niveau = c.niveau;
+      if (citoyensMap[key].section === 'aucune' && c.section) citoyensMap[key].section = c.section;
+    }
+  });
+
+  // 3. Plaintes (déposants)
+  state.plaintes.forEach(p => {
+    const fullname = p.pseudo || p.fullname;
+    if (!fullname) return;
+    const key = normalize(fullname);
+    if (!citoyensMap[key]) {
+      citoyensMap[key] = {
+        fullname: fullname, niveau: 'Inconnu', section: 'aucune', date: p.submittedAt || '—',
+        casier: 'non',
+        compteEspaceCivil: false, viaCandidature: false, viaPlainte: true
+      };
+    } else {
+      citoyensMap[key].viaPlainte = true;
+    }
+  });
+
+  // Vérifier le casier (intelligent)
+  Object.values(citoyensMap).forEach(c => {
+    const fiche = state.casiers.find(x => matchFullname(x.fullname, c.fullname));
+    if (fiche) {
+      c.casier = 'oui';
+      c.casierPalier = fiche.palier === 'palier3' ? 'P3' : fiche.palier === 'palier2' ? 'P2' : 'P1';
+      c.casierInfraction = fiche.infraction || '';
+    }
+  });
+
+  const tousCitoyens = Object.values(citoyensMap);
+  if (tousCitoyens.length === 0) {
+    alert('Aucun citoyen recensé.');
+    return;
+  }
+
+  // Grouper par grade en respectant l'ordre hiérarchique
+  const parGrade = {};
+  tousCitoyens.forEach(c => {
+    const grade = c.niveau || 'Inconnu';
+    if (!parGrade[grade]) parGrade[grade] = [];
+    parGrade[grade].push(c);
+  });
+  // Trier alphabétiquement dans chaque groupe
+  Object.keys(parGrade).forEach(g => {
+    parGrade[g].sort((a, b) => normalize(a.fullname).localeCompare(normalize(b.fullname)));
+  });
+
+  // Ordre hiérarchique des grades + ajouter "Inconnu" et "Citoyen" en bas
+  const ordreGrades = [...NINJA_GRADE_ORDER];
+  if (!ordreGrades.includes('Inconnu')) ordreGrades.push('Inconnu');
+  const gradesPresents = ordreGrades.filter(g => parGrade[g] && parGrade[g].length > 0);
+  // Ajouter aussi les grades inconnus du système
+  Object.keys(parGrade).forEach(g => {
+    if (!gradesPresents.includes(g)) gradesPresents.push(g);
+  });
+
+  const today = new Date().toLocaleDateString('fr-FR');
+  const sectionLabels = {
+    aucune: 'Indépendant', diplomate: 'Diplomate', strategie: 'Stratégie',
+    medecin: 'Médecin', police: 'Police'
+  };
+
+  const totalCasier = tousCitoyens.filter(c => c.casier === 'oui').length;
+  const totalCompteCivil = tousCitoyens.filter(c => c.compteEspaceCivil).length;
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><title>Recensement Citoyen — Police de Konoha</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,serif;background:#f5f0e8;color:#1a1a1a;padding:20px}
+  .doc{background:#fff;max-width:920px;margin:0 auto;padding:32px;border:2px solid #c49a1a;border-radius:10px}
+  .header{background:linear-gradient(135deg,#0a0a0a,#1a1a1a);color:#fff;padding:22px 24px;border-radius:8px;margin-bottom:24px;text-align:center;border-bottom:3px solid #c49a1a}
+  .header h1{color:#c49a1a;font-size:22px;margin-bottom:6px;letter-spacing:2px}
+  .header p{color:#94a3b8;font-size:12px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+  .stat{padding:14px;border-radius:8px;text-align:center;border:1px solid}
+  .stat.s-blue{background:#e6f1fb;border-color:#3b82f6}
+  .stat.s-green{background:#e8f5ee;border-color:#27ae60}
+  .stat.s-red{background:#fceceb;border-color:#c0392b}
+  .stat-v{font-size:22px;font-weight:700;font-family:Georgia,serif;line-height:1}
+  .stat-l{font-size:11px;color:#666;margin-top:4px;text-transform:uppercase;letter-spacing:1px}
+  h2{font-size:14px;margin:18px 0 10px;padding:8px 14px;border-radius:6px;color:#fff;display:flex;align-items:center;gap:10px;justify-content:space-between}
+  h2 .count{background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:12px;font-size:11px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+  th{background:#0a0a0a;color:#c49a1a;padding:8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px}
+  td{padding:7px 8px;border-bottom:0.5px solid #e0e0e0}
+  tr:nth-child(even) td{background:#faf7f0}
+  .num{color:#888;font-size:11px;width:30px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+  .b-civil{background:#d1fae5;color:#065f46}
+  .b-candid{background:#fef3c7;color:#92400e}
+  .b-plainte{background:#fed7aa;color:#9a3412}
+  .b-casier-oui{background:#fecaca;color:#991b1b}
+  .b-casier-non{background:#d1fae5;color:#065f46}
+  .footer{margin-top:28px;padding-top:14px;border-top:2px solid #c49a1a;font-size:11px;color:#666;text-align:center}
+  @media print{body{background:#fff;padding:0}.doc{border:none;padding:20px;max-width:100%}.actions{display:none}}
+  .actions{text-align:center;margin-bottom:20px}
+  .actions button{padding:10px 24px;background:#c49a1a;color:#fff;border:none;border-radius:5px;font-size:13px;cursor:pointer;margin:0 5px}
+</style>
+</head><body>
+<div class="actions">
+  <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+  <button onclick="window.close()">Fermer</button>
+</div>
+<div class="doc">
+  <div class="header">
+    <h1>📋 RECENSEMENT CITOYEN — POLICE DE KONOHA</h1>
+    <p>Document officiel · Émis le ${today}</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat s-blue"><div class="stat-v" style="color:#1e40af">${tousCitoyens.length}</div><div class="stat-l">Total recensés</div></div>
+    <div class="stat s-green"><div class="stat-v" style="color:#065f46">${totalCompteCivil}</div><div class="stat-l">Compte civil créé</div></div>
+    <div class="stat s-red"><div class="stat-v" style="color:#991b1b">${totalCasier}</div><div class="stat-l">Avec casier</div></div>
+  </div>
+
+  ${gradesPresents.map(grade => {
+    const list = parGrade[grade];
+    const gc = NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
+    return `
+      <h2 style="background:${gc.color === '#fff' ? '#666' : gc.color};">
+        <span>${gc.icon} ${escapeHtml(grade)}</span>
+        <span class="count">${list.length} ninja${list.length>1?'s':''}</span>
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Nom et Prénom</th>
+            <th>Section</th>
+            <th>Source</th>
+            <th>Casier</th>
+            <th>Inscrit le</th>
+          </tr>
+        </thead>
+        <tbody>
+        ${list.map((c, idx) => {
+          let sourceBadges = '';
+          if (c.compteEspaceCivil) sourceBadges += '<span class="badge b-civil">🍃 Civil</span> ';
+          if (c.viaCandidature) sourceBadges += '<span class="badge b-candid">📝 Candidat</span> ';
+          if (c.viaPlainte) sourceBadges += '<span class="badge b-plainte">⚖️ Plaignant</span> ';
+          const casierHtml = c.casier === 'oui'
+            ? `<span class="badge b-casier-oui">⚠ ${c.casierPalier||'Chargé'}</span>`
+            : '<span class="badge b-casier-non">✓ Vierge</span>';
+          return `
+          <tr>
+            <td class="num">${idx+1}</td>
+            <td><strong>${escapeHtml(c.fullname)}</strong></td>
+            <td style="font-size:11px;color:#555">${escapeHtml(sectionLabels[c.section]||c.section||'—')}</td>
+            <td>${sourceBadges || '<span style="color:#999;font-style:italic;font-size:11px">—</span>'}</td>
+            <td>${casierHtml}</td>
+            <td style="color:#888;font-size:11px">${escapeHtml(c.date||'—')}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>`;
+  }).join('')}
+
+  <div class="footer">
+    Document confidentiel · Police de Konoha · ${today}<br>
+    <span style="font-size:10px">Trié par grade ninja (hiérarchie) puis alphabétiquement</span>
+  </div>
+</div>
+</body></html>`;
+
+  const choix = await confirmAsync('📋 Document de recensement généré.\n\nVoulez-vous générer un LIEN PARTAGEABLE ?\n\n✓ OK = Lien partageable\n✗ Annuler = Juste un aperçu local');
+  if (choix) {
+    const url = await genererLienPartageable('census_report', 'Recensement Citoyen — ' + today, html);
+    if (url) afficherLienGenere(url, 'Recensement Citoyen — ' + today);
+  } else {
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+    else alert('Veuillez autoriser les popups.');
   }
 }
 
