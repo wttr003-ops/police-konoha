@@ -12094,9 +12094,28 @@ function renderWantedAgents() {
         </div>
 
         <div class="form-group">
-          <label>URL de la photo (Imgur, Discord, autre service d'image)</label>
-          <input type="text" id="w-image" placeholder="https://i.imgur.com/..."/>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Pour héberger une photo : poste-la sur Discord, fais clic-droit → "Copier le lien", puis colle-le ici.</div>
+          <label>📷 Photo du ninja</label>
+          <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div>
+                <label style="display:block;font-size:10px;color:#86efac;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">📁 Option 1 — Depuis votre PC</label>
+                <input type="file" id="w-image-file" accept="image/*" onchange="previewImageFile(this)"
+                  style="width:100%;font-size:12px;color:#f0e8d0;cursor:pointer"/>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">Image compressée automatiquement</div>
+              </div>
+              <div>
+                <label style="display:block;font-size:10px;color:#93c5fd;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">🔗 Option 2 — Depuis un URL</label>
+                <input type="text" id="w-image-url" placeholder="https://i.imgur.com/..." onchange="previewImageUrl(this)"
+                  style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:5px;padding:7px 10px;color:#f0e8d0;font-size:12px"/>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">Discord, Imgur, etc.</div>
+              </div>
+            </div>
+            <div id="w-image-preview" style="display:none;text-align:center;padding:10px;background:#0a0a0a;border-radius:6px;border:1px dashed var(--border)">
+              <img id="w-image-preview-img" src="" style="max-width:160px;max-height:160px;border-radius:6px;border:1px solid var(--border)"/>
+              <div style="margin-top:6px"><button type="button" onclick="clearImagePreview()" style="background:rgba(231,76,60,0.15);color:var(--red2);border:1px solid rgba(231,76,60,0.3);padding:4px 12px;border-radius:5px;cursor:pointer;font-size:11px">✗ Retirer la photo</button></div>
+            </div>
+          </div>
+          <input type="hidden" id="w-image"/>
         </div>
 
         <button class="btn-primary btn-full" onclick="ajouterWanted()" style="background:linear-gradient(135deg,#dc2626,#991b1b);color:white">
@@ -12177,6 +12196,99 @@ function renderWantedCard(w, idx, isDirection, isActive) {
     </div>`;
 }
 
+// === Gestion images Bingo Book : upload + URL avec compression ===
+function previewImageFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('⚠️ Le fichier doit être une image (JPG, PNG, WebP...)');
+    input.value = '';
+    return;
+  }
+  // Limite raisonnable de taille initiale (10 Mo)
+  if (file.size > 10 * 1024 * 1024) {
+    alert('⚠️ Image trop grande (max 10 Mo). Choisissez une image plus petite.');
+    input.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // Compresser avec un canvas (max 800x800px, qualité 0.8)
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > h) {
+        if (w > MAX) { h = h * (MAX / w); w = MAX; }
+      } else {
+        if (h > MAX) { w = w * (MAX / h); h = MAX; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      // Convertir en JPEG compressé (Base64)
+      const compressed = canvas.toDataURL('image/jpeg', 0.8);
+      // Vérifier taille (limite ~500 Ko en Base64)
+      const sizeKb = Math.round(compressed.length * 0.75 / 1024);
+      console.log('📷 Image compressée :', sizeKb, 'Ko');
+      if (sizeKb > 500) {
+        // Re-compresser avec qualité plus basse
+        const moreCompressed = canvas.toDataURL('image/jpeg', 0.6);
+        document.getElementById('w-image').value = moreCompressed;
+        document.getElementById('w-image-preview-img').src = moreCompressed;
+      } else {
+        document.getElementById('w-image').value = compressed;
+        document.getElementById('w-image-preview-img').src = compressed;
+      }
+      // Vider le champ URL puisqu'on utilise un fichier
+      document.getElementById('w-image-url').value = '';
+      // Afficher le preview
+      document.getElementById('w-image-preview').style.display = 'block';
+    };
+    img.onerror = function() {
+      alert('⚠️ Impossible de lire cette image. Essayez un autre fichier.');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewImageUrl(input) {
+  const url = input.value.trim();
+  if (!url) {
+    clearImagePreview();
+    return;
+  }
+  if (!url.match(/^https?:\/\//i)) {
+    alert('⚠️ L\'URL doit commencer par http:// ou https://');
+    return;
+  }
+  // Tester si l'image charge correctement
+  const testImg = new Image();
+  testImg.onload = function() {
+    document.getElementById('w-image').value = url;
+    document.getElementById('w-image-preview-img').src = url;
+    document.getElementById('w-image-preview').style.display = 'block';
+    // Vider le champ fichier puisqu'on utilise un URL
+    document.getElementById('w-image-file').value = '';
+  };
+  testImg.onerror = function() {
+    alert('⚠️ Impossible de charger l\'image depuis cet URL. Vérifiez le lien.');
+  };
+  testImg.src = url;
+}
+
+function clearImagePreview() {
+  document.getElementById('w-image').value = '';
+  document.getElementById('w-image-file').value = '';
+  document.getElementById('w-image-url').value = '';
+  document.getElementById('w-image-preview').style.display = 'none';
+  document.getElementById('w-image-preview-img').src = '';
+}
+
 async function ajouterWanted() {
   const u = state.currentUser;
   if (!canAddAgent(u.grade)) { alert('Réservé au Directeur et Directeur Adjoint'); return; }
@@ -12234,10 +12346,12 @@ async function ajouterWanted() {
     if (!dejaPresent) state.wantedPersons.push(newWanted);
 
     saveSession();
-    ['w-fullname','w-grade','w-description','w-reward','w-location','w-image'].forEach(id => {
+    ['w-fullname','w-grade','w-description','w-reward','w-location'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = '';
     });
     document.getElementById('w-danger').value = 'medium';
+    // Réinitialiser image (les 3 champs)
+    if (typeof clearImagePreview === 'function') clearImagePreview();
 
     alert('📕 ' + fullname + ' ajouté au Bingo Book');
     renderWantedAgents();
