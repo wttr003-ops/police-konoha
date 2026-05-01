@@ -10940,13 +10940,19 @@ function renderPresences() {
           <div style="font-size:13px;color:var(--muted)">En service depuis <strong style="color:var(--text)">${debutStr}</strong></div>
         </div>
         <div style="font-size:48px;font-weight:700;color:var(--green);font-family:Georgia,serif;letter-spacing:3px;line-height:1" id="service-chrono">--:--:--</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:6px">Salaire en cours : <strong id="salaire-en-cours" style="color:var(--green);font-size:16px">0 Ryos</strong></div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;align-items:center;justify-content:center;gap:6px">
-          <span style="font-size:14px">🪙</span>
-          <span>Bonus or (1 Ryo / 30 min) :</span>
-          <strong id="bonus-or" style="color:var(--lgold);font-size:14px;font-family:Georgia,serif">+ 0 Ryos</strong>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;max-width:480px;margin-left:auto;margin-right:auto">
+          <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">💰 Salaire en cours</div>
+            <div id="salaire-en-cours" style="color:var(--green);font-size:18px;font-weight:700;font-family:Georgia,serif">0 Ryos</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">Plafond : 1 500 Ryos</div>
+          </div>
+          <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">🪙 Bonus or</div>
+            <div id="bonus-or" style="color:var(--lgold);font-size:18px;font-weight:700;font-family:Georgia,serif">+ 0 Ryos</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">+1 Ryo / 30 min · sans plafond</div>
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px;font-style:italic">⚠️ Plafond maximum : 1 500 Ryos par service (salaire + bonus)</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-primary btn-full" style="background:linear-gradient(135deg,#c0392b,#922b21);color:white;flex:1" onclick="finService()">■ Fin de service (heure actuelle)</button>
@@ -11239,12 +11245,13 @@ async function enregistrerService(fullname, service, fin, options) {
     const dureeMin = Math.max(1, Math.round(dureeMs / 60000));
     const taux = getTarif(service.grade);
     const salaireBase = Math.round((dureeMin / 60) * taux);
-    // Bonus or : 1 Ryo par tranche de 30 minutes complète
+    // Bonus or : 1 Ryo par tranche de 30 minutes complète (sans plafond)
     const bonusOr = Math.floor(dureeMs / (30 * 60 * 1000));
-    // Plafond 1500 Ryos sur le total (salaire + bonus)
-    const PLAFOND = 1500;
-    const totalBrut = salaireBase + bonusOr;
-    const salaire = Math.min(totalBrut, PLAFOND);
+    // Plafond 1500 UNIQUEMENT sur le salaire de base
+    const PLAFOND_SALAIRE = 1500;
+    const salairePlafonne = Math.min(salaireBase, PLAFOND_SALAIRE);
+    // Total = salaire plafonné + bonus libre
+    const salaire = salairePlafonne + bonusOr;
 
     state.presences = state.presences || [];
 
@@ -11289,10 +11296,13 @@ async function enregistrerService(fullname, service, fin, options) {
       const h = Math.floor(dureeMin / 60);
       const m = dureeMin % 60;
       let msg = '✓ Service terminé\nDurée : ' + h + 'h' + String(m).padStart(2,'0');
-      msg += '\nSalaire de base : ' + Math.min(salaireBase, PLAFOND).toLocaleString() + ' Ryos';
+      msg += '\n💰 Salaire de base : ' + salairePlafonne.toLocaleString() + ' Ryos';
+      if (salaireBase > PLAFOND_SALAIRE) {
+        msg += ' (⚠️ plafonné à 1 500, brut ' + salaireBase.toLocaleString() + ')';
+      }
       if (bonusOr > 0) msg += '\n🪙 Bonus or : + ' + bonusOr.toLocaleString() + ' Ryos';
-      msg += '\n💰 Total : ' + salaire.toLocaleString() + ' Ryos';
-      if (totalBrut > PLAFOND) msg += '\n⚠️ Plafond 1 500 atteint (gain réel : ' + totalBrut.toLocaleString() + ')';
+      msg += '\n━━━━━━━━━━━━━━━━━━';
+      msg += '\n💵 TOTAL : ' + salaire.toLocaleString() + ' Ryos';
       alert(msg);
     } else {
       console.log('⏰ Coupure auto enregistrée pour', fullname, '—', salaire, 'Ryos');
@@ -11566,29 +11576,19 @@ function updateChronoService() {
   if (salEl) {
     const taux = getTarif(service.grade);
     const salaireBase = Math.round((elapsed / 3600000) * taux);
-    // Bonus or : 1 Ryo par tranche de 30 minutes complète
+    // Bonus or : 1 Ryo par tranche de 30 minutes complète (SANS PLAFOND)
     const bonusOr = Math.floor(elapsed / (30 * 60 * 1000));
-    // Total cumulé (salaire + bonus) plafonné à 1500
-    const totalBrut = salaireBase + bonusOr;
-    const PLAFOND = 1500;
-    let salaireAffiche, bonusAffiche;
-    if (totalBrut <= PLAFOND) {
-      salaireAffiche = salaireBase;
-      bonusAffiche = bonusOr;
-    } else {
-      // Plafond atteint — on coupe le bonus en priorité, puis le salaire
-      if (salaireBase >= PLAFOND) {
-        salaireAffiche = PLAFOND;
-        bonusAffiche = 0;
-      } else {
-        salaireAffiche = salaireBase;
-        bonusAffiche = PLAFOND - salaireBase;
-      }
-    }
-    const isPlafond = totalBrut >= PLAFOND;
-    salEl.innerHTML = salaireAffiche.toLocaleString() + ' Ryos' + (isPlafond ? ' <span style="font-size:10px;color:var(--red2);background:rgba(231,76,60,0.15);padding:2px 6px;border-radius:8px;border:1px solid rgba(231,76,60,0.3);margin-left:6px">⚠️ Plafond 1500 atteint</span>' : '');
+    // Plafond UNIQUEMENT sur le salaire de base (1500 Ryos)
+    const PLAFOND_SALAIRE = 1500;
+    const salaireAffiche = Math.min(salaireBase, PLAFOND_SALAIRE);
+    const isPlafond = salaireBase >= PLAFOND_SALAIRE;
+
+    // Affichage salaire (avec badge plafond si atteint)
+    salEl.innerHTML = salaireAffiche.toLocaleString() + ' Ryos' + (isPlafond ? ' <span style="font-size:9px;color:var(--red2);background:rgba(231,76,60,0.15);padding:2px 5px;border-radius:8px;border:1px solid rgba(231,76,60,0.3);margin-left:4px">⚠ Plafond</span>' : '');
+
+    // Affichage bonus (sans plafond)
     if (bonusEl) {
-      bonusEl.textContent = '+ ' + bonusAffiche.toLocaleString() + ' Ryos';
+      bonusEl.textContent = '+ ' + bonusOr.toLocaleString() + ' Ryos';
     }
   }
 
