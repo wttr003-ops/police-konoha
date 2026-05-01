@@ -2994,7 +2994,9 @@ const SUPABASE_TABLES = {
       collecting_agent: a.agentEncaisseur || null,
       is_collected: !!a.recupere, collected_at: a.recupereLe || null,
       collected_by_direction: a.recupereParDirection || null,
-      recovery_id: a.recupId || null
+      recovery_id: a.recupId || null,
+      payments: a.paiements || [],
+      amount_paid: a.montantPaye || 0
     }),
     mapFrom: r => ({
       fullname: r.fullname, infraction: r.offense, infractions: r.offenses,
@@ -3003,6 +3005,8 @@ const SUPABASE_TABLES = {
       datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
       recupere: r.is_collected, recupereLe: r.collected_at,
       recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
+      paiements: r.payments || [],
+      montantPaye: r.amount_paid || 0,
       id: r.id, _id: r.id
     })
   },
@@ -5859,11 +5863,29 @@ function refreshAmendesList() {
           <div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Historique des amendes (${d.amendes.length})</div>
           ${amendesTriees.map(a => {
             const idx = state.amendes.indexOf(a);
-            const isPaye = a.statut === 'paye';
-            const cBg = isPaye ? 'rgba(39,174,96,0.08)' : 'rgba(231,76,60,0.06)';
-            const cBorder = isPaye ? 'rgba(39,174,96,0.3)' : 'rgba(231,76,60,0.3)';
-            const cColor = isPaye ? 'var(--green)' : 'var(--red2)';
-            const lbl = isPaye ? '✓ Payée' : '✗ Impayée';
+            const dejaPaye = (a.paiements || []).reduce((s, p) => s + (p.montant || 0), 0);
+            const reste = a.montant - dejaPaye;
+            const isPaye = a.statut === 'paye' || reste <= 0;
+            const isPartiel = !isPaye && dejaPaye > 0;
+            // 3 statuts visuels
+            let cBg, cBorder, cColor, lbl;
+            if (isPaye) {
+              cBg = 'rgba(39,174,96,0.08)';
+              cBorder = 'rgba(39,174,96,0.3)';
+              cColor = 'var(--green)';
+              lbl = '✓ Payée';
+            } else if (isPartiel) {
+              cBg = 'rgba(232,197,71,0.08)';
+              cBorder = 'rgba(232,197,71,0.3)';
+              cColor = 'var(--lgold)';
+              lbl = '🟡 Partielle';
+            } else {
+              cBg = 'rgba(231,76,60,0.06)';
+              cBorder = 'rgba(231,76,60,0.3)';
+              cColor = 'var(--red2)';
+              lbl = '✗ Impayée';
+            }
+            const pourcent = a.montant > 0 ? Math.round((dejaPaye / a.montant) * 100) : 0;
             return `
               <div style="background:${cBg};border:1px solid ${cBorder};border-radius:5px;padding:8px 10px;margin-bottom:6px">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -5883,19 +5905,39 @@ function refreshAmendesList() {
                       </div>` : ''}
                     <div style="font-size:10px;color:var(--muted);margin-top:4px">
                       ${a.date} · émis par ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
-                      ${a.agentEncaisseur && a.statut === 'paye' ? ' · <span style="color:var(--green)">💰 Encaissé par '+a.agentEncaisseur+'</span>' : ''}
+                      ${a.agentEncaisseur && isPaye ? ' · <span style="color:var(--green)">💰 Finalisée par '+a.agentEncaisseur+'</span>' : ''}
                       ${a.recupere ? ' · <span style="color:var(--lgold)">📦 Récupéré le '+a.recupereLe+'</span>' : ''}
                     </div>
                   </div>
                   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${isPaye?'rgba(39,174,96,0.2)':'rgba(231,76,60,0.2)'};color:${cColor};border:1px solid ${cBorder}">${lbl}</span>
+                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${cBg};color:${cColor};border:1px solid ${cBorder}">${lbl}</span>
                     <strong style="font-family:'Cinzel',serif;color:${cColor};font-size:14px">${a.montant.toLocaleString()} Ryos</strong>
                   </div>
                 </div>
+
+                ${isPartiel || (dejaPaye > 0 && !isPaye) ? `
+                  <div style="margin-top:8px">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;font-size:10px">
+                      <span style="color:var(--muted)">Payé : <strong style="color:var(--green)">${dejaPaye.toLocaleString()}</strong> · Reste : <strong style="color:var(--red2)">${reste.toLocaleString()}</strong> Ryos</span>
+                      <span style="color:var(--lgold);font-weight:700">${pourcent}%</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.06);height:6px;border-radius:3px;overflow:hidden">
+                      <div style="background:linear-gradient(90deg,#16a34a,#fbbf24);height:100%;width:${pourcent}%;border-radius:3px"></div>
+                    </div>
+                    ${(a.paiements && a.paiements.length > 0) ? `
+                      <div style="margin-top:6px;font-size:10px;color:var(--muted)">
+                        Versements : ${a.paiements.map(p => `<span style="color:var(--green);font-weight:600">+${(p.montant||0).toLocaleString()}</span> <span style="color:var(--muted);font-style:italic">(${escapeHtml(p.agent)})</span>`).join(' · ')}
+                      </div>
+                    ` : ''}
+                  </div>
+                ` : ''}
+
                 <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">
-                  <select onchange="toggleAmendeStatut(${idx}, this.value)" style="background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${cColor};border:1px solid ${cBorder};padding:4px 8px;border-radius:4px;font-weight:700;font-size:11px;cursor:pointer">
-                    <option value="impaye" ${!isPaye?'selected':''}>✗ Impayée</option>
-                    <option value="paye" ${isPaye?'selected':''}>✓ Payée</option>
+                  ${!isPaye && !a.recupere ? `<button class="btn-sm" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;font-size:11px;padding:4px 12px;font-weight:700" onclick="ouvrirPaiementPartiel(${idx})">💵 Encaisser un versement</button>` : ''}
+                  <select onchange="toggleAmendeStatut(${idx}, this.value)" style="background:${cBg};color:${cColor};border:1px solid ${cBorder};padding:4px 8px;border-radius:4px;font-weight:700;font-size:11px;cursor:pointer">
+                    <option value="impaye" ${!isPaye && !isPartiel ?'selected':''}>✗ Impayée</option>
+                    ${isPartiel ? `<option value="partiel" selected>🟡 Partielle</option>` : ''}
+                    <option value="paye" ${isPaye?'selected':''}>✓ Payée (totalité)</option>
                   </select>
                   ${canDelete ? `<button class="btn-sm btn-sm-red" onclick="deleteAmende(${idx})" style="font-size:10px;padding:3px 8px">🗑 Supprimer</button>` : ''}
                 </div>
@@ -5913,12 +5955,181 @@ async function toggleAmendeStatut(idx, statut) {
   if (statut === 'paye') {
     a.datePaiement = new Date().toLocaleDateString('fr-FR');
     a.agentEncaisseur = state.currentUser.fullname;
+    // Si on marque comme entièrement payé, on enregistre tout le reste comme un paiement final
+    a.paiements = a.paiements || [];
+    const dejaPaye = a.paiements.reduce((s, p) => s + (p.montant || 0), 0);
+    const reste = a.montant - dejaPaye;
+    if (reste > 0) {
+      a.paiements.push({
+        montant: reste,
+        agent: state.currentUser.fullname,
+        date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+        complet: true
+      });
+    }
+    a.montantPaye = a.montant;
+  } else if (statut === 'impaye') {
+    // Reset complet
+    a.datePaiement = null;
+    a.agentEncaisseur = null;
+    a.paiements = [];
+    a.montantPaye = 0;
   }
   // Push vers Supabase
   if (supabaseReady) {
     try { await pushToSupabase('amendes', a); } catch(e) {}
   }
   saveSession();
+  renderAmendes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+// === Paiement partiel d'une amende ===
+function ouvrirPaiementPartiel(idx) {
+  const a = state.amendes[idx];
+  if (!a) return;
+  if (a.recupere) {
+    alert('⚠️ Cette amende a déjà été récupérée par la Direction. Plus de modification possible.');
+    return;
+  }
+
+  const dejaPaye = (a.paiements || []).reduce((s, p) => s + (p.montant || 0), 0);
+  const reste = a.montant - dejaPaye;
+
+  if (reste <= 0) {
+    alert('✓ Cette amende est déjà entièrement payée.');
+    return;
+  }
+
+  const existing = document.getElementById('paiement-partiel-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'paiement-partiel-modal';
+  overlay.className = 'confirm-overlay';
+
+  const paiementsHistorique = (a.paiements || []).length === 0
+    ? '<p style="color:var(--muted);font-size:11px;font-style:italic;text-align:center;padding:8px">Aucun versement enregistré pour le moment.</p>'
+    : (a.paiements || []).map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(0,0,0,0.2);border-radius:5px;margin-bottom:4px;font-size:11px">
+          <span style="color:var(--muted)">${escapeHtml(p.date)}</span>
+          <span style="color:var(--text)">${escapeHtml(p.agent)}</span>
+          <strong style="color:var(--green)">+${(p.montant||0).toLocaleString()} Ryos</strong>
+        </div>
+      `).join('');
+
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:520px">
+      <div class="confirm-icon" style="background:rgba(34,197,94,0.15);border-color:#22c55e">💵</div>
+      <div class="confirm-title">Encaissement d'un versement</div>
+      <div class="confirm-message" style="margin-bottom:14px">
+        Contrevenant : <strong style="color:var(--accent)">${escapeHtml(a.fullname)}</strong><br>
+        Infraction : <strong style="color:var(--text)">${escapeHtml(a.infraction)}</strong>
+      </div>
+
+      <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+          <div>
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Montant total</div>
+            <div style="color:var(--text);font-weight:700;font-family:Georgia,serif;font-size:16px;margin-top:3px">${a.montant.toLocaleString()}</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:1px">Déjà payé</div>
+            <div style="color:var(--green);font-weight:700;font-family:Georgia,serif;font-size:16px;margin-top:3px">${dejaPaye.toLocaleString()}</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--red2);text-transform:uppercase;letter-spacing:1px">Reste</div>
+            <div style="color:var(--red2);font-weight:700;font-family:Georgia,serif;font-size:16px;margin-top:3px">${reste.toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">💵 Montant versé maintenant (en Ryos) *</label>
+        <input type="number" id="paiement-montant" value="${reste}" min="1" max="${reste}" placeholder="Ex: 1000"
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:#f0e8d0;font-size:16px;font-family:Georgia,serif;font-weight:700;text-align:center"/>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          ${reste >= 1000 ? `<button type="button" onclick="document.getElementById('paiement-montant').value=1000" style="flex:1;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.3);padding:5px;border-radius:4px;cursor:pointer;font-size:11px">1 000</button>` : ''}
+          ${reste >= 2000 ? `<button type="button" onclick="document.getElementById('paiement-montant').value=2000" style="flex:1;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.3);padding:5px;border-radius:4px;cursor:pointer;font-size:11px">2 000</button>` : ''}
+          ${reste >= 5000 ? `<button type="button" onclick="document.getElementById('paiement-montant').value=5000" style="flex:1;background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.3);padding:5px;border-radius:4px;cursor:pointer;font-size:11px">5 000</button>` : ''}
+          <button type="button" onclick="document.getElementById('paiement-montant').value=${reste}" style="flex:1;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:5px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700">Tout (${reste.toLocaleString()})</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;font-style:italic">L'encaisseur sera : <strong style="color:#86efac">${escapeHtml(state.currentUser.fullname)}</strong></div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">📋 Historique des versements</div>
+        ${paiementsHistorique}
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('paiement-partiel-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="confirmerPaiementPartiel(${idx})" style="background:linear-gradient(135deg,#22c55e,#16a34a)">💵 Encaisser</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    const inp = document.getElementById('paiement-montant');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 100);
+}
+
+async function confirmerPaiementPartiel(idx) {
+  const a = state.amendes[idx];
+  if (!a) return;
+  const u = state.currentUser;
+
+  const montantStr = document.getElementById('paiement-montant').value;
+  const montant = parseInt(montantStr);
+  if (isNaN(montant) || montant <= 0) {
+    alert('⚠️ Montant invalide.');
+    return;
+  }
+
+  const dejaPaye = (a.paiements || []).reduce((s, p) => s + (p.montant || 0), 0);
+  const reste = a.montant - dejaPaye;
+  if (montant > reste) {
+    alert('⚠️ Le montant versé dépasse le reste dû (' + reste.toLocaleString() + ' Ryos).');
+    return;
+  }
+
+  const now = new Date();
+  const paiement = {
+    montant,
+    agent: u.fullname,
+    date: now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  };
+
+  a.paiements = a.paiements || [];
+  a.paiements.push(paiement);
+  a.montantPaye = dejaPaye + montant;
+
+  // Calculer le nouveau statut
+  if (a.montantPaye >= a.montant) {
+    a.statut = 'paye';
+    a.datePaiement = now.toLocaleDateString('fr-FR');
+    // Le dernier encaisseur est celui qui a fini le paiement
+    a.agentEncaisseur = u.fullname;
+  } else {
+    a.statut = 'partiel';
+    a.agentEncaisseur = u.fullname; // Dernier encaisseur
+  }
+
+  // Push vers Supabase
+  if (supabaseReady && a._id) {
+    try { await pushToSupabase('amendes', a); } catch(e) {}
+  }
+  saveSession();
+
+  document.getElementById('paiement-partiel-modal').remove();
+  if (a.statut === 'paye') {
+    alert('✓ Versement de ' + montant.toLocaleString() + ' Ryos enregistré.\n\n🎉 Amende ENTIÈREMENT PAYÉE !\n\nEncaissée par : ' + u.fullname);
+  } else {
+    const nouveauReste = a.montant - a.montantPaye;
+    alert('✓ Versement de ' + montant.toLocaleString() + ' Ryos enregistré.\n\nReste à payer : ' + nouveauReste.toLocaleString() + ' Ryos\nEncaissé par : ' + u.fullname);
+  }
   renderAmendes();
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
@@ -11519,16 +11730,30 @@ async function supprimerCompte(fullname, service) {
 // ============================================================
 function getAmendesParAgent() {
   const par = {};
-  // Regrouper par AGENT ENCAISSEUR (celui qui a marqué "Payé"), pas par émetteur
+
+  // Pour chaque amende, on compte les versements par agent encaisseur
   state.amendes.forEach(a => {
     if (a.recupere) return;
-    if (a.statut !== 'paye') return; // doit être payée pour être récupérable
-    // Préférer agentEncaisseur, sinon fallback sur agent émetteur (compat ancien)
-    const collecteur = a.agentEncaisseur || a.agent;
-    if (!collecteur) return;
-    if (!par[collecteur]) par[collecteur] = { entries: [], total: 0 };
-    par[collecteur].entries.push(a);
-    par[collecteur].total += a.montant;
+
+    // Si l'amende a des paiements partiels enregistrés, on les compte un par un
+    if (a.paiements && a.paiements.length > 0) {
+      a.paiements.forEach(p => {
+        const collecteur = p.agent;
+        if (!collecteur || !p.montant) return;
+        if (!par[collecteur]) par[collecteur] = { entries: [], total: 0, paiementsRefs: [] };
+        par[collecteur].total += p.montant;
+        par[collecteur].paiementsRefs.push({ amende: a, paiement: p });
+        // On garde la référence de l'amende pour le détail
+        if (!par[collecteur].entries.includes(a)) par[collecteur].entries.push(a);
+      });
+    } else if (a.statut === 'paye') {
+      // Compatibilité ancien format : amende payée d'un coup sans détail de paiement
+      const collecteur = a.agentEncaisseur || a.agent;
+      if (!collecteur) return;
+      if (!par[collecteur]) par[collecteur] = { entries: [], total: 0, paiementsRefs: [] };
+      par[collecteur].entries.push(a);
+      par[collecteur].total += a.montant;
+    }
   });
   return par;
 }
