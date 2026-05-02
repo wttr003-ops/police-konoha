@@ -1666,6 +1666,7 @@
     <li><a onclick="showSection('grades')">Grades</a></li>
     <li><a onclick="showSection('penal')">Code Pénal</a></li>
     <li><a onclick="showSection('wanted')" style="color:#fca5a5">📕 Bingo Book</a></li>
+    <li><a onclick="showSection('missions-public')" style="color:#5eead4">🎯 Missions</a></li>
     <li><a onclick="showSection('impots-public')">Impôts</a></li>
     <li><a onclick="showSection('deontologie')">Déontologie</a></li>
     <li><a onclick="showSection('reglement')">Règlement</a></li>
@@ -2101,6 +2102,16 @@
       <h2 class="section-title">Bingo <span>Book</span></h2>
       <p style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Registre officiel des ninjas recherchés par la Police de Konoha. Toute information menant à la capture sera récompensée.</p>
       <div id="wanted-public-list"></div>
+    </div>
+  </section>
+
+  <!-- BUREAU DES MISSIONS -->
+  <section class="section" id="missions-public">
+    <div class="section-inner">
+      <p class="section-tag" style="color:#5eead4">🎯 Bureau des Missions</p>
+      <h2 class="section-title">Missions <span>Disponibles</span></h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Tableau officiel des missions ninja proposées par le Bureau des Missions de Konoha. Pour accepter une mission, vous devez être un ninja enregistré du village.</p>
+      <div id="missions-public-list"></div>
     </div>
   </section>
 
@@ -4407,6 +4418,7 @@ function updateStats() {
   // Mettre à jour la section Recherchés sur la page d'accueil
   if (typeof renderWantedPublic === 'function') {
     try { renderWantedPublic(); } catch(e) {}
+    try { if (typeof renderMissionsPublic === 'function') renderMissionsPublic(); } catch(e) {}
   }
 }
 
@@ -13338,21 +13350,52 @@ async function creerMission() {
       acceptedTeam: []
     };
 
+    // === PUSH DIRECT VERS SUPABASE — avec gestion d'erreur explicite ===
+    let pushOk = false;
+    let errorMsg = '';
+
     if (supabaseReady) {
       try {
-        const inserted = await pushToSupabase('missions', newMission);
-        if (inserted && inserted._id) {
-          newMission._id = inserted._id;
-        } else {
-          alert('⚠️ Erreur de création sur le serveur.');
-          return;
+        // INSERT direct (sans passer par pushToSupabase pour avoir le détail de l'erreur)
+        const row = {
+          name: newMission.name,
+          description: newMission.description || null,
+          category: newMission.category,
+          reward: newMission.reward || 0,
+          status: 'available',
+          created_by: newMission.createdBy,
+          accepted_team: [],
+        };
+
+        console.log('🎯 Tentative INSERT mission:', row);
+        const { data, error } = await sb.from('missions').insert(row).select().single();
+
+        if (error) {
+          console.error('❌ Erreur Supabase INSERT mission:', error);
+          errorMsg = error.message || error.code || JSON.stringify(error);
+        } else if (data) {
+          newMission._id = data.id;
+          pushOk = true;
+          console.log('✅ Mission insérée avec _id:', data.id);
         }
       } catch(e) {
-        alert('⚠️ Erreur : ' + (e.message || e));
-        return;
+        console.error('❌ Exception INSERT mission:', e);
+        errorMsg = e.message || String(e);
       }
     }
 
+    // Si Supabase a échoué, demander à l'utilisateur s'il veut continuer en local seulement
+    if (supabaseReady && !pushOk) {
+      const continuer = await confirmAsync(
+        '⚠️ Le serveur a refusé la création.\n\n' +
+        'Détail technique : ' + errorMsg + '\n\n' +
+        'Voulez-vous quand même créer la mission EN LOCAL uniquement ?\n' +
+        '(Elle ne sera pas visible par les autres utilisateurs.)'
+      );
+      if (!continuer) return;
+    }
+
+    // Ajout au state local (même si Supabase a échoué pour permettre tests offline)
     const dejaPresent = newMission._id && state.missions.some(m => m._id === newMission._id);
     if (!dejaPresent) state.missions.push(newMission);
 
@@ -13362,7 +13405,11 @@ async function creerMission() {
     });
     document.getElementById('m-category').value = 'E';
 
-    alert('🎯 Mission "' + name + '" publiée !');
+    if (pushOk) {
+      alert('🎯 Mission "' + name + '" publiée !\n\nElle est maintenant visible par tous les utilisateurs.');
+    } else {
+      alert('⚠️ Mission créée en local uniquement.\nLe serveur n\'a pas pu être contacté.');
+    }
     renderMissionsAgents();
   } finally {
     window._addMissionLock = false;
@@ -13543,6 +13590,53 @@ async function supprimerMission(idx) {
   state.missions.splice(idx, 1);
   saveSession();
   renderMissionsAgents();
+}
+
+// === Affichage des missions disponibles sur la page publique (accueil + espace civil) ===
+function renderMissionsPublic() {
+  const containers = ['missions-public-list', 'civil-missions-list'];
+
+  containers.forEach(containerId => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    const dispos = (state.missions || []).filter(m => m.status === 'available');
+
+    if (dispos.length === 0) {
+      el.innerHTML = `
+        <div style="background:rgba(20,184,166,0.05);border:1px solid rgba(20,184,166,0.2);border-radius:8px;padding:30px;text-align:center">
+          <div style="font-size:32px;color:rgba(20,184,166,0.4);margin-bottom:8px">🎯</div>
+          <div style="font-size:13px;color:var(--muted);font-style:italic">Aucune mission disponible pour le moment.<br>Repassez plus tard pour découvrir de nouvelles missions du Bureau.</div>
+        </div>`;
+      return;
+    }
+
+    // Trier par catégorie (S+ d'abord, E à la fin)
+    const ordreCat = { 'S+': 0, 'S': 1, 'A': 2, 'B': 3, 'C': 4, 'D': 5, 'E': 6 };
+    const triees = dispos.slice().sort((a, b) => (ordreCat[a.category]||99) - (ordreCat[b.category]||99));
+
+    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+    triees.forEach(m => {
+      const rank = MISSION_RANKS[m.category] || MISSION_RANKS.E;
+      html += `
+        <div style="background:#0a0a0a;border:2px solid ${rank.border};border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+          <div style="background:${rank.bg};padding:10px 14px;border-bottom:1px solid ${rank.border};display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <div style="background:${rank.color};color:#0a0a0a;font-weight:700;padding:3px 12px;border-radius:5px;font-family:'Cinzel',serif;font-size:14px">${rank.label}</div>
+            ${m.reward > 0 ? `<div style="font-family:'Cinzel',serif;color:var(--lgold);font-weight:700;font-size:14px">${m.reward.toLocaleString()} Ryos</div>` : ''}
+          </div>
+          <div style="padding:14px">
+            <div style="font-family:'Cinzel',serif;font-size:15px;color:white;font-weight:700;margin-bottom:6px">${escapeHtml(m.name)}</div>
+            ${m.description ? `<div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:10px;padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:5px;border-left:2px solid ${rank.color}">${escapeHtml(m.description)}</div>` : ''}
+            <div style="font-size:10px;color:var(--muted);margin-bottom:8px">📋 Publiée par ${escapeHtml(m.createdBy||'Bureau des Missions')}</div>
+            <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:5px;padding:8px;text-align:center;font-size:11px;color:#5eead4">
+              ℹ️ Pour accepter cette mission, connectez-vous via le <strong>Bureau des Missions</strong>
+            </div>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  });
 }
 
 // Rendu pour la page publique (accueil)
@@ -14110,7 +14204,20 @@ function renderCivilDash() {
     html += '</div>';
   }
 
+  // === SECTION : Missions du Bureau (visible par tous les citoyens) ===
+  html += `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border-color:rgba(20,184,166,0.4)">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🎯 Missions du Bureau des Missions</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Tableau officiel des missions ninja proposées par le Bureau. Pour les accepter, connectez-vous via le Bureau des Missions.</p>
+      <div id="civil-missions-list"></div>
+    </div>`;
+
   document.getElementById('civ-dash-content').innerHTML = html;
+
+  // Charger les missions disponibles
+  if (typeof renderMissionsPublic === 'function') {
+    try { renderMissionsPublic(); } catch(e) {}
+  }
 }
 
 // Le citoyen répond à un message
