@@ -275,6 +275,54 @@
   }
   .btn-bureau.btn-lg { padding: 12px 28px; font-size: 14px; }
 
+  /* Bouton Diplomatie (violet) */
+  .btn-diplomatie {
+    background: linear-gradient(135deg, rgba(168,85,247,0.18), rgba(168,85,247,0.06));
+    color: #d8b4fe;
+    border: 1px solid rgba(168,85,247,0.5);
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-diplomatie:hover {
+    background: linear-gradient(135deg, rgba(168,85,247,0.3), rgba(168,85,247,0.18));
+    border-color: #d8b4fe;
+    color: #f3e8ff;
+    box-shadow: 0 4px 16px rgba(168,85,247,0.3);
+    transform: translateY(-1px);
+  }
+  .btn-diplomatie.btn-lg { padding: 12px 28px; font-size: 14px; }
+
+  /* Bouton Renseignement (gris foncé) */
+  .btn-renseignement {
+    background: linear-gradient(135deg, rgba(100,116,139,0.25), rgba(71,85,105,0.1));
+    color: #cbd5e1;
+    border: 1px solid rgba(148,163,184,0.5);
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-renseignement:hover {
+    background: linear-gradient(135deg, rgba(100,116,139,0.4), rgba(71,85,105,0.25));
+    border-color: #cbd5e1;
+    color: #f1f5f9;
+    box-shadow: 0 4px 16px rgba(100,116,139,0.4);
+    transform: translateY(-1px);
+  }
+  .btn-renseignement.btn-lg { padding: 12px 28px; font-size: 14px; }
+
   .btn-danger {
     background: transparent;
     color: var(--red2);
@@ -1706,6 +1754,8 @@
         <button class="btn-bureau btn-lg" onclick="showPage('bureau-login')">🎯 Bureau des Missions</button>
       </div>
       <div class="hero-btns" style="margin-top:0.75rem">
+        <button class="btn-diplomatie btn-lg" onclick="showPage('login')">🤝 Diplomatie</button>
+        <button class="btn-renseignement btn-lg" onclick="showPage('login')">🕵️ Renseignement</button>
         <button class="btn-civil btn-lg" onclick="showPage('civil')">🍃 Créer un compte citoyen</button>
         <button class="btn-outline btn-lg" onclick="showPage('login')">Espace agent</button>
       </div>
@@ -2443,6 +2493,14 @@
             <div style="font-size:24px;margin-bottom:4px">🍃</div>
             Civil
           </button>
+          <button type="button" class="section-btn" data-section="diplomatie" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
+            <div style="font-size:24px;margin-bottom:4px">🤝</div>
+            Diplomatie
+          </button>
+          <button type="button" class="section-btn" data-section="renseignement" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
+            <div style="font-size:24px;margin-bottom:4px">🕵️</div>
+            Renseign.
+          </button>
         </div>
       </div>
 
@@ -2710,10 +2768,10 @@
   <div class="dash-layout">
     <aside class="dash-sidebar">
       <nav class="dash-nav">
-        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
+        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
         <button class="dash-nav-btn" data-tab="plaintes" data-services="police,juge" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
-        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission" onclick="switchDashTab('membres', this)">👥 Membres</button>
+        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
         <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
@@ -2723,12 +2781,12 @@
         <button class="dash-nav-btn" data-tab="cellules" data-services="police,juge,avocat" onclick="switchDashTab('cellules', this)">🔒 Cellules</button>
         <button class="dash-nav-btn" data-tab="portes" data-services="police" onclick="switchDashTab('portes', this)">🏯 Portes du village</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
-        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
-        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission" onclick="switchDashTab('documents', this)">📚 Documents</button>
+        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
-        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
-        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
+        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
+        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
       </nav>
     </aside>
 
@@ -4071,11 +4129,31 @@ const GRADE_RANK_MISSION = {
   'Agent de Mission': 3
 };
 
+const GRADE_RANK_DIPLOMATIE = {
+  'Ambassadeur en Chef': 0,
+  'Premier Diplomate': 1,
+  'Diplomate Senior': 2,
+  'Diplomate': 3,
+  'Émissaire': 4,
+  'Apprenti Diplomate': 5
+};
+
+const GRADE_RANK_RENSEIGNEMENT = {
+  'Maître du Renseignement': 0,
+  'Commandant': 1,
+  'Agent Senior': 2,
+  'Agent': 3,
+  'Informateur': 4,
+  'Recrue': 5
+};
+
 // Helper pour obtenir le rank selon le service
 function gradeRankForService(service, grade) {
   if (service === 'juge') return GRADE_RANK_JUGE[grade] !== undefined ? GRADE_RANK_JUGE[grade] : 99;
   if (service === 'avocat') return GRADE_RANK_AVOCAT[grade] !== undefined ? GRADE_RANK_AVOCAT[grade] : 99;
   if (service === 'mission') return GRADE_RANK_MISSION[grade] !== undefined ? GRADE_RANK_MISSION[grade] : 99;
+  if (service === 'diplomatie') return GRADE_RANK_DIPLOMATIE[grade] !== undefined ? GRADE_RANK_DIPLOMATIE[grade] : 99;
+  if (service === 'renseignement') return GRADE_RANK_RENSEIGNEMENT[grade] !== undefined ? GRADE_RANK_RENSEIGNEMENT[grade] : 99;
   return gradeRank(grade); // police par défaut
 }
 
@@ -4188,6 +4266,8 @@ const GRADES_AVOCAT_HC = ['Bâtonnier', 'Maître', 'Avocat Senior'];
 const ALL_GRADES_JUGE = ['Premier Président', 'Président de Chambre', 'Juge Senior', 'Juge Confirmé', 'Juge', 'Juge Auditeur', 'Juge Stagiaire'];
 const ALL_GRADES_AVOCAT = ['Bâtonnier', 'Maître', 'Avocat Senior', 'Avocat Confirmé', 'Avocat', 'Avocat Junior', 'Avocat Stagiaire'];
 const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affecteur', 'Agent de Mission'];
+const ALL_GRADES_DIPLOMATIE = ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior', 'Diplomate', 'Émissaire', 'Apprenti Diplomate'];
+const ALL_GRADES_RENSEIGNEMENT = ['Maître du Renseignement', 'Commandant', 'Agent Senior', 'Agent', 'Informateur', 'Recrue'];
 
 // Helper : compare 2 grades en ignorant accents/casse
 function _gradeMatch(a, b) {
@@ -4207,6 +4287,8 @@ function canAddMemberInSection(user) {
   if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
   if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
+  if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   return false;
 }
 
@@ -4218,6 +4300,8 @@ function canSeeSectionLogs(user) {
   if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
   if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
+  if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   return false;
 }
 
@@ -4228,6 +4312,9 @@ function canAccessDiscussions(user) {
   if (service === 'police') return gradeRank(user.grade) <= 2;
   if (service === 'juge') return _gradeIn(user.grade, GRADES_JUGE_HC);
   if (service === 'avocat') return _gradeIn(user.grade, GRADES_AVOCAT_HC);
+  if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior']);
+  if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant', 'Agent Senior']);
   return false;
 }
 
@@ -5264,17 +5351,37 @@ function renderDashboard(tab) {
       avatarEl.style.background = 'linear-gradient(135deg,#d97706,#b45309)';
       avatarEl.style.color = '#fff';
       avatarEl.style.border = '2px solid rgba(217,119,6,0.5)';
+    } else if (myService === 'diplomatie') {
+      // Violet/lavande pour Diplomatie
+      avatarEl.style.background = 'linear-gradient(135deg,#a855f7,#7e22ce)';
+      avatarEl.style.color = '#fff';
+      avatarEl.style.border = '2px solid rgba(168,85,247,0.5)';
+      avatarEl.style.boxShadow = '0 0 12px rgba(168,85,247,0.3)';
+    } else if (myService === 'renseignement') {
+      // Gris foncé / argenté pour Renseignement
+      avatarEl.style.background = 'linear-gradient(135deg,#475569,#1e293b)';
+      avatarEl.style.color = '#cbd5e1';
+      avatarEl.style.border = '2px solid rgba(148,163,184,0.6)';
+      avatarEl.style.boxShadow = '0 0 12px rgba(100,116,139,0.4)';
     } else {
       // Police = couleur dorée par défaut (laissé tel quel par CSS)
       avatarEl.style.boxShadow = '';
     }
   }
 
-  // Forcer la couleur du badge grade pour Bureau Mission (puisque pas dans GRADE_CLASS)
+  // Forcer la couleur du badge grade selon la section
   if (myService === 'mission') {
     pill.style.background = 'rgba(20,184,166,0.15)';
     pill.style.color = '#5eead4';
     pill.style.border = '1px solid rgba(20,184,166,0.4)';
+  } else if (myService === 'diplomatie') {
+    pill.style.background = 'rgba(168,85,247,0.15)';
+    pill.style.color = '#d8b4fe';
+    pill.style.border = '1px solid rgba(168,85,247,0.4)';
+  } else if (myService === 'renseignement') {
+    pill.style.background = 'rgba(100,116,139,0.2)';
+    pill.style.color = '#cbd5e1';
+    pill.style.border = '1px solid rgba(148,163,184,0.5)';
   } else {
     // Reset pour permettre au CSS de prendre la main
     pill.style.background = '';
@@ -5297,6 +5404,12 @@ function renderDashboard(tab) {
   } else if (myService === 'mission') {
     if (titleEl) titleEl.textContent = 'Bureau des Missions — Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Affectations';
+  } else if (myService === 'diplomatie') {
+    if (titleEl) titleEl.textContent = 'Ambassade — Diplomatie de Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord — Relations Internationales';
+  } else if (myService === 'renseignement') {
+    if (titleEl) titleEl.textContent = 'Bureau du Renseignement — Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord — Service Secret';
   }
 
   document.querySelectorAll('.dash-nav-btn').forEach(btn => {
@@ -5461,6 +5574,80 @@ function renderOverview() {
           '📚 Consulter les documents'
         ];
       }
+    } else if (myService === 'diplomatie') {
+      const grade = u.grade || '';
+      if (_gradeIn(grade, ['Ambassadeur en Chef'])) {
+        perms = [
+          '👑 Pouvoirs maximaux de l\'Ambassade',
+          '🤝 Représenter Konoha dans les relations internationales',
+          '📜 Négocier les traités et accords avec d\'autres villages',
+          '➕ Ajouter de nouveaux diplomates',
+          '🔑 Voir les identifiants de la Diplomatie',
+          '🗑 Supprimer / promouvoir / rétrograder tout diplomate',
+          '💬 Discussions inter-sections',
+          '📚 Gérer les documents diplomatiques'
+        ];
+      } else if (_gradeIn(grade, ['Premier Diplomate'])) {
+        perms = [
+          '🤝 Représenter Konoha en mission diplomatique',
+          '📜 Préparer et négocier des accords',
+          '➕ Ajouter de nouveaux diplomates',
+          '🔑 Voir les identifiants de la Diplomatie',
+          '🗑 Gérer les diplomates sous votre rang',
+          '💬 Discussions inter-sections'
+        ];
+      } else if (_gradeIn(grade, ['Diplomate Senior'])) {
+        perms = [
+          '🤝 Représenter Konoha en mission diplomatique',
+          '📜 Préparer des accords',
+          '🗑 Supprimer les candidatures',
+          '💬 Discussions inter-sections',
+          '📚 Consulter les documents'
+        ];
+      } else {
+        perms = [
+          '🤝 Assister aux missions diplomatiques',
+          '📚 Consulter les documents diplomatiques',
+          '📋 Rédiger des rapports de mission'
+        ];
+      }
+    } else if (myService === 'renseignement') {
+      const grade = u.grade || '';
+      if (_gradeIn(grade, ['Maître du Renseignement'])) {
+        perms = [
+          '👑 Pouvoirs maximaux du Bureau du Renseignement',
+          '🕵️ Diriger toutes les opérations d\'espionnage et d\'intelligence',
+          '📊 Coordonner la collecte d\'informations sensibles',
+          '➕ Ajouter de nouveaux agents',
+          '🔑 Voir les identifiants du Bureau',
+          '🗑 Supprimer / promouvoir / rétrograder tout agent',
+          '💬 Discussions inter-sections (confidentielles)',
+          '📚 Gérer les documents classifiés'
+        ];
+      } else if (_gradeIn(grade, ['Commandant'])) {
+        perms = [
+          '🕵️ Coordonner les opérations de renseignement',
+          '📊 Analyser les informations collectées',
+          '➕ Ajouter de nouveaux agents',
+          '🔑 Voir les identifiants du Bureau',
+          '🗑 Gérer les agents sous votre rang',
+          '💬 Discussions inter-sections'
+        ];
+      } else if (_gradeIn(grade, ['Agent Senior'])) {
+        perms = [
+          '🕵️ Mener des opérations sur le terrain',
+          '📊 Rapporter les informations recueillies',
+          '🗑 Supprimer les candidatures',
+          '💬 Discussions inter-sections',
+          '📚 Consulter les documents'
+        ];
+      } else {
+        perms = [
+          '🕵️ Recueillir des informations sur le terrain',
+          '📊 Rédiger des rapports d\'observation',
+          '📚 Consulter les documents non classifiés'
+        ];
+      }
     } else {
       // Police : permissions par grade existantes
       perms = PERMS[gradeRank(u.grade)] || PERMS[5];
@@ -5492,7 +5679,9 @@ function renderCandidatures() {
   const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
                     (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
                     (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior'])) ||
-                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur']));
+                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur'])) ||
+                    (myService === 'diplomatie' && _gradeIn(u.grade, ['Ambassadeur en Chef','Premier Diplomate','Diplomate Senior'])) ||
+                    (myService === 'renseignement' && _gradeIn(u.grade, ['Maître du Renseignement','Commandant','Agent Senior']));
 
   let html = '<div class="dash-block">';
   // Tri par date récente (id = timestamp ms, donc on trie par id décroissant)
@@ -5634,9 +5823,11 @@ async function supprimerCandidature(idx) {
   const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
                     (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
                     (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior'])) ||
-                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur']));
+                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur'])) ||
+                    (myService === 'diplomatie' && _gradeIn(u.grade, ['Ambassadeur en Chef','Premier Diplomate','Diplomate Senior'])) ||
+                    (myService === 'renseignement' && _gradeIn(u.grade, ['Maître du Renseignement','Commandant','Agent Senior']));
   if (!canDelete) {
-    alert('Réservé aux Sergents et grades supérieurs (Police), Juge Senior+ (Tribunal), Avocat Senior+ (Cabinet), Affecteur+ (Mission).');
+    alert('Réservé aux gradés supérieurs de votre section.');
     return;
   }
   const c = state.candidatures[idx];
@@ -5725,6 +5916,10 @@ function renderMembres() {
     canManage = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
   } else if (myService === 'mission') {
     canManage = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  } else if (myService === 'diplomatie') {
+    canManage = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
+  } else if (myService === 'renseignement') {
+    canManage = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
   }
 
   // Récupérer les citoyens depuis 3 sources :
@@ -5996,6 +6191,8 @@ async function changeGrade(fullname, dir) {
   else if (myService === 'juge') canDo = _gradeIn(u.grade, ['Premier Président', 'Président de Chambre']);
   else if (myService === 'avocat') canDo = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
   else if (myService === 'mission') canDo = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  else if (myService === 'diplomatie') canDo = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
+  else if (myService === 'renseignement') canDo = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
   if (!canDo) { alert('Vous n\'avez pas la permission de gérer les grades.'); return; }
 
   // Trouver l'agent dans la même section
@@ -8002,6 +8199,14 @@ function renderAjout() {
     gradesDispo = ALL_GRADES_MISSION;
     titreSection = 'Bureau des Missions';
     labelBouton = 'Ajouter le membre';
+  } else if (myService === 'diplomatie') {
+    gradesDispo = ALL_GRADES_DIPLOMATIE;
+    titreSection = 'Diplomatie';
+    labelBouton = 'Ajouter le diplomate';
+  } else if (myService === 'renseignement') {
+    gradesDispo = ALL_GRADES_RENSEIGNEMENT;
+    titreSection = 'Bureau du Renseignement';
+    labelBouton = 'Ajouter l\'agent';
   } else if (myService === 'police') {
     // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
     if (canManageSpecialRoles(u)) {
@@ -12328,6 +12533,12 @@ async function supprimerCompte(fullname, service) {
   } else if (myService === 'mission') {
     hasPermission = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
     labelSection = 'au Chef du Bureau ou Coordinateur de Mission';
+  } else if (myService === 'diplomatie') {
+    hasPermission = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
+    labelSection = 'à l\'Ambassadeur en Chef ou Premier Diplomate';
+  } else if (myService === 'renseignement') {
+    hasPermission = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
+    labelSection = 'au Maître du Renseignement ou Commandant';
   }
 
   if (!hasPermission) {
