@@ -10762,6 +10762,7 @@ function renderLogs() {
     if (myService === 'police') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
+    if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès strictement restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -10774,13 +10775,15 @@ function renderLogs() {
   const civils = state.users.filter(x => x.service === 'civil');
   const juges = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'juge'));
   const avocats = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'avocat'));
+  const missionAgents = state.users.filter(x => x.isAgent && x.service === 'mission');
 
   // Détermine quels onglets afficher selon la section
   const showPolice = (myService === 'police');
   const showJuges = (myService === 'police' || myService === 'juge');
   const showAvocats = (myService === 'police' || myService === 'avocat');
+  const showMission = (myService === 'police' || myService === 'mission');
   const showCivils = true; // Toutes les directions peuvent voir les civils
-  const defaultTab = myService === 'police' ? 'agents' : myService === 'juge' ? 'juges' : 'avocats';
+  const defaultTab = myService === 'police' ? 'agents' : myService === 'juge' ? 'juges' : myService === 'mission' ? 'mission' : 'avocats';
 
   let bandeauColor = 'rgba(231,76,60,0.06)';
   let bandeauBorder = 'rgba(231,76,60,0.2)';
@@ -10792,6 +10795,9 @@ function renderLogs() {
   } else if (myService === 'avocat') {
     bandeauColor = 'rgba(217,119,6,0.06)'; bandeauBorder = 'rgba(217,119,6,0.25)'; bandeauTextColor = '#fbbf24';
     bandeauMsg = '🧑‍⚖️ <strong>Cabinet — Direction</strong> — Comptes des avocats et des civils.';
+  } else if (myService === 'mission') {
+    bandeauColor = 'rgba(20,184,166,0.06)'; bandeauBorder = 'rgba(20,184,166,0.3)'; bandeauTextColor = '#5eead4';
+    bandeauMsg = '🎯 <strong>Bureau des Missions — Direction</strong> — Comptes des membres et des civils.';
   }
 
   let html = `
@@ -10813,6 +10819,10 @@ function renderLogs() {
   if (showAvocats) {
     const isDefault = defaultTab === 'avocats';
     html += `<button id="logs-tab-avocats" onclick="switchLogsTab('avocats')" style="background:${isDefault?'rgba(196,154,26,0.15)':'transparent'};color:${isDefault?'var(--accent)':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'var(--accent)':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🧑‍⚖️ Avocats (${avocats.length})</button>`;
+  }
+  if (showMission) {
+    const isDefault = defaultTab === 'mission';
+    html += `<button id="logs-tab-mission" onclick="switchLogsTab('mission')" style="background:${isDefault?'rgba(20,184,166,0.15)':'transparent'};color:${isDefault?'#5eead4':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#5eead4':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🎯 Mission (${missionAgents.length})</button>`;
   }
   if (showCivils) {
     html += `<button id="logs-tab-civils" onclick="switchLogsTab('civils')" style="background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🍃 Civils (${civils.length})</button>`;
@@ -10927,6 +10937,38 @@ function renderLogs() {
   }
   html += `</div></div>`; // Ferme section-avocats
 
+  // Section Mission (Bureau des Missions)
+  const sectionMissionDisplay = (showMission && defaultTab==='mission') ? 'block' : 'none';
+  html += `<div id="logs-section-mission" style="display:${sectionMissionDisplay}">
+      <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
+        🎯 <strong style="color:#5eead4">Bureau des Missions</strong> — Comptes des membres du Bureau et leurs mots de passe.
+      </div>
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:1px">🎯 Membres du Bureau des Missions (${missionAgents.length})</div>`;
+  if (missionAgents.length === 0) {
+    html += '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-style:italic">Aucun membre du Bureau des Missions enregistré.</div>';
+  } else {
+    missionAgents.forEach(a => {
+      html += `
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <strong style="color:var(--text);font-size:14px">${escapeHtml(a.fullname)}</strong>
+              <span style="margin-left:6px;font-size:10px;color:#5eead4;background:rgba(20,184,166,0.15);border:1px solid rgba(20,184,166,0.3);padding:2px 8px;border-radius:10px">${escapeHtml(a.grade||'—')}</span>
+              ${a.matricule ? `<span style="margin-left:6px;font-size:10px;color:var(--muted)">📋 ${escapeHtml(a.matricule)}</span>` : ''}
+            </div>
+            ${a.inscription ? `<span style="font-size:10px;color:var(--muted)">Inscrit le ${escapeHtml(a.inscription)}</span>` : ''}
+          </div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:8px 12px">
+            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🔑 Mot de passe :</span>
+            <code style="color:#5eead4;font-family:monospace;font-size:13px;font-weight:700;flex:1">${escapeHtml(a.password || '(non défini)')}</code>
+            <button class="btn-sm" style="background:rgba(20,184,166,0.15);color:#5eead4;border:1px solid rgba(20,184,166,0.3);font-size:10px;padding:4px 8px" onclick="navigator.clipboard.writeText('${(a.password||'').replace(/'/g, "\\'")}').then(()=>alert('✓ Mot de passe copié'))">📋 Copier</button>
+          </div>
+        </div>`;
+    });
+  }
+  html += `</div></div>`; // Ferme section-mission
+
   // Section Civils (toujours accessible)
   html += `<div id="logs-section-civils" style="display:none">
       <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
@@ -10975,14 +11017,15 @@ function renderLogs() {
 
 // Switch entre les onglets de Logs
 function switchLogsTab(tab) {
-  ['agents','juges','avocats','civils'].forEach(t => {
+  ['agents','juges','avocats','mission','civils'].forEach(t => {
     const btn = document.getElementById('logs-tab-' + t);
     const sec = document.getElementById('logs-section-' + t);
+    const isMission = (t === 'mission');
     if (btn) {
       if (t === tab) {
-        btn.style.background = 'rgba(196,154,26,0.15)';
-        btn.style.color = 'var(--accent)';
-        btn.style.borderBottomColor = 'var(--accent)';
+        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : 'rgba(196,154,26,0.15)';
+        btn.style.color = isMission ? '#5eead4' : 'var(--accent)';
+        btn.style.borderBottomColor = isMission ? '#5eead4' : 'var(--accent)';
       } else {
         btn.style.background = 'transparent';
         btn.style.color = 'var(--muted)';
@@ -12115,6 +12158,9 @@ async function supprimerCompte(fullname, service) {
   } else if (myService === 'avocat') {
     hasPermission = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
     labelSection = 'au Bâtonnier ou Maître';
+  } else if (myService === 'mission') {
+    hasPermission = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+    labelSection = 'au Chef du Bureau ou Coordinateur de Mission';
   }
 
   if (!hasPermission) {
