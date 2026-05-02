@@ -14015,9 +14015,9 @@ function renderOperations() {
         <div style="font-size:12px;color:#fb923c;font-weight:700;text-transform:uppercase;letter-spacing:1px">🗺️ Carte de Konoha & Sunagakure</div>
         <div style="font-size:11px;color:var(--muted);font-style:italic">💡 Maintenez un point pour le déplacer</div>
       </div>
-      <div id="op-map-wrapper" style="position:relative;width:100%;background:#1a1a1a;overflow:auto;max-height:600px">
-        <div id="op-map-container" style="position:relative;width:100%;min-height:400px">
-          <object id="op-map-svg" type="image/svg+xml" data="cartographie-nrp.svg" style="width:100%;display:block;pointer-events:none"></object>
+      <div id="op-map-wrapper" style="position:relative;width:100%;background:#0a0a0a;overflow:auto;max-height:80vh">
+        <div id="op-map-container" style="position:relative;width:100%;display:block;line-height:0;font-size:0">
+          <img id="op-map-svg" src="cartographie-nrp.svg" style="width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none" alt="Carte de Konoha"/>
           <div id="op-map-points" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></div>
         </div>
       </div>
@@ -14063,7 +14063,17 @@ function renderOperations() {
   el.innerHTML = html;
 
   // Dessiner les points sur la carte une fois le SVG chargé
-  setTimeout(() => dessinerPointsOperations(), 300);
+  // Dessiner les points après chargement de l'image
+  const imgEl = document.getElementById('op-map-svg');
+  if (imgEl) {
+    if (imgEl.complete) {
+      dessinerPointsOperations();
+    } else {
+      imgEl.onload = () => dessinerPointsOperations();
+    }
+  }
+  // Et un fallback au cas où
+  setTimeout(() => dessinerPointsOperations(), 800);
 }
 
 function filtrerOperations(filter) {
@@ -14078,12 +14088,8 @@ function dessinerPointsOperations() {
   const ops = state.operations || [];
   const filtered = _currentOpFilter === 'all' ? ops : ops.filter(o => o.status === _currentOpFilter);
 
-  // S'assurer que le container a la même taille que le SVG
-  const svgEl = document.getElementById('op-map-svg');
-  if (svgEl) {
-    pointsContainer.style.width = svgEl.offsetWidth + 'px';
-    pointsContainer.style.height = svgEl.offsetHeight + 'px';
-  }
+  // Le container de points est positionné en absolute, il prend toute la place du conteneur parent
+  // pas besoin d'ajuster sa taille manuellement (CSS s'en occupe avec width/height 100%)
 
   pointsContainer.innerHTML = filtered.map(op => {
     const realIdx = state.operations.indexOf(op);
