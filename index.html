@@ -14479,6 +14479,17 @@ function renderOperationsCivil() {
 
   // === LISTE des opérations (uniquement si on en a) ===
   if (mesOps.length > 0) {
+    const nbTerminees = mesOps.filter(o => o.status === 'completed').length;
+
+    // Header avec bouton "Nettoyer terminées"
+    if (nbTerminees > 0) {
+      html += `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:11px;color:var(--muted)">${mesOps.length} opération(s) · <strong style="color:#86efac">${nbTerminees}</strong> terminée(s)</div>
+          <button class="btn-sm" onclick="nettoyerOperationsTermineesCivil()" style="background:rgba(34,197,94,0.1);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-size:11px;padding:5px 12px;border-radius:5px;cursor:pointer;font-weight:700">🧹 Nettoyer terminées (${nbTerminees})</button>
+        </div>`;
+    }
+
     html += '<div style="margin-bottom:1rem">';
     mesOps.slice().sort((a,b) => (b._id||0) - (a._id||0)).forEach(op => {
       const realIdx = state.operations.indexOf(op);
@@ -14500,6 +14511,7 @@ function renderOperationsCivil() {
               </select>
             ` : ''}
             <button class="btn-sm" onclick="centrerSurOperationCivil(${realIdx})" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:10px;padding:3px 10px">📍 Voir sur carte</button>
+            <button class="btn-sm btn-sm-red" onclick="supprimerOperationCivil(${realIdx})" style="font-size:10px;padding:3px 8px;background:rgba(231,76,60,0.15);color:#fca5a5;border:1px solid rgba(231,76,60,0.4)" title="Supprimer cette opération et son point sur la carte">🗑</button>
           </div>
         </div>`;
     });
@@ -14664,6 +14676,52 @@ async function changerStatutOperationCivil(idx, newStatus) {
     try { await pushToSupabase('operations', op); } catch(e) {}
   }
   saveSession();
+  if (typeof renderCivilDash === 'function') renderCivilDash();
+}
+
+// Supprimer une opération civile (avec son point sur la carte)
+async function supprimerOperationCivil(idx) {
+  const op = state.operations[idx];
+  if (!op || !civilUser) return;
+  // Vérifier que c'est bien la sienne
+  if (op.service !== 'civil' || !matchFullname(op.responsable || op.createdBy || '', civilUser.fullname)) {
+    alert('⚠️ Vous ne pouvez supprimer que vos propres opérations.');
+    return;
+  }
+  if (!(await confirmAsync('Supprimer définitivement l\'opération "' + op.name + '" ?\n\n⚠ Le point sera retiré de la carte.'))) return;
+
+  if (op._id && supabaseReady) {
+    try { await deleteFromSupabase('operations', op._id); } catch(e) {}
+  }
+  state.operations.splice(idx, 1);
+  saveSession();
+  if (typeof renderCivilDash === 'function') renderCivilDash();
+}
+
+// Nettoyer toutes les opérations terminées du civil
+async function nettoyerOperationsTermineesCivil() {
+  if (!civilUser) return;
+  const terminees = (state.operations || []).filter(o =>
+    o.status === 'completed' &&
+    o.service === 'civil' &&
+    matchFullname(o.responsable || o.createdBy || '', civilUser.fullname)
+  );
+  if (terminees.length === 0) {
+    alert('Aucune opération terminée à nettoyer.');
+    return;
+  }
+  if (!(await confirmAsync('🧹 Nettoyer ' + terminees.length + ' opération(s) terminée(s) ?\n\nLes points seront retirés de la carte.'))) return;
+
+  // Supprimer une par une
+  for (const op of terminees) {
+    if (op._id && supabaseReady) {
+      try { await deleteFromSupabase('operations', op._id); } catch(e) {}
+    }
+    const idx = state.operations.indexOf(op);
+    if (idx >= 0) state.operations.splice(idx, 1);
+  }
+  saveSession();
+  alert('✓ ' + terminees.length + ' opération(s) terminée(s) supprimée(s).');
   if (typeof renderCivilDash === 'function') renderCivilDash();
 }
 
