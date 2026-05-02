@@ -1681,8 +1681,8 @@
     <div class="avatar" id="nav-avatar">—</div>
     <span style="font-size:13px;color:var(--text);font-weight:600" id="nav-username-display"></span>
     <span class="grade-pill" id="nav-grade-pill"></span>
-    <button class="btn-outline" onclick="showPage('dashboard')">Espace agent</button>
-    <button class="btn-danger" onclick="logout()">Déco.</button>
+    <button class="btn-outline" id="nav-back-btn" onclick="showPage('dashboard')">Espace agent</button>
+    <button class="btn-danger" id="nav-logout-btn" onclick="logout()">Déco.</button>
   </div>
 </nav>
 
@@ -2309,6 +2309,10 @@
           <button type="button" class="section-btn" data-section="mission" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
             <div style="font-size:24px;margin-bottom:4px">🎯</div>
             Mission
+          </button>
+          <button type="button" class="section-btn" data-section="civil" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
+            <div style="font-size:24px;margin-bottom:4px">🍃</div>
+            Civil
           </button>
         </div>
       </div>
@@ -4347,6 +4351,13 @@ function showPage(id) {
   if (id === 'home') {
     setTimeout(() => initFire('fire-canvas'), 100);
     updateStats();
+    // Mettre à jour la nav pour montrer l'avatar civil si connecté
+    updateNav();
+  }
+
+  // Sur toute page publique, on met à jour la nav (pour montrer l'avatar civil)
+  if (id !== 'dashboard' && id !== 'civil-dash' && id !== 'login') {
+    try { updateNav(); } catch(e) {}
   }
 
   if (id === 'postuler') updatePostulerHeader();
@@ -4417,14 +4428,54 @@ function updateNav() {
   const userEl = document.getElementById('nav-user');
   if (!authEl || !userEl) return;
 
+  const backBtn = document.getElementById('nav-back-btn');
+  const logoutBtn = document.getElementById('nav-logout-btn');
+  const avatarEl = document.getElementById('nav-avatar');
+  const pill = document.getElementById('nav-grade-pill');
+
   if (u) {
+    // Connecté en agent (Police/Juge/Avocat/Mission)
     authEl.style.display = 'none';
     userEl.style.display = 'flex';
-    document.getElementById('nav-avatar').textContent = getInitialsFromFullname(u.fullname);
+    if (avatarEl) avatarEl.textContent = getInitialsFromFullname(u.fullname);
     document.getElementById('nav-username-display').textContent = u.fullname;
-    const pill = document.getElementById('nav-grade-pill');
     pill.textContent = u.grade;
     pill.className = 'grade-pill ' + (GRADE_CLASS[u.grade] || 'gp-d');
+    pill.style.background = '';
+    pill.style.color = '';
+    pill.style.border = '';
+    if (avatarEl) {
+      avatarEl.style.background = '';
+      avatarEl.style.color = '';
+      avatarEl.style.border = '';
+    }
+    if (backBtn) {
+      backBtn.textContent = 'Espace agent';
+      backBtn.onclick = () => showPage('dashboard');
+    }
+    if (logoutBtn) logoutBtn.onclick = () => logout();
+  } else if (typeof civilUser !== 'undefined' && civilUser) {
+    // Connecté en civil
+    authEl.style.display = 'none';
+    userEl.style.display = 'flex';
+    if (avatarEl) {
+      avatarEl.textContent = getInitialsFromFullname(civilUser.fullname);
+      // Style civil (vert)
+      avatarEl.style.background = 'rgba(34,197,94,0.2)';
+      avatarEl.style.color = '#86efac';
+      avatarEl.style.border = '1px solid rgba(34,197,94,0.5)';
+    }
+    document.getElementById('nav-username-display').textContent = civilUser.fullname;
+    pill.textContent = civilUser.grade || 'Citoyen';
+    pill.className = 'grade-pill';
+    pill.style.background = 'rgba(34,197,94,0.15)';
+    pill.style.color = '#86efac';
+    pill.style.border = '1px solid rgba(34,197,94,0.4)';
+    if (backBtn) {
+      backBtn.textContent = '🍃 Mon espace';
+      backBtn.onclick = () => showPage('civil-dash');
+    }
+    if (logoutBtn) logoutBtn.onclick = () => logoutCivil();
   } else {
     authEl.style.display = 'flex';
     userEl.style.display = 'none';
@@ -4466,6 +4517,52 @@ async function doLogin() {
   if (!fullname || (!skipPassword && !p)) {
     errEl.textContent = skipPassword ? 'Veuillez entrer votre nom et prénom.' : 'Veuillez remplir tous les champs.';
     errEl.style.display = 'block';
+    return;
+  }
+
+  // === CAS SPÉCIAL : connexion civile depuis cette page ===
+  if (section === 'civil') {
+    // Chercher dans state.users les comptes civils
+    let civilFound = state.users.find(u =>
+      !u.isAgent &&
+      u.service === 'civil' &&
+      matchFullname(u.fullname, fullname) &&
+      u.password === p
+    );
+
+    // Si pas trouvé en local et Supabase dispo, refresh
+    if (!civilFound && supabaseReady) {
+      errEl.textContent = '⏳ Vérification en ligne...';
+      errEl.style.display = 'block';
+      errEl.style.color = 'var(--accent)';
+      try {
+        const cfg = SUPABASE_TABLES.users;
+        const { data } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
+        if (data) {
+          state.users = data.map(cfg.mapFrom);
+        }
+      } catch(e) {}
+      civilFound = state.users.find(u =>
+        !u.isAgent &&
+        u.service === 'civil' &&
+        matchFullname(u.fullname, fullname) &&
+        u.password === p
+      );
+      errEl.style.color = '';
+    }
+
+    if (!civilFound) {
+      errEl.textContent = '🍃 Identifiants civils incorrects.\nSi vous n\'avez pas de compte, créez-en un depuis l\'accueil.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    // Connecter en civil
+    civilUser = civilFound;
+    try { localStorage.setItem('konaCivilSession', JSON.stringify({ fullname: civilFound.fullname })); } catch(e) {}
+    ['login-fullname', 'login-password'].forEach(id => document.getElementById(id).value = '');
+    updateNav();
+    showPage('civil-dash');
     return;
   }
 
