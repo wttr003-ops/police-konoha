@@ -13798,17 +13798,17 @@ function renderMissionsPublic() {
       const isAccepted = m.status === 'accepted';
       const isCompleted = m.status === 'completed';
 
-      // Badge statut
-      let statusBadge = '';
+      // Badge statut (intégré dans la barre du haut, à côté du rang)
+      let statusBadgeInline = '';
       if (isAccepted) {
-        statusBadge = `
-          <div style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);padding:4px 10px;border-radius:12px;font-size:10px;font-weight:700;color:#86efac;animation:pulse 2s infinite">
-            <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block"></span>
+        statusBadgeInline = `
+          <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;color:#86efac;animation:pulse 2s infinite">
+            <span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block"></span>
             EN COURS
           </div>`;
       } else if (isCompleted) {
-        statusBadge = `
-          <div style="position:absolute;top:8px;right:8px;background:rgba(196,154,26,0.2);border:1px solid rgba(196,154,26,0.5);padding:4px 10px;border-radius:12px;font-size:10px;font-weight:700;color:var(--lgold)">
+        statusBadgeInline = `
+          <div style="display:inline-flex;align-items:center;gap:4px;background:rgba(196,154,26,0.2);border:1px solid rgba(196,154,26,0.5);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;color:var(--lgold)">
             ✓ TERMINÉE
           </div>`;
       }
@@ -13818,9 +13818,11 @@ function renderMissionsPublic() {
 
       html += `
         <div style="background:#0a0a0a;border:2px solid ${rank.border};border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);position:relative;${isCompleted?'opacity:0.7':''}">
-          ${statusBadge}
-          <div style="background:${rank.bg};padding:10px 14px;border-bottom:1px solid ${rank.border};display:flex;justify-content:space-between;align-items:center;gap:6px">
-            <div style="background:${rank.color};color:#0a0a0a;font-weight:700;padding:3px 12px;border-radius:5px;font-family:'Cinzel',serif;font-size:14px">${rank.label}</div>
+          <div style="background:${rank.bg};padding:10px 14px;border-bottom:1px solid ${rank.border};display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div style="background:${rank.color};color:#0a0a0a;font-weight:700;padding:3px 12px;border-radius:5px;font-family:'Cinzel',serif;font-size:14px">${rank.label}</div>
+              ${statusBadgeInline}
+            </div>
             ${m.reward > 0 ? `<div style="font-family:'Cinzel',serif;color:var(--lgold);font-weight:700;font-size:14px">${m.reward.toLocaleString()} Ryos</div>` : ''}
           </div>
           <div style="padding:14px">
