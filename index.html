@@ -13929,17 +13929,18 @@ async function terminerMission(idx) {
     try { await pushToSupabase('missions', m); } catch(e) {}
   }
 
-  // === SYNC : Marquer aussi l'opération civile correspondante en "completed" ===
+  // === SUPPRIMER l'opération civile correspondante (le point disparaît de la carte) ===
   const opLiee = (state.operations || []).find(o => o.missionId && m._id && o.missionId === m._id);
   if (opLiee) {
-    opLiee.status = 'completed';
     if (supabaseReady && opLiee._id) {
-      try { await pushToSupabase('operations', opLiee); } catch(e) {}
+      try { await deleteFromSupabase('operations', opLiee._id); } catch(e) {}
     }
+    const opIdx = state.operations.indexOf(opLiee);
+    if (opIdx >= 0) state.operations.splice(opIdx, 1);
   }
 
   saveSession();
-  alert('✓ Mission "' + m.name + '" marquée comme terminée.\n' + (opLiee ? 'L\'opération du civil est aussi marquée terminée.' : ''));
+  alert('✓ Mission "' + m.name + '" marquée comme terminée.\n' + (opLiee ? '🗑 Le point sur la carte a été retiré automatiquement.' : ''));
   renderMissionsAgents();
 }
 
@@ -14096,6 +14097,8 @@ function renderOperations() {
   setTimeout(() => {
     dessinerPointsOperations();
     appliquerZoomCarte(); // restaurer le niveau de zoom
+    // Activer le pan + zoom molette
+    setupMapPanZoom('op-map-wrapper', 'op-map-container', '_opMapZoom', appliquerZoomCarte, '.op-marker');
   }, 800);
 }
 
@@ -14356,6 +14359,85 @@ function appliquerZoomCarte() {
   }
 }
 
+// === Pan + zoom molette pour une carte ===
+// wrapperId : id du conteneur scrollable (overflow:auto)
+// containerId : id du div qui contient l'image (subi le transform scale)
+// zoomVarName : nom de la variable globale window[zoomVarName] = niveau de zoom
+// applyZoomFn : fonction qui applique le zoom
+// markerSelector : sélecteur CSS des points dragables (pour ne pas pan dessus)
+function setupMapPanZoom(wrapperId, containerId, zoomVarName, applyZoomFn, markerSelector) {
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper || wrapper.dataset.panSetup === 'true') return;
+  wrapper.dataset.panSetup = 'true';
+
+  let isPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let scrollStartLeft = 0;
+  let scrollStartTop = 0;
+
+  // Curseur en main par défaut
+  wrapper.style.cursor = 'grab';
+
+  // === PAN : clic gauche maintenu sur la carte (pas sur un marker) ===
+  wrapper.addEventListener('mousedown', (e) => {
+    // Si on clique sur un marker, on laisse le drag du marker agir
+    if (e.target.closest(markerSelector)) return;
+    // Uniquement clic gauche
+    if (e.button !== 0) return;
+
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    scrollStartLeft = wrapper.scrollLeft;
+    scrollStartTop = wrapper.scrollTop;
+    wrapper.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isPanning) return;
+    e.preventDefault();
+    const dx = e.clientX - panStartX;
+    const dy = e.clientY - panStartY;
+    wrapper.scrollLeft = scrollStartLeft - dx;
+    wrapper.scrollTop = scrollStartTop - dy;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isPanning) {
+      isPanning = false;
+      wrapper.style.cursor = 'grab';
+    }
+  });
+
+  // === ZOOM molette ===
+  wrapper.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.1 : -0.1;
+    const oldZoom = window[zoomVarName] || 1;
+    const newZoom = Math.max(0.5, Math.min(3, oldZoom + delta));
+    if (newZoom === oldZoom) return;
+
+    // Position du curseur dans le wrapper
+    const rect = wrapper.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left + wrapper.scrollLeft;
+    const cursorY = e.clientY - rect.top + wrapper.scrollTop;
+
+    // Position relative au container avant zoom
+    const ratio = newZoom / oldZoom;
+
+    window[zoomVarName] = newZoom;
+    applyZoomFn();
+
+    // Ajuster le scroll pour que le point sous le curseur reste sous le curseur
+    requestAnimationFrame(() => {
+      wrapper.scrollLeft = cursorX * ratio - (e.clientX - rect.left);
+      wrapper.scrollTop = cursorY * ratio - (e.clientY - rect.top);
+    });
+  }, { passive: false });
+}
+
 function centrerSurOperation(idx) {
   const op = state.operations[idx];
   if (!op) return;
@@ -14468,6 +14550,8 @@ function renderOperationsCivil() {
   setTimeout(() => {
     dessinerPointsOperationsCivil();
     appliquerZoomCarteCivil();
+    // Activer le pan + zoom molette pour la carte civile
+    setupMapPanZoom('civil-map-wrapper', 'civil-map-container', '_civilMapZoom', appliquerZoomCarteCivil, '.civil-op-marker.mine');
   }, 800);
 }
 
@@ -14475,31 +14559,39 @@ function dessinerPointsOperationsCivil() {
   const pointsContainer = document.getElementById('civil-map-points');
   if (!pointsContainer || !civilUser) return;
 
-  const mesOps = (state.operations || []).filter(o =>
-    o.service === 'civil' &&
-    matchFullname(o.responsable || o.createdBy || '', civilUser.fullname)
-  );
+  // Afficher TOUS les points (civils + agents) — Q = A
+  // Mais on ne peut déplacer que les siens
+  const tousLesPoints = (state.operations || []);
 
-  pointsContainer.innerHTML = mesOps.map(op => {
+  pointsContainer.innerHTML = tousLesPoints.map(op => {
     const realIdx = state.operations.indexOf(op);
-    const st = CIVIL_OPERATION_STATUS[op.status] || OPERATION_STATUS.planned;
+    const st = (op.service === 'civil' ? CIVIL_OPERATION_STATUS[op.status] : OPERATION_STATUS[op.status]) || OPERATION_STATUS.planned;
     const x = op.positionX != null ? op.positionX : 50;
     const y = op.positionY != null ? op.positionY : 50;
+
+    // Le point est-il "à moi" ?
+    const isMine = op.service === 'civil' && matchFullname(op.responsable || op.createdBy || '', civilUser.fullname);
+    const opacity = isMine ? '1' : '0.7';
+    const cursor = isMine ? 'grab' : 'help';
+    const sectionLabel = op.service === 'civil' ? 'Civil' : op.service === 'mission' ? 'Bureau Mission' : 'Police';
+
     return `
-      <div class="civil-op-marker" data-idx="${realIdx}"
-           style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-100%);pointer-events:auto;cursor:grab;z-index:10"
-           title="${escapeHtml(op.name)} — ${st.label}">
+      <div class="civil-op-marker ${isMine ? 'mine' : 'other'}" data-idx="${realIdx}" data-mine="${isMine}"
+           style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-100%);pointer-events:auto;cursor:${cursor};z-index:10;opacity:${opacity}"
+           title="${escapeHtml(op.name)} — ${st.label} (${sectionLabel})">
         <div style="position:relative">
-          <div style="background:${st.color};width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center">
-            <div style="transform:rotate(45deg);font-size:11px;color:white;font-weight:700">📍</div>
+          <div style="background:${st.color};width:${isMine ? 26 : 20}px;height:${isMine ? 26 : 20}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:${isMine ? 3 : 2}px solid ${isMine ? '#fff' : 'rgba(255,255,255,0.7)'};box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center">
+            <div style="transform:rotate(45deg);font-size:${isMine ? 11 : 9}px;color:white;font-weight:700">📍</div>
           </div>
-          <div style="position:absolute;top:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:4px 8px;border-radius:4px;font-size:10px;white-space:nowrap;border:1px solid ${st.border};font-family:'Cinzel',serif;font-weight:600">${escapeHtml(op.name)}</div>
+          <div style="position:absolute;top:${isMine ? 30 : 24}px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:4px 8px;border-radius:4px;font-size:${isMine ? 10 : 9}px;white-space:nowrap;border:1px solid ${st.border};font-family:'Cinzel',serif;font-weight:600">
+            ${isMine ? '<span style="color:#5eead4">⭐ </span>' : ''}${escapeHtml(op.name)}
+          </div>
         </div>
       </div>`;
   }).join('');
 
-  // Activer drag
-  pointsContainer.querySelectorAll('.civil-op-marker').forEach(marker => {
+  // Activer drag UNIQUEMENT sur ses propres points
+  pointsContainer.querySelectorAll('.civil-op-marker.mine').forEach(marker => {
     setupCivilMarkerDrag(marker);
   });
 }
