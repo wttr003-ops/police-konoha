@@ -2592,6 +2592,7 @@
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
         <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
+        <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
         <button class="dash-nav-btn" data-tab="amendes" data-services="police,juge,avocat" onclick="switchDashTab('amendes', this)">💰 Amendes</button>
         <button class="dash-nav-btn" data-tab="casier" data-services="police,juge,avocat" onclick="switchDashTab('casier', this)">🗂 Casier judiciaire</button>
@@ -2691,6 +2692,11 @@
       <div class="dash-tab" id="dash-missions">
         <h2 class="dash-section-title" style="color:#fbbf24">🎯 Tableau des missions</h2>
         <div id="missions-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-operations">
+        <h2 class="dash-section-title" style="color:#fb923c">🗺️ Opérations sur la carte</h2>
+        <div id="operations-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-dossiers">
@@ -3312,6 +3318,36 @@ const SUPABASE_TABLES = {
       acceptedAt: r.accepted_at,
       completedAt: r.completed_at,
       notes: r.notes,
+      _id: r.id
+    })
+  },
+  operations: {
+    table: 'operations',
+    mapTo: o => ({
+      name: o.name,
+      description: o.description || null,
+      type: o.type || 'patrouille',
+      responsable: o.responsable || null,
+      status: o.status || 'planned',
+      service: o.service || 'police',
+      position_x: o.positionX != null ? o.positionX : 50,
+      position_y: o.positionY != null ? o.positionY : 50,
+      created_by: o.createdBy || null,
+      members: o.members || [],
+      mission_id: o.missionId || null
+    }),
+    mapFrom: r => ({
+      name: r.name,
+      description: r.description,
+      type: r.type,
+      responsable: r.responsable,
+      status: r.status,
+      service: r.service,
+      positionX: r.position_x,
+      positionY: r.position_y,
+      createdBy: r.created_by,
+      members: r.members || [],
+      missionId: r.mission_id,
       _id: r.id
     })
   },
@@ -4013,7 +4049,9 @@ let state = {
   // Avis de recherche
   wantedPersons: [],
   // Bureau des Missions
-  missions: []
+  missions: [],
+  // Opérations sur carte (Police + Bureau Mission)
+  operations: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4754,7 +4792,7 @@ function saveSession() {
       reportRequests: state.reportRequests || [],
       wantedPersons: state.wantedPersons || [],
       missions: state.missions || [],
-      missions: state.missions || [],
+      operations: state.operations || [],
       presences: state.presences || [],
       serviceActif: state.serviceActif || {}
     };
@@ -4829,7 +4867,7 @@ function restoreSession() {
     if (data.reportRequests) state.reportRequests = data.reportRequests;
     if (data.wantedPersons) state.wantedPersons = data.wantedPersons;
     if (data.missions) state.missions = data.missions;
-    if (data.missions) state.missions = data.missions;
+    if (data.operations) state.operations = data.operations;
     if (data.presences) state.presences = data.presences;
     if (data.serviceActif) state.serviceActif = data.serviceActif;
 
@@ -5177,6 +5215,7 @@ function switchDashTab(name, btn) {
   if (name === 'documents') renderDocuments();
   if (name === 'wanted') renderWantedAgents();
   if (name === 'missions') renderMissionsAgents();
+  if (name === 'operations') renderOperations();
   if (name === 'dossiers') renderDossiersAvocat();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
@@ -13904,6 +13943,379 @@ async function supprimerMission(idx) {
   state.missions.splice(idx, 1);
   saveSession();
   renderMissionsAgents();
+}
+
+// ============================================================
+// OPÉRATIONS SUR CARTE — Police + Bureau Mission
+// ============================================================
+const OPERATION_STATUS = {
+  active:       { label: 'Active',      color: '#22c55e', bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.5)',  icon: '🟢' },
+  planned:      { label: 'Planifiée',   color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.5)', icon: '🔵' },
+  completed:    { label: 'Terminée',    color: '#86efac', bg: 'rgba(34,197,94,0.08)',  border: 'rgba(34,197,94,0.3)',  icon: '✅' },
+  arrest:       { label: 'Arrestation', color: '#fb923c', bg: 'rgba(251,146,60,0.15)', border: 'rgba(251,146,60,0.5)', icon: '🟠' }
+};
+
+const OPERATION_TYPES = ['Patrouille', 'Perquisition', 'Surveillance', 'Arrestation', 'Mission Bureau', 'Intervention', 'Autre'];
+
+let _currentOpFilter = 'all'; // 'all', 'active', 'planned', 'completed', 'arrest'
+
+function renderOperations() {
+  const u = state.currentUser;
+  const el = document.getElementById('operations-content');
+  if (!el) return;
+  const myService = u.service || 'police';
+  if (myService !== 'police' && myService !== 'mission') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée à la Police et au Bureau des Missions.</p></div>';
+    return;
+  }
+
+  const ops = state.operations || [];
+  const counts = {
+    active:    ops.filter(o => o.status === 'active').length,
+    planned:   ops.filter(o => o.status === 'planned').length,
+    completed: ops.filter(o => o.status === 'completed').length,
+    arrest:    ops.filter(o => o.status === 'arrest').length
+  };
+
+  const filtered = _currentOpFilter === 'all' ? ops : ops.filter(o => o.status === _currentOpFilter);
+
+  let html = `
+    <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="font-size:13px;color:var(--text)">🗺️ <strong style="color:#fb923c">Opérations cartographiques</strong> — Marquez et suivez vos opérations sur la carte de Konoha</div>
+      <button class="btn-primary" onclick="ouvrirCreationOperation()" style="background:linear-gradient(135deg,#fb923c,#ea580c);color:white;padding:8px 16px;font-size:12px;border:none;border-radius:6px;cursor:pointer;font-weight:700">+ Nouvelle opération</button>
+    </div>
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem">
+      <div onclick="filtrerOperations('active')" style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:14px;cursor:pointer;${_currentOpFilter==='active'?'border-color:#22c55e;box-shadow:0 0 12px rgba(34,197,94,0.3)':''}">
+        <div style="font-size:24px;font-weight:800;color:var(--green);font-family:'Cinzel',serif">${counts.active}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🟢 Actives</div>
+      </div>
+      <div onclick="filtrerOperations('planned')" style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:14px;cursor:pointer;${_currentOpFilter==='planned'?'border-color:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,0.3)':''}">
+        <div style="font-size:24px;font-weight:800;color:#3b82f6;font-family:'Cinzel',serif">${counts.planned}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🔵 Planifiées</div>
+      </div>
+      <div onclick="filtrerOperations('completed')" style="background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:14px;cursor:pointer;${_currentOpFilter==='completed'?'border-color:#86efac;box-shadow:0 0 12px rgba(134,239,172,0.3)':''}">
+        <div style="font-size:24px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${counts.completed}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">✅ Terminées</div>
+      </div>
+      <div onclick="filtrerOperations('arrest')" style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.3);border-radius:10px;padding:14px;cursor:pointer;${_currentOpFilter==='arrest'?'border-color:#fb923c;box-shadow:0 0 12px rgba(251,146,60,0.3)':''}">
+        <div style="font-size:24px;font-weight:800;color:#fb923c;font-family:'Cinzel',serif">${counts.arrest}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🟠 Arrestations</div>
+      </div>
+      <div onclick="filtrerOperations('all')" style="background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.3);border-radius:10px;padding:14px;cursor:pointer;${_currentOpFilter==='all'?'border-color:var(--accent);box-shadow:0 0 12px rgba(196,154,26,0.3)':''}">
+        <div style="font-size:24px;font-weight:800;color:var(--accent);font-family:'Cinzel',serif">${ops.length}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">📋 Toutes</div>
+      </div>
+    </div>
+
+    <!-- CARTE INTERACTIVE -->
+    <div class="dash-block" style="padding:0;margin-bottom:1rem;overflow:hidden;border:1px solid rgba(251,146,60,0.3)">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:rgba(251,146,60,0.06);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px;color:#fb923c;font-weight:700;text-transform:uppercase;letter-spacing:1px">🗺️ Carte de Konoha & Sunagakure</div>
+        <div style="font-size:11px;color:var(--muted);font-style:italic">💡 Maintenez un point pour le déplacer</div>
+      </div>
+      <div id="op-map-wrapper" style="position:relative;width:100%;background:#1a1a1a;overflow:auto;max-height:600px">
+        <div id="op-map-container" style="position:relative;width:100%;min-height:400px">
+          <object id="op-map-svg" type="image/svg+xml" data="cartographie-nrp.svg" style="width:100%;display:block;pointer-events:none"></object>
+          <div id="op-map-points" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTE DES OPÉRATIONS -->
+    <div class="dash-block">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#fb923c;text-transform:uppercase;letter-spacing:1px">📋 Liste des opérations ${_currentOpFilter !== 'all' ? '(filtrées : ' + (OPERATION_STATUS[_currentOpFilter]||{}).label + ')' : '('+ops.length+')'}</div>`;
+
+  if (filtered.length === 0) {
+    html += '<div style="padding:2rem;text-align:center;color:var(--muted);font-style:italic">Aucune opération à afficher.</div>';
+  } else {
+    filtered.slice().sort((a,b) => (b._id||0) - (a._id||0)).forEach(op => {
+      const realIdx = state.operations.indexOf(op);
+      const st = OPERATION_STATUS[op.status] || OPERATION_STATUS.planned;
+      html += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div style="flex:1;min-width:200px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+              <strong style="color:white;font-size:14px">${escapeHtml(op.name)}</strong>
+              <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${st.bg};color:${st.color};border:1px solid ${st.border};font-weight:700">${st.icon} ${st.label}</span>
+              ${op.type ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid var(--border)">${escapeHtml(op.type)}</span>` : ''}
+            </div>
+            ${op.description ? `<div style="font-size:11px;color:var(--text);margin-bottom:4px">${escapeHtml(op.description)}</div>` : ''}
+            <div style="font-size:10px;color:var(--muted)">
+              👤 ${escapeHtml(op.responsable || op.createdBy || '—')}
+              ${op.service === 'mission' ? ' · 🎯 Bureau Mission' : ' · 👮 Police'}
+              · 📍 X:${Math.round(op.positionX||50)}% Y:${Math.round(op.positionY||50)}%
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <select onchange="changerStatutOperation(${realIdx}, this.value)" style="background:${st.bg};color:${st.color};border:1px solid ${st.border};padding:4px 8px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">
+              ${Object.keys(OPERATION_STATUS).map(s => `<option value="${s}" ${op.status===s?'selected':''}>${OPERATION_STATUS[s].icon} ${OPERATION_STATUS[s].label}</option>`).join('')}
+            </select>
+            <button class="btn-sm" onclick="centrerSurOperation(${realIdx})" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:11px;padding:4px 10px">📍 Voir</button>
+            ${(op.createdBy === u.fullname || canAddAgent(u.grade) || (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']))) ? `<button class="btn-sm btn-sm-red" onclick="supprimerOperation(${realIdx})" style="font-size:11px;padding:4px 8px">🗑</button>` : ''}
+          </div>
+        </div>`;
+    });
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+
+  // Dessiner les points sur la carte une fois le SVG chargé
+  setTimeout(() => dessinerPointsOperations(), 300);
+}
+
+function filtrerOperations(filter) {
+  _currentOpFilter = filter;
+  renderOperations();
+}
+
+function dessinerPointsOperations() {
+  const pointsContainer = document.getElementById('op-map-points');
+  if (!pointsContainer) return;
+
+  const ops = state.operations || [];
+  const filtered = _currentOpFilter === 'all' ? ops : ops.filter(o => o.status === _currentOpFilter);
+
+  // S'assurer que le container a la même taille que le SVG
+  const svgEl = document.getElementById('op-map-svg');
+  if (svgEl) {
+    pointsContainer.style.width = svgEl.offsetWidth + 'px';
+    pointsContainer.style.height = svgEl.offsetHeight + 'px';
+  }
+
+  pointsContainer.innerHTML = filtered.map(op => {
+    const realIdx = state.operations.indexOf(op);
+    const st = OPERATION_STATUS[op.status] || OPERATION_STATUS.planned;
+    const x = op.positionX != null ? op.positionX : 50;
+    const y = op.positionY != null ? op.positionY : 50;
+    return `
+      <div class="op-marker" data-idx="${realIdx}" 
+           style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-100%);pointer-events:auto;cursor:grab;z-index:10"
+           title="${escapeHtml(op.name)} — ${st.label}">
+        <div style="position:relative">
+          <div style="background:${st.color};width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center">
+            <div style="transform:rotate(45deg);font-size:11px;color:white;font-weight:700">📍</div>
+          </div>
+          <div style="position:absolute;top:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:4px 8px;border-radius:4px;font-size:10px;white-space:nowrap;border:1px solid ${st.border};font-family:'Cinzel',serif;font-weight:600">${escapeHtml(op.name)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Activer le drag sur chaque point
+  pointsContainer.querySelectorAll('.op-marker').forEach(marker => {
+    setupMarkerDrag(marker);
+  });
+}
+
+function setupMarkerDrag(marker) {
+  let isDragging = false;
+  let startTime = 0;
+
+  const handleStart = (e) => {
+    isDragging = true;
+    startTime = Date.now();
+    marker.style.cursor = 'grabbing';
+    e.preventDefault();
+  };
+
+  const handleMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const wrapper = document.getElementById('op-map-container');
+    if (!wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    let xPct = ((clientX - rect.left) / rect.width) * 100;
+    let yPct = ((clientY - rect.top) / rect.height) * 100;
+    xPct = Math.max(0, Math.min(100, xPct));
+    yPct = Math.max(0, Math.min(100, yPct));
+    marker.style.left = xPct + '%';
+    marker.style.top = yPct + '%';
+    marker._newX = xPct;
+    marker._newY = yPct;
+  };
+
+  const handleEnd = async (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    marker.style.cursor = 'grab';
+    // Si vraiment bougé (pas un simple clic)
+    const elapsed = Date.now() - startTime;
+    if (marker._newX != null && elapsed > 100) {
+      const idx = parseInt(marker.dataset.idx);
+      const op = state.operations[idx];
+      if (op) {
+        op.positionX = marker._newX;
+        op.positionY = marker._newY;
+        if (op._id && supabaseReady) {
+          try { await pushToSupabase('operations', op); } catch(e) {}
+        }
+        saveSession();
+      }
+      marker._newX = null;
+      marker._newY = null;
+    }
+  };
+
+  marker.addEventListener('mousedown', handleStart);
+  marker.addEventListener('touchstart', handleStart, { passive: false });
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('touchmove', handleMove, { passive: false });
+  document.addEventListener('mouseup', handleEnd);
+  document.addEventListener('touchend', handleEnd);
+}
+
+function ouvrirCreationOperation() {
+  const u = state.currentUser;
+  const myService = u.service || 'police';
+
+  const existing = document.getElementById('op-create-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'op-create-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:520px">
+      <div class="confirm-icon" style="background:rgba(251,146,60,0.15);border-color:#fb923c">🗺️</div>
+      <div class="confirm-title">Nouvelle opération</div>
+      <div class="confirm-message" style="margin-bottom:14px">
+        Créez une opération qui sera visible sur la carte.
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Nom de l'opération *</label>
+        <input type="text" id="op-name" placeholder="Ex: Patrouille district sud"
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px"/>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Type</label>
+        <select id="op-type" style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px">
+          ${OPERATION_TYPES.map(t => '<option>' + t + '</option>').join('')}
+        </select>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Statut initial</label>
+        <select id="op-status" style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px">
+          <option value="planned">🔵 Planifiée</option>
+          <option value="active">🟢 Active</option>
+          <option value="arrest">🟠 Arrestation</option>
+          <option value="completed">✅ Terminée</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Description / Détails</label>
+        <textarea id="op-description" rows="3" placeholder="Décrivez l'opération : objectif, participants, lieu précis..."
+          style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:#f0e8d0;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+
+      <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text)">
+        💡 Une fois créée, l'opération apparaîtra sur la carte au centre.<br>
+        <strong>Maintenez le point pour le déplacer</strong> à l'endroit exact où vous êtes.
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('op-create-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="creerOperation()" style="background:linear-gradient(135deg,#fb923c,#ea580c);color:white">🗺️ Créer l'opération</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('op-name').focus(), 100);
+}
+
+async function creerOperation() {
+  const u = state.currentUser;
+  const myService = u.service || 'police';
+
+  if (window._createOpLock) return;
+  window._createOpLock = true;
+
+  try {
+    const name = document.getElementById('op-name').value.trim();
+    const type = document.getElementById('op-type').value;
+    const status = document.getElementById('op-status').value;
+    const description = document.getElementById('op-description').value.trim();
+
+    if (!name) { alert('Le nom de l\'opération est obligatoire.'); return; }
+
+    const newOp = {
+      name, type, status, description,
+      service: myService,
+      responsable: u.fullname,
+      createdBy: u.fullname,
+      positionX: 50, // Centre de la carte par défaut
+      positionY: 50,
+      members: []
+    };
+
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('operations', newOp);
+        if (inserted && inserted._id) newOp._id = inserted._id;
+      } catch(e) {
+        alert('⚠️ Erreur : ' + (e.message || e));
+        return;
+      }
+    }
+
+    state.operations = state.operations || [];
+    if (!state.operations.some(o => o._id && o._id === newOp._id)) {
+      state.operations.push(newOp);
+    }
+    saveSession();
+
+    document.getElementById('op-create-modal').remove();
+    alert('✓ Opération "' + name + '" créée !\n\nElle est visible au centre de la carte. Maintenez le point pour la déplacer.');
+    renderOperations();
+  } finally {
+    window._createOpLock = false;
+  }
+}
+
+async function changerStatutOperation(idx, newStatus) {
+  const op = state.operations[idx];
+  if (!op) return;
+  op.status = newStatus;
+  if (op._id && supabaseReady) {
+    try { await pushToSupabase('operations', op); } catch(e) {}
+  }
+  saveSession();
+  renderOperations();
+}
+
+async function supprimerOperation(idx) {
+  const op = state.operations[idx];
+  if (!op) return;
+  if (!(await confirmAsync('Supprimer définitivement l\'opération "' + op.name + '" ?'))) return;
+  if (op._id && supabaseReady) {
+    try { await deleteFromSupabase('operations', op._id); } catch(e) {}
+  }
+  state.operations.splice(idx, 1);
+  saveSession();
+  renderOperations();
+}
+
+function centrerSurOperation(idx) {
+  const op = state.operations[idx];
+  if (!op) return;
+  const wrapper = document.getElementById('op-map-wrapper');
+  if (!wrapper) return;
+  const x = op.positionX != null ? op.positionX : 50;
+  const y = op.positionY != null ? op.positionY : 50;
+  // Faire scroll vers la position
+  wrapper.scrollTo({
+    left: (wrapper.scrollWidth * x / 100) - wrapper.clientWidth / 2,
+    top: (wrapper.scrollHeight * y / 100) - wrapper.clientHeight / 2,
+    behavior: 'smooth'
+  });
 }
 
 // === Affichage des missions disponibles sur la page publique (accueil + espace civil) ===
