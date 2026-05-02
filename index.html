@@ -14393,46 +14393,50 @@ function renderOperationsCivil() {
     matchFullname(o.responsable || o.createdBy || '', civilUser.fullname)
   );
 
-  if (mesOps.length === 0) {
-    el.innerHTML = '<p style="color:var(--muted);font-size:12px;font-style:italic;text-align:center;padding:1rem">Aucune opération en cours.</p>';
-    return;
-  }
-
   let html = '';
 
-  // === LISTE des opérations ===
-  html += '<div style="margin-bottom:1rem">';
-  mesOps.slice().sort((a,b) => (b._id||0) - (a._id||0)).forEach(op => {
-    const realIdx = state.operations.indexOf(op);
-    const st = CIVIL_OPERATION_STATUS[op.status] || OPERATION_STATUS.planned;
-    html += `
-      <div style="background:#1a1a1a;border:1px solid ${st.border};border-radius:8px;padding:12px;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <strong style="color:white;font-size:13px">${escapeHtml(op.name)}</strong>
-            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${st.bg};color:${st.color};border:1px solid ${st.border};font-weight:700">${st.icon} ${st.label}</span>
+  // === LISTE des opérations (uniquement si on en a) ===
+  if (mesOps.length > 0) {
+    html += '<div style="margin-bottom:1rem">';
+    mesOps.slice().sort((a,b) => (b._id||0) - (a._id||0)).forEach(op => {
+      const realIdx = state.operations.indexOf(op);
+      const st = CIVIL_OPERATION_STATUS[op.status] || OPERATION_STATUS.planned;
+      html += `
+        <div style="background:#1a1a1a;border:1px solid ${st.border};border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <strong style="color:white;font-size:13px">${escapeHtml(op.name)}</strong>
+              <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${st.bg};color:${st.color};border:1px solid ${st.border};font-weight:700">${st.icon} ${st.label}</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted)">📍 X:${Math.round(op.positionX||50)}% Y:${Math.round(op.positionY||50)}%</div>
           </div>
-          <div style="font-size:10px;color:var(--muted)">📍 X:${Math.round(op.positionX||50)}% Y:${Math.round(op.positionY||50)}%</div>
-        </div>
-        ${op.description ? `<div style="font-size:11px;color:var(--text);margin-bottom:6px">${escapeHtml(op.description)}</div>` : ''}
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${op.status !== 'completed' ? `
-            <select onchange="changerStatutOperationCivil(${realIdx}, this.value)" style="background:${st.bg};color:${st.color};border:1px solid ${st.border};padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">
-              ${Object.keys(CIVIL_OPERATION_STATUS).map(s => `<option value="${s}" ${op.status===s?'selected':''}>${CIVIL_OPERATION_STATUS[s].icon} ${CIVIL_OPERATION_STATUS[s].label}</option>`).join('')}
-            </select>
-          ` : ''}
-          <button class="btn-sm" onclick="centrerSurOperationCivil(${realIdx})" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:10px;padding:3px 10px">📍 Voir sur carte</button>
-        </div>
+          ${op.description ? `<div style="font-size:11px;color:var(--text);margin-bottom:6px">${escapeHtml(op.description)}</div>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${op.status !== 'completed' ? `
+              <select onchange="changerStatutOperationCivil(${realIdx}, this.value)" style="background:${st.bg};color:${st.color};border:1px solid ${st.border};padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer">
+                ${Object.keys(CIVIL_OPERATION_STATUS).map(s => `<option value="${s}" ${op.status===s?'selected':''}>${CIVIL_OPERATION_STATUS[s].icon} ${CIVIL_OPERATION_STATUS[s].label}</option>`).join('')}
+              </select>
+            ` : ''}
+            <button class="btn-sm" onclick="centrerSurOperationCivil(${realIdx})" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:10px;padding:3px 10px">📍 Voir sur carte</button>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  } else {
+    // Pas d'opération : message d'aide
+    html += `
+      <div style="background:rgba(20,184,166,0.05);border:1px solid rgba(20,184,166,0.2);border-radius:8px;padding:14px;margin-bottom:1rem;text-align:center">
+        <div style="font-size:24px;color:rgba(20,184,166,0.4);margin-bottom:6px">🎯</div>
+        <div style="font-size:12px;color:var(--muted);font-style:italic">Aucune mission en cours.<br>Acceptez une mission du <strong style="color:#5eead4">Bureau des Missions</strong> ci-dessous pour voir apparaître votre point sur la carte.</div>
       </div>`;
-  });
-  html += '</div>';
+  }
 
-  // === CARTE INTERACTIVE ===
+  // === CARTE INTERACTIVE (TOUJOURS affichée) ===
   html += `
     <div style="border-radius:10px;overflow:hidden;border:1px solid rgba(251,146,60,0.3)">
       <div style="padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(251,146,60,0.06);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="font-size:11px;color:#fb923c;font-weight:700;text-transform:uppercase;letter-spacing:1px">🗺️ Carte de Konoha & Sunagakure</div>
-        <div style="font-size:10px;color:var(--muted);font-style:italic">💡 Maintenez votre point pour le déplacer</div>
+        <div style="font-size:10px;color:var(--muted);font-style:italic">${mesOps.length > 0 ? '💡 Maintenez votre point pour le déplacer' : 'Aucun point pour le moment'}</div>
       </div>
       <div id="civil-map-wrapper" style="position:relative;width:100%;background:#0a0a0a;overflow:auto;max-height:70vh">
         <div id="civil-map-container" style="position:relative;width:100%;display:block;line-height:0;font-size:0;transform-origin:0 0;transition:transform 0.2s ease">
@@ -15650,14 +15654,13 @@ function renderCivilDash() {
     matchFullname(o.responsable || o.createdBy || '', civilUser.fullname)
   );
 
-  if (mesOps.length > 0) {
-    html += `
-      <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border-color:rgba(251,146,60,0.4)">
-        <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🗺️ Mes opérations en cours</h3>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Suivez vos missions sur la carte. Maintenez votre point pour le placer à votre position actuelle.</p>
-        <div id="civil-operations-section"></div>
-      </div>`;
-  }
+  // === SECTION : Mes opérations sur la carte (TOUJOURS affichée) ===
+  html += `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border-color:rgba(251,146,60,0.4)">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🗺️ Mes opérations & Carte de Konoha</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">${mesOps.length > 0 ? 'Suivez vos missions sur la carte. Maintenez votre point pour le placer à votre position actuelle.' : 'Acceptez une mission ci-dessous pour voir apparaître votre point sur la carte.'}</p>
+      <div id="civil-operations-section"></div>
+    </div>`;
 
   // === SECTION : Missions du Bureau (visible par tous les citoyens) ===
   html += `
