@@ -4313,7 +4313,34 @@ function showPage(id) {
   }
 
   if (id === 'civil-dash') {
-    if (!civilUser) { showPage('civil'); return; }
+    if (!civilUser) {
+      // Si une restauration est en cours (Supabase pas encore chargé), on attend
+      if (window._pendingCivilRestore) {
+        console.log('⏳ Restauration session civile en cours, attente de Supabase...');
+        // Afficher une page de transition
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        const target = document.getElementById('page-civil-dash');
+        if (target) {
+          target.classList.add('active');
+          target.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:80vh;flex-direction:column;gap:14px"><div style="font-size:32px;color:#86efac">🍃</div><div style="font-size:14px;color:var(--muted)">Restauration de votre session...</div></div>';
+        }
+        // Retry après 2 secondes
+        setTimeout(() => {
+          retryCivilRestoreAfterSupabase();
+          if (civilUser) {
+            // Recharger la page proprement
+            const target = document.getElementById('page-civil-dash');
+            if (target) target.innerHTML = '<div id="civ-dash-content"></div>';
+            renderCivilDash();
+          } else {
+            showPage('civil');
+          }
+        }, 2000);
+        return;
+      }
+      showPage('civil');
+      return;
+    }
     renderCivilDash();
   }
 
@@ -13791,11 +13818,14 @@ function ouvrirCreationEquipeMissionCivil(missionIdx) {
   const existing = document.getElementById('equipe-civil-modal');
   if (existing) existing.remove();
 
+  // Stocker les coéquipiers ajoutés manuellement
+  window._equipeMissionMembers = []; // [{fullname, grade, _newCivil: true}]
+
   const overlay = document.createElement('div');
   overlay.id = 'equipe-civil-modal';
   overlay.className = 'confirm-overlay';
   overlay.innerHTML = `
-    <div class="confirm-box" style="max-width:540px;max-height:90vh;overflow-y:auto">
+    <div class="confirm-box" style="max-width:580px;max-height:92vh;overflow-y:auto">
       <div class="confirm-icon" style="background:${rank.bg};border-color:${rank.color}">🎯</div>
       <div class="confirm-title">Accepter la mission</div>
       <div class="confirm-message" style="margin-bottom:14px;text-align:left">
@@ -13810,18 +13840,47 @@ function ouvrirCreationEquipeMissionCivil(missionIdx) {
         </div>
       </div>
 
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">🤝 Coéquipiers (sélectionnez parmi les ninjas civils enregistrés)</label>
-        <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:240px;overflow-y:auto">
+      <!-- Ajouter manuellement un ninja -->
+      <div style="margin-bottom:14px;background:rgba(196,154,26,0.05);border:1px solid rgba(196,154,26,0.3);border-radius:8px;padding:12px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--lgold);margin-bottom:8px;font-weight:700">➕ Ajouter un ninja manuellement</label>
+        <div style="display:grid;grid-template-columns:2fr 1.3fr auto;gap:6px;align-items:end">
+          <div>
+            <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">Nom et prénom *</label>
+            <input type="text" id="add-member-name" placeholder="Ex: Naruto Uzumaki" style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:5px;padding:7px 10px;color:#f0e8d0;font-size:12px"/>
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:3px">Grade</label>
+            <select id="add-member-grade" style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:5px;padding:7px 10px;color:#f0e8d0;font-size:12px">
+              <option>Genin</option><option>Genin Confirmé</option><option>Tokubetsu Chunin</option>
+              <option>Chunin</option><option>Kakunin</option><option>Tokubetsu Jonin</option>
+              <option>Jonin</option><option>Commandant Jonin</option><option>Citoyen</option>
+            </select>
+          </div>
+          <button type="button" onclick="ajouterMembreManuel()" style="background:linear-gradient(135deg,#c49a1a,#a07c10);color:#1a1400;border:none;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;height:33px">+ Ajouter</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;font-style:italic">Le nouveau ninja sera enregistré dans la base civile pour les futures missions.</div>
+      </div>
+
+      <!-- Recherche dans les civils existants -->
+      <div style="margin-bottom:8px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">🔍 Coéquipiers déjà enregistrés (cocher pour ajouter)</label>
+        <input type="text" id="equipe-search" placeholder="🔍 Rechercher par nom ou prénom..." oninput="filtrerCivilsEquipe(this.value)" style="width:100%;background:#1a1a1a;border:1px solid var(--border);border-radius:5px;padding:7px 10px;color:#f0e8d0;font-size:12px;margin-bottom:6px"/>
+        <div id="equipe-civils-list" style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:200px;overflow-y:auto">
           ${autresCivils.length === 0 ? '<p style="color:var(--muted);font-size:11px;font-style:italic;text-align:center;padding:8px">Aucun autre ninja civil enregistré.</p>' :
             autresCivils.map(c => `
-              <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;font-size:12px;color:var(--text);background:#1a1a1a;border-radius:4px;margin-bottom:3px">
+              <label class="equipe-civil-item" data-name="${escapeHtml(c.fullname.toLowerCase())}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;font-size:12px;color:var(--text);background:#1a1a1a;border-radius:4px;margin-bottom:3px">
                 <input type="checkbox" class="equipe-civilcheck" data-fullname="${escapeHtml(c.fullname)}" data-grade="${escapeHtml(c.grade||'Inconnu')}" style="width:14px;height:14px;cursor:pointer;accent-color:#14b8a6"/>
                 <span>${escapeHtml(c.fullname)} <span style="color:var(--muted);font-size:10px">— ${escapeHtml(c.grade||'Inconnu')}</span></span>
               </label>
             `).join('')
           }
         </div>
+      </div>
+
+      <!-- Liste des membres ajoutés manuellement -->
+      <div id="equipe-manual-list-container" style="display:none;margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#fbbf24;margin-bottom:6px">➕ Membres ajoutés (nouveaux)</label>
+        <div id="equipe-manual-list" style="display:flex;flex-wrap:wrap;gap:4px"></div>
       </div>
 
       <div style="background:rgba(232,197,71,0.05);border:1px solid rgba(232,197,71,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text)">
@@ -13839,16 +13898,149 @@ function ouvrirCreationEquipeMissionCivil(missionIdx) {
   document.body.appendChild(overlay);
 }
 
+// Filtrer les civils par recherche
+function filtrerCivilsEquipe(query) {
+  const q = (query || '').toLowerCase().trim();
+  const items = document.querySelectorAll('.equipe-civil-item');
+  items.forEach(item => {
+    const name = item.dataset.name || '';
+    if (!q || name.includes(q)) {
+      item.style.display = 'flex';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+
+// Ajouter manuellement un membre (nouveau ninja)
+async function ajouterMembreManuel() {
+  const nameInput = document.getElementById('add-member-name');
+  const gradeInput = document.getElementById('add-member-grade');
+  const fullname = nameInput.value.trim();
+  const grade = gradeInput.value;
+
+  if (!fullname) { alert('⚠️ Veuillez entrer un nom et prénom.'); return; }
+  if (fullname.split(/\s+/).length < 2) { alert('⚠️ Veuillez entrer le prénom ET le nom.'); return; }
+
+  // Vérification anti-doublon : déjà dans les manuels ?
+  if (!window._equipeMissionMembers) window._equipeMissionMembers = [];
+  if (window._equipeMissionMembers.some(m => matchFullname(m.fullname, fullname))) {
+    alert('⚠️ Ce ninja est déjà dans votre équipe.');
+    return;
+  }
+
+  // Vérification anti-doublon : déjà dans les civils enregistrés ? Si oui, le cocher au lieu d'ajouter
+  const existingCivil = state.users.find(x =>
+    x.service === 'civil' &&
+    matchFullname(x.fullname, fullname)
+  );
+  if (existingCivil) {
+    // Cocher la case existante au lieu d'ajouter manuellement
+    const cb = Array.from(document.querySelectorAll('.equipe-civilcheck')).find(c =>
+      matchFullname(c.dataset.fullname, fullname)
+    );
+    if (cb) {
+      cb.checked = true;
+      alert('ℹ️ ' + existingCivil.fullname + ' est déjà enregistré dans la base civile.\n\nIl a été automatiquement coché dans la liste ci-dessous.');
+      // Scroll vers la case cochée
+      cb.closest('.equipe-civil-item').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    nameInput.value = '';
+    return;
+  }
+
+  // Vérification anti-doublon : déjà dans la base d'utilisateurs (autres services) ?
+  const existingAny = state.users.find(x => matchFullname(x.fullname, fullname));
+  if (existingAny) {
+    alert('⚠️ Un compte existe déjà pour "' + existingAny.fullname + '" dans la section ' + (existingAny.service || 'police') + '.\nImpossible de créer un compte civil avec ce même nom.');
+    return;
+  }
+
+  // Créer le compte civil dans la base
+  const newCivil = {
+    fullname,
+    password: '', // Pas de mot de passe — créé via mission
+    grade,
+    ninjaRank: grade,
+    service: 'civil',
+    isAgent: false,
+    inscription: new Date().toLocaleDateString('fr-FR'),
+    casier: 'non'
+  };
+
+  // Push Supabase
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('users', newCivil);
+      if (inserted && inserted._id) {
+        newCivil._id = inserted._id;
+      }
+    } catch(e) { console.warn('Erreur création civil via mission:', e); }
+  }
+  state.users.push(newCivil);
+
+  // Ajouter aux membres manuels de l'équipe
+  window._equipeMissionMembers.push({ fullname, grade, _newCivil: true });
+
+  // Mettre à jour la liste visuelle des membres manuels
+  renderManualMembersList();
+
+  // Vider le champ
+  nameInput.value = '';
+  saveSession();
+}
+
+function renderManualMembersList() {
+  const container = document.getElementById('equipe-manual-list-container');
+  const list = document.getElementById('equipe-manual-list');
+  if (!container || !list) return;
+
+  const members = window._equipeMissionMembers || [];
+  if (members.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  list.innerHTML = members.map((m, i) => `
+    <span style="background:rgba(196,154,26,0.15);color:var(--lgold);border:1px solid rgba(196,154,26,0.4);padding:4px 10px;border-radius:12px;font-size:11px;display:inline-flex;align-items:center;gap:6px">
+      <span>${escapeHtml(m.fullname)} <em style="font-size:9px;opacity:0.7">— ${escapeHtml(m.grade)}</em></span>
+      <button type="button" onclick="retirerMembreManuel(${i})" style="background:rgba(231,76,60,0.3);color:#fca5a5;border:none;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
+    </span>
+  `).join('');
+}
+
+function retirerMembreManuel(idx) {
+  if (!window._equipeMissionMembers) return;
+  window._equipeMissionMembers.splice(idx, 1);
+  renderManualMembersList();
+}
+
 async function confirmerAcceptationMissionCivil(idx) {
   const m = state.missions[idx];
   const u = civilUser;
   if (!m || !u) return;
 
   // Récupérer les coéquipiers cochés
-  const coequipiers = Array.from(document.querySelectorAll('.equipe-civilcheck:checked')).map(cb => ({
+  const coequipiersCoches = Array.from(document.querySelectorAll('.equipe-civilcheck:checked')).map(cb => ({
     fullname: cb.dataset.fullname,
     grade: cb.dataset.grade
   }));
+
+  // Récupérer les coéquipiers ajoutés manuellement
+  const coequipiersManuels = (window._equipeMissionMembers || []).map(m => ({
+    fullname: m.fullname,
+    grade: m.grade
+  }));
+
+  // Fusionner avec déduplication (anti-doublon par nom)
+  const coequipiers = [];
+  const seen = new Set();
+  for (const c of [...coequipiersCoches, ...coequipiersManuels]) {
+    const key = normalize(c.fullname);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    coequipiers.push(c);
+  }
 
   // L'équipe complète = chef civil + coéquipiers
   const equipe = [
@@ -13883,7 +14075,7 @@ async function confirmerAcceptationMissionCivil(idx) {
     membersList: equipe,
     date: new Date().toLocaleDateString('fr-FR'),
     exitTime: null,
-    status: 'mission', // statut spécial pour mission Bureau
+    status: 'mission',
     isMissionTeam: true,
     missionId: m._id || null,
     missionRank: m.category,
@@ -13899,9 +14091,12 @@ async function confirmerAcceptationMissionCivil(idx) {
   state.teams = state.teams || [];
   state.teams.push(teamEntry);
 
+  // Reset des membres manuels
+  window._equipeMissionMembers = [];
+
   saveSession();
   document.getElementById('equipe-civil-modal').remove();
-  alert('✓ Mission "' + m.name + '" acceptée !\n\nVotre équipe est maintenant en mission. La Police voit votre équipe dans "Portes du village" → "Bureau des Missions".');
+  alert('✓ Mission "' + m.name + '" acceptée !\n\nÉquipe (' + equipe.length + ' membres) :\n• ' + equipe.map(e => e.fullname).join('\n• ') + '\n\nLa Police voit votre équipe dans "Portes du village" → "Bureau des Missions".');
   renderMissionsPublic();
   if (typeof renderCivilDash === 'function') renderCivilDash();
 }
@@ -14538,13 +14733,39 @@ function restoreCivilSession() {
     const raw = localStorage.getItem('konaCivilSession');
     if (!raw) return false;
     const data = JSON.parse(raw);
+    if (!data.fullname) return false;
+    // Mémoriser le fullname pour le retry après chargement Supabase
+    window._pendingCivilRestore = data.fullname;
+    // Tenter une restauration immédiate avec le state local
     const u = state.users.find(x => x.fullname === data.fullname && x.service === 'civil');
     if (u) {
       civilUser = u;
+      window._pendingCivilRestore = null;
       return true;
     }
+    // Si pas trouvé, on garde le _pendingCivilRestore pour retry plus tard
+    return false;
   } catch(e) {}
   return false;
+}
+
+// Retry restauration civile une fois que Supabase a fini de charger
+function retryCivilRestoreAfterSupabase() {
+  if (!window._pendingCivilRestore) return;
+  if (civilUser) return; // déjà connecté
+  const fullname = window._pendingCivilRestore;
+  const u = state.users.find(x => x.fullname === fullname && x.service === 'civil');
+  if (u) {
+    civilUser = u;
+    window._pendingCivilRestore = null;
+    console.log('🍃 Session civile restaurée depuis Supabase :', fullname);
+    // Si l'utilisateur est sur la page civil/civil-dash, l'amener sur le dashboard
+    const currentPage = document.querySelector('.page.active');
+    if (currentPage && (currentPage.id === 'page-civil' || currentPage.id === 'page-home')) {
+      // Ne pas forcer la redirection, juste mettre à jour l'UI
+      try { updateNav(); } catch(e) {}
+    }
+  }
 }
 
 // Init
@@ -14679,6 +14900,9 @@ async function initSupabase() {
     subscribeToSupabaseChanges();
 
     console.log('✅ Init Supabase terminée — données synchronisées');
+
+    // Retry restauration civile après chargement Supabase
+    try { retryCivilRestoreAfterSupabase(); } catch(e) {}
 
     // === Auto-création du compte Arakawa Akihiro côté Bureau des Missions ===
     // Garantit que le compte existe au moins en Chef du Bureau
