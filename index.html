@@ -5329,7 +5329,8 @@ function renderCandidatures() {
   // Permission de suppression
   const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
                     (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
-                    (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior']));
+                    (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior'])) ||
+                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur']));
 
   let html = '<div class="dash-block">';
   // Tri par date récente (id = timestamp ms, donc on trie par id décroissant)
@@ -5464,15 +5465,16 @@ async function envoyerMessageCandid(idx) {
   }, 50);
 }
 
-// Supprimer une candidature (Sergent+ Police, Juge Senior+, Avocat Senior+)
+// Supprimer une candidature (Sergent+ Police, Juge Senior+, Avocat Senior+, Affecteur+ Mission)
 async function supprimerCandidature(idx) {
   const u = state.currentUser;
   const myService = u.service || 'police';
   const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
                     (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
-                    (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior']));
+                    (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior'])) ||
+                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur']));
   if (!canDelete) {
-    alert('Réservé aux Sergents et grades supérieurs (Police), Juge Senior+ (Tribunal), Avocat Senior+ (Cabinet).');
+    alert('Réservé aux Sergents et grades supérieurs (Police), Juge Senior+ (Tribunal), Avocat Senior+ (Cabinet), Affecteur+ (Mission).');
     return;
   }
   const c = state.candidatures[idx];
@@ -5559,6 +5561,8 @@ function renderMembres() {
     canManage = _gradeIn(u.grade, ['Premier Président', 'Président de Chambre']);
   } else if (myService === 'avocat') {
     canManage = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
+  } else if (myService === 'mission') {
+    canManage = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   }
 
   // Récupérer les citoyens depuis 3 sources :
@@ -5829,6 +5833,7 @@ async function changeGrade(fullname, dir) {
   if (myService === 'police') canDo = canManageMembers(u.grade);
   else if (myService === 'juge') canDo = _gradeIn(u.grade, ['Premier Président', 'Président de Chambre']);
   else if (myService === 'avocat') canDo = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
+  else if (myService === 'mission') canDo = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   if (!canDo) { alert('Vous n\'avez pas la permission de gérer les grades.'); return; }
 
   // Trouver l'agent dans la même section
