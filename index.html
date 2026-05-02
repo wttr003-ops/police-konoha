@@ -4835,6 +4835,45 @@ function renderDashboard(tab) {
   // Filtrer la sidebar selon la section connectée
   const myService = u.service || 'police';
 
+  // === Couleur de l'avatar et badge grade selon la section ===
+  const avatarEl = document.getElementById('dash-avatar');
+  if (avatarEl) {
+    // Reset des styles
+    avatarEl.style.background = '';
+    avatarEl.style.color = '';
+    avatarEl.style.border = '';
+    if (myService === 'mission') {
+      // Turquoise pour Bureau Mission
+      avatarEl.style.background = 'linear-gradient(135deg,#14b8a6,#0d9488)';
+      avatarEl.style.color = '#0a0f0e';
+      avatarEl.style.border = '2px solid rgba(20,184,166,0.5)';
+      avatarEl.style.boxShadow = '0 0 12px rgba(20,184,166,0.3)';
+    } else if (myService === 'juge') {
+      avatarEl.style.background = 'linear-gradient(135deg,#3b82f6,#1e40af)';
+      avatarEl.style.color = '#fff';
+      avatarEl.style.border = '2px solid rgba(59,130,246,0.5)';
+    } else if (myService === 'avocat') {
+      avatarEl.style.background = 'linear-gradient(135deg,#d97706,#b45309)';
+      avatarEl.style.color = '#fff';
+      avatarEl.style.border = '2px solid rgba(217,119,6,0.5)';
+    } else {
+      // Police = couleur dorée par défaut (laissé tel quel par CSS)
+      avatarEl.style.boxShadow = '';
+    }
+  }
+
+  // Forcer la couleur du badge grade pour Bureau Mission (puisque pas dans GRADE_CLASS)
+  if (myService === 'mission') {
+    pill.style.background = 'rgba(20,184,166,0.15)';
+    pill.style.color = '#5eead4';
+    pill.style.border = '1px solid rgba(20,184,166,0.4)';
+  } else {
+    // Reset pour permettre au CSS de prendre la main
+    pill.style.background = '';
+    pill.style.color = '';
+    pill.style.border = '';
+  }
+
   // === Titre dynamique selon la section ===
   const titleEl = document.getElementById('dash-section-title');
   const subEl = document.getElementById('dash-section-sub');
@@ -7574,13 +7613,20 @@ function renderAjout() {
           return '<option>' + icon + g + '</option>';
         }).join('')}</select>
       </div>
-      <div class="form-group">
-        <label>Mot de passe *</label>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="aj-password" placeholder="Min 6 caractères ou cliquez sur Générer (20 car.)" style="flex:1"/>
-          <button class="btn-outline" onclick="genPwd()">🎲 Générer</button>
+      ${myService === 'mission' ? `
+        <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#5eead4">
+          🎯 <strong>Bureau des Missions</strong> — Connexion sans mot de passe. Le membre se connecte juste avec son nom et prénom.
         </div>
-      </div>
+        <input type="hidden" id="aj-password" value=""/>
+      ` : `
+        <div class="form-group">
+          <label>Mot de passe *</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="aj-password" placeholder="Min 6 caractères ou cliquez sur Générer (20 car.)" style="flex:1"/>
+            <button class="btn-outline" onclick="genPwd()">🎲 Générer</button>
+          </div>
+        </div>
+      `}
       <button class="btn-primary btn-full" onclick="addAgent()">➕ ${labelBouton}</button>
     </div>`;
 }
@@ -7656,9 +7702,12 @@ async function addAgent() {
   g = g.replace(/^(👑|⭐)\s*/, '').trim();
   const p = document.getElementById('aj-password').value;
 
-  if (!fullname || !p) { alert('Champs manquants'); return; }
+  // Bureau Mission : pas de mot de passe requis
+  const skipPassword = myService === 'mission';
+
+  if (!fullname || (!skipPassword && !p)) { alert('Champs manquants'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
-  if (p.length < 6) { alert('Mot de passe trop court'); return; }
+  if (!skipPassword && p.length < 6) { alert('Mot de passe trop court'); return; }
 
   // === CAS SPÉCIAL : HOKAGE / STAFF ===
   if (isSpecialRole(g)) {
