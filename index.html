@@ -9193,6 +9193,9 @@ function renderPortes() {
   const isDir = u && canAddAgent(u.grade);
   const canSeeHistory = u && gradeRank(u.grade) <= 3; // Sergent + Lt + Direction
 
+  // === Équipes en mission Bureau (state.teams avec status='mission') ===
+  const teamsBureau = (state.teams || []).filter(t => t.isMissionTeam || t.status === 'mission');
+
   let html = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.25rem">
       <div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.25);border-radius:10px;padding:14px;text-align:center">
@@ -9207,6 +9210,10 @@ function renderPortes() {
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Équipes en mission</div>
         <div style="font-size:24px;font-weight:800;color:#3b82f6;font-family:'Cinzel',serif">${equipesEnMission.length}</div>
       </div>
+      <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🎯 Bureau Missions</div>
+        <div style="font-size:24px;font-weight:800;color:#5eead4;font-family:'Cinzel',serif">${teamsBureau.length}</div>
+      </div>
       <div style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.25);border-radius:10px;padding:14px;text-align:center;${demandesEnAttente.length > 0 ? 'animation:pulse 2s infinite' : ''}">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">📥 Demandes en attente</div>
         <div style="font-size:24px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${demandesEnAttente.length}</div>
@@ -9216,6 +9223,36 @@ function renderPortes() {
         <div style="font-size:24px;font-weight:800;color:var(--accent);font-family:'Cinzel',serif">${state.portes.length}</div>
       </div>
     </div>
+
+    ${teamsBureau.length > 0 ? `
+      <div class="dash-block" style="padding:1.25rem;margin-bottom:1.25rem;border:1px solid rgba(20,184,166,0.4);background:linear-gradient(135deg,rgba(20,184,166,0.05),transparent)">
+        <h3 style="font-family:'Cinzel',serif;font-size:15px;color:#5eead4;margin-bottom:0.75rem">🎯 Bureau des Missions — Équipes en mission (${teamsBureau.length})</h3>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:1rem;font-style:italic">Équipes constituées par les civils via le Bureau des Missions, parties en mission. La Police est juste informée.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+          ${teamsBureau.map(t => {
+            const rank = MISSION_RANKS[t.missionRank] || MISSION_RANKS.E;
+            return `
+              <div style="background:#0a0a0a;border:1px solid ${rank.border};border-radius:8px;padding:12px;position:relative">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px">
+                  <div style="background:${rank.color};color:#0a0a0a;font-weight:700;padding:2px 8px;border-radius:4px;font-family:'Cinzel',serif;font-size:11px">${rank.label}</div>
+                  <div style="display:flex;align-items:center;gap:4px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;color:#86efac">
+                    <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 2s infinite"></span>
+                    EN MISSION
+                  </div>
+                </div>
+                <div style="font-family:'Cinzel',serif;font-size:13px;color:white;font-weight:700;margin-bottom:4px">${escapeHtml(t.missionName || t.name)}</div>
+                <div style="font-size:10px;color:var(--muted);margin-bottom:6px">Chef d'équipe : <strong style="color:#5eead4">${escapeHtml(t.agent || '—')}</strong></div>
+                ${t.membersList && t.membersList.length > 0 ? `
+                  <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">
+                    ${t.membersList.map(m => `<span style="background:rgba(20,184,166,0.1);color:#5eead4;border:1px solid rgba(20,184,166,0.3);padding:1px 6px;border-radius:8px;font-size:9px">${escapeHtml(m.fullname || m)}</span>`).join('')}
+                  </div>
+                ` : ''}
+                <div style="font-size:10px;color:var(--muted)">📅 ${escapeHtml(t.date || '—')}</div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>
+    ` : ''}
 
     ${demandesEnAttente.length > 0 ? `
     <div class="dash-block" style="margin-bottom:1.25rem;border:2px solid rgba(232,197,71,0.4);box-shadow:0 0 20px rgba(232,197,71,0.15)">
@@ -13600,9 +13637,18 @@ function renderMissionsPublic() {
     const el = document.getElementById(containerId);
     if (!el) return;
 
-    const dispos = (state.missions || []).filter(m => m.status === 'available');
+    // Auto-suppression des missions terminées depuis plus de 10 minutes
+    nettoyerMissionsTerminees();
 
-    if (dispos.length === 0) {
+    // Afficher : disponibles + en cours (pas les terminées sauf récentes)
+    const visibles = (state.missions || []).filter(m =>
+      m.status === 'available' ||
+      m.status === 'accepted' ||
+      (m.status === 'completed' && m.completedAt &&
+       (new Date() - new Date(m.completedAt)) < 10 * 60 * 1000)
+    );
+
+    if (visibles.length === 0) {
       el.innerHTML = `
         <div style="background:rgba(20,184,166,0.05);border:1px solid rgba(20,184,166,0.2);border-radius:8px;padding:30px;text-align:center">
           <div style="font-size:32px;color:rgba(20,184,166,0.4);margin-bottom:8px">🎯</div>
@@ -13611,15 +13657,44 @@ function renderMissionsPublic() {
       return;
     }
 
-    // Trier par catégorie (S+ d'abord, E à la fin)
+    // Trier : disponibles d'abord, puis en cours, puis terminées
+    const ordreStatut = { 'available': 0, 'accepted': 1, 'completed': 2 };
     const ordreCat = { 'S+': 0, 'S': 1, 'A': 2, 'B': 3, 'C': 4, 'D': 5, 'E': 6 };
-    const triees = dispos.slice().sort((a, b) => (ordreCat[a.category]||99) - (ordreCat[b.category]||99));
+    const triees = visibles.slice().sort((a, b) => {
+      const s = (ordreStatut[a.status]||9) - (ordreStatut[b.status]||9);
+      if (s !== 0) return s;
+      return (ordreCat[a.category]||99) - (ordreCat[b.category]||99);
+    });
 
     let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
     triees.forEach(m => {
+      const realIdx = state.missions.indexOf(m);
       const rank = MISSION_RANKS[m.category] || MISSION_RANKS.E;
+      const isAvailable = m.status === 'available';
+      const isAccepted = m.status === 'accepted';
+      const isCompleted = m.status === 'completed';
+
+      // Badge statut
+      let statusBadge = '';
+      if (isAccepted) {
+        statusBadge = `
+          <div style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.5);padding:4px 10px;border-radius:12px;font-size:10px;font-weight:700;color:#86efac;animation:pulse 2s infinite">
+            <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block"></span>
+            EN COURS
+          </div>`;
+      } else if (isCompleted) {
+        statusBadge = `
+          <div style="position:absolute;top:8px;right:8px;background:rgba(196,154,26,0.2);border:1px solid rgba(196,154,26,0.5);padding:4px 10px;border-radius:12px;font-size:10px;font-weight:700;color:var(--lgold)">
+            ✓ TERMINÉE
+          </div>`;
+      }
+
+      // Permission d'accepter : civil connecté ET mission disponible
+      const canAccept = isAvailable && typeof civilUser !== 'undefined' && civilUser;
+
       html += `
-        <div style="background:#0a0a0a;border:2px solid ${rank.border};border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="background:#0a0a0a;border:2px solid ${rank.border};border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);position:relative;${isCompleted?'opacity:0.7':''}">
+          ${statusBadge}
           <div style="background:${rank.bg};padding:10px 14px;border-bottom:1px solid ${rank.border};display:flex;justify-content:space-between;align-items:center;gap:6px">
             <div style="background:${rank.color};color:#0a0a0a;font-weight:700;padding:3px 12px;border-radius:5px;font-family:'Cinzel',serif;font-size:14px">${rank.label}</div>
             ${m.reward > 0 ? `<div style="font-family:'Cinzel',serif;color:var(--lgold);font-weight:700;font-size:14px">${m.reward.toLocaleString()} Ryos</div>` : ''}
@@ -13628,15 +13703,207 @@ function renderMissionsPublic() {
             <div style="font-family:'Cinzel',serif;font-size:15px;color:white;font-weight:700;margin-bottom:6px">${escapeHtml(m.name)}</div>
             ${m.description ? `<div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:10px;padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:5px;border-left:2px solid ${rank.color}">${escapeHtml(m.description)}</div>` : ''}
             <div style="font-size:10px;color:var(--muted);margin-bottom:8px">📋 Publiée par ${escapeHtml(m.createdBy||'Bureau des Missions')}</div>
-            <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:5px;padding:8px;text-align:center;font-size:11px;color:#5eead4">
-              ℹ️ Pour accepter cette mission, connectez-vous via le <strong>Bureau des Missions</strong>
-            </div>
+
+            ${(isAccepted || isCompleted) && m.acceptedTeam && m.acceptedTeam.length > 0 ? `
+              <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.3);border-radius:5px;padding:8px 10px;margin-bottom:8px">
+                <div style="font-size:9px;color:#5eead4;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">🤝 Équipe (${m.acceptedTeam.length})</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                  ${m.acceptedTeam.map(member => `<span style="background:rgba(20,184,166,0.1);color:#5eead4;border:1px solid rgba(20,184,166,0.3);padding:2px 8px;border-radius:10px;font-size:10px">${escapeHtml(member.fullname || member)}${member.grade ? ' · ' + escapeHtml(member.grade) : ''}</span>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            ${canAccept ? `
+              <button class="btn-primary" onclick="accepterMissionCivil(${realIdx})" style="width:100%;background:linear-gradient(135deg,#14b8a6,#0d9488);color:white;border:none;padding:10px;border-radius:5px;font-weight:700;cursor:pointer;font-size:12px">🤝 Accepter cette mission</button>
+            ` : isAvailable ? `
+              <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:5px;padding:8px;text-align:center;font-size:11px;color:#5eead4">
+                ℹ️ <a onclick="showPage('civil')" style="color:#5eead4;cursor:pointer;text-decoration:underline">Connectez-vous</a> en espace civil pour accepter
+              </div>
+            ` : ''}
           </div>
         </div>`;
     });
     html += '</div>';
     el.innerHTML = html;
   });
+}
+
+// Auto-suppression des missions terminées depuis +10 min
+async function nettoyerMissionsTerminees() {
+  if (!state.missions) return;
+  const maintenant = Date.now();
+  const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+  const aSupprimer = state.missions.filter(m =>
+    m.status === 'completed' &&
+    m.completedAt &&
+    (maintenant - new Date(m.completedAt).getTime()) >= TIMEOUT_MS
+  );
+  for (const m of aSupprimer) {
+    if (m._id && supabaseReady) {
+      try { await deleteFromSupabase('missions', m._id); } catch(e) {}
+    }
+    const idx = state.missions.indexOf(m);
+    if (idx >= 0) state.missions.splice(idx, 1);
+  }
+  if (aSupprimer.length > 0) {
+    saveSession();
+    console.log('🗑 ' + aSupprimer.length + ' mission(s) terminée(s) auto-supprimée(s) après 10 min');
+  }
+}
+
+// Vérification périodique des missions terminées (toutes les minutes)
+setInterval(() => {
+  try {
+    nettoyerMissionsTerminees();
+  } catch(e) {}
+}, 60 * 1000);
+
+// === Acceptation d'une mission par un CIVIL connecté ===
+async function accepterMissionCivil(idx) {
+  if (typeof civilUser === 'undefined' || !civilUser) {
+    alert('⚠️ Vous devez être connecté en espace civil pour accepter une mission.');
+    showPage('civil');
+    return;
+  }
+  const m = state.missions[idx];
+  if (!m) return;
+  if (m.status !== 'available') {
+    alert('Cette mission n\'est plus disponible.');
+    return;
+  }
+
+  // Ouvrir modal de constitution d'équipe
+  ouvrirCreationEquipeMissionCivil(idx);
+}
+
+function ouvrirCreationEquipeMissionCivil(missionIdx) {
+  const m = state.missions[missionIdx];
+  if (!m) return;
+  const u = civilUser;
+  const rank = MISSION_RANKS[m.category] || MISSION_RANKS.E;
+
+  // Liste des autres civils enregistrés (coéquipiers possibles)
+  const autresCivils = state.users.filter(x =>
+    x.service === 'civil' &&
+    !matchFullname(x.fullname, u.fullname)
+  );
+
+  const existing = document.getElementById('equipe-civil-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'equipe-civil-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:540px;max-height:90vh;overflow-y:auto">
+      <div class="confirm-icon" style="background:${rank.bg};border-color:${rank.color}">🎯</div>
+      <div class="confirm-title">Accepter la mission</div>
+      <div class="confirm-message" style="margin-bottom:14px;text-align:left">
+        <strong style="color:${rank.color}">${rank.label}</strong> · ${escapeHtml(m.name)}<br>
+        <span style="font-size:11px;color:var(--muted)">Constituez votre équipe pour cette mission.</span>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">👥 Chef d'équipe (vous)</label>
+        <div style="background:rgba(20,184,166,0.1);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:10px 12px;color:#5eead4;font-weight:600">
+          ✓ ${escapeHtml(u.fullname)} <span style="font-size:11px;color:var(--muted)">— ${escapeHtml(u.grade||'Citoyen')}</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">🤝 Coéquipiers (sélectionnez parmi les ninjas civils enregistrés)</label>
+        <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:240px;overflow-y:auto">
+          ${autresCivils.length === 0 ? '<p style="color:var(--muted);font-size:11px;font-style:italic;text-align:center;padding:8px">Aucun autre ninja civil enregistré.</p>' :
+            autresCivils.map(c => `
+              <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;font-size:12px;color:var(--text);background:#1a1a1a;border-radius:4px;margin-bottom:3px">
+                <input type="checkbox" class="equipe-civilcheck" data-fullname="${escapeHtml(c.fullname)}" data-grade="${escapeHtml(c.grade||'Inconnu')}" style="width:14px;height:14px;cursor:pointer;accent-color:#14b8a6"/>
+                <span>${escapeHtml(c.fullname)} <span style="color:var(--muted);font-size:10px">— ${escapeHtml(c.grade||'Inconnu')}</span></span>
+              </label>
+            `).join('')
+          }
+        </div>
+      </div>
+
+      <div style="background:rgba(232,197,71,0.05);border:1px solid rgba(232,197,71,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text)">
+        ℹ️ Une fois acceptée, votre équipe apparaîtra dans <strong style="color:var(--accent)">"Portes du village"</strong> côté Police, dans la section <strong style="color:#5eead4">"🎯 Bureau des Missions"</strong>.<br>
+        <strong style="color:#fca5a5">⚠ Si vous êtes Genin (sans Confirmé), votre équipe doit contenir au moins un Genin Confirmé pour pouvoir sortir du village.</strong>
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('equipe-civil-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="confirmerAcceptationMissionCivil(${missionIdx})" style="background:linear-gradient(135deg,${rank.color},${rank.color}aa);color:#0a0a0a">🤝 Accepter et constituer l'équipe</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function confirmerAcceptationMissionCivil(idx) {
+  const m = state.missions[idx];
+  const u = civilUser;
+  if (!m || !u) return;
+
+  // Récupérer les coéquipiers cochés
+  const coequipiers = Array.from(document.querySelectorAll('.equipe-civilcheck:checked')).map(cb => ({
+    fullname: cb.dataset.fullname,
+    grade: cb.dataset.grade
+  }));
+
+  // L'équipe complète = chef civil + coéquipiers
+  const equipe = [
+    { fullname: u.fullname, grade: u.grade || 'Citoyen', isChef: true },
+    ...coequipiers
+  ];
+
+  m.status = 'accepted';
+  m.acceptedBy = u.fullname;
+  m.acceptedTeam = equipe;
+  m.acceptedAt = new Date().toISOString();
+
+  if (supabaseReady && m._id) {
+    try {
+      const { error } = await sb.from('missions').update({
+        status: 'accepted',
+        accepted_by: u.fullname,
+        accepted_team: equipe,
+        accepted_at: m.acceptedAt
+      }).eq('id', m._id);
+      if (error) console.warn('⚠️ update mission accepted:', error.message);
+    } catch(e) {}
+  }
+
+  // Créer un groupe de sortie côté Portes du village (section Bureau des Missions)
+  const teamEntry = {
+    name: '🎯 ' + m.name,
+    reason: 'Mission Bureau des Missions [' + m.category + '] — ' + (m.description || m.name),
+    agent: u.fullname,
+    grade: u.grade || 'Citoyen',
+    members: equipe.map(e => e.fullname).join(', '),
+    membersList: equipe,
+    date: new Date().toLocaleDateString('fr-FR'),
+    exitTime: null,
+    status: 'mission', // statut spécial pour mission Bureau
+    isMissionTeam: true,
+    missionId: m._id || null,
+    missionRank: m.category,
+    missionName: m.name
+  };
+
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('teams', teamEntry);
+      if (inserted && inserted._id) teamEntry._id = inserted._id;
+    } catch(e) {}
+  }
+  state.teams = state.teams || [];
+  state.teams.push(teamEntry);
+
+  saveSession();
+  document.getElementById('equipe-civil-modal').remove();
+  alert('✓ Mission "' + m.name + '" acceptée !\n\nVotre équipe est maintenant en mission. La Police voit votre équipe dans "Portes du village" → "Bureau des Missions".');
+  renderMissionsPublic();
+  if (typeof renderCivilDash === 'function') renderCivilDash();
 }
 
 // Rendu pour la page publique (accueil)
