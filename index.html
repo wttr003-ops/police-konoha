@@ -251,6 +251,30 @@
   }
   .btn-cabinet.btn-lg { padding: 12px 28px; font-size: 14px; }
 
+  /* Bouton Bureau des Missions (vert turquoise) */
+  .btn-bureau {
+    background: linear-gradient(135deg, rgba(20,184,166,0.18), rgba(20,184,166,0.06));
+    color: #5eead4;
+    border: 1px solid rgba(20,184,166,0.5);
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-bureau:hover {
+    background: linear-gradient(135deg, rgba(20,184,166,0.3), rgba(20,184,166,0.18));
+    border-color: #5eead4;
+    color: #99f6e4;
+    box-shadow: 0 4px 16px rgba(20,184,166,0.3);
+    transform: translateY(-1px);
+  }
+  .btn-bureau.btn-lg { padding: 12px 28px; font-size: 14px; }
+
   .btn-danger {
     background: transparent;
     color: var(--red2);
@@ -1677,6 +1701,7 @@
         <button class="btn-primary btn-lg" onclick="goToPostuler('police')">👮 Rejoindre la Police</button>
         <button class="btn-justice btn-lg" onclick="goToPostuler('juge')">⚖️ Rejoindre le Tribunal</button>
         <button class="btn-cabinet btn-lg" onclick="goToPostuler('avocat')">🧑‍⚖️ Rejoindre les Avocats</button>
+        <button class="btn-bureau btn-lg" onclick="showPage('bureau-login')">🎯 Bureau des Missions</button>
       </div>
       <div class="hero-btns" style="margin-top:0.75rem">
         <button class="btn-civil btn-lg" onclick="showPage('civil')">🍃 Créer un compte citoyen</button>
@@ -2270,6 +2295,10 @@
             <div style="font-size:24px;margin-bottom:4px">🧑‍⚖️</div>
             Avocat
           </button>
+          <button type="button" class="section-btn" data-section="mission" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
+            <div style="font-size:24px;margin-bottom:4px">🎯</div>
+            Mission
+          </button>
         </div>
       </div>
 
@@ -2278,9 +2307,12 @@
         <label>Nom et Prénom</label>
         <input type="text" id="login-fullname" placeholder="Ex: Sasuke Uchiha">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="login-password-group">
         <label>Mot de passe</label>
         <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+      <div id="login-mission-info" style="display:none;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#5eead4">
+        🎯 <strong>Bureau des Missions</strong> — Connexion sans mot de passe. Saisissez juste votre nom et prénom.
       </div>
       <button class="btn-primary btn-full" onclick="doLogin()">Se connecter</button>
       <p class="auth-link"><a onclick="showPage('home')">← Retour au site</a></p>
@@ -2534,10 +2566,11 @@
   <div class="dash-layout">
     <aside class="dash-sidebar">
       <nav class="dash-nav">
-        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
+        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
         <button class="dash-nav-btn" data-tab="plaintes" data-services="police,juge" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
-        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat" onclick="switchDashTab('membres', this)">👥 Membres</button>
+        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission" onclick="switchDashTab('membres', this)">👥 Membres</button>
+        <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
         <button class="dash-nav-btn" data-tab="amendes" data-services="police,juge,avocat" onclick="switchDashTab('amendes', this)">💰 Amendes</button>
         <button class="dash-nav-btn" data-tab="casier" data-services="police,juge,avocat" onclick="switchDashTab('casier', this)">🗂 Casier judiciaire</button>
@@ -2545,12 +2578,12 @@
         <button class="dash-nav-btn" data-tab="cellules" data-services="police,juge,avocat" onclick="switchDashTab('cellules', this)">🔒 Cellules</button>
         <button class="dash-nav-btn" data-tab="portes" data-services="police" onclick="switchDashTab('portes', this)">🏯 Portes du village</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
-        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
-        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat" onclick="switchDashTab('documents', this)">📚 Documents</button>
+        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
-        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
-        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
+        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
+        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
       </nav>
     </aside>
 
@@ -2632,6 +2665,11 @@
       <div class="dash-tab" id="dash-wanted">
         <h2 class="dash-section-title" style="color:#fca5a5">📕 Bingo Book — Ninjas recherchés</h2>
         <div id="wanted-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-missions">
+        <h2 class="dash-section-title" style="color:#fbbf24">🎯 Tableau des missions</h2>
+        <div id="missions-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-dossiers">
@@ -3226,6 +3264,36 @@ const SUPABASE_TABLES = {
       _id: r.id
     })
   },
+  missions: {
+    table: 'missions',
+    mapTo: m => ({
+      name: m.name,
+      description: m.description || null,
+      category: m.category || 'E',
+      reward: m.reward || 0,
+      status: m.status || 'available',
+      created_by: m.createdBy || null,
+      accepted_by: m.acceptedBy || null,
+      accepted_team: m.acceptedTeam || [],
+      accepted_at: m.acceptedAt || null,
+      completed_at: m.completedAt || null,
+      notes: m.notes || null
+    }),
+    mapFrom: r => ({
+      name: r.name,
+      description: r.description,
+      category: r.category,
+      reward: r.reward,
+      status: r.status,
+      createdBy: r.created_by,
+      acceptedBy: r.accepted_by,
+      acceptedTeam: r.accepted_team || [],
+      acceptedAt: r.accepted_at,
+      completedAt: r.completed_at,
+      notes: r.notes,
+      _id: r.id
+    })
+  },
   presences: {
     table: 'shifts',
     mapTo: p => ({
@@ -3816,10 +3884,18 @@ const GRADE_RANK_AVOCAT = {
   'Avocat Stagiaire': 6
 };
 
+const GRADE_RANK_MISSION = {
+  'Chef du Bureau': 0,
+  'Coordinateur de Mission': 1,
+  'Affecteur': 2,
+  'Agent de Mission': 3
+};
+
 // Helper pour obtenir le rank selon le service
 function gradeRankForService(service, grade) {
   if (service === 'juge') return GRADE_RANK_JUGE[grade] !== undefined ? GRADE_RANK_JUGE[grade] : 99;
   if (service === 'avocat') return GRADE_RANK_AVOCAT[grade] !== undefined ? GRADE_RANK_AVOCAT[grade] : 99;
+  if (service === 'mission') return GRADE_RANK_MISSION[grade] !== undefined ? GRADE_RANK_MISSION[grade] : 99;
   return gradeRank(grade); // police par défaut
 }
 
@@ -3914,7 +3990,9 @@ let state = {
   // Demandes de rapport (Tribunal → Police)
   reportRequests: [],
   // Avis de recherche
-  wantedPersons: []
+  wantedPersons: [],
+  // Bureau des Missions
+  missions: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -3927,6 +4005,7 @@ const GRADES_AVOCAT_HC = ['Bâtonnier', 'Maître', 'Avocat Senior'];
 // Tous les grades disponibles pour Juges et Avocats
 const ALL_GRADES_JUGE = ['Premier Président', 'Président de Chambre', 'Juge Senior', 'Juge Confirmé', 'Juge', 'Juge Auditeur', 'Juge Stagiaire'];
 const ALL_GRADES_AVOCAT = ['Bâtonnier', 'Maître', 'Avocat Senior', 'Avocat Confirmé', 'Avocat', 'Avocat Junior', 'Avocat Stagiaire'];
+const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affecteur', 'Agent de Mission'];
 
 // Helper : compare 2 grades en ignorant accents/casse
 function _gradeMatch(a, b) {
@@ -3945,6 +4024,7 @@ function canAddMemberInSection(user) {
   if (service === 'police') return canAddAgent(user.grade);
   if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
   if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
+  if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   return false;
 }
 
@@ -3955,6 +4035,7 @@ function canSeeSectionLogs(user) {
   if (service === 'police') return canSeeLogs(user.grade);
   if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
   if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
+  if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   return false;
 }
 
@@ -4137,6 +4218,17 @@ function selectSection(btn) {
   btn.style.color = 'var(--accent)';
   btn.style.borderColor = 'var(--accent)';
   state.selectedSection = btn.dataset.section;
+
+  // Cacher le mot de passe si Bureau des Missions
+  const pwdGroup = document.getElementById('login-password-group');
+  const missionInfo = document.getElementById('login-mission-info');
+  if (state.selectedSection === 'mission') {
+    if (pwdGroup) pwdGroup.style.display = 'none';
+    if (missionInfo) missionInfo.style.display = 'block';
+  } else {
+    if (pwdGroup) pwdGroup.style.display = '';
+    if (missionInfo) missionInfo.style.display = 'none';
+  }
 }
 
 // Sélection de la section visée pour postuler
@@ -4186,6 +4278,16 @@ function selectPlainteTarget(btn) {
 // NAVIGATION
 // ============================================================
 function showPage(id) {
+  // Alias : bureau-login = login mais avec section mission pré-sélectionnée
+  if (id === 'bureau-login') {
+    showPage('login');
+    setTimeout(() => {
+      const btn = document.querySelector('.section-btn[data-section="mission"]');
+      if (btn) selectSection(btn);
+    }, 50);
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const target = document.getElementById('page-' + id);
   if (target) target.classList.add('active');
@@ -4317,19 +4419,22 @@ async function doLogin() {
   const errEl = document.getElementById('login-err');
   errEl.style.display = 'none';
 
-  if (!fullname || !p) {
-    errEl.textContent = 'Veuillez remplir tous les champs.';
+  const section = state.selectedSection || 'police';
+
+  // Le Bureau des Missions n'a pas de mot de passe — juste nom + prénom
+  const skipPassword = section === 'mission';
+
+  if (!fullname || (!skipPassword && !p)) {
+    errEl.textContent = skipPassword ? 'Veuillez entrer votre nom et prénom.' : 'Veuillez remplir tous les champs.';
     errEl.style.display = 'block';
     return;
   }
-
-  const section = state.selectedSection || 'police';
 
   // Recherche locale d'abord
   let user = state.users.find(u =>
     u.isAgent &&
     matchFullname(u.fullname, fullname) &&
-    u.password === p &&
+    (skipPassword || u.password === p) &&
     (u.service || 'police') === section
   );
 
@@ -4348,7 +4453,7 @@ async function doLogin() {
     user = state.users.find(u =>
       u.isAgent &&
       matchFullname(u.fullname, fullname) &&
-      u.password === p &&
+      (skipPassword || u.password === p) &&
       (u.service || 'police') === section
     );
     errEl.style.color = '';
@@ -4401,6 +4506,8 @@ function saveSession() {
       documents: state.documents || [],
       reportRequests: state.reportRequests || [],
       wantedPersons: state.wantedPersons || [],
+      missions: state.missions || [],
+      missions: state.missions || [],
       presences: state.presences || [],
       serviceActif: state.serviceActif || {}
     };
@@ -4474,6 +4581,8 @@ function restoreSession() {
     if (data.documents) state.documents = data.documents;
     if (data.reportRequests) state.reportRequests = data.reportRequests;
     if (data.wantedPersons) state.wantedPersons = data.wantedPersons;
+    if (data.missions) state.missions = data.missions;
+    if (data.missions) state.missions = data.missions;
     if (data.presences) state.presences = data.presences;
     if (data.serviceActif) state.serviceActif = data.serviceActif;
 
@@ -4738,6 +4847,9 @@ function renderDashboard(tab) {
   } else if (myService === 'avocat') {
     if (titleEl) titleEl.textContent = 'Cabinet des Avocats — Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Barreau';
+  } else if (myService === 'mission') {
+    if (titleEl) titleEl.textContent = 'Bureau des Missions — Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord — Affectations';
   }
 
   document.querySelectorAll('.dash-nav-btn').forEach(btn => {
@@ -4778,6 +4890,7 @@ function switchDashTab(name, btn) {
   if (name === 'discussions') renderDiscussions();
   if (name === 'documents') renderDocuments();
   if (name === 'wanted') renderWantedAgents();
+  if (name === 'missions') renderMissionsAgents();
   if (name === 'dossiers') renderDossiersAvocat();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
@@ -7414,6 +7527,7 @@ function renderAjout() {
     if (myService === 'police') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
+    if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -7431,6 +7545,10 @@ function renderAjout() {
     gradesDispo = ALL_GRADES_AVOCAT;
     titreSection = 'Cabinet des Avocats';
     labelBouton = 'Ajouter l\'avocat';
+  } else if (myService === 'mission') {
+    gradesDispo = ALL_GRADES_MISSION;
+    titreSection = 'Bureau des Missions';
+    labelBouton = 'Ajouter le membre';
   } else if (myService === 'police') {
     // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
     if (canManageSpecialRoles(u)) {
@@ -12998,6 +13116,386 @@ async function supprimerWanted(idx) {
   renderWantedAgents();
 }
 
+// ============================================================
+// BUREAU DES MISSIONS — Tableau de missions + équipes
+// ============================================================
+const MISSION_RANKS = {
+  'E':  { label: 'Rang E', color: '#86efac', bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)',  desc: 'Tâches simples du village' },
+  'D':  { label: 'Rang D', color: '#93c5fd', bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.4)', desc: 'Petites missions sans danger' },
+  'C':  { label: 'Rang C', color: '#fbbf24', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.4)', desc: 'Missions standards avec risques modérés' },
+  'B':  { label: 'Rang B', color: '#fb923c', bg: 'rgba(249,115,22,0.15)', border: 'rgba(249,115,22,0.4)', desc: 'Missions complexes face à des ninjas' },
+  'A':  { label: 'Rang A', color: '#fca5a5', bg: 'rgba(231,76,60,0.18)',  border: 'rgba(231,76,60,0.45)', desc: 'Missions dangereuses pour ninjas expérimentés' },
+  'S':  { label: 'Rang S', color: '#e8c547', bg: 'rgba(232,197,71,0.2)',  border: 'rgba(232,197,71,0.5)', desc: 'Missions élites — Jonin et plus' },
+  'S+': { label: 'Rang S+', color: '#dc2626', bg: 'rgba(220,38,38,0.2)',  border: 'rgba(220,38,38,0.5)', desc: 'Missions légendaires — risque mortel' }
+};
+
+function renderMissionsAgents() {
+  const u = state.currentUser;
+  const el = document.getElementById('missions-content');
+  if (!el) return;
+
+  const missions = state.missions || [];
+  const dispos = missions.filter(m => m.status === 'available');
+  const enCours = missions.filter(m => m.status === 'accepted');
+  const terminees = missions.filter(m => m.status === 'completed');
+
+  let html = `
+    <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1.25rem">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between">
+        <div style="font-size:13px;color:var(--text)">🎯 <strong style="color:#fbbf24">Bureau des Missions</strong> — Distribution des missions ninja</div>
+        <div style="font-size:12px;color:var(--muted)">${dispos.length} disponible${dispos.length>1?'s':''} · ${enCours.length} en cours · ${terminees.length} terminée${terminees.length>1?'s':''}</div>
+      </div>
+    </div>
+
+    <!-- FORMULAIRE DE CRÉATION -->
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border:1px solid rgba(232,197,71,0.3)">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">📋 Nouvelle mission</h3>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label>Nom de la mission *</label>
+          <input type="text" id="m-name" placeholder="Ex: Escorte du marchand jusqu'à Suna"/>
+        </div>
+        <div class="form-group">
+          <label>Catégorie *</label>
+          <select id="m-category">
+            ${Object.keys(MISSION_RANKS).map(r => `<option value="${r}">${MISSION_RANKS[r].label} — ${MISSION_RANKS[r].desc}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Récompense (Ryos)</label>
+          <input type="number" id="m-reward" placeholder="0" min="0"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Description complète de la mission</label>
+        <textarea id="m-description" rows="3" placeholder="Décrivez précisément la mission : objectif, lieu, contraintes, ennemis prévus..."></textarea>
+      </div>
+
+      <button class="btn-primary btn-full" onclick="creerMission()" style="background:linear-gradient(135deg,#fbbf24,#d97706);color:#1a1400;font-weight:700">
+        🎯 Publier la mission
+      </button>
+    </div>`;
+
+  // Section : Missions disponibles
+  if (dispos.length > 0) {
+    html += `<h3 style="font-family:'Cinzel',serif;font-size:14px;color:#fbbf24;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(232,197,71,0.3);padding-bottom:6px">📋 Missions disponibles (${dispos.length})</h3>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">';
+    dispos.forEach(m => {
+      const realIdx = state.missions.indexOf(m);
+      html += renderMissionCard(m, realIdx, 'available', u);
+    });
+    html += '</div>';
+  }
+
+  // Missions en cours
+  if (enCours.length > 0) {
+    html += `<h3 style="font-family:'Cinzel',serif;font-size:14px;color:#5eead4;margin:1.5rem 0 1rem;border-bottom:1px solid rgba(20,184,166,0.3);padding-bottom:6px">🟢 Missions en cours (${enCours.length})</h3>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">';
+    enCours.forEach(m => {
+      const realIdx = state.missions.indexOf(m);
+      html += renderMissionCard(m, realIdx, 'accepted', u);
+    });
+    html += '</div>';
+  }
+
+  // Missions terminées
+  if (terminees.length > 0) {
+    html += `<h3 style="font-family:'Cinzel',serif;font-size:14px;color:var(--green);margin:1.5rem 0 1rem;border-bottom:1px solid rgba(39,174,96,0.3);padding-bottom:6px">✓ Missions terminées (${terminees.length})</h3>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">';
+    terminees.forEach(m => {
+      const realIdx = state.missions.indexOf(m);
+      html += renderMissionCard(m, realIdx, 'completed', u);
+    });
+    html += '</div>';
+  }
+
+  if (missions.length === 0) {
+    html += '<div style="text-align:center;color:var(--muted);padding:2rem;font-style:italic">Aucune mission publiée pour le moment.</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+function renderMissionCard(m, idx, statusType, u) {
+  const rank = MISSION_RANKS[m.category] || MISSION_RANKS.E;
+  const statusLabels = {
+    available: { lbl: '📋 Disponible', color: '#fbbf24', bg: 'rgba(232,197,71,0.1)' },
+    accepted:  { lbl: '🟢 En cours',   color: '#5eead4', bg: 'rgba(20,184,166,0.1)' },
+    completed: { lbl: '✓ Terminée',    color: '#86efac', bg: 'rgba(34,197,94,0.1)' }
+  };
+  const st = statusLabels[statusType] || statusLabels.available;
+
+  return `
+    <div style="background:#0a0a0a;border:2px solid ${rank.border};border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4)">
+      <div style="background:${rank.bg};padding:10px 14px;border-bottom:1px solid ${rank.border};display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="background:${rank.color};color:#0a0a0a;font-weight:700;padding:3px 10px;border-radius:5px;font-family:'Cinzel',serif;font-size:14px">${rank.label}</div>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${st.bg};color:${st.color}">${st.lbl}</span>
+        </div>
+        ${m.reward > 0 ? `<div style="font-family:'Cinzel',serif;color:var(--lgold);font-weight:700;font-size:14px">${m.reward.toLocaleString()} Ryos</div>` : ''}
+      </div>
+      <div style="padding:14px">
+        <div style="font-family:'Cinzel',serif;font-size:15px;color:white;font-weight:700;margin-bottom:6px">${escapeHtml(m.name)}</div>
+        ${m.description ? `<div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:10px;padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:5px;border-left:2px solid ${rank.color}">${escapeHtml(m.description)}</div>` : ''}
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+          📋 Publiée par <strong style="color:var(--text)">${escapeHtml(m.createdBy||'—')}</strong>
+          ${m.acceptedBy ? `<br>🤝 Acceptée par <strong style="color:#5eead4">${escapeHtml(m.acceptedBy)}</strong>` : ''}
+          ${m.acceptedTeam && m.acceptedTeam.length > 0 ? `
+            <div style="margin-top:6px">
+              <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px">Équipe :</span>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                ${m.acceptedTeam.map(member => `<span style="background:rgba(20,184,166,0.1);color:#5eead4;border:1px solid rgba(20,184,166,0.3);padding:2px 8px;border-radius:10px;font-size:10px">${escapeHtml(member.fullname || member)}${member.grade ? ' · ' + escapeHtml(member.grade) : ''}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          ${statusType === 'available' ? `<button class="btn-sm btn-sm-green" onclick="accepterMission(${idx})" style="font-size:11px;flex:1;padding:6px 12px">🤝 Accepter cette mission</button>` : ''}
+          ${statusType === 'accepted' && m.acceptedBy === u.fullname ? `<button class="btn-sm" onclick="terminerMission(${idx})" style="font-size:11px;flex:1;padding:6px 12px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none">✓ Terminer la mission</button>` : ''}
+          ${m.createdBy === u.fullname || canAddAgent(u.grade) ? `<button class="btn-sm btn-sm-red" onclick="supprimerMission(${idx})" style="font-size:11px;padding:6px 10px">🗑</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function creerMission() {
+  const u = state.currentUser;
+  if (!u || (u.service||'') !== 'mission') {
+    alert('Réservé au Bureau des Missions.');
+    return;
+  }
+
+  if (window._addMissionLock) return;
+  window._addMissionLock = true;
+  const btn = document.querySelector('button[onclick="creerMission()"]');
+  const oldText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Publication...'; }
+
+  try {
+    const name = document.getElementById('m-name').value.trim();
+    const category = document.getElementById('m-category').value;
+    const description = document.getElementById('m-description').value.trim();
+    const reward = parseInt(document.getElementById('m-reward').value) || 0;
+
+    if (!name) { alert('Le nom de la mission est obligatoire.'); return; }
+    if (!category) { alert('La catégorie est obligatoire.'); return; }
+
+    const newMission = {
+      name, description, category, reward,
+      status: 'available',
+      createdBy: u.fullname,
+      acceptedTeam: []
+    };
+
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('missions', newMission);
+        if (inserted && inserted._id) {
+          newMission._id = inserted._id;
+        } else {
+          alert('⚠️ Erreur de création sur le serveur.');
+          return;
+        }
+      } catch(e) {
+        alert('⚠️ Erreur : ' + (e.message || e));
+        return;
+      }
+    }
+
+    const dejaPresent = newMission._id && state.missions.some(m => m._id === newMission._id);
+    if (!dejaPresent) state.missions.push(newMission);
+
+    saveSession();
+    ['m-name','m-description','m-reward'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('m-category').value = 'E';
+
+    alert('🎯 Mission "' + name + '" publiée !');
+    renderMissionsAgents();
+  } finally {
+    window._addMissionLock = false;
+    if (btn && oldText) { btn.disabled = false; btn.innerHTML = oldText; }
+  }
+}
+
+// === Acceptation d'une mission ===
+async function accepterMission(idx) {
+  const u = state.currentUser;
+  const m = state.missions[idx];
+  if (!u || !m) return;
+
+  // Pas une mission disponible
+  if (m.status !== 'available') {
+    alert('Cette mission n\'est plus disponible.');
+    return;
+  }
+
+  // Empêcher d'accepter sa propre mission
+  if (m.createdBy === u.fullname) {
+    if (!(await confirmAsync('⚠️ Vous êtes la personne qui a publié cette mission.\nVoulez-vous quand même l\'accepter ?'))) return;
+  }
+
+  // Ouvrir le modal de création d'équipe pour la mission
+  ouvrirCreationEquipeMission(idx);
+}
+
+function ouvrirCreationEquipeMission(missionIdx) {
+  const m = state.missions[missionIdx];
+  if (!m) return;
+  const u = state.currentUser;
+  const rank = MISSION_RANKS[m.category] || MISSION_RANKS.E;
+
+  // Liste des autres agents Bureau Mission disponibles
+  const autresMembres = state.users.filter(x =>
+    x.isAgent &&
+    (x.service||'police') === 'mission' &&
+    x.fullname !== u.fullname
+  );
+
+  // Liste des civils enregistrés (pour pouvoir choisir des ninjas)
+  const civils = state.users.filter(x => x.service === 'civil');
+
+  const existing = document.getElementById('equipe-mission-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'equipe-mission-modal';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" style="max-width:560px;max-height:90vh;overflow-y:auto">
+      <div class="confirm-icon" style="background:${rank.bg};border-color:${rank.color}">🎯</div>
+      <div class="confirm-title">Accepter la mission</div>
+      <div class="confirm-message" style="margin-bottom:14px;text-align:left">
+        <strong style="color:${rank.color}">${rank.label}</strong> · ${escapeHtml(m.name)}<br>
+        <span style="font-size:11px;color:var(--muted)">Constituez votre équipe pour cette mission.</span>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">👥 Membre principal (vous)</label>
+        <div style="background:rgba(20,184,166,0.1);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:10px 12px;color:#5eead4;font-weight:600">
+          ✓ ${escapeHtml(u.fullname)}
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">🤝 Coéquipiers (optionnel — sélectionnez parmi les ninjas enregistrés)</label>
+        <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:200px;overflow-y:auto">
+          ${civils.length === 0 ? '<p style="color:var(--muted);font-size:11px;font-style:italic;text-align:center;padding:8px">Aucun ninja civil enregistré.</p>' :
+            civils.map((c, i) => `
+              <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;font-size:12px;color:var(--text);background:#1a1a1a;border-radius:4px;margin-bottom:3px">
+                <input type="checkbox" class="equipe-civil-check" data-fullname="${escapeHtml(c.fullname)}" data-grade="${escapeHtml(c.grade||'Inconnu')}" style="width:14px;height:14px;cursor:pointer;accent-color:#14b8a6"/>
+                <span>${escapeHtml(c.fullname)} <span style="color:var(--muted);font-size:10px">— ${escapeHtml(c.grade||'Inconnu')}</span></span>
+              </label>
+            `).join('')
+          }
+        </div>
+      </div>
+
+      <div style="background:rgba(232,197,71,0.05);border:1px solid rgba(232,197,71,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text)">
+        ℹ️ Si la mission nécessite de sortir du village, votre équipe apparaîtra dans <strong style="color:var(--accent)">"Portes du village"</strong> côté Police pour validation.<br>
+        <strong style="color:#fca5a5">⚠ Un Genin simple ne peut pas quitter le village seul</strong> — l'équipe doit contenir au moins un Genin Confirmé.
+      </div>
+
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="document.getElementById('equipe-mission-modal').remove()">Annuler</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="confirmerAcceptationMission(${missionIdx})" style="background:linear-gradient(135deg,${rank.color},${rank.color}aa);color:#0a0a0a">🤝 Accepter et constituer l'équipe</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function confirmerAcceptationMission(idx) {
+  const m = state.missions[idx];
+  const u = state.currentUser;
+  if (!m || !u) return;
+
+  // Récupérer les coéquipiers cochés
+  const coequipiers = Array.from(document.querySelectorAll('.equipe-civil-check:checked')).map(cb => ({
+    fullname: cb.dataset.fullname,
+    grade: cb.dataset.grade
+  }));
+
+  // L'équipe complète = chef (l'agent du Bureau) + coéquipiers civils
+  const equipe = [
+    { fullname: u.fullname, grade: u.grade, isAgent: true },
+    ...coequipiers
+  ];
+
+  m.status = 'accepted';
+  m.acceptedBy = u.fullname;
+  m.acceptedTeam = equipe;
+  m.acceptedAt = new Date().toISOString();
+
+  if (supabaseReady && m._id) {
+    try { await pushToSupabase('missions', m); } catch(e) {}
+  }
+
+  // Créer un groupe de sortie (équipe) côté Portes du village si la mission nécessite sortie
+  // Le groupe est marqué avec un préfixe spécial pour l'identifier comme mission
+  if (state.teams) {
+    const teamEntry = {
+      name: '🎯 ' + m.name + ' (Mission ' + m.category + ')',
+      reason: 'Mission du Bureau des Missions — ' + m.name + (m.description ? ' · ' + m.description : ''),
+      agent: u.fullname,
+      grade: u.grade,
+      members: equipe.map(e => e.fullname).join(', '),
+      membersList: equipe,
+      date: new Date().toLocaleDateString('fr-FR'),
+      exitTime: null,
+      status: 'pending',
+      isMissionTeam: true,
+      missionId: m._id || null,
+      missionRank: m.category
+    };
+
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('teams', teamEntry);
+        if (inserted && inserted._id) teamEntry._id = inserted._id;
+      } catch(e) {}
+    }
+    state.teams = state.teams || [];
+    state.teams.push(teamEntry);
+  }
+
+  saveSession();
+  document.getElementById('equipe-mission-modal').remove();
+  alert('✓ Mission "' + m.name + '" acceptée !\n\nVotre équipe a été enregistrée.\nElle apparaîtra dans "Portes du village" pour validation Police si vous devez sortir.');
+  renderMissionsAgents();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+async function terminerMission(idx) {
+  const m = state.missions[idx];
+  if (!m) return;
+  if (!(await confirmAsync('Marquer la mission "' + m.name + '" comme TERMINÉE ?'))) return;
+  m.status = 'completed';
+  m.completedAt = new Date().toISOString();
+  if (supabaseReady && m._id) {
+    try { await pushToSupabase('missions', m); } catch(e) {}
+  }
+  saveSession();
+  alert('✓ Mission "' + m.name + '" marquée comme terminée.');
+  renderMissionsAgents();
+}
+
+async function supprimerMission(idx) {
+  const m = state.missions[idx];
+  if (!m) return;
+  if (!(await confirmAsync('Supprimer définitivement la mission "' + m.name + '" ?\n\n⚠ Cette action est irréversible.'))) return;
+  if (m._id && supabaseReady) {
+    try { await deleteFromSupabase('missions', m._id); } catch(e) {}
+  }
+  state.missions.splice(idx, 1);
+  saveSession();
+  renderMissionsAgents();
+}
+
 // Rendu pour la page publique (accueil)
 // État de navigation du Bingo Book (page courante = paire de fiches affichées)
 window._bingoBookPage = window._bingoBookPage || 0;
@@ -13758,6 +14256,37 @@ async function initSupabase() {
     subscribeToSupabaseChanges();
 
     console.log('✅ Init Supabase terminée — données synchronisées');
+
+    // === Auto-création du compte Arakawa Akihiro côté Bureau des Missions ===
+    // Garantit que le compte existe au moins en Chef du Bureau
+    try {
+      const existeMission = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'mission' &&
+        matchFullname(x.fullname, 'Arakawa Akihiro')
+      );
+      if (!existeMission) {
+        const newMissionAccount = {
+          fullname: 'Arakawa Akihiro',
+          password: '', // Pas de mot de passe pour le Bureau des Missions
+          grade: 'Chef du Bureau',
+          service: 'mission',
+          isAgent: true,
+          matricule: 'KNH-MIS-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newMissionAccount);
+            if (inserted && inserted._id) {
+              newMissionAccount._id = inserted._id;
+              state.users.push(newMissionAccount);
+              console.log('🎯 Compte Bureau des Missions créé pour Arakawa Akihiro');
+            }
+          } catch(e) { console.warn('Erreur auto-création compte mission:', e); }
+        }
+      }
+    } catch(e) { console.warn('Auto-create mission account:', e); }
   }
 }
 
