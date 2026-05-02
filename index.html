@@ -16523,6 +16523,66 @@ async function initSupabase() {
         }
       }
     } catch(e) { console.warn('Auto-create/fix mission account:', e); }
+
+    // === Auto-création du compte Arakawa Akihiro pour la Diplomatie ===
+    try {
+      const existeDiplo = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'diplomatie' &&
+        matchFullname(x.fullname, 'Arakawa Akihiro')
+      );
+      if (!existeDiplo) {
+        const newDiploAccount = {
+          fullname: 'Arakawa Akihiro',
+          password: 'akihiro2026',
+          grade: 'Ambassadeur en Chef',
+          service: 'diplomatie',
+          isAgent: true,
+          matricule: 'KNH-DIP-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newDiploAccount);
+            if (inserted && inserted._id) {
+              newDiploAccount._id = inserted._id;
+              state.users.push(newDiploAccount);
+              console.log('🤝 Compte Diplomatie créé pour Arakawa Akihiro (Ambassadeur en Chef)');
+            }
+          } catch(e) { console.warn('Erreur auto-création compte diplomatie:', e); }
+        }
+      }
+    } catch(e) { console.warn('Auto-create diplomatie:', e); }
+
+    // === Auto-création du compte Arakawa Akihiro pour le Renseignement ===
+    try {
+      const existeRens = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'renseignement' &&
+        matchFullname(x.fullname, 'Arakawa Akihiro')
+      );
+      if (!existeRens) {
+        const newRensAccount = {
+          fullname: 'Arakawa Akihiro',
+          password: 'akihiro2026',
+          grade: 'Maître du Renseignement',
+          service: 'renseignement',
+          isAgent: true,
+          matricule: 'KNH-RNS-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newRensAccount);
+            if (inserted && inserted._id) {
+              newRensAccount._id = inserted._id;
+              state.users.push(newRensAccount);
+              console.log('🕵️ Compte Renseignement créé pour Arakawa Akihiro (Maître du Renseignement)');
+            }
+          } catch(e) { console.warn('Erreur auto-création compte renseignement:', e); }
+        }
+      }
+    } catch(e) { console.warn('Auto-create renseignement:', e); }
   }
 }
 
