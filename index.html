@@ -4665,14 +4665,16 @@ async function doLogin() {
     return;
   }
 
+  // Vérification : mot de passe obligatoire
+  if (!p) {
+    errEl.textContent = 'Veuillez entrer votre mot de passe.';
+    errEl.style.display = 'block';
+    return;
+  }
+
   // Recherche locale d'abord
-  // Logique de vérification du password :
-  // - Si le compte a un password en BDD, on le vérifie strictement
-  // - Si le compte n'a PAS de password (ancien compte Mission sans mdp), on accepte n'importe quel mdp ou vide
-  const matchPassword = (acc) => {
-    if (!acc.password || acc.password === '') return true; // compte sans mdp (compat)
-    return acc.password === p;
-  };
+  // Vérification stricte du mot de passe pour TOUTES les sections (Police, Juge, Avocat, Mission)
+  const matchPassword = (acc) => acc.password === p;
 
   let user = state.users.find(u =>
     u.isAgent &&
@@ -15103,8 +15105,8 @@ async function initSupabase() {
     // Retry restauration civile après chargement Supabase
     try { retryCivilRestoreAfterSupabase(); } catch(e) {}
 
-    // === Auto-création du compte Arakawa Akihiro côté Bureau des Missions ===
-    // Garantit que le compte existe au moins en Chef du Bureau
+    // === Auto-création / Auto-fix du compte Arakawa Akihiro côté Bureau des Missions ===
+    // Garantit que le compte existe avec le bon mot de passe (akihiro2026)
     try {
       const existeMission = state.users.find(x =>
         x.isAgent &&
@@ -15112,9 +15114,10 @@ async function initSupabase() {
         matchFullname(x.fullname, 'Arakawa Akihiro')
       );
       if (!existeMission) {
+        // Création du compte avec mot de passe
         const newMissionAccount = {
           fullname: 'Arakawa Akihiro',
-          password: '', // Pas de mot de passe pour le Bureau des Missions
+          password: 'akihiro2026',
           grade: 'Chef du Bureau',
           service: 'mission',
           isAgent: true,
@@ -15127,12 +15130,21 @@ async function initSupabase() {
             if (inserted && inserted._id) {
               newMissionAccount._id = inserted._id;
               state.users.push(newMissionAccount);
-              console.log('🎯 Compte Bureau des Missions créé pour Arakawa Akihiro');
+              console.log('🎯 Compte Bureau des Missions créé pour Arakawa Akihiro avec mot de passe');
             }
           } catch(e) { console.warn('Erreur auto-création compte mission:', e); }
         }
+      } else if (!existeMission.password || existeMission.password === '') {
+        // Le compte existe mais sans mot de passe → on en met un par défaut
+        existeMission.password = 'akihiro2026';
+        if (supabaseReady && existeMission._id) {
+          try {
+            await sb.from('users').update({ password: 'akihiro2026' }).eq('id', existeMission._id);
+            console.log('🔐 Mot de passe akihiro2026 ajouté au compte Bureau Mission existant');
+          } catch(e) { console.warn('Erreur fix mot de passe mission:', e); }
+        }
       }
-    } catch(e) { console.warn('Auto-create mission account:', e); }
+    } catch(e) { console.warn('Auto-create/fix mission account:', e); }
   }
 }
 
