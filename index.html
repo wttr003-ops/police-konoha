@@ -4240,16 +4240,11 @@ function selectSection(btn) {
   btn.style.borderColor = 'var(--accent)';
   state.selectedSection = btn.dataset.section;
 
-  // Cacher le mot de passe si Bureau des Missions
+  // Tous les services demandent le mot de passe maintenant
   const pwdGroup = document.getElementById('login-password-group');
   const missionInfo = document.getElementById('login-mission-info');
-  if (state.selectedSection === 'mission') {
-    if (pwdGroup) pwdGroup.style.display = 'none';
-    if (missionInfo) missionInfo.style.display = 'block';
-  } else {
-    if (pwdGroup) pwdGroup.style.display = '';
-    if (missionInfo) missionInfo.style.display = 'none';
-  }
+  if (pwdGroup) pwdGroup.style.display = '';
+  if (missionInfo) missionInfo.style.display = 'none';
 }
 
 // Sélection de la section visée pour postuler
@@ -4616,11 +4611,8 @@ async function doLogin() {
 
   const section = state.selectedSection || 'police';
 
-  // Le Bureau des Missions n'a pas de mot de passe — juste nom + prénom
-  const skipPassword = section === 'mission';
-
-  if (!fullname || (!skipPassword && !p)) {
-    errEl.textContent = skipPassword ? 'Veuillez entrer votre nom et prénom.' : 'Veuillez remplir tous les champs.';
+  if (!fullname) {
+    errEl.textContent = 'Veuillez entrer votre nom et prénom.';
     errEl.style.display = 'block';
     return;
   }
@@ -4674,10 +4666,18 @@ async function doLogin() {
   }
 
   // Recherche locale d'abord
+  // Logique de vérification du password :
+  // - Si le compte a un password en BDD, on le vérifie strictement
+  // - Si le compte n'a PAS de password (ancien compte Mission sans mdp), on accepte n'importe quel mdp ou vide
+  const matchPassword = (acc) => {
+    if (!acc.password || acc.password === '') return true; // compte sans mdp (compat)
+    return acc.password === p;
+  };
+
   let user = state.users.find(u =>
     u.isAgent &&
     matchFullname(u.fullname, fullname) &&
-    (skipPassword || u.password === p) &&
+    matchPassword(u) &&
     (u.service || 'police') === section
   );
 
@@ -4696,7 +4696,7 @@ async function doLogin() {
     user = state.users.find(u =>
       u.isAgent &&
       matchFullname(u.fullname, fullname) &&
-      (skipPassword || u.password === p) &&
+      matchPassword(u) &&
       (u.service || 'police') === section
     );
     errEl.style.color = '';
@@ -7858,20 +7858,13 @@ function renderAjout() {
           return '<option>' + icon + g + '</option>';
         }).join('')}</select>
       </div>
-      ${myService === 'mission' ? `
-        <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#5eead4">
-          🎯 <strong>Bureau des Missions</strong> — Connexion sans mot de passe. Le membre se connecte juste avec son nom et prénom.
+      <div class="form-group">
+        <label>Mot de passe *</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="aj-password" placeholder="Min 6 caractères ou cliquez sur Générer (20 car.)" style="flex:1"/>
+          <button class="btn-outline" onclick="genPwd()">🎲 Générer</button>
         </div>
-        <input type="hidden" id="aj-password" value=""/>
-      ` : `
-        <div class="form-group">
-          <label>Mot de passe *</label>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="aj-password" placeholder="Min 6 caractères ou cliquez sur Générer (20 car.)" style="flex:1"/>
-            <button class="btn-outline" onclick="genPwd()">🎲 Générer</button>
-          </div>
-        </div>
-      `}
+      </div>
       <button class="btn-primary btn-full" onclick="addAgent()">➕ ${labelBouton}</button>
     </div>`;
 }
@@ -7947,12 +7940,10 @@ async function addAgent() {
   g = g.replace(/^(👑|⭐)\s*/, '').trim();
   const p = document.getElementById('aj-password').value;
 
-  // Bureau Mission : pas de mot de passe requis
-  const skipPassword = myService === 'mission';
-
-  if (!fullname || (!skipPassword && !p)) { alert('Champs manquants'); return; }
+  // Mot de passe obligatoire pour TOUTES les sections
+  if (!fullname || !p) { alert('Champs manquants'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
-  if (!skipPassword && p.length < 6) { alert('Mot de passe trop court'); return; }
+  if (p.length < 6) { alert('Mot de passe trop court (min 6 caractères)'); return; }
 
   // === CAS SPÉCIAL : HOKAGE / STAFF ===
   if (isSpecialRole(g)) {
