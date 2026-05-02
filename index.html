@@ -4813,17 +4813,19 @@ function renderSavedAccounts() {
   section.style.display = 'block';
 
   const sectionMeta = {
-    police:  { icon: '👮', label: 'Police',  color: '#c49a1a' },
-    juge:    { icon: '⚖️', label: 'Tribunal', color: '#3b82f6' },
-    avocat:  { icon: '🧑‍⚖️', label: 'Cabinet', color: '#d97706' },
-    mission: { icon: '🎯', label: 'Bureau Missions', color: '#14b8a6' },
-    civil:   { icon: '🍃', label: 'Citoyen',  color: '#22c55e' }
+    police:        { icon: '👮', label: 'Police',           color: '#c49a1a', rgb: '196,154,26' },
+    juge:          { icon: '⚖️', label: 'Tribunal',          color: '#3b82f6', rgb: '59,130,246' },
+    avocat:        { icon: '🧑‍⚖️', label: 'Cabinet',          color: '#d97706', rgb: '217,119,6' },
+    mission:       { icon: '🎯', label: 'Bureau Missions',  color: '#14b8a6', rgb: '20,184,166' },
+    civil:         { icon: '🍃', label: 'Citoyen',           color: '#22c55e', rgb: '34,197,94' },
+    diplomatie:    { icon: '🤝', label: 'Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
+    renseignement: { icon: '🕵️', label: 'Renseignement',    color: '#94a3b8', rgb: '148,163,184' }
   };
 
   list.innerHTML = accounts.map((a) => {
     const meta = sectionMeta[a.section] || sectionMeta.police;
     return `
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(${a.section==='juge'?'59,130,246':a.section==='avocat'?'217,119,6':a.section==='mission'?'20,184,166':a.section==='civil'?'34,197,94':'196,154,26'},0.08);border:1px solid rgba(${a.section==='juge'?'59,130,246':a.section==='avocat'?'217,119,6':a.section==='mission'?'20,184,166':a.section==='civil'?'34,197,94':'196,154,26'},0.3);border-radius:6px">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(${meta.rgb},0.08);border:1px solid rgba(${meta.rgb},0.3);border-radius:6px">
         <div style="font-size:18px;flex-shrink:0">${meta.icon}</div>
         <div style="flex:1;text-align:left;min-width:0">
           <div style="font-size:13px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.fullname)}</div>
