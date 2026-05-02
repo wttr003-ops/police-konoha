@@ -16585,6 +16585,66 @@ async function initSupabase() {
         }
       }
     } catch(e) { console.warn('Auto-create renseignement:', e); }
+
+    // === Auto-création du compte Arakawa Akihiro pour le Tribunal (Juge) ===
+    try {
+      const existeJuge = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'juge' &&
+        matchFullname(x.fullname, 'Arakawa Akihiro')
+      );
+      if (!existeJuge) {
+        const newJugeAccount = {
+          fullname: 'Arakawa Akihiro',
+          password: 'akihiro2026',
+          grade: 'Premier Président',
+          service: 'juge',
+          isAgent: true,
+          matricule: 'KNH-JUG-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newJugeAccount);
+            if (inserted && inserted._id) {
+              newJugeAccount._id = inserted._id;
+              state.users.push(newJugeAccount);
+              console.log('⚖️ Compte Tribunal créé pour Arakawa Akihiro (Premier Président)');
+            }
+          } catch(e) { console.warn('Erreur auto-création compte juge:', e); }
+        }
+      }
+    } catch(e) { console.warn('Auto-create juge:', e); }
+
+    // === Auto-création du compte Arakawa Akihiro pour le Cabinet des Avocats ===
+    try {
+      const existeAvocat = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'avocat' &&
+        matchFullname(x.fullname, 'Arakawa Akihiro')
+      );
+      if (!existeAvocat) {
+        const newAvocatAccount = {
+          fullname: 'Arakawa Akihiro',
+          password: 'akihiro2026',
+          grade: 'Bâtonnier',
+          service: 'avocat',
+          isAgent: true,
+          matricule: 'KNH-AVO-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newAvocatAccount);
+            if (inserted && inserted._id) {
+              newAvocatAccount._id = inserted._id;
+              state.users.push(newAvocatAccount);
+              console.log('🧑‍⚖️ Compte Cabinet des Avocats créé pour Arakawa Akihiro (Bâtonnier)');
+            }
+          } catch(e) { console.warn('Erreur auto-création compte avocat:', e); }
+        }
+      }
+    } catch(e) { console.warn('Auto-create avocat:', e); }
   }
 }
 
