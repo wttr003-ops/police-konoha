@@ -1658,9 +1658,10 @@
   </div>
   <ul class="nav-links">
     <li><a onclick="showPage('home')">Accueil</a></li>
-    <li><a onclick="showSection('histoire')">Histoire</a></li>
+    <li><a onclick="showSection('histoire')">👮 Police</a></li>
     <li><a onclick="showSection('tribunal')">⚖️ Tribunal</a></li>
     <li><a onclick="showSection('cabinet')">🧑‍⚖️ Avocats</a></li>
+    <li><a onclick="showSection('bureau-missions')" style="color:#5eead4">🎯 Bureau des Missions</a></li>
     <li><a onclick="showSection('volonte')">Volonté du Feu</a></li>
     <li><a onclick="showSection('missions')">Missions</a></li>
     <li><a onclick="showSection('grades')">Grades</a></li>
@@ -1723,8 +1724,8 @@
   <!-- HISTOIRE -->
   <section class="section" id="histoire">
     <div class="section-inner">
-      <p class="section-tag">Origines & Histoire</p>
-      <h2 class="section-title">La Fondation de la <span>Police Militaire</span></h2>
+      <p class="section-tag">👮 Police de Konoha</p>
+      <h2 class="section-title">La <span>Police de Konoha</span></h2>
       <div class="history-layout">
         <div class="history-main">
           <div class="history-block">
@@ -1744,6 +1745,21 @@
             <h3 class="history-block-title">Un héritage porté fièrement</h3>
             <p>Aujourd'hui, la <strong>Section Police de Konoha</strong> perpétue cet héritage. Héritière de la rigueur de ses fondateurs et des idéaux du 2ème Hokage, elle veille sur les habitants du Village des Feuilles avec la même exigence qu'à ses origines.</p>
           </div>
+
+          <div class="history-block" style="border-color:rgba(196,154,26,0.4);background:rgba(196,154,26,0.04)">
+            <div class="history-year" style="color:var(--lgold)">Missions & Responsabilités</div>
+            <h3 class="history-block-title">Les attributions de la Police</h3>
+            <ul style="list-style:none;padding:0;margin:0">
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">⚖️ <strong>Maintien de l'ordre</strong> — Patrouilles dans le village, prévention et arrestation des contrevenants au code pénal de Konoha.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">📋 <strong>Émission d'amendes</strong> — Sanctions financières pour les infractions mineures à majeures, selon le barème officiel des trois paliers.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🗂 <strong>Gestion des casiers judiciaires</strong> — Constitution, mise à jour et transmission des dossiers au Tribunal pour jugement.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🔒 <strong>Détention en cellules</strong> — Mise en cellule provisoire des suspects en attente de jugement ou de transfert vers le palais.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🏯 <strong>Collecte des impôts</strong> — Récupération des taxes ninja selon le grade auprès des shinobis du village.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🚪 <strong>Contrôle des Portes du village</strong> — Validation des sorties d'équipes ninja, registre des entrées/sorties, gestion des missions à l'extérieur.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">📕 <strong>Bingo Book</strong> — Tenue du registre officiel des fugitifs et déserteurs recherchés par le village.</li>
+              <li style="padding:6px 0">📋 <strong>Rédaction de rapports</strong> — Documentation des interventions, missions et incidents à transmettre à la hiérarchie ou au Tribunal sur demande.</li>
+            </ul>
+          </div>
         </div>
         <aside class="history-sidebar">
           <div class="history-fact-card">
@@ -1760,6 +1776,11 @@
             <div class="history-fact-label">Devise</div>
             <div class="history-fact-val">Volonté du Feu</div>
             <div class="history-fact-sub">Protéger, servir, transmettre</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Hiérarchie</div>
+            <div class="history-fact-val">Directeur</div>
+            <div class="history-fact-sub">Chef opérationnel</div>
           </div>
           <div class="history-quote">
             <p>"Nul n'est au-dessus des lois de Konoha. Pas même ceux qui les font respecter."</p>
@@ -1783,11 +1804,19 @@
             <p>Au cœur du Pays du Feu, le <strong>Tribunal de Konoha</strong> est l'institution chargée de rendre la justice. Composé de juges expérimentés, il statue sur les affaires les plus graves portées par la Police de Konoha : trahisons, homicides, conspirations, infractions majeures au code shinobi.</p>
             <p>Chaque juge prête serment de juger sans favoritisme, en respect de la <strong>Volonté du Feu</strong>. Leur autorité est reconnue par le Hokage lui-même, et leurs décisions s'appliquent à tous — du Genin au Jonin.</p>
           </div>
-          <div class="history-block">
-            <div class="history-year">Missions du Tribunal</div>
-            <h3 class="history-block-title">Compétences principales</h3>
-            <p>Les juges examinent les casiers judiciaires transmis par la Police, convoquent les suspects, entendent les avocats de la défense, et prononcent les sanctions : amendes, emprisonnement, bannissement du village ou — dans les cas extrêmes — exécution.</p>
-            <p>Le Tribunal traite également les <strong>plaintes contre les agents de Police</strong>, garantissant qu'aucun officier ne soit au-dessus des lois. Cette compétence exclusive protège les citoyens contre les abus.</p>
+
+          <div class="history-block" style="border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.04)">
+            <div class="history-year" style="color:#93c5fd">Missions & Responsabilités</div>
+            <h3 class="history-block-title">Les attributions du Tribunal</h3>
+            <ul style="list-style:none;padding:0;margin:0">
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(59,130,246,0.2)">⚖️ <strong>Jugement des affaires</strong> — Analyse des casiers judiciaires transmis par la Police, audition des suspects, examen des preuves.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(59,130,246,0.2)">📜 <strong>Prononciation des sanctions</strong> — Amendes, emprisonnement, bannissement du village ou exécution dans les cas extrêmes.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(59,130,246,0.2)">🛡️ <strong>Plaintes contre la Police</strong> — Compétence exclusive : traitement des plaintes des citoyens contre les agents de Police pour garantir l'absence d'abus.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(59,130,246,0.2)">💰 <strong>Émission d'amendes</strong> — Le Tribunal peut sanctionner directement certains comportements en complément du travail de la Police.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(59,130,246,0.2)">📤 <strong>Demande de rapports</strong> — Sollicitation de rapports détaillés à la Police concernant des dossiers en cours d'instruction.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(59,130,246,0.2)">🗂 <strong>Consultation des casiers</strong> — Accès complet aux dossiers criminels pour assurer un jugement éclairé.</li>
+              <li style="padding:6px 0">🔒 <strong>Suivi des détentions</strong> — Validation des mises en cellule et durées d'emprisonnement.</li>
+            </ul>
           </div>
         </div>
         <aside class="history-sidebar">
@@ -1834,6 +1863,20 @@
             <p>Chaque dossier ouvert par un avocat fait l'objet d'un <strong>contrat officiel</strong> précisant les honoraires en Ryos. La facture est ensuite transmise au client.</p>
             <p>Les avocats peuvent rouvrir un dossier déjà existant lorsqu'un nouveau fait apparaît concernant le même client — sans créer de doublon — et générer un avenant au contrat initial.</p>
           </div>
+
+          <div class="history-block" style="border-color:rgba(217,119,6,0.4);background:rgba(217,119,6,0.04)">
+            <div class="history-year" style="color:#fbbf24">Missions & Responsabilités</div>
+            <h3 class="history-block-title">Les attributions du Cabinet</h3>
+            <ul style="list-style:none;padding:0;margin:0">
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(217,119,6,0.2)">⚖️ <strong>Défense des accusés</strong> — Représentation devant le Tribunal de tout shinobi ou citoyen mis en cause.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(217,119,6,0.2)">📁 <strong>Gestion des dossiers clients</strong> — Suivi personnalisé de chaque client, archivage des affaires, suivi des honoraires.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(217,119,6,0.2)">📝 <strong>Rédaction de contrats</strong> — Établissement des conventions officielles avocat-client avec montant des honoraires.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(217,119,6,0.2)">🗂 <strong>Consultation des casiers</strong> — Accès aux dossiers judiciaires pour préparer une défense efficace.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(217,119,6,0.2)">💰 <strong>Émission d'amendes & contestation</strong> — Possibilité de contester les amendes émises par la Police pour leurs clients.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(217,119,6,0.2)">🤝 <strong>Négociation</strong> — Médiation entre la Police, le Tribunal et le client pour obtenir le meilleur règlement possible.</li>
+              <li style="padding:6px 0">📋 <strong>Conseil juridique</strong> — Accompagnement et conseil aux citoyens sur leurs droits et obligations.</li>
+            </ul>
+          </div>
         </div>
         <aside class="history-sidebar">
           <div class="history-fact-card">
@@ -1854,6 +1897,86 @@
           <div class="history-quote">
             <p>"Tout shinobi a droit à une défense, quelle que soit la gravité des charges qui pèsent sur lui."</p>
             <span>— Maxime du Barreau de Konoha</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUREAU DES MISSIONS -->
+  <section class="section" id="bureau-missions">
+    <div class="section-inner">
+      <p class="section-tag" style="color:#5eead4">🎯 Bureau des Missions</p>
+      <h2 class="section-title">Le <span>Bureau des Missions</span></h2>
+      <div class="history-layout">
+        <div class="history-main">
+          <div class="history-block">
+            <div class="history-year">Origine</div>
+            <h3 class="history-block-title">La création du Bureau</h3>
+            <p>Le <strong>Bureau des Missions</strong> a été établi par le <strong>3ème Hokage</strong> face à un constat simple : les shinobis du village devaient avoir un cadre clair et structuré pour exercer leur art. Avant sa création, les missions étaient distribuées de manière informelle, créant des inégalités, des conflits de légitimité et parfois des tragédies évitables.</p>
+            <p>Le 3ème Hokage souhaitait que <strong>tout ninja</strong>, du plus jeune Genin au plus expérimenté Jonin, puisse trouver des missions adaptées à son niveau et à ses ambitions, dans un environnement sécurisé et reconnu officiellement par le village.</p>
+          </div>
+          <div class="history-block">
+            <div class="history-year">Système de classification</div>
+            <h3 class="history-block-title">Les rangs de mission — De E à S+</h3>
+            <p>Pour structurer la distribution équitable des missions, le Bureau a mis en place un système de <strong>7 rangs hiérarchiques</strong> :</p>
+            <ul style="list-style:none;padding:0;margin:8px 0;font-size:14px;line-height:1.9">
+              <li>🟢 <strong>Rang E</strong> — Tâches simples du village (jardinage, courses, escortes locales)</li>
+              <li>🔵 <strong>Rang D</strong> — Petites missions sans danger (livraisons, surveillance mineure)</li>
+              <li>🟡 <strong>Rang C</strong> — Missions standards avec risques modérés</li>
+              <li>🟠 <strong>Rang B</strong> — Missions complexes face à des ninjas adverses</li>
+              <li>🔴 <strong>Rang A</strong> — Missions dangereuses pour shinobis expérimentés</li>
+              <li>👑 <strong>Rang S</strong> — Missions élites — Jonin et plus</li>
+              <li>💀 <strong>Rang S+</strong> — Missions légendaires — Risque mortel</li>
+            </ul>
+          </div>
+
+          <div class="history-block" style="border-color:rgba(20,184,166,0.4);background:rgba(20,184,166,0.04)">
+            <div class="history-year" style="color:#5eead4">Missions & Responsabilités</div>
+            <h3 class="history-block-title">Les attributions du Bureau</h3>
+            <ul style="list-style:none;padding:0;margin:0">
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">📋 <strong>Publication des missions</strong> — Mise à disposition d'un tableau public officiel accessible à tous les shinobis du village.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">🎖️ <strong>Classification par rangs</strong> — Évaluation rigoureuse de la difficulté de chaque mission selon les 7 rangs (E à S+).</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">💰 <strong>Définition des récompenses</strong> — Attribution des Ryos selon la difficulté, le danger et la durée estimée de la mission.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">👥 <strong>Constitution d'équipes</strong> — Validation des équipes formées par les shinobis pour les missions, vérification des grades requis.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">🗺️ <strong>Suivi sur carte</strong> — Tableau des opérations en cours avec localisation en temps réel des équipes en mission.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">✅ <strong>Validation des accomplissements</strong> — Marquage officiel d'une mission comme « Terminée » et clôture du dossier.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">🤝 <strong>Coordination avec la Police</strong> — Transmission automatique des équipes en mission au registre des Portes du village.</li>
+              <li style="padding:6px 0">📜 <strong>Archives</strong> — Conservation de l'historique de toutes les missions accomplies par les shinobis du village.</li>
+            </ul>
+          </div>
+
+          <div class="history-block">
+            <div class="history-year">Philosophie</div>
+            <h3 class="history-block-title">Pourquoi le Bureau existe</h3>
+            <p>Le Bureau des Missions repose sur trois principes fondateurs : <strong>équité</strong>, <strong>sécurité</strong> et <strong>traçabilité</strong>. Chaque shinobi doit pouvoir trouver des missions à sa hauteur, partir avec une équipe adaptée et savoir qu'en cas de problème, le village saura précisément où il se trouve.</p>
+            <p>C'est aussi un acte de <strong>reconnaissance officielle</strong> : aucune mission accomplie n'est anonyme. Chaque exploit est consigné, chaque équipe créditée, chaque récompense versée selon les règles du village.</p>
+          </div>
+        </div>
+        <aside class="history-sidebar">
+          <div class="history-fact-card">
+            <div class="history-fact-label">Fondateur</div>
+            <div class="history-fact-val">3ème Hokage</div>
+            <div class="history-fact-sub">Créateur du système</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Hiérarchie</div>
+            <div class="history-fact-val">Chef du Bureau</div>
+            <div class="history-fact-sub">Direction des missions</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Rangs</div>
+            <div class="history-fact-val">E → S+</div>
+            <div class="history-fact-sub">7 niveaux de difficulté</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Accès</div>
+            <div class="history-fact-val">Tous les shinobis</div>
+            <div class="history-fact-sub">Du Genin au Jonin</div>
+          </div>
+          <div class="history-quote">
+            <p>"Une mission n'est pas qu'une tâche : c'est un engagement envers le village et envers soi-même."</p>
+            <span>— Discours du 3ème Hokage</span>
           </div>
         </aside>
       </div>
