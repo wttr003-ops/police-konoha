@@ -15804,6 +15804,25 @@ function renderRecensementNinjas() {
       </div>
     </div>
 
+    <!-- Stat casiers judiciaires -->
+    ${(() => {
+      const nbCasiers = sorted.filter(r => {
+        return (state.casiers || []).some(x => matchFullname(x.fullname, r.fullname)) ||
+               (state.amendes || []).some(a => matchFullname(a.fullname, r.fullname) && a.statut !== 'paye' && !a.recupere) ||
+               (state.cellules || []).some(x => matchFullname(x.fullname, r.fullname) && x.statut === 'enferme');
+      }).length;
+      const nbVierge = sorted.length - nbCasiers;
+      return `
+        <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:1rem">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⚖️ Statut judiciaire</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <span style="background:rgba(34,197,94,0.12);color:#86efac;border:1px solid rgba(34,197,94,0.3);padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">✓ Casier vierge : ${nbVierge}</span>
+            ${nbCasiers > 0 ? `<span style="background:rgba(231,76,60,0.18);color:#fca5a5;border:1px solid rgba(231,76,60,0.5);padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">⚠️ Casier judiciaire : ${nbCasiers}</span>` : ''}
+          </div>
+        </div>
+      `;
+    })()}
+
     <!-- Liste des ninjas -->
     <div class="dash-block">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:1px">📋 Liste complète (triée par grade)</div>`;
@@ -15814,19 +15833,48 @@ function renderRecensementNinjas() {
     const c = NINJA_GRADE_COLORS[r.ninjaGrade] || { bg: 'rgba(148,163,184,0.1)', color: '#cbd5e1', border: 'rgba(148,163,184,0.3)', icon: '⚪' };
     const sectionMeta = NINJA_SECTIONS.find(s => s.id === r.section) || { label: '—', color: '#888' };
 
+    // === Détection casier judiciaire ===
+    // Un ninja a un casier si :
+    // - Il a un dossier criminel ouvert dans state.casiers
+    // - OU il a au moins une amende impayée dans state.amendes
+    // - OU il a été emprisonné (state.cellules)
+    const hasCasier = (state.casiers || []).some(x => matchFullname(x.fullname, r.fullname));
+    const hasAmendeImpayee = (state.amendes || []).some(a =>
+      matchFullname(a.fullname, r.fullname) &&
+      a.statut !== 'paye' && !a.recupere
+    );
+    const hasCellule = (state.cellules || []).some(x =>
+      matchFullname(x.fullname, r.fullname) &&
+      x.statut === 'enferme'
+    );
+    const aCasierJudiciaire = hasCasier || hasAmendeImpayee || hasCellule;
+
+    // Détails pour tooltip
+    const detailsCasier = [];
+    if (hasCasier) detailsCasier.push('Dossier criminel');
+    if (hasAmendeImpayee) detailsCasier.push('Amende(s) impayée(s)');
+    if (hasCellule) detailsCasier.push('Détention en cours');
+
     // Header de groupe par grade
     if (r.ninjaGrade !== lastGrade) {
       lastGrade = r.ninjaGrade;
       html += `<div style="padding:8px 16px;background:${c.bg};border-bottom:1px solid ${c.border};font-size:11px;font-weight:700;color:${c.color};text-transform:uppercase;letter-spacing:1px">${c.icon} ${r.ninjaGrade || 'Sans grade'}</div>`;
     }
 
+    // Style de fond rouge léger pour les ninjas avec casier
+    const ligneStyle = aCasierJudiciaire
+      ? 'background:rgba(231,76,60,0.06);border-left:3px solid rgba(231,76,60,0.6);'
+      : '';
+
     html += `
-      <div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;${ligneStyle}">
         <div style="flex:1;min-width:200px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <strong style="color:white;font-size:13px">${escapeHtml(r.fullname)}</strong>
+            <strong style="color:${aCasierJudiciaire?'#fca5a5':'white'};font-size:13px">${escapeHtml(r.fullname)}</strong>
             <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(${sectionMeta.color === '#c49a1a' ? '196,154,26' : sectionMeta.color === '#3b82f6' ? '59,130,246' : sectionMeta.color === '#d97706' ? '217,119,6' : sectionMeta.color === '#14b8a6' ? '20,184,166' : sectionMeta.color === '#a855f7' ? '168,85,247' : sectionMeta.color === '#94a3b8' ? '148,163,184' : sectionMeta.color === '#fbbf24' ? '251,191,36' : '34,197,94'},0.15);color:${sectionMeta.color};border:1px solid rgba(${sectionMeta.color === '#c49a1a' ? '196,154,26' : sectionMeta.color === '#3b82f6' ? '59,130,246' : sectionMeta.color === '#d97706' ? '217,119,6' : sectionMeta.color === '#14b8a6' ? '20,184,166' : sectionMeta.color === '#a855f7' ? '168,85,247' : sectionMeta.color === '#94a3b8' ? '148,163,184' : sectionMeta.color === '#fbbf24' ? '251,191,36' : '34,197,94'},0.4);font-weight:600">${escapeHtml(sectionMeta.label)}</span>
+            ${aCasierJudiciaire ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(231,76,60,0.2);color:#fca5a5;border:1px solid rgba(231,76,60,0.5);font-weight:700" title="${detailsCasier.join(' · ')}">⚠️ Casier judiciaire</span>` : `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(34,197,94,0.12);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-weight:600">✓ Casier vierge</span>`}
           </div>
+          ${aCasierJudiciaire && detailsCasier.length > 0 ? `<div style="font-size:10px;color:#fca5a5;margin-top:3px;font-style:italic">⚠️ ${detailsCasier.join(' · ')}</div>` : ''}
           ${r.specialty ? `<div style="font-size:11px;color:var(--text);margin-top:3px">🌟 ${escapeHtml(r.specialty)}</div>` : ''}
           ${r.notes ? `<div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">${escapeHtml(r.notes)}</div>` : ''}
           <div style="font-size:9px;color:var(--muted);margin-top:3px">📋 Recensé par ${escapeHtml(r.createdBy || '—')}</div>
@@ -16018,15 +16066,24 @@ async function genererDocRecensement() {
         <h2 class="grade-title">${c.icon} ${grade}<span class="grade-count">${ninjas.length} ninja(s)</span></h2>
         <table>
           <thead>
-            <tr><th>Nom et Prénom</th><th>Section</th></tr>
+            <tr><th>Nom et Prénom</th><th>Section</th><th>Casier judiciaire</th></tr>
           </thead>
           <tbody>`;
     ninjas.forEach(n => {
       const sec = NINJA_SECTIONS.find(s => s.id === n.section) || { label: '—', color: '#888' };
+      // Détection casier
+      const hasCasier = (state.casiers || []).some(x => matchFullname(x.fullname, n.fullname));
+      const hasAmendeImpayee = (state.amendes || []).some(a => matchFullname(a.fullname, n.fullname) && a.statut !== 'paye' && !a.recupere);
+      const hasCellule = (state.cellules || []).some(x => matchFullname(x.fullname, n.fullname) && x.statut === 'enferme');
+      const aCasier = hasCasier || hasAmendeImpayee || hasCellule;
+      const casierHtml = aCasier
+        ? `<span style="background:#fee2e2;color:#991b1b;border:1px solid #dc2626;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700">⚠️ Oui</span>`
+        : `<span style="background:#dcfce7;color:#166534;border:1px solid #22c55e;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700">✓ Non</span>`;
       docHtml += `
-        <tr>
-          <td class="name">${escapeHtml(n.fullname)}</td>
+        <tr${aCasier ? ' style="background:#fef2f2"' : ''}>
+          <td class="name"${aCasier ? ' style="color:#991b1b"' : ''}>${escapeHtml(n.fullname)}</td>
           <td><span class="section-tag" style="background:${sec.color}22;color:${sec.color};border:1px solid ${sec.color}66">${escapeHtml(sec.label)}</span></td>
+          <td>${casierHtml}</td>
         </tr>`;
     });
     docHtml += `</tbody></table></div>`;
