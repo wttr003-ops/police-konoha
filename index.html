@@ -11971,7 +11971,7 @@ function renderPresences() {
           <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px">
             <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">🪙 Bonus or</div>
             <div id="bonus-or" style="color:var(--lgold);font-size:18px;font-weight:700;font-family:Georgia,serif">+ 0 Ryos</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">+1 Ryo / 30 min · sans plafond</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">+1 Ryo / 30 min · après plafond 1 500</div>
           </div>
         </div>
       </div>
@@ -12266,12 +12266,20 @@ async function enregistrerService(fullname, service, fin, options) {
     const dureeMin = Math.max(1, Math.round(dureeMs / 60000));
     const taux = getTarif(service.grade);
     const salaireBase = Math.round((dureeMin / 60) * taux);
-    // Bonus or : 1 Ryo par tranche de 30 minutes complète (sans plafond)
-    const bonusOr = Math.floor(dureeMs / (30 * 60 * 1000));
     // Plafond 1500 UNIQUEMENT sur le salaire de base
     const PLAFOND_SALAIRE = 1500;
     const salairePlafonne = Math.min(salaireBase, PLAFOND_SALAIRE);
-    // Total = salaire plafonné + bonus libre
+
+    // Bonus or : 1 Ryo / 30 min UNIQUEMENT après avoir atteint 1500 Ryos
+    let bonusOr = 0;
+    if (salaireBase >= PLAFOND_SALAIRE) {
+      const tempsPourPlafondMs = (PLAFOND_SALAIRE / taux) * 3600000;
+      const tempsAprèsPlafondMs = dureeMs - tempsPourPlafondMs;
+      if (tempsAprèsPlafondMs > 0) {
+        bonusOr = Math.floor(tempsAprèsPlafondMs / (30 * 60 * 1000));
+      }
+    }
+    // Total = salaire plafonné + bonus or
     const salaire = salairePlafonne + bonusOr;
 
     state.presences = state.presences || [];
@@ -12597,17 +12605,26 @@ function updateChronoService() {
   if (salEl) {
     const taux = getTarif(service.grade);
     const salaireBase = Math.round((elapsed / 3600000) * taux);
-    // Bonus or : 1 Ryo par tranche de 30 minutes complète (SANS PLAFOND)
-    const bonusOr = Math.floor(elapsed / (30 * 60 * 1000));
-    // Plafond UNIQUEMENT sur le salaire de base (1500 Ryos)
     const PLAFOND_SALAIRE = 1500;
     const salaireAffiche = Math.min(salaireBase, PLAFOND_SALAIRE);
     const isPlafond = salaireBase >= PLAFOND_SALAIRE;
 
+    // Bonus or : 1 Ryo / 30 min UNIQUEMENT après avoir atteint 1500 Ryos
+    let bonusOr = 0;
+    if (isPlafond) {
+      // On calcule à partir de quand on a atteint 1500
+      // Temps pour atteindre 1500 = (1500 / taux) heures = (1500 / taux) * 3600000 ms
+      const tempsPourPlafondMs = (1500 / taux) * 3600000;
+      const tempsAprèsPlafondMs = elapsed - tempsPourPlafondMs;
+      if (tempsAprèsPlafondMs > 0) {
+        bonusOr = Math.floor(tempsAprèsPlafondMs / (30 * 60 * 1000));
+      }
+    }
+
     // Affichage salaire (avec badge plafond si atteint)
     salEl.innerHTML = salaireAffiche.toLocaleString() + ' Ryos' + (isPlafond ? ' <span style="font-size:9px;color:var(--red2);background:rgba(231,76,60,0.15);padding:2px 5px;border-radius:8px;border:1px solid rgba(231,76,60,0.3);margin-left:4px">⚠ Plafond</span>' : '');
 
-    // Affichage bonus (sans plafond)
+    // Affichage bonus
     if (bonusEl) {
       bonusEl.textContent = '+ ' + bonusOr.toLocaleString() + ' Ryos';
     }
