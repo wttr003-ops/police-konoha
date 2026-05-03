@@ -15674,7 +15674,7 @@ async function supprimerNinjaRecensement(idx) {
 }
 
 // Générer le document Google Doc compatible
-function genererDocRecensement() {
+async function genererDocRecensement() {
   const u = state.currentUser;
   if (!canSeeRecensement(u.grade)) {
     alert('⚠️ Réservé au Lieutenant et à la Direction.');
@@ -15777,16 +15777,144 @@ function genererDocRecensement() {
 </body>
 </html>`;
 
-  // Ouvrir dans un nouvel onglet
+  // Ouvrir le modal d'aperçu
+  ouvrirModalDocRecensement(docHtml);
+}
+
+// Modal d'aperçu du document Recensement avec actions
+async function ouvrirModalDocRecensement(docHtml) {
+  // Retirer l'ancien modal s'il existe
+  const existing = document.getElementById('rec-doc-modal');
+  if (existing) existing.remove();
+
+  // Générer un lien partageable via Supabase (table shared_reports)
+  let shareUrl = '';
+  let shareLoading = true;
+  if (supabaseReady) {
+    try {
+      const shareId = 'rec-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+      const { error } = await sb.from('shared_reports').insert({
+        share_id: shareId,
+        report_type: 'recensement',
+        title: 'Recensement officiel des Ninjas',
+        content: docHtml,
+        created_by: state.currentUser ? state.currentUser.fullname : null
+      });
+      if (!error) {
+        shareUrl = window.location.origin + window.location.pathname + '?shared=' + shareId;
+      }
+    } catch (e) { console.warn('Erreur création lien partagé:', e); }
+  }
+  shareLoading = false;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'rec-doc-modal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(6px)';
+
+  overlay.innerHTML = `
+    <div style="background:#0a0a0a;border:2px solid rgba(20,184,166,0.4);border-radius:14px;width:100%;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+
+      <!-- HEADER -->
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);background:rgba(20,184,166,0.06);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:16px;color:#5eead4;font-weight:700">📄 Aperçu du document</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Recensement officiel des Ninjas — Konoha</div>
+        </div>
+        <button onclick="document.getElementById('rec-doc-modal').remove()" style="background:rgba(231,76,60,0.15);color:#fca5a5;border:1px solid rgba(231,76,60,0.3);padding:6px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">✕ Fermer</button>
+      </div>
+
+      <!-- ACTIONS -->
+      <div style="padding:12px 20px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        ${shareUrl ? `
+          <div style="flex:1;min-width:240px;display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:6px 10px">
+            <span style="font-size:11px;color:var(--muted);flex-shrink:0">🔗</span>
+            <input type="text" id="rec-share-url" readonly value="${shareUrl}" style="flex:1;background:transparent;border:none;color:#5eead4;font-family:monospace;font-size:11px;padding:0;outline:none;min-width:0"/>
+          </div>
+          <button onclick="copierLienRecensement()" style="background:linear-gradient(135deg,#14b8a6,#0d9488);color:white;border:none;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">📋 Copier le lien</button>
+        ` : `
+          <div style="flex:1;font-size:11px;color:var(--muted);font-style:italic">⚠️ Lien partageable indisponible (Supabase déconnecté)</div>
+        `}
+        <button onclick="telechargerDocRecensement()" style="background:rgba(196,154,26,0.15);color:var(--accent);border:1px solid rgba(196,154,26,0.4);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">📥 Télécharger</button>
+        <button onclick="imprimerDocRecensement()" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">🖨️ Imprimer</button>
+      </div>
+
+      <!-- APERÇU -->
+      <div style="flex:1;overflow:auto;background:#fafafa;padding:0">
+        <iframe id="rec-doc-iframe" style="width:100%;height:100%;min-height:500px;border:none;background:#fafafa" sandbox="allow-same-origin allow-scripts"></iframe>
+      </div>
+    </div>
+  `;
+
+  // Stocker le HTML dans une variable globale pour les actions
+  window._currentRecensementDocHtml = docHtml;
+
+  document.body.appendChild(overlay);
+
+  // Charger l'iframe avec le contenu
+  setTimeout(() => {
+    const iframe = document.getElementById('rec-doc-iframe');
+    if (iframe) {
+      const blob = new Blob([docHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      iframe.src = url;
+      // Libérer l'URL après chargement
+      iframe.onload = () => setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }, 50);
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
+// Copier le lien partageable
+function copierLienRecensement() {
+  const input = document.getElementById('rec-share-url');
+  if (!input) return;
+  const url = input.value;
+  // Méthode moderne
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('✓ Lien copié dans le presse-papier !\n\n' + url);
+    }).catch(() => {
+      // Fallback
+      input.select();
+      document.execCommand('copy');
+      alert('✓ Lien copié !');
+    });
+  } else {
+    input.select();
+    document.execCommand('copy');
+    alert('✓ Lien copié !');
+  }
+}
+
+// Télécharger le doc en HTML
+function telechargerDocRecensement() {
+  const docHtml = window._currentRecensementDocHtml;
+  if (!docHtml) { alert('Document non disponible.'); return; }
   const blob = new Blob([docHtml], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  if (!win) {
-    alert('⚠️ Pop-up bloqué. Autorisez les pop-ups pour ce site.');
-    return;
+  const a = document.createElement('a');
+  a.href = url;
+  const dateStr = new Date().toISOString().split('T')[0];
+  a.download = 'recensement-ninjas-konoha-' + dateStr + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Imprimer
+function imprimerDocRecensement() {
+  const iframe = document.getElementById('rec-doc-iframe');
+  if (!iframe) { alert('Iframe introuvable.'); return; }
+  try {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  } catch(e) {
+    alert('⚠️ Impossible d\'imprimer directement. Utilisez le bouton Télécharger puis ouvrez le fichier dans votre navigateur pour imprimer.');
   }
-  // Libérer l'URL après ouverture
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // === Affichage des missions disponibles sur la page publique (accueil + espace civil) ===
