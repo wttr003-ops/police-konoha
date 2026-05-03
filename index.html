@@ -4433,7 +4433,9 @@ let state = {
   missions: [],
   // Opérations sur carte (Police + Bureau Mission)
   operations: [],
-  ninjaRecords: []
+  ninjaRecords: [],
+  // Paramètres carte : zone censurée Suna et autres réglages
+  mapSettings: { sunaZone: { left: 30, top: 38, width: 14, height: 12 } }
 };
 
 // Grades autorisés à demander une sortie de village
@@ -14612,10 +14614,8 @@ function renderOperations() {
       <div id="op-map-wrapper" style="position:relative;width:100%;background:#0a0a0a;overflow:auto;max-height:80vh">
         <div id="op-map-container" style="position:relative;width:100%;display:block;line-height:0;font-size:0;transform-origin:0 0;transition:transform 0.2s ease">
           <img id="op-map-svg" src="cartographie-nrp.svg" style="width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none" alt="Carte de Konoha"/>
-          <!-- Zone censurée du Village de Suna (rayures diagonales noires) -->
-          <div style="position:absolute;left:30%;top:38%;width:14%;height:12%;pointer-events:none;background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.92) 0px,rgba(0,0,0,0.92) 6px,rgba(0,0,0,0) 6px,rgba(0,0,0,0) 12px),repeating-linear-gradient(-45deg,rgba(0,0,0,0.5) 0px,rgba(0,0,0,0.5) 3px,rgba(0,0,0,0) 3px,rgba(0,0,0,0) 9px);border:2px solid rgba(0,0,0,0.85);border-radius:50%;box-shadow:inset 0 0 20px rgba(0,0,0,0.6);z-index:5">
-            <div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#fbbf24;font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;border:1px solid rgba(251,191,36,0.5);font-family:'Cinzel',serif;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;pointer-events:none">🔒 Zone classifiée</div>
-          </div>
+          <!-- Zone censurée du Village de Suna (générée dynamiquement par JS) -->
+          <div id="op-suna-zone" style="position:absolute;pointer-events:none;z-index:5"></div>
           <div id="op-map-points" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></div>
         </div>
 
@@ -14649,6 +14649,8 @@ function renderOperations() {
     appliquerZoomCarte(); // restaurer le niveau de zoom
     // Activer le pan + zoom molette
     setupMapPanZoom('op-map-wrapper', 'op-map-container', '_opMapZoom', appliquerZoomCarte, '.op-marker');
+    // Render la zone censurée Suna
+    if (typeof actualiserToutesZonesSuna === 'function') actualiserToutesZonesSuna();
   }, 800);
 }
 
@@ -14915,6 +14917,260 @@ function appliquerZoomCarte() {
 // zoomVarName : nom de la variable globale window[zoomVarName] = niveau de zoom
 // applyZoomFn : fonction qui applique le zoom
 // markerSelector : sélecteur CSS des points dragables (pour ne pas pan dessus)
+// ============================================================
+// ZONE CENSURÉE SUNA — Drag, resize, sauvegarde Supabase (Hokage + Staff)
+// ============================================================
+
+// Vérifie si l'utilisateur peut éditer la zone Suna
+function canEditSunaZone(user) {
+  if (!user || !user.isAgent) return false;
+  // Hokage et Staff peuvent éditer (peu importe la section)
+  return _gradeIn(user.grade, ['Hokage', 'Staff']);
+}
+
+// Charger les paramètres de la zone depuis Supabase
+async function chargerSunaZoneSettings() {
+  if (!supabaseReady) return;
+  try {
+    const { data, error } = await sb.from('map_settings').select('*').eq('setting_key', 'suna_censored_zone').maybeSingle();
+    if (error) {
+      console.warn('Erreur chargement zone Suna:', error.message);
+      return;
+    }
+    if (data && data.setting_value) {
+      const val = typeof data.setting_value === 'string' ? JSON.parse(data.setting_value) : data.setting_value;
+      if (val && typeof val.left === 'number') {
+        state.mapSettings = state.mapSettings || {};
+        state.mapSettings.sunaZone = val;
+      }
+    }
+  } catch (e) { console.warn('Exception chargement zone Suna:', e); }
+}
+
+// Sauvegarder les paramètres dans Supabase
+async function sauvegarderSunaZoneSettings() {
+  if (!supabaseReady) return;
+  const u = state.currentUser;
+  const settings = (state.mapSettings && state.mapSettings.sunaZone) || { left: 30, top: 38, width: 14, height: 12 };
+  try {
+    // Upsert (insert ou update)
+    const { error } = await sb.from('map_settings').upsert({
+      setting_key: 'suna_censored_zone',
+      setting_value: settings,
+      updated_by: u ? u.fullname : 'unknown',
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'setting_key' });
+    if (error) {
+      console.warn('Erreur sauvegarde zone Suna:', error.message);
+      alert('⚠️ Erreur sauvegarde : ' + error.message);
+    } else {
+      console.log('✅ Zone Suna sauvegardée:', settings);
+    }
+  } catch (e) {
+    console.warn('Exception sauvegarde zone Suna:', e);
+  }
+}
+
+// Rendre la zone censurée Suna sur une carte
+function renderSunaZone(zoneId, isEditable) {
+  const zone = document.getElementById(zoneId);
+  if (!zone) return;
+
+  const settings = (state.mapSettings && state.mapSettings.sunaZone) || { left: 30, top: 38, width: 14, height: 12 };
+
+  zone.style.left = settings.left + '%';
+  zone.style.top = settings.top + '%';
+  zone.style.width = settings.width + '%';
+  zone.style.height = settings.height + '%';
+  zone.style.backgroundImage = 'repeating-linear-gradient(45deg,rgba(0,0,0,0.92) 0px,rgba(0,0,0,0.92) 6px,rgba(0,0,0,0) 6px,rgba(0,0,0,0) 12px),repeating-linear-gradient(-45deg,rgba(0,0,0,0.5) 0px,rgba(0,0,0,0.5) 3px,rgba(0,0,0,0) 3px,rgba(0,0,0,0) 9px)';
+  zone.style.border = '2px solid rgba(0,0,0,0.85)';
+  zone.style.borderRadius = '50%';
+  zone.style.boxShadow = 'inset 0 0 20px rgba(0,0,0,0.6)';
+  zone.style.cursor = isEditable ? 'move' : 'default';
+  zone.style.pointerEvents = isEditable ? 'auto' : 'none';
+
+  // Le contenu : label + (si éditable) poignées de redim et infos
+  let html = `<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#fbbf24;font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;border:1px solid rgba(251,191,36,0.5);font-family:'Cinzel',serif;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;pointer-events:none">🔒 Zone classifiée</div>`;
+
+  if (isEditable) {
+    // Poignées de redimensionnement (4 coins) + bouton sauvegarder
+    html += `
+      <div class="suna-resize-handle" data-corner="se" style="position:absolute;bottom:-7px;right:-7px;width:14px;height:14px;background:#fbbf24;border:2px solid #1a1a1a;border-radius:50%;cursor:nwse-resize;pointer-events:auto;z-index:6;box-shadow:0 0 6px rgba(0,0,0,0.6)"></div>
+      <div class="suna-resize-handle" data-corner="sw" style="position:absolute;bottom:-7px;left:-7px;width:14px;height:14px;background:#fbbf24;border:2px solid #1a1a1a;border-radius:50%;cursor:nesw-resize;pointer-events:auto;z-index:6;box-shadow:0 0 6px rgba(0,0,0,0.6)"></div>
+      <div class="suna-resize-handle" data-corner="ne" style="position:absolute;top:-7px;right:-7px;width:14px;height:14px;background:#fbbf24;border:2px solid #1a1a1a;border-radius:50%;cursor:nesw-resize;pointer-events:auto;z-index:6;box-shadow:0 0 6px rgba(0,0,0,0.6)"></div>
+      <div class="suna-resize-handle" data-corner="nw" style="position:absolute;top:-7px;left:-7px;width:14px;height:14px;background:#fbbf24;border:2px solid #1a1a1a;border-radius:50%;cursor:nwse-resize;pointer-events:auto;z-index:6;box-shadow:0 0 6px rgba(0,0,0,0.6)"></div>
+      <div style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:rgba(251,191,36,0.95);color:#1a1400;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none">✏️ Édition (Hokage/Staff)</div>
+    `;
+  }
+
+  zone.innerHTML = html;
+
+  // Activer drag/resize si éditable
+  if (isEditable) {
+    setupSunaZoneDrag(zone);
+    zone.querySelectorAll('.suna-resize-handle').forEach(handle => {
+      setupSunaZoneResize(zone, handle);
+    });
+  }
+}
+
+// Drag de la zone (déplacement)
+function setupSunaZoneDrag(zone) {
+  let isDragging = false;
+  let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+  let containerRect = null;
+
+  zone.addEventListener('mousedown', (e) => {
+    // Si on clique sur une poignée de redim, on laisse le resize gérer
+    if (e.target.classList && e.target.classList.contains('suna-resize-handle')) return;
+    isDragging = true;
+    const container = zone.parentElement;
+    containerRect = container.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    const settings = state.mapSettings.sunaZone;
+    startLeft = settings.left;
+    startTop = settings.top;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  const handleMove = (e) => {
+    if (!isDragging || !containerRect) return;
+    const dx = ((e.clientX - startX) / containerRect.width) * 100;
+    const dy = ((e.clientY - startY) / containerRect.height) * 100;
+    const settings = state.mapSettings.sunaZone;
+    settings.left = Math.max(0, Math.min(100 - settings.width, startLeft + dx));
+    settings.top = Math.max(0, Math.min(100 - settings.height, startTop + dy));
+    zone.style.left = settings.left + '%';
+    zone.style.top = settings.top + '%';
+  };
+
+  const handleEnd = async () => {
+    if (!isDragging) return;
+    isDragging = false;
+    // Sauvegarder dans Supabase
+    await sauvegarderSunaZoneSettings();
+    saveSession();
+    // Re-render toutes les zones (sur l'autre carte si elle est visible)
+    actualiserToutesZonesSuna();
+  };
+
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('mouseup', handleEnd);
+}
+
+// Resize via une poignée
+function setupSunaZoneResize(zone, handle) {
+  let isResizing = false;
+  let corner = handle.dataset.corner;
+  let startX = 0, startY = 0;
+  let startLeft = 0, startTop = 0, startW = 0, startH = 0;
+  let containerRect = null;
+
+  handle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    const container = zone.parentElement;
+    containerRect = container.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    const settings = state.mapSettings.sunaZone;
+    startLeft = settings.left;
+    startTop = settings.top;
+    startW = settings.width;
+    startH = settings.height;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  const handleMove = (e) => {
+    if (!isResizing || !containerRect) return;
+    const dx = ((e.clientX - startX) / containerRect.width) * 100;
+    const dy = ((e.clientY - startY) / containerRect.height) * 100;
+    const settings = state.mapSettings.sunaZone;
+
+    if (corner === 'se') {
+      // Bas droite : on agrandit width et height
+      settings.width = Math.max(3, Math.min(60, startW + dx));
+      settings.height = Math.max(3, Math.min(60, startH + dy));
+    } else if (corner === 'sw') {
+      // Bas gauche : on déplace left et on agrandit width inversé
+      const newW = Math.max(3, Math.min(60, startW - dx));
+      const newL = Math.max(0, startLeft + (startW - newW));
+      settings.width = newW;
+      settings.left = newL;
+      settings.height = Math.max(3, Math.min(60, startH + dy));
+    } else if (corner === 'ne') {
+      // Haut droite : on agrandit width, on déplace top
+      settings.width = Math.max(3, Math.min(60, startW + dx));
+      const newH = Math.max(3, Math.min(60, startH - dy));
+      const newT = Math.max(0, startTop + (startH - newH));
+      settings.height = newH;
+      settings.top = newT;
+    } else if (corner === 'nw') {
+      // Haut gauche : on déplace les 4 valeurs
+      const newW = Math.max(3, Math.min(60, startW - dx));
+      const newL = Math.max(0, startLeft + (startW - newW));
+      const newH = Math.max(3, Math.min(60, startH - dy));
+      const newT = Math.max(0, startTop + (startH - newH));
+      settings.width = newW;
+      settings.left = newL;
+      settings.height = newH;
+      settings.top = newT;
+    }
+
+    zone.style.left = settings.left + '%';
+    zone.style.top = settings.top + '%';
+    zone.style.width = settings.width + '%';
+    zone.style.height = settings.height + '%';
+  };
+
+  const handleEnd = async () => {
+    if (!isResizing) return;
+    isResizing = false;
+    await sauvegarderSunaZoneSettings();
+    saveSession();
+    actualiserToutesZonesSuna();
+  };
+
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('mouseup', handleEnd);
+}
+
+// Actualiser les 2 cartes (Police + Civil) avec les nouveaux paramètres
+function actualiserToutesZonesSuna() {
+  const u = state.currentUser;
+  const isEditableAgent = canEditSunaZone(u);
+  // Carte Police/Mission (op-suna-zone)
+  const opZone = document.getElementById('op-suna-zone');
+  if (opZone) renderSunaZone('op-suna-zone', isEditableAgent);
+  // Carte Civil (civil-suna-zone) — pas d'édition côté civil
+  const civilZone = document.getElementById('civil-suna-zone');
+  if (civilZone) renderSunaZone('civil-suna-zone', false);
+}
+
+// Charger la zone au démarrage Supabase
+setTimeout(async () => {
+  await chargerSunaZoneSettings();
+  actualiserToutesZonesSuna();
+}, 1500);
+
+// Realtime : écouter les changements de map_settings
+if (typeof setInterval !== 'undefined') {
+  // Refresh périodique léger toutes les 30s pour récupérer les changements des autres
+  setInterval(async () => {
+    if (!supabaseReady) return;
+    try {
+      const oldSettings = JSON.stringify(state.mapSettings && state.mapSettings.sunaZone);
+      await chargerSunaZoneSettings();
+      const newSettings = JSON.stringify(state.mapSettings && state.mapSettings.sunaZone);
+      if (oldSettings !== newSettings) {
+        actualiserToutesZonesSuna();
+      }
+    } catch(e) {}
+  }, 30000);
+}
+
 function setupMapPanZoom(wrapperId, containerId, zoomVarName, applyZoomFn, markerSelector) {
   const wrapper = document.getElementById(wrapperId);
   if (!wrapper || wrapper.dataset.panSetup === 'true') return;
@@ -15132,10 +15388,8 @@ function renderOperationsCivil() {
       <div id="civil-map-wrapper" style="position:relative;width:100%;background:#0a0a0a;overflow:auto;max-height:70vh">
         <div id="civil-map-container" style="position:relative;width:100%;display:block;line-height:0;font-size:0;transform-origin:0 0;transition:transform 0.2s ease">
           <img id="civil-map-svg" src="cartographie-nrp.svg" style="width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none" alt="Carte"/>
-          <!-- Zone censurée du Village de Suna (rayures diagonales noires) -->
-          <div style="position:absolute;left:30%;top:38%;width:14%;height:12%;pointer-events:none;background-image:repeating-linear-gradient(45deg,rgba(0,0,0,0.92) 0px,rgba(0,0,0,0.92) 6px,rgba(0,0,0,0) 6px,rgba(0,0,0,0) 12px),repeating-linear-gradient(-45deg,rgba(0,0,0,0.5) 0px,rgba(0,0,0,0.5) 3px,rgba(0,0,0,0) 3px,rgba(0,0,0,0) 9px);border:2px solid rgba(0,0,0,0.85);border-radius:50%;box-shadow:inset 0 0 20px rgba(0,0,0,0.6);z-index:5">
-            <div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#fbbf24;font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;border:1px solid rgba(251,191,36,0.5);font-family:'Cinzel',serif;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;pointer-events:none">🔒 Zone classifiée</div>
-          </div>
+          <!-- Zone censurée du Village de Suna (générée dynamiquement par JS) -->
+          <div id="civil-suna-zone" style="position:absolute;pointer-events:none;z-index:5"></div>
           <div id="civil-map-points" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></div>
         </div>
         <div style="position:sticky;bottom:14px;left:0;display:flex;justify-content:flex-end;padding:0 14px;pointer-events:none;z-index:30;margin-top:-60px">
@@ -15165,6 +15419,8 @@ function renderOperationsCivil() {
     appliquerZoomCarteCivil();
     // Activer le pan + zoom molette pour la carte civile
     setupMapPanZoom('civil-map-wrapper', 'civil-map-container', '_civilMapZoom', appliquerZoomCarteCivil, '.civil-op-marker.mine');
+    // Render la zone censurée Suna (lecture seule pour le civil)
+    if (typeof actualiserToutesZonesSuna === 'function') actualiserToutesZonesSuna();
   }, 800);
 }
 
