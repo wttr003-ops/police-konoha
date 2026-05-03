@@ -2927,6 +2927,7 @@
         <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
         <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
+        <button class="dash-nav-btn" data-tab="recensement" data-services="police" onclick="switchDashTab('recensement', this)" style="color:#5eead4">🔍 Recensement</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
         <button class="dash-nav-btn" data-tab="amendes" data-services="police,juge,avocat" onclick="switchDashTab('amendes', this)">💰 Amendes</button>
         <button class="dash-nav-btn" data-tab="casier" data-services="police,juge,avocat" onclick="switchDashTab('casier', this)">🗂 Casier judiciaire</button>
@@ -3031,6 +3032,11 @@
       <div class="dash-tab" id="dash-operations">
         <h2 class="dash-section-title" style="color:#fb923c">🗺️ Opérations sur la carte</h2>
         <div id="operations-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-recensement">
+        <h2 class="dash-section-title" style="color:#5eead4">🔍 Recensement des Ninjas</h2>
+        <div id="recensement-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-dossiers">
@@ -3682,6 +3688,27 @@ const SUPABASE_TABLES = {
       createdBy: r.created_by,
       members: r.members || [],
       missionId: r.mission_id,
+      _id: r.id
+    })
+  },
+  ninjaRecords: {
+    table: 'ninja_records',
+    mapTo: n => ({
+      fullname: n.fullname,
+      ninja_grade: n.ninjaGrade || null,
+      specialty: n.specialty || null,
+      section: n.section || null,
+      notes: n.notes || null,
+      created_by: n.createdBy || null
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname,
+      ninjaGrade: r.ninja_grade,
+      specialty: r.specialty,
+      section: r.section,
+      notes: r.notes,
+      createdBy: r.created_by,
+      createdAt: r.created_at,
       _id: r.id
     })
   },
@@ -4405,7 +4432,8 @@ let state = {
   // Bureau des Missions
   missions: [],
   // Opérations sur carte (Police + Bureau Mission)
-  operations: []
+  operations: [],
+  ninjaRecords: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -5158,6 +5186,7 @@ function saveSession() {
       wantedPersons: state.wantedPersons || [],
       missions: state.missions || [],
       operations: state.operations || [],
+      ninjaRecords: state.ninjaRecords || [],
       presences: state.presences || [],
       serviceActif: state.serviceActif || {}
     };
@@ -5233,6 +5262,7 @@ function restoreSession() {
     if (data.wantedPersons) state.wantedPersons = data.wantedPersons;
     if (data.missions) state.missions = data.missions;
     if (data.operations) state.operations = data.operations;
+    if (data.ninjaRecords) state.ninjaRecords = data.ninjaRecords;
     if (data.presences) state.presences = data.presences;
     if (data.serviceActif) state.serviceActif = data.serviceActif;
 
@@ -5607,6 +5637,7 @@ function switchDashTab(name, btn) {
   if (name === 'wanted') renderWantedAgents();
   if (name === 'missions') renderMissionsAgents();
   if (name === 'operations') renderOperations();
+  if (name === 'recensement') renderRecensementNinjas();
   if (name === 'dossiers') renderDossiersAvocat();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
@@ -15371,6 +15402,391 @@ function appliquerZoomCarteCivil() {
   if (levelEl) {
     levelEl.textContent = Math.round(window._civilMapZoom * 100) + '%';
   }
+}
+
+// ============================================================
+// RECENSEMENT DES NINJAS — Système Police
+// ============================================================
+
+// Hiérarchie des grades ninja (ordre du plus haut au plus bas)
+// On utilise NINJA_GRADE_ORDER existant + NINJA_GRADE_COLORS existant
+const NINJA_GRADES_ORDER = NINJA_GRADE_ORDER;
+
+// Sections possibles pour un ninja
+const NINJA_SECTIONS = [
+  { id: 'police',        label: '👮 Police',              color: '#c49a1a' },
+  { id: 'tribunal',      label: '⚖️ Justice / Tribunal',  color: '#3b82f6' },
+  { id: 'avocat',        label: '🧑‍⚖️ Avocat',             color: '#d97706' },
+  { id: 'mission',       label: '🎯 Bureau des Missions', color: '#14b8a6' },
+  { id: 'diplomate',     label: '🤝 Diplomate',           color: '#a855f7' },
+  { id: 'renseignement', label: '🕵️ Renseignement',       color: '#94a3b8' },
+  { id: 'academie',      label: '🎓 Académie',            color: '#fbbf24' },
+  { id: 'civil',         label: '🍃 Civil',               color: '#22c55e' }
+];
+
+// Permission de voir la liste : Lieutenant + Direction (rang ≤ 2)
+function canSeeRecensement(grade) {
+  return gradeRank(grade) <= 2;
+}
+
+function renderRecensementNinjas() {
+  const u = state.currentUser;
+  const el = document.getElementById('recensement-content');
+  if (!el || !u) return;
+
+  const myService = u.service || 'police';
+  if (myService !== 'police') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée à la Police.</p></div>';
+    return;
+  }
+
+  const records = state.ninjaRecords || [];
+  const peutVoir = canSeeRecensement(u.grade);
+
+  let html = `
+    <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--text)">🔍 <strong style="color:#5eead4">Recensement des Ninjas</strong> — Registre des shinobis du village</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">
+        ✅ Tous les agents Police peuvent <strong>ajouter</strong> un ninja · 🔒 Seuls le Lieutenant et la Direction peuvent <strong>voir la liste complète</strong> et générer le document.
+      </div>
+    </div>
+
+    <!-- FORMULAIRE D'AJOUT -->
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border:1px solid rgba(20,184,166,0.3)">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">➕ Ajouter un ninja au recensement</h3>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Nom et prénom *</label>
+          <input type="text" id="rec-fullname" placeholder="Ex: Naruto Uzumaki"/>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Grade ninja *</label>
+          <select id="rec-grade">
+            <option value="">— Sélectionner —</option>
+            ${NINJA_GRADES_ORDER.map(g => `<option value="${g}">${NINJA_GRADE_COLORS[g].icon} ${g}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:0.75rem">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Section *</label>
+          <select id="rec-section">
+            <option value="">— Sélectionner —</option>
+            ${NINJA_SECTIONS.map(s => `<option value="${s.id}">${s.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-primary btn-full" onclick="ajouterNinjaRecensement()" style="background:linear-gradient(135deg,#14b8a6,#0d9488);color:white;font-weight:700">
+        🔍 Enregistrer ce ninja au recensement
+      </button>
+    </div>`;
+
+  // Si pas d'autorisation à voir la liste
+  if (!peutVoir) {
+    html += `
+      <div class="dash-block" style="padding:2rem;text-align:center">
+        <div style="font-size:48px;margin-bottom:10px">🔒</div>
+        <h3 style="color:var(--text);font-size:16px;margin-bottom:8px">Liste confidentielle</h3>
+        <p style="color:var(--muted);font-size:12px">Seuls le <strong>Lieutenant</strong> et la <strong>Direction</strong> peuvent consulter la liste complète des ninjas recensés et générer le document officiel.</p>
+        <p style="color:var(--lgold);font-size:11px;margin-top:8px;font-style:italic">Vous avez bien la permission de continuer à ajouter des ninjas au recensement ci-dessus. Merci pour votre contribution.</p>
+      </div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // === LISTE COMPLÈTE (Lt + Direction) ===
+  if (records.length === 0) {
+    html += `
+      <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:30px;text-align:center">
+        <div style="font-size:32px;color:rgba(20,184,166,0.4);margin-bottom:8px">🔍</div>
+        <div style="font-size:13px;color:var(--muted);font-style:italic">Aucun ninja recensé pour le moment.<br>Utilisez le formulaire ci-dessus pour commencer.</div>
+      </div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // Tri : grade le plus haut → grade le plus bas, puis alphabétique
+  const sorted = records.slice().sort((a, b) => {
+    const idxA = NINJA_GRADES_ORDER.indexOf(a.ninjaGrade);
+    const idxB = NINJA_GRADES_ORDER.indexOf(b.ninjaGrade);
+    const rankA = idxA === -1 ? 999 : idxA;
+    const rankB = idxB === -1 ? 999 : idxB;
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.fullname || '').localeCompare(b.fullname || '');
+  });
+
+  // KPIs par grade
+  const counts = {};
+  NINJA_GRADES_ORDER.forEach(g => { counts[g] = sorted.filter(r => r.ninjaGrade === g).length; });
+
+  html += `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+      <button class="btn-primary" onclick="genererDocRecensement()" style="background:linear-gradient(135deg,#5eead4,#14b8a6);color:#0a1f1c;padding:10px 18px;font-size:13px;font-weight:700;border:none;border-radius:6px;cursor:pointer">
+        📄 Générer le document (Google Doc compatible)
+      </button>
+      <span style="font-size:12px;color:var(--muted);margin-left:auto"><strong style="color:#5eead4">${records.length}</strong> ninja(s) recensé(s)</span>
+    </div>
+
+    <!-- Répartition par grade -->
+    <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:1rem">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Répartition par grade</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${NINJA_GRADES_ORDER.filter(g => counts[g] > 0).map(g => {
+          const c = NINJA_GRADE_COLORS[g];
+          return `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">${c.icon} ${g} : ${counts[g]}</span>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Liste des ninjas -->
+    <div class="dash-block">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:1px">📋 Liste complète (triée par grade)</div>`;
+
+  let lastGrade = null;
+  sorted.forEach(r => {
+    const realIdx = state.ninjaRecords.indexOf(r);
+    const c = NINJA_GRADE_COLORS[r.ninjaGrade] || { bg: 'rgba(148,163,184,0.1)', color: '#cbd5e1', border: 'rgba(148,163,184,0.3)', icon: '⚪' };
+    const sectionMeta = NINJA_SECTIONS.find(s => s.id === r.section) || { label: '—', color: '#888' };
+
+    // Header de groupe par grade
+    if (r.ninjaGrade !== lastGrade) {
+      lastGrade = r.ninjaGrade;
+      html += `<div style="padding:8px 16px;background:${c.bg};border-bottom:1px solid ${c.border};font-size:11px;font-weight:700;color:${c.color};text-transform:uppercase;letter-spacing:1px">${c.icon} ${r.ninjaGrade || 'Sans grade'}</div>`;
+    }
+
+    html += `
+      <div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <strong style="color:white;font-size:13px">${escapeHtml(r.fullname)}</strong>
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(${sectionMeta.color === '#c49a1a' ? '196,154,26' : sectionMeta.color === '#3b82f6' ? '59,130,246' : sectionMeta.color === '#d97706' ? '217,119,6' : sectionMeta.color === '#14b8a6' ? '20,184,166' : sectionMeta.color === '#a855f7' ? '168,85,247' : sectionMeta.color === '#94a3b8' ? '148,163,184' : sectionMeta.color === '#fbbf24' ? '251,191,36' : '34,197,94'},0.15);color:${sectionMeta.color};border:1px solid rgba(${sectionMeta.color === '#c49a1a' ? '196,154,26' : sectionMeta.color === '#3b82f6' ? '59,130,246' : sectionMeta.color === '#d97706' ? '217,119,6' : sectionMeta.color === '#14b8a6' ? '20,184,166' : sectionMeta.color === '#a855f7' ? '168,85,247' : sectionMeta.color === '#94a3b8' ? '148,163,184' : sectionMeta.color === '#fbbf24' ? '251,191,36' : '34,197,94'},0.4);font-weight:600">${escapeHtml(sectionMeta.label)}</span>
+          </div>
+          ${r.specialty ? `<div style="font-size:11px;color:var(--text);margin-top:3px">🌟 ${escapeHtml(r.specialty)}</div>` : ''}
+          ${r.notes ? `<div style="font-size:10px;color:var(--muted);margin-top:3px;font-style:italic">${escapeHtml(r.notes)}</div>` : ''}
+          <div style="font-size:9px;color:var(--muted);margin-top:3px">📋 Recensé par ${escapeHtml(r.createdBy || '—')}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${canAddAgent(u.grade) ? `<button class="btn-sm btn-sm-red" onclick="supprimerNinjaRecensement(${realIdx})" style="font-size:11px;padding:4px 8px" title="Supprimer">🗑</button>` : ''}
+        </div>
+      </div>`;
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// Ajouter un ninja au recensement
+async function ajouterNinjaRecensement() {
+  const u = state.currentUser;
+  if (!u || (u.service || 'police') !== 'police') {
+    alert('Réservé à la Police.');
+    return;
+  }
+
+  if (window._addRecensementLock) return;
+  window._addRecensementLock = true;
+
+  try {
+    const fullname = document.getElementById('rec-fullname').value.trim();
+    const ninjaGrade = document.getElementById('rec-grade').value;
+    const section = document.getElementById('rec-section').value;
+
+    if (!fullname) { alert('⚠️ Le nom est obligatoire.'); return; }
+    if (fullname.split(/\s+/).length < 2) { alert('⚠️ Veuillez entrer le prénom ET le nom.'); return; }
+    if (!ninjaGrade) { alert('⚠️ Le grade ninja est obligatoire.'); return; }
+    if (!section) { alert('⚠️ La section est obligatoire.'); return; }
+
+    // Anti-doublon : même fullname existe déjà
+    const exists = (state.ninjaRecords || []).find(r => matchFullname(r.fullname, fullname));
+    if (exists) {
+      const confirm1 = await confirmAsync('⚠️ Un ninja "' + exists.fullname + '" existe déjà dans le recensement.\n\nVoulez-vous mettre à jour sa fiche ?');
+      if (!confirm1) return;
+      // Mise à jour
+      exists.ninjaGrade = ninjaGrade;
+      exists.section = section;
+      // On efface les anciennes infos optionnelles
+      exists.specialty = '';
+      exists.notes = '';
+      if (exists._id && supabaseReady) {
+        try { await pushToSupabase('ninjaRecords', exists); } catch(e) { console.warn('update ninjaRecord:', e); }
+      }
+      saveSession();
+      const fnEl = document.getElementById('rec-fullname'); if (fnEl) fnEl.value = '';
+      document.getElementById('rec-grade').value = '';
+      document.getElementById('rec-section').value = '';
+      alert('✓ Fiche de "' + exists.fullname + '" mise à jour.');
+      renderRecensementNinjas();
+      return;
+    }
+
+    const newRec = {
+      fullname, ninjaGrade, section,
+      specialty: '', notes: '',
+      createdBy: u.fullname
+    };
+
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('ninjaRecords', newRec);
+        if (inserted && inserted._id) {
+          newRec._id = inserted._id;
+        } else {
+          alert('⚠️ Erreur de création sur le serveur.');
+          return;
+        }
+      } catch(e) {
+        alert('⚠️ Erreur : ' + (e.message || e));
+        return;
+      }
+    }
+
+    state.ninjaRecords = state.ninjaRecords || [];
+    state.ninjaRecords.push(newRec);
+    saveSession();
+
+    const fnEl = document.getElementById('rec-fullname'); if (fnEl) fnEl.value = '';
+    document.getElementById('rec-grade').value = '';
+    document.getElementById('rec-section').value = '';
+
+    alert('✓ "' + fullname + '" ajouté au recensement.');
+    renderRecensementNinjas();
+  } finally {
+    window._addRecensementLock = false;
+  }
+}
+
+// Supprimer une fiche
+async function supprimerNinjaRecensement(idx) {
+  const u = state.currentUser;
+  if (!canAddAgent(u.grade)) { alert('Réservé à la Direction'); return; }
+  const r = state.ninjaRecords[idx];
+  if (!r) return;
+  if (!(await confirmAsync('Supprimer définitivement la fiche de "' + r.fullname + '" ?'))) return;
+  if (r._id && supabaseReady) {
+    try { await deleteFromSupabase('ninjaRecords', r._id); } catch(e) {}
+  }
+  state.ninjaRecords.splice(idx, 1);
+  saveSession();
+  renderRecensementNinjas();
+}
+
+// Générer le document Google Doc compatible
+function genererDocRecensement() {
+  const u = state.currentUser;
+  if (!canSeeRecensement(u.grade)) {
+    alert('⚠️ Réservé au Lieutenant et à la Direction.');
+    return;
+  }
+
+  const records = state.ninjaRecords || [];
+  if (records.length === 0) {
+    alert('Aucun ninja à inclure dans le document.');
+    return;
+  }
+
+  // Tri par grade puis alphabétique
+  const sorted = records.slice().sort((a, b) => {
+    const idxA = NINJA_GRADES_ORDER.indexOf(a.ninjaGrade);
+    const idxB = NINJA_GRADES_ORDER.indexOf(b.ninjaGrade);
+    const rankA = idxA === -1 ? 999 : idxA;
+    const rankB = idxB === -1 ? 999 : idxB;
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.fullname || '').localeCompare(b.fullname || '');
+  });
+
+  const dateStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const heureStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  // HTML stylé pour le doc
+  let docHtml = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Recensement officiel des Ninjas — Konoha</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&display=swap');
+  body { font-family: 'Cormorant Garamond', serif; max-width:900px; margin:40px auto; padding:30px 50px; background:#fafafa; color:#1a1a1a; }
+  .header { text-align:center; border-bottom:3px double #c49a1a; padding-bottom:20px; margin-bottom:30px; }
+  .header h1 { font-family:'Cinzel',serif; font-size:32px; color:#1a1a1a; margin:0 0 8px; letter-spacing:2px; }
+  .header .subtitle { font-size:13px; color:#666; font-style:italic; }
+  .header .meta { font-size:11px; color:#888; margin-top:6px; }
+  .stamp { display:inline-block; padding:8px 16px; border:2px solid #c49a1a; color:#c49a1a; font-family:'Cinzel',serif; font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-top:10px; }
+  .grade-section { margin-bottom:24px; page-break-inside:avoid; }
+  .grade-title { font-family:'Cinzel',serif; font-size:18px; color:#1a1a1a; padding:8px 14px; background:linear-gradient(90deg, rgba(196,154,26,0.15), transparent); border-left:5px solid #c49a1a; margin:0 0 10px; }
+  .grade-count { float:right; font-size:13px; color:#888; font-weight:normal; font-style:italic; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-size:13px; }
+  th { text-align:left; padding:8px 12px; background:#f0e8d0; color:#1a1a1a; font-family:'Cinzel',serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid #c49a1a; }
+  td { padding:8px 12px; border-bottom:1px solid #e5e5e5; vertical-align:top; }
+  tr:nth-child(even) td { background:#f9f5e8; }
+  .name { font-weight:700; color:#1a1a1a; }
+  .section-tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+  .footer { text-align:center; margin-top:40px; padding-top:20px; border-top:1px solid #c49a1a; font-size:11px; color:#888; font-style:italic; }
+  @media print { body { background:white; padding:0; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Recensement Officiel des Ninjas</h1>
+    <div class="subtitle">Village Caché de Konoha — Police de Konoha</div>
+    <div class="meta">Document généré le ${dateStr} à ${heureStr}</div>
+    <div class="stamp">🏯 Document Confidentiel</div>
+  </div>
+  <p style="font-size:13px;color:#444;text-align:justify;line-height:1.7">Ce document recense l'ensemble des ninjas répertoriés du Village Caché de Konoha, classés par grade hiérarchique du plus élevé au plus modeste. Il est destiné aux Lieutenants et à la Direction de la Police de Konoha pour assurer le suivi des effectifs ninja du village.</p>
+  <p style="font-size:12px;color:#888;text-align:right;margin-top:20px;font-style:italic">Total : <strong style="color:#1a1a1a">${records.length} ninja(s) recensé(s)</strong></p>`;
+
+  // Grouper par grade
+  const groupedByGrade = {};
+  sorted.forEach(r => {
+    const g = r.ninjaGrade || 'Sans grade';
+    if (!groupedByGrade[g]) groupedByGrade[g] = [];
+    groupedByGrade[g].push(r);
+  });
+
+  NINJA_GRADES_ORDER.forEach(grade => {
+    const ninjas = groupedByGrade[grade];
+    if (!ninjas || ninjas.length === 0) return;
+    const c = NINJA_GRADE_COLORS[grade];
+    docHtml += `
+      <div class="grade-section">
+        <h2 class="grade-title">${c.icon} ${grade}<span class="grade-count">${ninjas.length} ninja(s)</span></h2>
+        <table>
+          <thead>
+            <tr><th>Nom et Prénom</th><th>Section</th></tr>
+          </thead>
+          <tbody>`;
+    ninjas.forEach(n => {
+      const sec = NINJA_SECTIONS.find(s => s.id === n.section) || { label: '—', color: '#888' };
+      docHtml += `
+        <tr>
+          <td class="name">${escapeHtml(n.fullname)}</td>
+          <td><span class="section-tag" style="background:${sec.color}22;color:${sec.color};border:1px solid ${sec.color}66">${escapeHtml(sec.label)}</span></td>
+        </tr>`;
+    });
+    docHtml += `</tbody></table></div>`;
+  });
+
+  docHtml += `
+  <div class="footer">
+    Document officiel de la Police de Konoha · Pour usage interne uniquement<br>
+    🍃 Que la Volonté du Feu vous guide 🍃
+  </div>
+</body>
+</html>`;
+
+  // Ouvrir dans un nouvel onglet
+  const blob = new Blob([docHtml], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) {
+    alert('⚠️ Pop-up bloqué. Autorisez les pop-ups pour ce site.');
+    return;
+  }
+  // Libérer l'URL après ouverture
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // === Affichage des missions disponibles sur la page publique (accueil + espace civil) ===
