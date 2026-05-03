@@ -15803,7 +15803,7 @@ async function ouvrirModalDocRecensement(docHtml) {
       const { data, error } = await sb.from('shared_reports').insert({
         share_id: shareId,
         report_type: 'recensement',
-        Titre: 'Recensement officiel des Ninjas',
+        title: 'Recensement officiel des Ninjas',
         content_html: docHtml,
         generated_by: state.currentUser ? state.currentUser.fullname : 'Anonymous'
       }).select();
@@ -15900,7 +15900,7 @@ async function retryGenererLien() {
     const { data, error } = await sb.from('shared_reports').insert({
       share_id: shareId,
       report_type: 'recensement',
-      Titre: 'Recensement officiel des Ninjas',
+      title: 'Recensement officiel des Ninjas',
       content_html: docHtml,
       generated_by: state.currentUser ? state.currentUser.fullname : 'Anonymous'
     }).select();
