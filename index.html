@@ -15787,25 +15787,38 @@ async function ouvrirModalDocRecensement(docHtml) {
   const existing = document.getElementById('rec-doc-modal');
   if (existing) existing.remove();
 
+  // Stocker le HTML pour les actions
+  window._currentRecensementDocHtml = docHtml;
+
   // Générer un lien partageable via Supabase (table shared_reports)
   let shareUrl = '';
-  let shareLoading = true;
-  if (supabaseReady) {
+  let errorMsg = '';
+  if (!supabaseReady) {
+    errorMsg = 'Supabase non initialisé';
+  } else {
     try {
       const shareId = 'rec-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
-      const { error } = await sb.from('shared_reports').insert({
+      const insertData = {
         share_id: shareId,
         report_type: 'recensement',
         title: 'Recensement officiel des Ninjas',
         content: docHtml,
         created_by: state.currentUser ? state.currentUser.fullname : null
-      });
-      if (!error) {
+      };
+      console.log('🔗 Tentative création lien partageable:', insertData.share_id);
+      const { data, error } = await sb.from('shared_reports').insert(insertData).select();
+      if (error) {
+        console.error('❌ Erreur Supabase shared_reports:', error);
+        errorMsg = error.message || error.code || 'Erreur inconnue';
+      } else {
         shareUrl = window.location.origin + window.location.pathname + '?shared=' + shareId;
+        console.log('✅ Lien créé:', shareUrl);
       }
-    } catch (e) { console.warn('Erreur création lien partagé:', e); }
+    } catch (e) {
+      console.error('❌ Exception création lien partagé:', e);
+      errorMsg = e.message || String(e);
+    }
   }
-  shareLoading = false;
 
   const overlay = document.createElement('div');
   overlay.id = 'rec-doc-modal';
@@ -15824,7 +15837,7 @@ async function ouvrirModalDocRecensement(docHtml) {
       </div>
 
       <!-- ACTIONS -->
-      <div style="padding:12px 20px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <div id="rec-doc-actions" style="padding:12px 20px;background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
         ${shareUrl ? `
           <div style="flex:1;min-width:240px;display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:6px 10px">
             <span style="font-size:11px;color:var(--muted);flex-shrink:0">🔗</span>
@@ -15832,7 +15845,10 @@ async function ouvrirModalDocRecensement(docHtml) {
           </div>
           <button onclick="copierLienRecensement()" style="background:linear-gradient(135deg,#14b8a6,#0d9488);color:white;border:none;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">📋 Copier le lien</button>
         ` : `
-          <div style="flex:1;font-size:11px;color:var(--muted);font-style:italic">⚠️ Lien partageable indisponible (Supabase déconnecté)</div>
+          <div style="flex:1;min-width:200px;background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.3);border-radius:6px;padding:6px 10px;font-size:11px;color:#fca5a5">
+            ⚠️ Lien indisponible : <strong>${escapeHtml(errorMsg||'erreur inconnue')}</strong>
+          </div>
+          <button onclick="retryGenererLien()" style="background:rgba(196,154,26,0.15);color:var(--accent);border:1px solid rgba(196,154,26,0.4);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">🔄 Réessayer</button>
         `}
         <button onclick="telechargerDocRecensement()" style="background:rgba(196,154,26,0.15);color:var(--accent);border:1px solid rgba(196,154,26,0.4);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">📥 Télécharger</button>
         <button onclick="imprimerDocRecensement()" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">🖨️ Imprimer</button>
@@ -15845,9 +15861,6 @@ async function ouvrirModalDocRecensement(docHtml) {
     </div>
   `;
 
-  // Stocker le HTML dans une variable globale pour les actions
-  window._currentRecensementDocHtml = docHtml;
-
   document.body.appendChild(overlay);
 
   // Charger l'iframe avec le contenu
@@ -15857,7 +15870,6 @@ async function ouvrirModalDocRecensement(docHtml) {
       const blob = new Blob([docHtml], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       iframe.src = url;
-      // Libérer l'URL après chargement
       iframe.onload = () => setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
   }, 50);
@@ -15865,6 +15877,60 @@ async function ouvrirModalDocRecensement(docHtml) {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.remove();
   });
+}
+
+// Réessayer la génération du lien
+async function retryGenererLien() {
+  const docHtml = window._currentRecensementDocHtml;
+  if (!docHtml) { alert('Document indisponible.'); return; }
+  const actionsDiv = document.getElementById('rec-doc-actions');
+  if (!actionsDiv) return;
+
+  if (!supabaseReady) {
+    alert('⚠️ Supabase n\'est pas initialisé. Rechargez la page (Ctrl+F5) puis réessayez.');
+    return;
+  }
+
+  // Indicateur de chargement
+  const loadingHtml = '<div style="flex:1;color:var(--accent);font-size:12px">⏳ Génération du lien en cours...</div>';
+  actionsDiv.innerHTML = loadingHtml;
+
+  try {
+    const shareId = 'rec-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+    const { data, error } = await sb.from('shared_reports').insert({
+      share_id: shareId,
+      report_type: 'recensement',
+      title: 'Recensement officiel des Ninjas',
+      content: docHtml,
+      created_by: state.currentUser ? state.currentUser.fullname : null
+    }).select();
+
+    if (error) {
+      console.error('❌ Erreur Supabase:', error);
+      alert('⚠️ Erreur de génération du lien :\n\n' + (error.message || error.code) + '\n\nVérifiez que la table "shared_reports" existe dans Supabase.');
+      // Réafficher l'ancien état avec erreur
+      ouvrirModalDocRecensement(docHtml);
+      return;
+    }
+
+    const shareUrl = window.location.origin + window.location.pathname + '?shared=' + shareId;
+
+    // Réafficher avec le lien généré
+    actionsDiv.innerHTML = `
+      <div style="flex:1;min-width:240px;display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:6px 10px">
+        <span style="font-size:11px;color:var(--muted);flex-shrink:0">🔗</span>
+        <input type="text" id="rec-share-url" readonly value="${shareUrl}" style="flex:1;background:transparent;border:none;color:#5eead4;font-family:monospace;font-size:11px;padding:0;outline:none;min-width:0"/>
+      </div>
+      <button onclick="copierLienRecensement()" style="background:linear-gradient(135deg,#14b8a6,#0d9488);color:white;border:none;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">📋 Copier le lien</button>
+      <button onclick="telechargerDocRecensement()" style="background:rgba(196,154,26,0.15);color:var(--accent);border:1px solid rgba(196,154,26,0.4);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">📥 Télécharger</button>
+      <button onclick="imprimerDocRecensement()" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">🖨️ Imprimer</button>
+    `;
+    alert('✓ Lien généré avec succès !\n\n' + shareUrl);
+  } catch (e) {
+    console.error('❌ Exception:', e);
+    alert('⚠️ Erreur : ' + (e.message || e));
+    ouvrirModalDocRecensement(docHtml);
+  }
 }
 
 // Copier le lien partageable
