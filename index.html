@@ -17007,11 +17007,11 @@ function renderCivilDash() {
                 }).join('')
               }
             </div>
-            ${c.status === 'wait' ? `
-              <div style="display:flex;gap:8px">
-                <textarea id="civ-msg-${realIdx}" rows="2" placeholder="Répondre à la ${sectionLabel}..." style="flex:1;background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical"></textarea>
-                <button class="btn-primary" onclick="repondreMessageCandid(${realIdx})" style="white-space:nowrap">📤 Envoyer</button>
-              </div>` : '<p style="font-size:11px;color:var(--muted);font-style:italic;text-align:center">Candidature traitée — messagerie fermée.</p>'}
+            <div style="display:flex;gap:8px">
+              <textarea id="civ-msg-${realIdx}" rows="2" placeholder="Répondre à la ${sectionLabel}..." style="flex:1;background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical"></textarea>
+              <button class="btn-primary" onclick="repondreMessageCandid(${realIdx})" style="white-space:nowrap">📤 Envoyer</button>
+            </div>
+            ${c.status !== 'wait' ? `<p style="font-size:10px;color:var(--muted);font-style:italic;text-align:center;margin-top:6px">💬 Vous pouvez continuer à dialoguer avec la ${sectionLabel}.</p>` : ''}
           </div>
         </div>`;
     });
