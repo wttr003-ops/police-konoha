@@ -14616,6 +14616,8 @@ function renderOperations() {
           <img id="op-map-svg" src="cartographie-nrp.svg" style="width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none" alt="Carte de Konoha"/>
           <!-- Zone censurée du Village de Suna (générée dynamiquement par JS) -->
           <div id="op-suna-zone" style="position:absolute;pointer-events:none;z-index:5"></div>
+          <!-- Étiquettes des drapeaux (numéros + noms) -->
+          <div id="op-flags-labels" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:8"></div>
           <div id="op-map-points" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></div>
         </div>
 
@@ -14651,6 +14653,8 @@ function renderOperations() {
     setupMapPanZoom('op-map-wrapper', 'op-map-container', '_opMapZoom', appliquerZoomCarte, '.op-marker');
     // Render la zone censurée Suna
     if (typeof actualiserToutesZonesSuna === 'function') actualiserToutesZonesSuna();
+    // Render les étiquettes drapeaux
+    if (typeof actualiserToutesEtiquettes === 'function') actualiserToutesEtiquettes();
   }, 800);
 }
 
@@ -15149,24 +15153,191 @@ function actualiserToutesZonesSuna() {
   if (civilZone) renderSunaZone('civil-suna-zone', false);
 }
 
+// ============================================================
+// ÉTIQUETTES DRAPEAUX — Numéro + Nom au-dessus des drapeaux
+// Position partagée Supabase, déplaçable par Hokage/Staff
+// ============================================================
+
+// Couleurs par côté
+const FLAG_SIDE_COLORS = {
+  konoha: { bg: 'rgba(220,38,38,0.92)', border: '#fef2f2', text: '#fff', shadow: 'rgba(220,38,38,0.6)' },
+  suna:   { bg: 'rgba(180,118,15,0.92)', border: '#fef3c7', text: '#fff', shadow: 'rgba(180,118,15,0.6)' }
+};
+
+// Charger les étiquettes depuis Supabase
+async function chargerFlagsLabels() {
+  // Les flags par défaut (12 étiquettes Konoha en colonne en haut à gauche)
+  const defaultFlags = [
+    {id:1, name:'Petit Village',          side:'konoha', x:2, y:4},
+    {id:2, name:'Village Forgeron',       side:'konoha', x:2, y:7},
+    {id:3, name:'Village Abandonné',      side:'konoha', x:2, y:10},
+    {id:4, name:'Marais',                 side:'konoha', x:2, y:13},
+    {id:5, name:'Grand Cerisier',         side:'konoha', x:2, y:16},
+    {id:6, name:"L'îlot du Cerisier",     side:'konoha', x:2, y:19},
+    {id:7, name:'Hameau du Cerisier',     side:'konoha', x:2, y:22},
+    {id:8, name:'Pont Cerisier',          side:'konoha', x:2, y:25},
+    {id:9, name:'Village Marchand Roche', side:'konoha', x:2, y:28},
+    {id:10,name:'Base de la Roche',       side:'konoha', x:2, y:31},
+    {id:11,name:'Hameau Pays Roche',      side:'konoha', x:2, y:34},
+    {id:12,name:'Temple de la Roche',     side:'konoha', x:2, y:37}
+  ];
+
+  if (!supabaseReady) {
+    state.mapSettings = state.mapSettings || {};
+    if (!state.mapSettings.flags || state.mapSettings.flags.length === 0) {
+      state.mapSettings.flags = defaultFlags;
+    }
+    return;
+  }
+  try {
+    const { data, error } = await sb.from('map_settings').select('*').eq('setting_key', 'flags_labels').maybeSingle();
+    if (error) { console.warn('Erreur chargement flags:', error.message); return; }
+    if (data && data.setting_value) {
+      const val = typeof data.setting_value === 'string' ? JSON.parse(data.setting_value) : data.setting_value;
+      if (Array.isArray(val) && val.length > 0) {
+        state.mapSettings = state.mapSettings || {};
+        state.mapSettings.flags = val;
+        return;
+      }
+    }
+    // Pas dans Supabase → on insère les flags par défaut
+    state.mapSettings = state.mapSettings || {};
+    state.mapSettings.flags = defaultFlags;
+    try {
+      await sb.from('map_settings').upsert({
+        setting_key: 'flags_labels',
+        setting_value: defaultFlags,
+        updated_by: 'system',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'setting_key' });
+      console.log('🚩 Flags par défaut créés dans Supabase');
+    } catch (e) { console.warn('Erreur init flags:', e); }
+  } catch (e) { console.warn('Exception chargement flags:', e); }
+}
+
+// Sauvegarder les étiquettes
+async function sauvegarderFlagsLabels() {
+  if (!supabaseReady) return;
+  const u = state.currentUser;
+  const flags = (state.mapSettings && state.mapSettings.flags) || [];
+  try {
+    const { error } = await sb.from('map_settings').upsert({
+      setting_key: 'flags_labels',
+      setting_value: flags,
+      updated_by: u ? u.fullname : 'unknown',
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'setting_key' });
+    if (error) { console.warn('Erreur sauvegarde flags:', error.message); }
+    else { console.log('✅ Flags sauvegardés'); }
+  } catch (e) { console.warn('Exception sauvegarde flags:', e); }
+}
+
+// Render les étiquettes drapeaux dans un conteneur
+function renderFlagsLabels(containerId, isEditable) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const flags = (state.mapSettings && state.mapSettings.flags) || [];
+  if (flags.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = flags.map(f => {
+    const colors = FLAG_SIDE_COLORS[f.side] || FLAG_SIDE_COLORS.konoha;
+    const numStr = String(f.id).padStart(2, '0');
+    return `
+      <div class="flag-label" data-flag-id="${f.id}"
+           style="position:absolute;left:${f.x}%;top:${f.y}%;background:${colors.bg};color:${colors.text};border:1.5px solid ${colors.border};padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.5px;white-space:nowrap;box-shadow:0 2px 6px ${colors.shadow},0 0 0 2px rgba(0,0,0,0.4);pointer-events:${isEditable?'auto':'none'};cursor:${isEditable?'move':'default'};z-index:8;text-shadow:0 1px 2px rgba(0,0,0,0.6)">
+        <span style="opacity:0.85;font-size:9px;margin-right:3px">${numStr}</span>${escapeHtml(f.name)}
+      </div>`;
+  }).join('');
+
+  // Activer drag si éditable (Hokage/Staff)
+  if (isEditable) {
+    container.querySelectorAll('.flag-label').forEach(label => {
+      setupFlagLabelDrag(label);
+    });
+  }
+}
+
+// Drag d'une étiquette
+function setupFlagLabelDrag(label) {
+  let isDragging = false;
+  let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+  let containerRect = null;
+  const flagId = parseInt(label.dataset.flagId);
+
+  label.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const mapContainer = label.parentElement.parentElement; // labels-container > map-container
+    containerRect = mapContainer.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    const flag = state.mapSettings.flags.find(f => f.id === flagId);
+    if (flag) {
+      startLeft = flag.x;
+      startTop = flag.y;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  const handleMove = (e) => {
+    if (!isDragging || !containerRect) return;
+    const dx = ((e.clientX - startX) / containerRect.width) * 100;
+    const dy = ((e.clientY - startY) / containerRect.height) * 100;
+    const flag = state.mapSettings.flags.find(f => f.id === flagId);
+    if (!flag) return;
+    flag.x = Math.max(0, Math.min(98, startLeft + dx));
+    flag.y = Math.max(0, Math.min(98, startTop + dy));
+    label.style.left = flag.x + '%';
+    label.style.top = flag.y + '%';
+  };
+
+  const handleEnd = async () => {
+    if (!isDragging) return;
+    isDragging = false;
+    await sauvegarderFlagsLabels();
+    saveSession();
+    actualiserToutesEtiquettes();
+  };
+
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('mouseup', handleEnd);
+}
+
+// Actualiser toutes les étiquettes sur les 2 cartes
+function actualiserToutesEtiquettes() {
+  const u = state.currentUser;
+  const isEditableAgent = canEditSunaZone(u); // Mêmes droits que la zone Suna (Hokage + Staff)
+  const opLabels = document.getElementById('op-flags-labels');
+  if (opLabels) renderFlagsLabels('op-flags-labels', isEditableAgent);
+  const civilLabels = document.getElementById('civil-flags-labels');
+  if (civilLabels) renderFlagsLabels('civil-flags-labels', false);
+}
+
 // Charger la zone au démarrage Supabase
 setTimeout(async () => {
   await chargerSunaZoneSettings();
+  await chargerFlagsLabels();
   actualiserToutesZonesSuna();
+  actualiserToutesEtiquettes();
 }, 1500);
 
 // Realtime : écouter les changements de map_settings
 if (typeof setInterval !== 'undefined') {
-  // Refresh périodique léger toutes les 30s pour récupérer les changements des autres
   setInterval(async () => {
     if (!supabaseReady) return;
     try {
-      const oldSettings = JSON.stringify(state.mapSettings && state.mapSettings.sunaZone);
+      const oldZone = JSON.stringify(state.mapSettings && state.mapSettings.sunaZone);
+      const oldFlags = JSON.stringify(state.mapSettings && state.mapSettings.flags);
       await chargerSunaZoneSettings();
-      const newSettings = JSON.stringify(state.mapSettings && state.mapSettings.sunaZone);
-      if (oldSettings !== newSettings) {
-        actualiserToutesZonesSuna();
-      }
+      await chargerFlagsLabels();
+      const newZone = JSON.stringify(state.mapSettings && state.mapSettings.sunaZone);
+      const newFlags = JSON.stringify(state.mapSettings && state.mapSettings.flags);
+      if (oldZone !== newZone) actualiserToutesZonesSuna();
+      if (oldFlags !== newFlags) actualiserToutesEtiquettes();
     } catch(e) {}
   }, 30000);
 }
@@ -15390,6 +15561,8 @@ function renderOperationsCivil() {
           <img id="civil-map-svg" src="cartographie-nrp.svg" style="width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none" alt="Carte"/>
           <!-- Zone censurée du Village de Suna (générée dynamiquement par JS) -->
           <div id="civil-suna-zone" style="position:absolute;pointer-events:none;z-index:5"></div>
+          <!-- Étiquettes des drapeaux (numéros + noms) -->
+          <div id="civil-flags-labels" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:8"></div>
           <div id="civil-map-points" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></div>
         </div>
         <div style="position:sticky;bottom:14px;left:0;display:flex;justify-content:flex-end;padding:0 14px;pointer-events:none;z-index:30;margin-top:-60px">
@@ -15421,6 +15594,8 @@ function renderOperationsCivil() {
     setupMapPanZoom('civil-map-wrapper', 'civil-map-container', '_civilMapZoom', appliquerZoomCarteCivil, '.civil-op-marker.mine');
     // Render la zone censurée Suna (lecture seule pour le civil)
     if (typeof actualiserToutesZonesSuna === 'function') actualiserToutesZonesSuna();
+    // Render les étiquettes drapeaux (lecture seule pour le civil)
+    if (typeof actualiserToutesEtiquettes === 'function') actualiserToutesEtiquettes();
   }, 800);
 }
 
