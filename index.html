@@ -15791,6 +15791,7 @@ async function ouvrirModalDocRecensement(docHtml) {
   window._currentRecensementDocHtml = docHtml;
 
   // Générer un lien partageable via Supabase (table shared_reports)
+  // Format compatible : utilise les colonnes content_html, generated_by
   let shareUrl = '';
   let errorMsg = '';
   if (!supabaseReady) {
@@ -15798,20 +15799,19 @@ async function ouvrirModalDocRecensement(docHtml) {
   } else {
     try {
       const shareId = 'rec-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
-      const insertData = {
+      console.log('🔗 Tentative création lien partageable:', shareId);
+      const { data, error } = await sb.from('shared_reports').insert({
         share_id: shareId,
         report_type: 'recensement',
-        title: 'Recensement officiel des Ninjas',
-        content: docHtml,
-        created_by: state.currentUser ? state.currentUser.fullname : null
-      };
-      console.log('🔗 Tentative création lien partageable:', insertData.share_id);
-      const { data, error } = await sb.from('shared_reports').insert(insertData).select();
+        Titre: 'Recensement officiel des Ninjas',
+        content_html: docHtml,
+        generated_by: state.currentUser ? state.currentUser.fullname : 'Anonymous'
+      }).select();
       if (error) {
         console.error('❌ Erreur Supabase shared_reports:', error);
         errorMsg = error.message || error.code || 'Erreur inconnue';
       } else {
-        shareUrl = window.location.origin + window.location.pathname + '?shared=' + shareId;
+        shareUrl = window.location.origin + window.location.pathname + '#rapport=' + shareId;
         console.log('✅ Lien créé:', shareUrl);
       }
     } catch (e) {
@@ -15900,9 +15900,9 @@ async function retryGenererLien() {
     const { data, error } = await sb.from('shared_reports').insert({
       share_id: shareId,
       report_type: 'recensement',
-      title: 'Recensement officiel des Ninjas',
-      content: docHtml,
-      created_by: state.currentUser ? state.currentUser.fullname : null
+      Titre: 'Recensement officiel des Ninjas',
+      content_html: docHtml,
+      generated_by: state.currentUser ? state.currentUser.fullname : 'Anonymous'
     }).select();
 
     if (error) {
@@ -15913,7 +15913,7 @@ async function retryGenererLien() {
       return;
     }
 
-    const shareUrl = window.location.origin + window.location.pathname + '?shared=' + shareId;
+    const shareUrl = window.location.origin + window.location.pathname + '#rapport=' + shareId;
 
     // Réafficher avec le lien généré
     actionsDiv.innerHTML = `
