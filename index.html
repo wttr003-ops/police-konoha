@@ -15687,9 +15687,9 @@ const NINJA_SECTIONS = [
   { id: 'civil',         label: '🍃 Civil',               color: '#22c55e' }
 ];
 
-// Permission de voir la liste : Lieutenant + Direction (rang ≤ 2)
+// Permission de voir la liste : Officier, Sergent, Lieutenant, Direction (rang ≤ 4)
 function canSeeRecensement(grade) {
-  return gradeRank(grade) <= 2;
+  return gradeRank(grade) <= 4;
 }
 
 function renderRecensementNinjas() {
@@ -15710,7 +15710,7 @@ function renderRecensementNinjas() {
     <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text)">🔍 <strong style="color:#5eead4">Recensement des Ninjas</strong> — Registre des shinobis du village</div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">
-        ✅ Tous les agents Police peuvent <strong>ajouter</strong> un ninja · 🔒 Seuls le Lieutenant et la Direction peuvent <strong>voir la liste complète</strong> et générer le document.
+        ✅ Tous les agents Police (Officier et plus) peuvent <strong>ajouter</strong> un ninja et <strong>voir la liste complète</strong>.
       </div>
     </div>
 
@@ -15753,7 +15753,7 @@ function renderRecensementNinjas() {
       <div class="dash-block" style="padding:2rem;text-align:center">
         <div style="font-size:48px;margin-bottom:10px">🔒</div>
         <h3 style="color:var(--text);font-size:16px;margin-bottom:8px">Liste confidentielle</h3>
-        <p style="color:var(--muted);font-size:12px">Seuls le <strong>Lieutenant</strong> et la <strong>Direction</strong> peuvent consulter la liste complète des ninjas recensés et générer le document officiel.</p>
+        <p style="color:var(--muted);font-size:12px">La consultation de la liste complète est réservée aux agents Police titulaires (Officier et plus).</p>
         <p style="color:var(--lgold);font-size:11px;margin-top:8px;font-style:italic">Vous avez bien la permission de continuer à ajouter des ninjas au recensement ci-dessus. Merci pour votre contribution.</p>
       </div>`;
     el.innerHTML = html;
@@ -15988,7 +15988,7 @@ async function supprimerNinjaRecensement(idx) {
 async function genererDocRecensement() {
   const u = state.currentUser;
   if (!canSeeRecensement(u.grade)) {
-    alert('⚠️ Réservé au Lieutenant et à la Direction.');
+    alert('⚠️ Réservé aux agents Police (Officier et plus).');
     return;
   }
 
