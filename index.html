@@ -3391,7 +3391,11 @@ const SUPABASE_TABLES = {
   amendes: {
     table: 'fines',
     mapTo: a => ({
-      fullname: a.fullname, offense: a.infraction || null,
+      fullname: a.fullname,
+      // Concatène l'explication dans le champ offense pour la synchro Supabase (séparateur " ◆ ")
+      offense: (a.explication && a.explication.trim())
+        ? (a.infraction || '') + ' ◆ ' + a.explication.trim()
+        : (a.infraction || null),
       offenses: a.infractions || null, tier: a.palier || null,
       amount: a.montant || 0, recidivism: a.recidive || 'x1',
       agent: a.agent || null, date: a.date || null,
@@ -3403,17 +3407,29 @@ const SUPABASE_TABLES = {
       payments: a.paiements || [],
       amount_paid: a.montantPaye || 0
     }),
-    mapFrom: r => ({
-      fullname: r.fullname, infraction: r.offense, infractions: r.offenses,
-      palier: r.tier, montant: r.amount, recidive: r.recidivism,
-      agent: r.agent, date: r.date, statut: r.status,
-      datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
-      recupere: r.is_collected, recupereLe: r.collected_at,
-      recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
-      paiements: r.payments || [],
-      montantPaye: r.amount_paid || 0,
-      id: r.id, _id: r.id
-    })
+    mapFrom: r => {
+      // Sépare l'explication du champ offense si présente (séparateur " ◆ ")
+      const rawOffense = r.offense || '';
+      let infraction = rawOffense;
+      let explication = '';
+      const sepIdx = rawOffense.indexOf(' ◆ ');
+      if (sepIdx !== -1) {
+        infraction = rawOffense.substring(0, sepIdx);
+        explication = rawOffense.substring(sepIdx + 3);
+      }
+      return {
+        fullname: r.fullname, infraction: infraction, explication: explication,
+        infractions: r.offenses,
+        palier: r.tier, montant: r.amount, recidive: r.recidivism,
+        agent: r.agent, date: r.date, statut: r.status,
+        datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
+        recupere: r.is_collected, recupereLe: r.collected_at,
+        recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
+        paiements: r.payments || [],
+        montantPaye: r.amount_paid || 0,
+        id: r.id, _id: r.id
+      };
+    }
   },
   cellules: {
     table: 'cells',
@@ -6531,6 +6547,11 @@ function renderAmendes() {
         <div style="font-size:26px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif" id="am-montant-display">0 Ryos</div>
       </div>
 
+      <div class="form-group">
+        <label>Explication / Précisions <span style="color:var(--muted);font-size:11px;font-weight:400">(facultatif — contexte des faits)</span></label>
+        <textarea id="am-explication" rows="3" placeholder="Ex: Surpris en train de faire du graffiti sur le mur du temple à 23h. Refus de présenter ses papiers à 2 reprises avant de coopérer." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;resize:vertical;line-height:1.5"></textarea>
+      </div>
+
       <button class="btn-primary btn-full" onclick="emettreAmende()">💰 Émettre l'amende</button>
     </div>
     ` : ''}
@@ -6706,6 +6727,7 @@ async function emettreAmende() {
     fullname: fullname,
     infraction: infractionStr,
     infractions: amInfractionsSelectionnees.slice(),
+    explication: (document.getElementById('am-explication')?.value || '').trim(),
     palier: palierMax,
     montant: total,
     recidive: mult,
@@ -6730,6 +6752,8 @@ async function emettreAmende() {
   const nbInfractionsEmises = amInfractionsSelectionnees.length;
   amInfractionsSelectionnees = [];
   document.getElementById('am-fullname').value = '';
+  const explEl = document.getElementById('am-explication');
+  if (explEl) explEl.value = '';
   document.getElementById('am-montant-preview').style.display = 'none';
   alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))');
   renderAmendes();
@@ -6859,6 +6883,11 @@ function refreshAmendesList() {
                       ${a.agentEncaisseur && isPaye ? ' · <span style="color:var(--green)">💰 Finalisée par '+a.agentEncaisseur+'</span>' : ''}
                       ${a.recupere ? ' · <span style="color:var(--lgold)">📦 Récupéré le '+a.recupereLe+'</span>' : ''}
                     </div>
+                    ${a.explication ? `
+                      <div style="margin-top:6px;padding:8px 10px;background:rgba(232,197,71,0.06);border-left:3px solid rgba(232,197,71,0.5);border-radius:3px;font-size:11px;color:var(--text);font-style:italic;line-height:1.5">
+                        <span style="color:var(--lgold);font-weight:700;font-style:normal">📝 Explication :</span> ${escapeHtml(a.explication)}
+                      </div>
+                    ` : ''}
                   </div>
                   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                     <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${cBg};color:${cColor};border:1px solid ${cBorder}">${lbl}</span>
