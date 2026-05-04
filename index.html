@@ -12402,15 +12402,61 @@ async function verifierCoupureAuto02h() {
 
 async function payerAgent(fullname, montant) {
   if (!(await confirmAsync('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\nLes services seront archivés et le solde reviendra à zéro.'))) return;
-  state.presences.forEach(p => {
-    if (p.fullname === fullname && p.statut !== 'paye') {
-      p.statut = 'paye';
-      p.payeLe = new Date().toLocaleDateString('fr-FR');
-    }
+
+  const datePaiement = new Date().toLocaleDateString('fr-FR');
+  // Repérer les services concernés AVANT modification (pour avoir leurs _id)
+  const aPayer = state.presences.filter(p => p.fullname === fullname && p.statut !== 'paye');
+
+  // 1. Mise à jour locale
+  aPayer.forEach(p => {
+    p.statut = 'paye';
+    p.payeLe = datePaiement;
   });
+
+  // 2. Synchro Supabase — IMPORTANT pour que ça ne revienne pas
+  if (supabaseReady) {
+    let echecs = 0;
+    for (const p of aPayer) {
+      const newRow = { status: 'paid', paid_on: datePaiement };
+      let pushOk = false;
+
+      // Méthode 1 : update par _id (le plus fiable)
+      if (p._id) {
+        try {
+          const { error } = await sb.from('shifts').update(newRow).eq('id', p._id);
+          if (!error) pushOk = true;
+          else console.warn('⚠️ payerAgent update _id échoué:', error.message);
+        } catch(e) { console.warn('⚠️ payerAgent exception:', e); }
+      }
+
+      // Méthode 2 : update par fullname + date + start_time si pas d'_id
+      if (!pushOk && p.fullname && p.date && p.heureDebut) {
+        try {
+          const { data, error } = await sb.from('shifts')
+            .update(newRow)
+            .eq('fullname', p.fullname)
+            .eq('date', p.date)
+            .eq('start_time', p.heureDebut)
+            .select();
+          if (!error) {
+            pushOk = true;
+            if (data && data[0] && data[0].id) p._id = data[0].id;
+          }
+        } catch(e) { console.warn('⚠️ payerAgent fallback exception:', e); }
+      }
+
+      if (!pushOk) echecs++;
+    }
+
+    if (echecs > 0) {
+      alert('⚠️ ' + echecs + ' service(s) n\'ont pas pu être sauvegardés sur le serveur partagé.\n\nLe paiement risque de réapparaître. Réessayez dans quelques secondes.');
+    }
+  }
+
   saveSession();
   alert('✓ Paiement enregistré pour ' + fullname);
   renderPresences();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function ouvrirRetrait(fullname, soldeActuel) {
@@ -12608,15 +12654,57 @@ async function confirmerAjout(fullname) {
 
 async function resetToutesPresences() {
   if (!(await confirmAsync('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme "payées" ?\nTous les soldes reviendront à zéro.\n\nL\'historique sera conservé mais marqué comme payé.'))) return;
-  state.presences.forEach(p => {
-    if (p.statut !== 'paye') {
-      p.statut = 'paye';
-      p.payeLe = new Date().toLocaleDateString('fr-FR');
-    }
+
+  const datePaiement = new Date().toLocaleDateString('fr-FR');
+  const aPayer = state.presences.filter(p => p.statut !== 'paye');
+
+  // 1. Mise à jour locale
+  aPayer.forEach(p => {
+    p.statut = 'paye';
+    p.payeLe = datePaiement;
   });
+
+  // 2. Synchro Supabase pour que ça ne revienne pas
+  if (supabaseReady) {
+    let echecs = 0;
+    for (const p of aPayer) {
+      const newRow = { status: 'paid', paid_on: datePaiement };
+      let pushOk = false;
+
+      if (p._id) {
+        try {
+          const { error } = await sb.from('shifts').update(newRow).eq('id', p._id);
+          if (!error) pushOk = true;
+        } catch(e) { console.warn('⚠️ resetToutesPresences exception:', e); }
+      }
+
+      if (!pushOk && p.fullname && p.date && p.heureDebut) {
+        try {
+          const { data, error } = await sb.from('shifts')
+            .update(newRow)
+            .eq('fullname', p.fullname)
+            .eq('date', p.date)
+            .eq('start_time', p.heureDebut)
+            .select();
+          if (!error) {
+            pushOk = true;
+            if (data && data[0] && data[0].id) p._id = data[0].id;
+          }
+        } catch(e) { console.warn('⚠️ resetToutesPresences fallback exception:', e); }
+      }
+
+      if (!pushOk) echecs++;
+    }
+
+    if (echecs > 0) {
+      alert('⚠️ ' + echecs + ' service(s) n\'ont pas pu être sauvegardés sur le serveur partagé.\n\nLes paiements risquent de réapparaître.');
+    }
+  }
+
   saveSession();
   alert('✓ Toutes les fiches ont été remises à zéro');
   renderPresences();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // ===== CHRONO TEMPS RÉEL =====
