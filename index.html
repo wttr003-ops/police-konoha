@@ -6504,6 +6504,27 @@ function renderAmendes() {
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">💰 Émettre une amende</h3>
       <div class="form-group"><label>Nom et Prénom du contrevenant</label><input type="text" id="am-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
 
+      <!-- Sélecteur de casier judiciaire (optionnel) -->
+      <div class="form-group">
+        <label>📁 Importer dans un casier judiciaire <span style="color:var(--muted);font-size:11px;font-weight:400">(facultatif — l'amende sera ajoutée à ce dossier)</span></label>
+        <select id="am-casier-select" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
+          <option value="">— Aucun casier (amende simple) —</option>
+          ${(() => {
+            // Construire la liste unique des dossiers (par personne)
+            const dossiers = {};
+            (state.casiers || []).forEach(c => {
+              const key = normalize(c.fullname);
+              if (!dossiers[key]) dossiers[key] = c.fullname;
+            });
+            return Object.entries(dossiers)
+              .sort((a, b) => a[1].localeCompare(b[1]))
+              .map(([key, fullname]) => `<option value="${escapeHtml(fullname)}">N° ${getCasierNumero(fullname)} — ${escapeHtml(fullname)}</option>`)
+              .join('');
+          })()}
+        </select>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Si la personne n'a pas encore de casier, créez-en un d'abord dans la section Casier Judiciaire.</div>
+      </div>
+
       <!-- Sélection multi-infractions -->
       <div class="form-group">
         <label>Infractions <span style="color:var(--muted);font-size:11px;font-weight:400">(sélection multiple)</span></label>
@@ -6748,14 +6769,73 @@ async function emettreAmende() {
   state.amendes.push(newAmende);
   saveSession();
 
+  // === IMPORT DANS LE CASIER JUDICIAIRE (si un casier est sélectionné) ===
+  let casierImporte = false;
+  let numeroCasierImporte = '';
+  const casierSelectEl = document.getElementById('am-casier-select');
+  const casierSelectionne = casierSelectEl ? casierSelectEl.value.trim() : '';
+
+  if (casierSelectionne) {
+    // Trouver le grade depuis un casier existant (pour cohérence)
+    const casierExistant = state.casiers.find(c => matchFullname(c.fullname, casierSelectionne));
+    const gradeCasier = casierExistant ? (casierExistant.grade || '—') : '—';
+    numeroCasierImporte = getCasierNumero(casierSelectionne);
+
+    // Construire les "faits" à partir des infos de l'amende
+    const explicationAmende = (document.getElementById('am-explication')?.value || '').trim();
+    const faitsAuto = '🔗 Importé depuis l\'amende du ' + newAmende.date + ' (' + total.toLocaleString() + ' Ryos)\n'
+      + 'Infraction(s) : ' + infractionStr
+      + (explicationAmende ? '\n\nContexte : ' + explicationAmende : '');
+
+    // Sanction par défaut selon palier
+    const sanctionAuto = palierMax === 'palier3' ? 'Sanction sévère à déterminer'
+                       : palierMax === 'palier2' ? 'Sanction modérée à déterminer'
+                       : 'Avertissement / amende';
+
+    const casierUid = 'cas_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const newCasier = {
+      fullname: casierSelectionne,
+      grade: gradeCasier,
+      palier: palierMax,
+      infraction: infractionStr,
+      infractions: amInfractionsSelectionnees.slice(),
+      faits: faitsAuto,
+      sanction: sanctionAuto,
+      agent: state.currentUser.fullname,
+      date: newAmende.date,
+      statutJustice: 'en_cours',
+      recidive: !!casierExistant, // récidive si la personne a déjà un casier
+      id: Date.now() + 1, // +1 pour éviter collision avec l'ID de l'amende
+      casierUid: casierUid
+    };
+
+    // Push vers Supabase
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('casiers', newCasier);
+        if (inserted && inserted._id) newCasier._id = inserted._id;
+      } catch(e) { console.warn('⚠️ Import casier échoué:', e); }
+    }
+
+    state.casiers.push(newCasier);
+    saveSession();
+    casierImporte = true;
+  }
+
   // Reset
   const nbInfractionsEmises = amInfractionsSelectionnees.length;
   amInfractionsSelectionnees = [];
   document.getElementById('am-fullname').value = '';
   const explEl = document.getElementById('am-explication');
   if (explEl) explEl.value = '';
+  if (casierSelectEl) casierSelectEl.value = '';
   document.getElementById('am-montant-preview').style.display = 'none';
-  alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))');
+
+  let msg = '✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))';
+  if (casierImporte) {
+    msg += '\n\n📁 Fiche ajoutée au casier judiciaire N° ' + numeroCasierImporte + ' (' + casierSelectionne + ')';
+  }
+  alert(msg);
   renderAmendes();
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
@@ -9435,6 +9515,21 @@ async function deleteRapport(idx) {
 // ============================================================
 // CASIER JUDICIAIRE
 // ============================================================
+// Génère un numéro de dossier de 6 chiffres unique et stable par personne
+// Basé sur un hash du nom complet normalisé (même nom → toujours même numéro)
+function getCasierNumero(fullname) {
+  if (!fullname) return '000000';
+  const normalized = normalize(fullname);
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
+    hash = hash & hash; // Conversion en 32-bit integer
+  }
+  // Numéro entre 100000 et 9999999 (6 à 7 chiffres)
+  const num = Math.abs(hash) % 9000000 + 1000000;
+  return String(num);
+}
+
 function renderCasier() {
   const u = state.currentUser;
   const el = document.getElementById('casier-content');
@@ -9611,7 +9706,10 @@ function renderCasier() {
             <div style="width:42px;height:42px;border-radius:50%;background:rgba(231,76,60,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--red2)">${getInitialsFromFullname(d.fullname)}</div>
             <div style="flex:1">
               <div style="font-weight:700;color:var(--red2)">${d.fullname}${recidiveBadge}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${d.grade||'—'} · ${d.fiches.length} infraction(s) au total</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">
+                <span style="color:var(--lgold);font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.5px">N° ${getCasierNumero(d.fullname)}</span>
+                <span style="margin:0 6px">·</span>${d.grade||'—'} · ${d.fiches.length} infraction(s) au total
+              </div>
             </div>
             ${enCoursBadge}${traitesBadge}
             <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
