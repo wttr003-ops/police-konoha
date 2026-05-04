@@ -8074,7 +8074,7 @@ async function ajouterImpot() {
   const g = document.getElementById('imp-grade').value;
   if (!fullname) { alert('Nom requis'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (ex: Naruto Uzumaki)'); return; }
-  if (state.impots.some(i => matchFullname(i.fullname, fullname))) { alert('Ce ninja est déjà dans le registre'); return; }
+  if (state.impots.some(i => matchFullnameStrict(i.fullname, fullname))) { alert('Ce ninja est déjà dans le registre (nom et prénom identiques). Pour ajouter un homonyme, modifiez légèrement l\'orthographe ou l\'ordre.'); return; }
 
   const newImpot = { fullname: fullname, grade: g, statut: 'non', collecteur: '' };
 
@@ -8339,6 +8339,8 @@ function setImpotFiltre(btn) {
 function filtrerImpots() {
   const search = document.getElementById('imp-search');
   const q = search ? normalize(search.value) : '';
+  // On découpe la recherche en mots pour gérer l'inversion nom/prénom et la recherche partielle
+  const queryWords = q.split(/\s+/).filter(w => w);
   document.querySelectorAll('.imp-row').forEach(row => {
     const name = row.dataset.name || '';
     const statut = row.dataset.statut || '';
@@ -8348,8 +8350,11 @@ function filtrerImpots() {
     // Filtre statut
     if (impotFiltreActuel === 'paye' && statut !== 'paye') show = false;
     if (impotFiltreActuel === 'non' && (statut === 'paye' || exo)) show = false;
-    // Filtre recherche
-    if (q && !name.includes(q)) show = false;
+    // Filtre recherche : tous les mots saisis doivent être présents (peu importe l'ordre)
+    if (queryWords.length > 0) {
+      const allMatch = queryWords.every(w => name.includes(w));
+      if (!allMatch) show = false;
+    }
 
     row.style.display = show ? '' : 'none';
   });
