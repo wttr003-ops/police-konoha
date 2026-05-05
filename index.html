@@ -18372,12 +18372,39 @@ async function ajouterTransactionTresor() {
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
   };
 
+  // === DEBUG : afficher l'état Supabase ===
+  console.log('═══════════════════════════════════════');
+  console.log('💰 AJOUT TRANSACTION TRÉSOR');
+  console.log('  supabaseReady =', supabaseReady);
+  console.log('  newTx =', newTx);
+
   // Push Supabase d'abord pour récupérer l'_id
-  if (supabaseReady) {
+  if (!supabaseReady) {
+    alert('⚠️ ATTENTION : Supabase n\'est pas connecté !\n\nLa transaction est sauvegardée localement seulement.\nElle disparaîtra au refresh.\n\nVérifiez votre connexion internet et rechargez la page.');
+  } else {
     try {
-      const inserted = await pushToSupabase('tresorTransactions', newTx);
-      if (inserted && inserted._id) newTx._id = inserted._id;
-    } catch(e) { console.warn('⚠️ Push transaction trésor:', e); }
+      console.log('  → Tentative push Supabase...');
+      const cfg = SUPABASE_TABLES.tresorTransactions;
+      const row = cfg.mapTo(newTx);
+      console.log('  → Row Supabase :', row);
+
+      const { data, error } = await sb.from('treasury_transactions').insert(row).select().single();
+
+      if (error) {
+        console.error('❌ ERREUR Supabase:', error);
+        alert('❌ Erreur Supabase :\n\n' + error.message + '\n\nDétails : ' + (error.details || 'aucun') + '\n\nCode : ' + (error.code || 'aucun') + '\n\nRegardez la console (F12) pour plus de détails.');
+        return;
+      }
+
+      if (data) {
+        newTx._id = data.id;
+        console.log('  ✅ Inséré avec _id =', data.id);
+      }
+    } catch(e) {
+      console.error('❌ Exception push:', e);
+      alert('❌ Exception : ' + (e.message || e) + '\n\nRegardez la console (F12).');
+      return;
+    }
   }
 
   state.tresorTransactions = state.tresorTransactions || [];
