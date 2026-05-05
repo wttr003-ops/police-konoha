@@ -12520,65 +12520,84 @@ async function forcerFinService(fullname) {
 
 // Vérifier les services qui dépassent 02h00 et les clôturer automatiquement
 async function verifierCoupureAuto02h() {
-  // ⛔ DÉSACTIVÉ : la coupure automatique du service est désactivée.
-  // Seul l'agent peut clôturer son propre service en cliquant manuellement
-  // sur "Fin de service" ou "Clôturer avec heure personnalisée".
-  // Aucune action automatique ne supprime un service.
-  return;
+  if (!state.serviceActif) return;
+
+  const now = new Date();
+  const noms = Object.keys(state.serviceActif);
+  if (noms.length === 0) return;
+
+  for (const fullname of noms) {
+    const service = state.serviceActif[fullname];
+    if (!service || !service.debut) continue;
+
+    const debut = new Date(service.debut);
+
+    // Calculer l'heure de coupure = 02h00 du jour SUIVANT le début du service
+    // (un service pris à 21h le 5 mai → coupure à 02h le 6 mai)
+    const coupure = new Date(debut);
+    coupure.setDate(coupure.getDate() + 1);
+    coupure.setHours(2, 0, 0, 0);
+
+    // Cas particulier : si le service a été pris entre 00h et 02h,
+    // la coupure c'est à 02h le MÊME jour
+    if (debut.getHours() < 2) {
+      coupure.setDate(coupure.getDate() - 1);
+    }
+
+    // Si on a dépassé l'heure de coupure → clôturer
+    if (now >= coupure) {
+      console.log('⏰ Coupure auto 02h pour', fullname, '— début:', debut.toLocaleString('fr-FR'), '— coupure:', coupure.toLocaleString('fr-FR'));
+      try {
+        await enregistrerService(fullname, service, coupure, { auto: true });
+      } catch(e) {
+        console.warn('⚠️ Erreur coupure auto pour', fullname, ':', e);
+      }
+    }
+  }
 }
 
 async function payerAgent(fullname, montant) {
   if (!(await confirmAsync('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\nLes services seront archivés et le solde reviendra à zéro.'))) return;
 
   const datePaiement = new Date().toLocaleDateString('fr-FR');
-  // Repérer les services concernés AVANT modification (pour avoir leurs _id)
-  const aPayer = state.presences.filter(p => p.fullname === fullname && p.statut !== 'paye');
 
-  // 1. Mise à jour locale
-  aPayer.forEach(p => {
-    p.statut = 'paye';
-    p.payeLe = datePaiement;
-  });
-
-  // 2. Synchro Supabase — IMPORTANT pour que ça ne revienne pas
+  // 1. Synchro Supabase EN PREMIER (avant le local) — bulk update de TOUTES les lignes non-payées
+  //    pour ce nom, peu importe leur _id. C'est la garantie que rien ne reviendra.
   if (supabaseReady) {
-    let echecs = 0;
-    for (const p of aPayer) {
-      const newRow = { status: 'paid', paid_on: datePaiement };
-      let pushOk = false;
+    try {
+      const { data, error } = await sb.from('shifts')
+        .update({ status: 'paid', paid_on: datePaiement })
+        .eq('fullname', fullname)
+        .neq('status', 'paid')   // tout ce qui n'est PAS déjà payé
+        .select();
 
-      // Méthode 1 : update par _id (le plus fiable)
-      if (p._id) {
-        try {
-          const { error } = await sb.from('shifts').update(newRow).eq('id', p._id);
-          if (!error) pushOk = true;
-          else console.warn('⚠️ payerAgent update _id échoué:', error.message);
-        } catch(e) { console.warn('⚠️ payerAgent exception:', e); }
+      if (error) {
+        alert('⚠️ Erreur de synchronisation : ' + error.message + '\n\nLe paiement n\'a PAS été enregistré sur le serveur partagé. Réessayez.');
+        return; // ON ARRÊTE — pas de mise à jour locale si le serveur a échoué
       }
 
-      // Méthode 2 : update par fullname + date + start_time si pas d'_id
-      if (!pushOk && p.fullname && p.date && p.heureDebut) {
-        try {
-          const { data, error } = await sb.from('shifts')
-            .update(newRow)
-            .eq('fullname', p.fullname)
-            .eq('date', p.date)
-            .eq('start_time', p.heureDebut)
-            .select();
-          if (!error) {
-            pushOk = true;
-            if (data && data[0] && data[0].id) p._id = data[0].id;
-          }
-        } catch(e) { console.warn('⚠️ payerAgent fallback exception:', e); }
-      }
+      console.log('✓ Paiement Supabase OK :', (data || []).length, 'ligne(s) mises à jour');
 
-      if (!pushOk) echecs++;
-    }
-
-    if (echecs > 0) {
-      alert('⚠️ ' + echecs + ' service(s) n\'ont pas pu être sauvegardés sur le serveur partagé.\n\nLe paiement risque de réapparaître. Réessayez dans quelques secondes.');
+      // Mettre à jour les _id locaux à partir des lignes serveur (au cas où certaines n'en avaient pas)
+      const idsServeur = new Set((data || []).map(r => r.id));
+      state.presences.forEach(p => {
+        if (p.fullname === fullname && p._id && idsServeur.has(p._id)) {
+          // déjà lié, rien à faire
+        }
+      });
+    } catch(e) {
+      alert('⚠️ Erreur réseau : ' + (e.message || e) + '\n\nLe paiement n\'a PAS été enregistré. Réessayez.');
+      return;
     }
   }
+
+  // 2. Mise à jour locale (seulement si Supabase a réussi, ou si on est offline)
+  state.presences.forEach(p => {
+    if (p.fullname === fullname && p.statut !== 'paye') {
+      p.statut = 'paye';
+      p.payeLe = datePaiement;
+    }
+  });
 
   saveSession();
   alert('✓ Paiement enregistré pour ' + fullname);
@@ -12783,50 +12802,33 @@ async function resetToutesPresences() {
   if (!(await confirmAsync('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme "payées" ?\nTous les soldes reviendront à zéro.\n\nL\'historique sera conservé mais marqué comme payé.'))) return;
 
   const datePaiement = new Date().toLocaleDateString('fr-FR');
-  const aPayer = state.presences.filter(p => p.statut !== 'paye');
 
-  // 1. Mise à jour locale
-  aPayer.forEach(p => {
-    p.statut = 'paye';
-    p.payeLe = datePaiement;
-  });
-
-  // 2. Synchro Supabase pour que ça ne revienne pas
+  // 1. Bulk update Supabase EN PREMIER : toutes les lignes non payées passent à "paid"
   if (supabaseReady) {
-    let echecs = 0;
-    for (const p of aPayer) {
-      const newRow = { status: 'paid', paid_on: datePaiement };
-      let pushOk = false;
+    try {
+      const { data, error } = await sb.from('shifts')
+        .update({ status: 'paid', paid_on: datePaiement })
+        .neq('status', 'paid')
+        .select();
 
-      if (p._id) {
-        try {
-          const { error } = await sb.from('shifts').update(newRow).eq('id', p._id);
-          if (!error) pushOk = true;
-        } catch(e) { console.warn('⚠️ resetToutesPresences exception:', e); }
+      if (error) {
+        alert('⚠️ Erreur de synchronisation : ' + error.message + '\n\nLe reset n\'a PAS été enregistré sur le serveur. Réessayez.');
+        return;
       }
-
-      if (!pushOk && p.fullname && p.date && p.heureDebut) {
-        try {
-          const { data, error } = await sb.from('shifts')
-            .update(newRow)
-            .eq('fullname', p.fullname)
-            .eq('date', p.date)
-            .eq('start_time', p.heureDebut)
-            .select();
-          if (!error) {
-            pushOk = true;
-            if (data && data[0] && data[0].id) p._id = data[0].id;
-          }
-        } catch(e) { console.warn('⚠️ resetToutesPresences fallback exception:', e); }
-      }
-
-      if (!pushOk) echecs++;
-    }
-
-    if (echecs > 0) {
-      alert('⚠️ ' + echecs + ' service(s) n\'ont pas pu être sauvegardés sur le serveur partagé.\n\nLes paiements risquent de réapparaître.');
+      console.log('✓ Reset Supabase OK :', (data || []).length, 'ligne(s) mises à jour');
+    } catch(e) {
+      alert('⚠️ Erreur réseau : ' + (e.message || e) + '\n\nLe reset n\'a PAS été enregistré. Réessayez.');
+      return;
     }
   }
+
+  // 2. Mise à jour locale
+  state.presences.forEach(p => {
+    if (p.statut !== 'paye') {
+      p.statut = 'paye';
+      p.payeLe = datePaiement;
+    }
+  });
 
   saveSession();
   alert('✓ Toutes les fiches ont été remises à zéro');
