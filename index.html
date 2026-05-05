@@ -18420,12 +18420,43 @@ async function ajouterTransactionTresor() {
 async function supprimerTransactionTresor(idx) {
   if (!(await confirmAsync('Supprimer cette transaction du registre ?'))) return;
   const tx = state.tresorTransactions[idx];
+  if (!tx) return;
 
-  // Suppression Supabase
-  if (supabaseReady && tx && tx._id) {
-    try { await deleteFromSupabase('tresorTransactions', tx._id); } catch(e) {}
+  console.log('🗑 SUPPRESSION TRANSACTION', tx);
+
+  // 1. Suppression Supabase EN PREMIER (pour qu'elle ne revienne pas via Realtime)
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      // Méthode 1 : par _id si on l'a
+      if (tx._id) {
+        const { error } = await sb.from('treasury_transactions').delete().eq('id', tx._id);
+        if (!error) { deleted = true; console.log('  ✓ supprimé par _id'); }
+        else console.warn('  ⚠️ erreur _id:', error.message);
+      }
+      // Méthode 2 (fallback) : par contenu si pas d'_id ou échec
+      if (!deleted) {
+        const { error } = await sb.from('treasury_transactions').delete()
+          .eq('type', tx.type)
+          .eq('amount', tx.montant)
+          .eq('reason', tx.motif)
+          .eq('agent', tx.agent)
+          .eq('date', tx.date);
+        if (!error) { deleted = true; console.log('  ✓ supprimé par contenu'); }
+        else console.warn('  ⚠️ erreur contenu:', error.message);
+      }
+      if (!deleted) {
+        alert('⚠️ La suppression sur le serveur a échoué.\nLa transaction risque de revenir au refresh.\nRegardez la console (F12) pour les détails.');
+        return;
+      }
+    } catch(e) {
+      console.error('❌ Exception delete:', e);
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
   }
 
+  // 2. Suppression locale
   state.tresorTransactions.splice(idx, 1);
   saveSession();
   renderTresor();
@@ -18893,10 +18924,30 @@ async function supprimerRessource(idx) {
   const r = state.ressources[idx];
   if (!r) return;
   if (!(await confirmAsync('Supprimer définitivement la ressource "' + r.nom + '" du registre ?'))) return;
-  // Suppression Supabase
-  if (supabaseReady && r._id) {
-    try { await deleteFromSupabase('ressources', r._id); } catch(e) {}
+
+  // Suppression Supabase robuste
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (r._id) {
+        const { error } = await sb.from('resources').delete().eq('id', r._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('resources').delete()
+          .eq('name', r.nom).eq('quantity', r.quantite).eq('price', r.prix);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        alert('⚠️ Suppression serveur échouée. La ressource risque de revenir au refresh.');
+        return;
+      }
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
   }
+
   state.ressources.splice(idx, 1);
   saveSession();
   renderRessources();
@@ -19143,9 +19194,30 @@ async function envoyerNotificationMarchand() {
 async function supprimerNotification(idx) {
   if (!(await confirmAsync('Supprimer cette notification de l\'historique ?'))) return;
   const n = state.notificationsMarchands[idx];
-  if (supabaseReady && n && n._id) {
-    try { await deleteFromSupabase('notificationsMarchands', n._id); } catch(e) {}
+  if (!n) return;
+
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (n._id) {
+        const { error } = await sb.from('merchant_notifications').delete().eq('id', n._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('merchant_notifications').delete()
+          .eq('merchant', n.marchand).eq('resource', n.ressource).eq('date', n.date);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        alert('⚠️ Suppression serveur échouée. La notification risque de revenir au refresh.');
+        return;
+      }
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
   }
+
   state.notificationsMarchands.splice(idx, 1);
   saveSession();
   renderMarchands();
@@ -19169,9 +19241,29 @@ async function supprimerMarchand(idx) {
   const m = state.marchands[idx];
   if (!m) return;
   if (!(await confirmAsync('Supprimer le marchand "' + m.nom + '" du registre ?'))) return;
-  if (supabaseReady && m._id) {
-    try { await deleteFromSupabase('marchands', m._id); } catch(e) {}
+
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (m._id) {
+        const { error } = await sb.from('merchants').delete().eq('id', m._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('merchants').delete()
+          .eq('name', m.nom).eq('category', m.categorie);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        alert('⚠️ Suppression serveur échouée. Le marchand risque de revenir au refresh.');
+        return;
+      }
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
   }
+
   state.marchands.splice(idx, 1);
   saveSession();
   renderMarchands();
