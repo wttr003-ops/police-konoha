@@ -4561,7 +4561,9 @@ let state = {
   // Stock des ressources du village
   ressources: [],
   // Marchands (armuriers, cuisiniers, etc.)
-  marchands: []
+  marchands: [],
+  // Notifications envoyées aux marchands (propositions de vente)
+  notificationsMarchands: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -8610,6 +8612,7 @@ function renderAjout() {
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
+    if (myService === 'comptabilite') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -8639,6 +8642,11 @@ function renderAjout() {
     gradesDispo = ALL_GRADES_RENSEIGNEMENT;
     titreSection = 'Bureau du Renseignement';
     labelBouton = 'Ajouter l\'agent';
+  } else if (myService === 'comptabilite') {
+    // Pas de Hokage par défaut (réservé au Directeur Police)
+    gradesDispo = ALL_GRADES_COMPTABILITE.filter(g => g !== 'Hokage');
+    titreSection = 'Bureau de la Comptabilité';
+    labelBouton = 'Ajouter le comptable';
   } else if (myService === 'police') {
     // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
     if (canManageSpecialRoles(u)) {
@@ -18295,34 +18303,57 @@ function renderRessources() {
     </div>`;
 
   if (canEdit) {
+    // Ressources prédéfinies avec leur catégorie
+    const RESSOURCES_PREDEF = [
+      { nom: 'Titane',           categorie: 'armurerie', icon: '⚙️' },
+      { nom: 'Fer',              categorie: 'armurerie', icon: '⚙️' },
+      { nom: 'Cuivre',           categorie: 'armurerie', icon: '⚙️' },
+      { nom: 'Pierre de chakra', categorie: 'armurerie', icon: '💠' },
+      { nom: 'Bois',             categorie: 'autre',     icon: '🌳' },
+      { nom: 'Coton',            categorie: 'autre',     icon: '🧵' },
+      { nom: 'Lin',              categorie: 'autre',     icon: '🧵' },
+      { nom: 'Peau',             categorie: 'autre',     icon: '🦌' },
+      { nom: 'Poisson',          categorie: 'cuisine',   icon: '🐟' }
+    ];
+
     html += `
-    <div class="dash-block" style="padding:1rem 1.5rem;margin-bottom:1.5rem">
-      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Ajouter / Réapprovisionner une ressource</h3>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
-        <div class="form-group" style="margin:0">
-          <label>Nom de la ressource</label>
-          <input type="text" id="res-nom" placeholder="Ex: Kunais · Riz · Bandages · Parchemins" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
-        </div>
+    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.25)">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+        <span>➕</span> <span>Ajouter / Réapprovisionner une ressource</span>
+      </h3>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Ressource</label>
+        <select id="res-nom-select" onchange="onRessourcePredefChange()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-size:13px;font-family:'Rajdhani',sans-serif">
+          <option value="">— Sélectionner une ressource —</option>
+          ${RESSOURCES_PREDEF.map(r => `<option value="${r.nom}" data-cat="${r.categorie}">${r.icon} ${r.nom}</option>`).join('')}
+          <option value="__autre__" data-cat="autre">✏️ Autre (saisir manuellement)</option>
+        </select>
+      </div>
+      <div class="form-group" id="res-nom-libre-group" style="margin-bottom:12px;display:none">
+        <label>Nom personnalisé</label>
+        <input type="text" id="res-nom-libre" placeholder="Ex: Parchemins · Bandages · Charbon" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
         <div class="form-group" style="margin:0">
           <label>Quantité</label>
-          <input type="number" id="res-quantite" placeholder="Ex: 50" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
+          <input type="number" id="res-quantite" placeholder="Ex: 50" min="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
         </div>
         <div class="form-group" style="margin:0">
           <label>Prix unitaire (Ryos)</label>
-          <input type="number" id="res-prix" placeholder="Ex: 25" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
+          <input type="number" id="res-prix" placeholder="Ex: 25" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Catégorie</label>
+          <select id="res-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+            <option value="armurerie">⚔️ Armurerie</option>
+            <option value="cuisine">🍱 Cuisine</option>
+            <option value="medical">⚕️ Médical</option>
+            <option value="autre" selected>📦 Autre</option>
+          </select>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:10px">
-        <label>Catégorie</label>
-        <select id="res-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%">
-          <option value="armurerie">⚔️ Armurerie (armes, équipement)</option>
-          <option value="cuisine">🍱 Cuisine (nourriture, ingrédients)</option>
-          <option value="medical">⚕️ Médical (bandages, remèdes)</option>
-          <option value="autre">📦 Autre</option>
-        </select>
-      </div>
-      <button class="btn-primary btn-full" onclick="ajouterRessource()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white">📦 Ajouter au stock</button>
-      <p style="font-size:10px;color:var(--muted);margin-top:8px;font-style:italic">💡 Si la ressource existe déjà avec le même nom, la quantité sera ajoutée à l'existante.</p>
+      <button class="btn-primary btn-full" onclick="ajouterRessource()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">📦 Ajouter au stock</button>
+      <p style="font-size:10px;color:var(--muted);margin-top:8px;font-style:italic;text-align:center">💡 Si la ressource existe déjà avec le même nom, la quantité sera additionnée à l'existante.</p>
     </div>`;
   }
 
@@ -18344,6 +18375,7 @@ function renderRessources() {
             <div style="font-size:10px;color:var(--muted);margin-top:2px">Stock: <strong style="color:#86efac">${(r.quantite || 0).toLocaleString()}</strong> · Prix unitaire: <strong>${(r.prix || 0).toLocaleString()} Ryos</strong> · Valeur totale: <strong style="color:#86efac">${valeur.toLocaleString()} Ryos</strong></div>
           </div>
           ${canEdit ? `
+            <button class="btn-sm" onclick="vendreRessourceModal(${realIdx})" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);font-size:10px;padding:3px 8px">🏪 Vendre</button>
             <button class="btn-sm" onclick="retirerStock(${realIdx})" style="background:rgba(251,146,60,0.15);color:#fb923c;border:1px solid rgba(251,146,60,0.4);font-size:10px;padding:3px 8px">➖ Retirer</button>
             <button class="btn-sm" onclick="modifierPrix(${realIdx})" style="background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);font-size:10px;padding:3px 8px">💰 Prix</button>
             <button class="btn-sm btn-sm-red" onclick="supprimerRessource(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>
@@ -18356,15 +18388,42 @@ function renderRessources() {
   el.innerHTML = html;
 }
 
+// Quand on change la ressource pré-définie : afficher le champ libre si "Autre", auto-remplir la catégorie
+function onRessourcePredefChange() {
+  const sel = document.getElementById('res-nom-select');
+  const libreGroup = document.getElementById('res-nom-libre-group');
+  const cat = document.getElementById('res-categorie');
+  if (!sel) return;
+
+  const val = sel.value;
+  if (val === '__autre__') {
+    if (libreGroup) libreGroup.style.display = '';
+    if (cat) cat.value = 'autre';
+  } else if (val) {
+    if (libreGroup) libreGroup.style.display = 'none';
+    // Auto-définir la catégorie d'après data-cat
+    const opt = sel.options[sel.selectedIndex];
+    const dataCat = opt?.dataset?.cat;
+    if (cat && dataCat) cat.value = dataCat;
+  } else {
+    if (libreGroup) libreGroup.style.display = 'none';
+  }
+}
+
 async function ajouterRessource() {
   const u = state.currentUser;
   if (!u) return;
-  const nom = document.getElementById('res-nom').value.trim();
+
+  const sel = document.getElementById('res-nom-select');
+  let nom = sel ? sel.value : '';
+  if (nom === '__autre__') {
+    nom = (document.getElementById('res-nom-libre')?.value || '').trim();
+  }
   const quantite = parseInt(document.getElementById('res-quantite').value);
   const prix = parseInt(document.getElementById('res-prix').value);
   const categorie = document.getElementById('res-categorie').value;
 
-  if (!nom) { alert('Veuillez entrer le nom de la ressource.'); return; }
+  if (!nom) { alert('Veuillez sélectionner une ressource (ou saisir un nom personnalisé).'); return; }
   if (!quantite || quantite <= 0) { alert('Veuillez entrer une quantité valide.'); return; }
   if (isNaN(prix) || prix < 0) { alert('Veuillez entrer un prix valide.'); return; }
 
@@ -18385,9 +18444,15 @@ async function ajouterRessource() {
   }
 
   saveSession();
-  document.getElementById('res-nom').value = '';
+  // Reset du formulaire
+  if (sel) sel.value = '';
+  const libreInp = document.getElementById('res-nom-libre');
+  if (libreInp) libreInp.value = '';
+  const libreGroup = document.getElementById('res-nom-libre-group');
+  if (libreGroup) libreGroup.style.display = 'none';
   document.getElementById('res-quantite').value = '';
   document.getElementById('res-prix').value = '';
+
   alert(existante ? '✓ Stock de "' + nom + '" mis à jour' : '✓ Nouvelle ressource ajoutée au stock');
   renderRessources();
 }
@@ -18395,12 +18460,42 @@ async function ajouterRessource() {
 async function retirerStock(idx) {
   const r = state.ressources[idx];
   if (!r) return;
-  const qStr = prompt('Combien retirer du stock de "' + r.nom + '" ?\n(Stock actuel : ' + r.quantite + ')', '1');
-  if (!qStr) return;
-  const q = parseInt(qStr);
+
+  // Modale custom centrée et stylée
+  const overlay = document.createElement('div');
+  overlay.id = 'res-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(34,197,94,0.4);border-radius:12px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 30px rgba(34,197,94,0.15)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+        <div style="font-size:28px">📦</div>
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:16px;color:#86efac;font-weight:700">Retirer du stock</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Ressource : <strong style="color:var(--text)">${escapeHtml(r.nom)}</strong></div>
+        </div>
+      </div>
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:6px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:var(--text);text-align:center">
+        Stock actuel : <strong style="color:#86efac;font-size:15px">${(r.quantite || 0).toLocaleString()}</strong>
+      </div>
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:block;margin-bottom:6px">Quantité à retirer</label>
+      <input type="number" id="modal-retrait-qty" value="1" min="1" max="${r.quantite}" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-size:14px;font-family:'Rajdhani',sans-serif"/>
+      <div style="display:flex;gap:8px;margin-top:1rem">
+        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
+        <button class="btn-primary" onclick="confirmerRetraitStock(${idx})" style="flex:2;background:linear-gradient(135deg,#fb923c,#ea580c);color:white;border:none">➖ Confirmer le retrait</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('modal-retrait-qty')?.focus(), 100);
+}
+
+async function confirmerRetraitStock(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+  const q = parseInt(document.getElementById('modal-retrait-qty').value);
   if (!q || q <= 0) { alert('Quantité invalide.'); return; }
   if (q > r.quantite) { alert('Stock insuffisant. Maximum : ' + r.quantite); return; }
 
+  document.getElementById('res-modal-overlay')?.remove();
   r.quantite -= q;
   if (r.quantite === 0) {
     if (await confirmAsync('Le stock est maintenant à 0. Supprimer la ressource de la liste ?')) {
@@ -18414,11 +18509,176 @@ async function retirerStock(idx) {
 async function modifierPrix(idx) {
   const r = state.ressources[idx];
   if (!r) return;
-  const pStr = prompt('Nouveau prix unitaire (Ryos) pour "' + r.nom + '" ?', String(r.prix || 0));
-  if (pStr === null) return;
-  const p = parseInt(pStr);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'res-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(232,197,71,0.4);border-radius:12px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 30px rgba(232,197,71,0.15)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+        <div style="font-size:28px">💰</div>
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:16px;color:var(--lgold);font-weight:700">Modifier le prix unitaire</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Ressource : <strong style="color:var(--text)">${escapeHtml(r.nom)}</strong></div>
+        </div>
+      </div>
+      <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.2);border-radius:6px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:var(--text);text-align:center">
+        Prix actuel : <strong style="color:var(--lgold);font-size:15px">${(r.prix || 0).toLocaleString()} Ryos</strong>
+      </div>
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:block;margin-bottom:6px">Nouveau prix unitaire (Ryos)</label>
+      <input type="number" id="modal-prix-val" value="${r.prix || 0}" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-size:14px;font-family:'Rajdhani',sans-serif"/>
+      <div style="display:flex;gap:8px;margin-top:1rem">
+        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
+        <button class="btn-primary" onclick="confirmerModifPrix(${idx})" style="flex:2">💰 Confirmer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    const inp = document.getElementById('modal-prix-val');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 100);
+}
+
+async function confirmerModifPrix(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+  const p = parseInt(document.getElementById('modal-prix-val').value);
   if (isNaN(p) || p < 0) { alert('Prix invalide.'); return; }
+  document.getElementById('res-modal-overlay')?.remove();
   r.prix = p;
+  saveSession();
+  renderRessources();
+}
+
+// === VENDRE UNE RESSOURCE À UN MARCHAND ===
+async function vendreRessourceModal(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+
+  const marchands = (state.marchands || []);
+  if (marchands.length === 0) {
+    alert('⚠️ Aucun marchand enregistré.\n\nEnregistrez d\'abord un marchand dans l\'onglet "🏪 Marchands" avant de pouvoir vendre.');
+    return;
+  }
+
+  // Suggérer la catégorie de marchand pertinente selon la ressource
+  const catMatch = r.categorie === 'armurerie' ? 'armurier' : r.categorie === 'cuisine' ? 'cuisinier' : null;
+  const marchandsTries = marchands.slice().sort((a, b) => {
+    if (catMatch) {
+      if (a.categorie === catMatch && b.categorie !== catMatch) return -1;
+      if (b.categorie === catMatch && a.categorie !== catMatch) return 1;
+    }
+    return (a.nom || '').localeCompare(b.nom || '');
+  });
+
+  const overlay = document.createElement('div');
+  overlay.id = 'res-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(34,197,94,0.4);border-radius:12px;padding:1.5rem;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 30px rgba(34,197,94,0.15);max-height:90vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+        <div style="font-size:28px">🏪</div>
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:16px;color:#86efac;font-weight:700">Vendre à un marchand</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Ressource : <strong style="color:var(--text)">${escapeHtml(r.nom)}</strong></div>
+        </div>
+      </div>
+
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:6px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:var(--text);display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center">
+        <div>Stock disponible<br/><strong style="color:#86efac;font-size:15px">${(r.quantite || 0).toLocaleString()}</strong></div>
+        <div>Prix unitaire actuel<br/><strong style="color:var(--lgold);font-size:15px">${(r.prix || 0).toLocaleString()} Ryos</strong></div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Marchand acheteur</label>
+        <select id="vente-marchand" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+          ${marchandsTries.map(m => `<option value="${escapeHtml(m.nom)}" data-cat="${m.categorie}">${m.categorie === 'armurier' ? '⚔️' : '🍱'} ${escapeHtml(m.nom)} ${catMatch && m.categorie === catMatch ? ' ★ recommandé' : ''}</option>`).join('')}
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>Quantité à vendre</label>
+          <input type="number" id="vente-qty" value="1" min="1" max="${r.quantite}" oninput="majTotalVente(${idx})" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Prix de vente unitaire</label>
+          <input type="number" id="vente-prix" value="${r.prix || 0}" min="0" oninput="majTotalVente(${idx})" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+        </div>
+      </div>
+
+      <div id="vente-total" style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px;margin-bottom:1rem;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💵 Total de la vente</div>
+        <div style="font-size:22px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${(r.prix || 0).toLocaleString()} Ryos</div>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);background:rgba(0,0,0,0.25);border-radius:4px;padding:8px 10px;margin-bottom:1rem;line-height:1.5">
+        ℹ️ La vente va automatiquement :<br/>
+        • Retirer la quantité du stock<br/>
+        • Ajouter le total au trésor du village (entrée d'argent)
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
+        <button class="btn-primary" onclick="confirmerVente(${idx})" style="flex:2;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none">🏪 Confirmer la vente</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function majTotalVente(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+  const qty = parseInt(document.getElementById('vente-qty')?.value) || 0;
+  const prix = parseInt(document.getElementById('vente-prix')?.value) || 0;
+  const total = qty * prix;
+  const tot = document.getElementById('vente-total');
+  if (tot) {
+    tot.querySelector('div:last-child').textContent = total.toLocaleString() + ' Ryos';
+  }
+}
+
+async function confirmerVente(idx) {
+  const u = state.currentUser;
+  const r = state.ressources[idx];
+  if (!r || !u) return;
+
+  const marchand = document.getElementById('vente-marchand').value;
+  const qty = parseInt(document.getElementById('vente-qty').value);
+  const prix = parseInt(document.getElementById('vente-prix').value);
+
+  if (!marchand) { alert('Veuillez sélectionner un marchand.'); return; }
+  if (!qty || qty <= 0) { alert('Quantité invalide.'); return; }
+  if (qty > r.quantite) { alert('Stock insuffisant. Maximum : ' + r.quantite); return; }
+  if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
+
+  const total = qty * prix;
+  document.getElementById('res-modal-overlay')?.remove();
+
+  // 1. Retirer du stock
+  r.quantite -= qty;
+
+  // 2. Enregistrer la transaction au trésor (entrée)
+  state.tresorTransactions = state.tresorTransactions || [];
+  state.tresorTransactions.push({
+    id: Date.now(),
+    type: 'entree',
+    montant: total,
+    motif: '🏪 Vente de ' + qty + ' × ' + r.nom + ' à ' + marchand + ' (' + prix + ' Ryos/unité)',
+    agent: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  });
+
+  // 3. Si le stock tombe à 0, proposer la suppression
+  if (r.quantite === 0) {
+    if (await confirmAsync('✓ Vente effectuée : +' + total.toLocaleString() + ' Ryos au trésor.\n\nLe stock de "' + r.nom + '" est maintenant à 0. Le supprimer du registre ?')) {
+      const i = state.ressources.indexOf(r);
+      if (i !== -1) state.ressources.splice(i, 1);
+    }
+  } else {
+    alert('✓ Vente effectuée\n\n' + qty + ' × ' + r.nom + ' vendus à ' + marchand + '\n+' + total.toLocaleString() + ' Ryos ajoutés au trésor.\n\nStock restant : ' + r.quantite);
+  }
+
   saveSession();
   renderRessources();
 }
@@ -18452,28 +18712,72 @@ function renderMarchands() {
     </div>`;
 
   if (canEdit) {
+    const ressources = state.ressources || [];
     html += `
-    <div class="dash-block" style="padding:1rem 1.5rem;margin-bottom:1.5rem">
-      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Enregistrer un marchand</h3>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px">
+    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.25)">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+        <span>➕</span> <span>Enregistrer un marchand</span>
+      </h3>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
         <div class="form-group" style="margin:0">
           <label>Nom du marchand</label>
-          <input type="text" id="mar-nom" placeholder="Ex: Tazuna · Forge des Lames · Oden de Teuchi" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
+          <input type="text" id="mar-nom" placeholder="Ex: Tazuna · Forge des Lames · Oden de Teuchi" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
         </div>
         <div class="form-group" style="margin:0">
           <label>Catégorie</label>
-          <select id="mar-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%">
+          <select id="mar-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
             <option value="armurier">⚔️ Armurier</option>
             <option value="cuisinier">🍱 Cuisinier</option>
           </select>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:10px">
+      <div class="form-group" style="margin-bottom:12px">
         <label>Notes / Spécialité <span style="color:var(--muted);font-size:11px">(facultatif)</span></label>
-        <textarea id="mar-notes" rows="2" placeholder="Ex: Spécialisé dans les lames courtes · Achète régulièrement nos surplus de riz" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif"></textarea>
+        <textarea id="mar-notes" rows="2" placeholder="Ex: Spécialisé dans les lames courtes · Achète régulièrement nos surplus de riz" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif"></textarea>
       </div>
-      <button class="btn-primary btn-full" onclick="ajouterMarchand()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white">🏪 Enregistrer le marchand</button>
-    </div>`;
+      <button class="btn-primary btn-full" onclick="ajouterMarchand()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">🏪 Enregistrer le marchand</button>
+    </div>
+
+    ${marchands.length > 0 ? `
+      <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(168,85,247,0.25)">
+        <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#d8b4fe;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+          <span>📨</span> <span>Notifier un marchand (proposition de vente)</span>
+        </h3>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:12px;font-style:italic">💡 Pour informer un marchand qu'on a une ressource à proposer, sans toucher au stock. Idéal pour négocier avant la vente effective.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="form-group" style="margin:0">
+            <label>Marchand destinataire</label>
+            <select id="notif-marchand" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+              ${marchands.slice().sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(m => `<option value="${escapeHtml(m.nom)}">${m.categorie === 'armurier' ? '⚔️' : '🍱'} ${escapeHtml(m.nom)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Ressource proposée</label>
+            <select id="notif-ressource" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+              ${ressources.length === 0
+                ? '<option value="">— Aucune ressource au stock —</option>'
+                : ressources.slice().sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(r => `<option value="${escapeHtml(r.nom)}">${escapeHtml(r.nom)} (stock : ${r.quantite})</option>`).join('')
+              }
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="form-group" style="margin:0">
+            <label>Quantité proposée</label>
+            <input type="number" id="notif-qty" placeholder="Ex: 50" min="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Prix unitaire demandé (Ryos)</label>
+            <input type="number" id="notif-prix" placeholder="Ex: 30" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Message <span style="color:var(--muted);font-size:11px">(facultatif)</span></label>
+          <textarea id="notif-message" rows="2" placeholder="Ex: Surplus de la dernière récolte. Disponible immédiatement, négociable selon volume." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif"></textarea>
+        </div>
+        <button class="btn-primary btn-full" onclick="envoyerNotificationMarchand()" style="background:linear-gradient(135deg,#a855f7,#7e22ce);color:white;border:none;padding:12px;font-weight:700">📨 Envoyer la proposition</button>
+      </div>
+    ` : ''}`;
   }
 
   // Grouper par catégorie
@@ -18509,6 +18813,48 @@ function renderMarchands() {
     html += '<p style="color:var(--muted);text-align:center;padding:1rem">Aucun marchand enregistré.</p>';
   }
 
+  // === Historique des notifications envoyées ===
+  const notifs = (state.notificationsMarchands || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
+  if (notifs.length > 0) {
+    html += `
+      <div class="dash-block" style="padding:0;margin-top:1.5rem;border:1px solid rgba(168,85,247,0.25)">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#d8b4fe;display:flex;align-items:center;gap:8px">
+          <span>📨</span> <span>Historique des notifications envoyées (${notifs.length})</span>
+        </div>`;
+    notifs.forEach(n => {
+      const realIdx = state.notificationsMarchands.indexOf(n);
+      const statutColor = n.statut === 'acceptee' ? '#86efac' : n.statut === 'refusee' ? '#fca5a5' : '#fbbf24';
+      const statutBg = n.statut === 'acceptee' ? 'rgba(34,197,94,0.12)' : n.statut === 'refusee' ? 'rgba(239,68,68,0.12)' : 'rgba(251,191,36,0.12)';
+      const statutLbl = n.statut === 'acceptee' ? '✓ Acceptée' : n.statut === 'refusee' ? '✗ Refusée' : '⏳ En attente';
+      html += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+            <div style="flex:1">
+              <div style="font-weight:600;color:var(--text);font-size:13px">📨 ${escapeHtml(n.marchand)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:3px">
+                <strong style="color:#86efac">${n.qty}</strong> × ${escapeHtml(n.ressource)} à <strong style="color:var(--lgold)">${n.prix} Ryos/u</strong> = <strong style="color:var(--lgold)">${(n.total || 0).toLocaleString()} Ryos</strong>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">Envoyée le ${n.date} par ${escapeHtml(n.agent || '—')}</div>
+            </div>
+            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;background:${statutBg};color:${statutColor};border:1px solid ${statutColor}55;white-space:nowrap">${statutLbl}</span>
+          </div>
+          ${n.message ? `<div style="font-size:11px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:4px;margin-top:6px;line-height:1.5;font-style:italic">💬 ${escapeHtml(n.message)}</div>` : ''}
+          ${canEdit ? `
+            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+              ${n.statut === 'envoyee' ? `
+                <button class="btn-sm" onclick="marquerNotificationStatut(${realIdx}, 'acceptee')" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);font-size:10px;padding:3px 8px">✓ Acceptée</button>
+                <button class="btn-sm" onclick="marquerNotificationStatut(${realIdx}, 'refusee')" style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);font-size:10px;padding:3px 8px">✗ Refusée</button>
+              ` : `
+                <button class="btn-sm" onclick="marquerNotificationStatut(${realIdx}, 'envoyee')" style="background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.4);font-size:10px;padding:3px 8px">↩ Remettre en attente</button>
+              `}
+              <button class="btn-sm btn-sm-red" onclick="supprimerNotification(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>
+            </div>
+          ` : ''}
+        </div>`;
+    });
+    html += '</div>';
+  }
+
   el.innerHTML = html;
 }
 
@@ -18533,6 +18879,55 @@ async function ajouterMarchand() {
   document.getElementById('mar-nom').value = '';
   document.getElementById('mar-notes').value = '';
   alert('✓ Marchand "' + nom + '" enregistré');
+  renderMarchands();
+}
+
+async function envoyerNotificationMarchand() {
+  const u = state.currentUser;
+  if (!u) return;
+  const marchand = document.getElementById('notif-marchand')?.value;
+  const ressource = document.getElementById('notif-ressource')?.value;
+  const qty = parseInt(document.getElementById('notif-qty').value);
+  const prix = parseInt(document.getElementById('notif-prix').value);
+  const message = (document.getElementById('notif-message')?.value || '').trim();
+
+  if (!marchand) { alert('Veuillez sélectionner un marchand.'); return; }
+  if (!ressource) { alert('Veuillez sélectionner une ressource.'); return; }
+  if (!qty || qty <= 0) { alert('Quantité invalide.'); return; }
+  if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
+
+  state.notificationsMarchands = state.notificationsMarchands || [];
+  state.notificationsMarchands.push({
+    id: Date.now(),
+    marchand, ressource, qty, prix, message,
+    total: qty * prix,
+    statut: 'envoyee',
+    agent: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  });
+  saveSession();
+
+  document.getElementById('notif-qty').value = '';
+  document.getElementById('notif-prix').value = '';
+  document.getElementById('notif-message').value = '';
+  alert('📨 Proposition envoyée à ' + marchand + '\n\n' + qty + ' × ' + ressource + ' à ' + prix + ' Ryos/unité\nTotal proposé : ' + (qty * prix).toLocaleString() + ' Ryos');
+  renderMarchands();
+}
+
+async function supprimerNotification(idx) {
+  if (!(await confirmAsync('Supprimer cette notification de l\'historique ?'))) return;
+  state.notificationsMarchands.splice(idx, 1);
+  saveSession();
+  renderMarchands();
+}
+
+async function marquerNotificationStatut(idx, statut) {
+  const n = state.notificationsMarchands[idx];
+  if (!n) return;
+  n.statut = statut;
+  if (statut === 'acceptee') n.dateAcceptee = new Date().toLocaleDateString('fr-FR');
+  if (statut === 'refusee') n.dateRefusee = new Date().toLocaleDateString('fr-FR');
+  saveSession();
   renderMarchands();
 }
 
