@@ -3897,6 +3897,66 @@ const SUPABASE_TABLES = {
       honoraires: r.fees, statut: r.status, avocat: r.lawyer,
       date: r.date, datePaiement: r.payment_date, _id: r.id, id: r.id
     })
+  },
+  // === COMPTABILITÉ ===
+  tresorTransactions: {
+    table: 'treasury_transactions',
+    mapTo: t => ({
+      type: t.type || 'entree', amount: t.montant || 0,
+      reason: t.motif || null, agent: t.agent || null,
+      date: t.date || null
+    }),
+    mapFrom: r => ({
+      type: r.type, montant: r.amount, motif: r.reason,
+      agent: r.agent, date: r.date,
+      id: r.id, _id: r.id
+    })
+  },
+  ressources: {
+    table: 'resources',
+    mapTo: r => ({
+      name: r.nom, quantity: r.quantite || 0,
+      price: r.prix || 0, category: r.categorie || 'autre',
+      added_by: r.ajoutePar || null, date: r.date || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, quantite: r.quantity, prix: r.price,
+      categorie: r.category, ajoutePar: r.added_by, date: r.date,
+      id: r.id, _id: r.id
+    })
+  },
+  marchands: {
+    table: 'merchants',
+    mapTo: m => ({
+      name: m.nom, category: m.categorie || 'autre',
+      notes: m.notes || null, added_by: m.ajoutePar || null,
+      date: m.date || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, categorie: r.category, notes: r.notes,
+      ajoutePar: r.added_by, date: r.date,
+      id: r.id, _id: r.id
+    })
+  },
+  notificationsMarchands: {
+    table: 'merchant_notifications',
+    mapTo: n => ({
+      merchant: n.marchand, resource: n.ressource,
+      quantity: n.qty || 0, price: n.prix || 0,
+      total: n.total || 0, message: n.message || null,
+      status: n.statut || 'envoyee', agent: n.agent || null,
+      date: n.date || null,
+      accepted_at: n.dateAcceptee || null,
+      refused_at: n.dateRefusee || null
+    }),
+    mapFrom: r => ({
+      marchand: r.merchant, ressource: r.resource,
+      qty: r.quantity, prix: r.price, total: r.total,
+      message: r.message, statut: r.status, agent: r.agent,
+      date: r.date,
+      dateAcceptee: r.accepted_at, dateRefusee: r.refused_at,
+      id: r.id, _id: r.id
+    })
   }
 };
 
@@ -18312,6 +18372,14 @@ async function ajouterTransactionTresor() {
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
   };
 
+  // Push Supabase d'abord pour récupérer l'_id
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('tresorTransactions', newTx);
+      if (inserted && inserted._id) newTx._id = inserted._id;
+    } catch(e) { console.warn('⚠️ Push transaction trésor:', e); }
+  }
+
   state.tresorTransactions = state.tresorTransactions || [];
   state.tresorTransactions.push(newTx);
   saveSession();
@@ -18324,6 +18392,13 @@ async function ajouterTransactionTresor() {
 
 async function supprimerTransactionTresor(idx) {
   if (!(await confirmAsync('Supprimer cette transaction du registre ?'))) return;
+  const tx = state.tresorTransactions[idx];
+
+  // Suppression Supabase
+  if (supabaseReady && tx && tx._id) {
+    try { await deleteFromSupabase('tresorTransactions', tx._id); } catch(e) {}
+  }
+
   state.tresorTransactions.splice(idx, 1);
   saveSession();
   renderTresor();
@@ -18487,13 +18562,25 @@ async function ajouterRessource() {
   if (existante) {
     existante.quantite = (existante.quantite || 0) + quantite;
     existante.prix = prix; // on met à jour le prix au cas où
+    // Push update Supabase
+    if (supabaseReady) {
+      try { await pushToSupabase('ressources', existante); } catch(e) { console.warn('⚠️ Update ressource:', e); }
+    }
   } else {
-    state.ressources.push({
+    const newRes = {
       id: Date.now(),
       nom, quantite, prix, categorie,
       ajoutePar: u.fullname,
       date: new Date().toLocaleDateString('fr-FR')
-    });
+    };
+    // Push insert Supabase d'abord pour récupérer l'_id
+    if (supabaseReady) {
+      try {
+        const inserted = await pushToSupabase('ressources', newRes);
+        if (inserted && inserted._id) newRes._id = inserted._id;
+      } catch(e) { console.warn('⚠️ Push ressource:', e); }
+    }
+    state.ressources.push(newRes);
   }
 
   saveSession();
@@ -18552,7 +18639,21 @@ async function confirmerRetraitStock(idx) {
   r.quantite -= q;
   if (r.quantite === 0) {
     if (await confirmAsync('Le stock est maintenant à 0. Supprimer la ressource de la liste ?')) {
+      // Suppression Supabase
+      if (supabaseReady && r._id) {
+        try { await deleteFromSupabase('ressources', r._id); } catch(e) {}
+      }
       state.ressources.splice(idx, 1);
+    } else {
+      // Quantité 0 mais on garde — push update
+      if (supabaseReady) {
+        try { await pushToSupabase('ressources', r); } catch(e) {}
+      }
+    }
+  } else {
+    // Push update du nouveau stock
+    if (supabaseReady) {
+      try { await pushToSupabase('ressources', r); } catch(e) {}
     }
   }
   saveSession();
@@ -18599,6 +18700,10 @@ async function confirmerModifPrix(idx) {
   if (isNaN(p) || p < 0) { alert('Prix invalide.'); return; }
   document.getElementById('res-modal-overlay')?.remove();
   r.prix = p;
+  // Push update Supabase
+  if (supabaseReady) {
+    try { await pushToSupabase('ressources', r); } catch(e) {}
+  }
   saveSession();
   renderRessources();
 }
@@ -18713,22 +18818,43 @@ async function confirmerVente(idx) {
 
   // 2. Enregistrer la transaction au trésor (entrée)
   state.tresorTransactions = state.tresorTransactions || [];
-  state.tresorTransactions.push({
+  const newTx = {
     id: Date.now(),
     type: 'entree',
     montant: total,
     motif: '🏪 Vente de ' + qty + ' × ' + r.nom + ' à ' + marchand + ' (' + prix + ' Ryos/unité)',
     agent: u.fullname,
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-  });
+  };
+  // Push transaction Supabase
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('tresorTransactions', newTx);
+      if (inserted && inserted._id) newTx._id = inserted._id;
+    } catch(e) { console.warn('⚠️ Push vente trésor:', e); }
+  }
+  state.tresorTransactions.push(newTx);
 
   // 3. Si le stock tombe à 0, proposer la suppression
   if (r.quantite === 0) {
     if (await confirmAsync('✓ Vente effectuée : +' + total.toLocaleString() + ' Ryos au trésor.\n\nLe stock de "' + r.nom + '" est maintenant à 0. Le supprimer du registre ?')) {
+      // Suppression Supabase
+      if (supabaseReady && r._id) {
+        try { await deleteFromSupabase('ressources', r._id); } catch(e) {}
+      }
       const i = state.ressources.indexOf(r);
       if (i !== -1) state.ressources.splice(i, 1);
+    } else {
+      // Stock à 0 mais on garde — push update
+      if (supabaseReady) {
+        try { await pushToSupabase('ressources', r); } catch(e) {}
+      }
     }
   } else {
+    // Push update du stock
+    if (supabaseReady) {
+      try { await pushToSupabase('ressources', r); } catch(e) {}
+    }
     alert('✓ Vente effectuée\n\n' + qty + ' × ' + r.nom + ' vendus à ' + marchand + '\n+' + total.toLocaleString() + ' Ryos ajoutés au trésor.\n\nStock restant : ' + r.quantite);
   }
 
@@ -18740,6 +18866,10 @@ async function supprimerRessource(idx) {
   const r = state.ressources[idx];
   if (!r) return;
   if (!(await confirmAsync('Supprimer définitivement la ressource "' + r.nom + '" du registre ?'))) return;
+  // Suppression Supabase
+  if (supabaseReady && r._id) {
+    try { await deleteFromSupabase('ressources', r._id); } catch(e) {}
+  }
   state.ressources.splice(idx, 1);
   saveSession();
   renderRessources();
@@ -18921,12 +19051,20 @@ async function ajouterMarchand() {
   if (!nom) { alert('Veuillez entrer le nom du marchand.'); return; }
 
   state.marchands = state.marchands || [];
-  state.marchands.push({
+  const newMar = {
     id: Date.now(),
     nom, categorie, notes,
     ajoutePar: u.fullname,
     date: new Date().toLocaleDateString('fr-FR')
-  });
+  };
+  // Push Supabase
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('marchands', newMar);
+      if (inserted && inserted._id) newMar._id = inserted._id;
+    } catch(e) { console.warn('⚠️ Push marchand:', e); }
+  }
+  state.marchands.push(newMar);
 
   saveSession();
   document.getElementById('mar-nom').value = '';
@@ -18950,14 +19088,22 @@ async function envoyerNotificationMarchand() {
   if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
 
   state.notificationsMarchands = state.notificationsMarchands || [];
-  state.notificationsMarchands.push({
+  const newNotif = {
     id: Date.now(),
     marchand, ressource, qty, prix, message,
     total: qty * prix,
     statut: 'envoyee',
     agent: u.fullname,
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-  });
+  };
+  // Push Supabase
+  if (supabaseReady) {
+    try {
+      const inserted = await pushToSupabase('notificationsMarchands', newNotif);
+      if (inserted && inserted._id) newNotif._id = inserted._id;
+    } catch(e) { console.warn('⚠️ Push notification:', e); }
+  }
+  state.notificationsMarchands.push(newNotif);
   saveSession();
 
   document.getElementById('notif-qty').value = '';
@@ -18969,6 +19115,10 @@ async function envoyerNotificationMarchand() {
 
 async function supprimerNotification(idx) {
   if (!(await confirmAsync('Supprimer cette notification de l\'historique ?'))) return;
+  const n = state.notificationsMarchands[idx];
+  if (supabaseReady && n && n._id) {
+    try { await deleteFromSupabase('notificationsMarchands', n._id); } catch(e) {}
+  }
   state.notificationsMarchands.splice(idx, 1);
   saveSession();
   renderMarchands();
@@ -18980,6 +19130,10 @@ async function marquerNotificationStatut(idx, statut) {
   n.statut = statut;
   if (statut === 'acceptee') n.dateAcceptee = new Date().toLocaleDateString('fr-FR');
   if (statut === 'refusee') n.dateRefusee = new Date().toLocaleDateString('fr-FR');
+  // Push update Supabase
+  if (supabaseReady) {
+    try { await pushToSupabase('notificationsMarchands', n); } catch(e) {}
+  }
   saveSession();
   renderMarchands();
 }
@@ -18988,6 +19142,9 @@ async function supprimerMarchand(idx) {
   const m = state.marchands[idx];
   if (!m) return;
   if (!(await confirmAsync('Supprimer le marchand "' + m.nom + '" du registre ?'))) return;
+  if (supabaseReady && m._id) {
+    try { await deleteFromSupabase('marchands', m._id); } catch(e) {}
+  }
   state.marchands.splice(idx, 1);
   saveSession();
   renderMarchands();
