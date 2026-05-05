@@ -6256,6 +6256,8 @@ function renderMembres() {
     canManage = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   } else if (myService === 'renseignement') {
     canManage = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
+  } else if (myService === 'comptabilite') {
+    canManage = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   }
 
   // Récupérer les citoyens depuis 3 sources :
@@ -11602,6 +11604,7 @@ function renderLogs() {
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
+    if (myService === 'comptabilite') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès strictement restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -11615,14 +11618,22 @@ function renderLogs() {
   const juges = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'juge'));
   const avocats = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'avocat'));
   const missionAgents = state.users.filter(x => x.isAgent && x.service === 'mission');
+  const comptaAgents = state.users.filter(x => x.isAgent && x.service === 'comptabilite');
 
   // Détermine quels onglets afficher selon la section
   const showPolice = (myService === 'police');
   const showJuges = (myService === 'police' || myService === 'juge');
   const showAvocats = (myService === 'police' || myService === 'avocat');
   const showMission = (myService === 'police' || myService === 'mission');
-  const showCivils = true; // Toutes les directions peuvent voir les civils
-  const defaultTab = myService === 'police' ? 'agents' : myService === 'juge' ? 'juges' : myService === 'mission' ? 'mission' : 'avocats';
+  const showCompta = (myService === 'police' || myService === 'comptabilite');
+  // ⚠️ Sécurité : la Comptabilité ne voit PAS les mots de passe des civils
+  // (passe par "Membres" pour voir les comptes citoyens sans mot de passe)
+  const showCivils = (myService !== 'comptabilite');
+  const defaultTab = myService === 'police' ? 'agents'
+                   : myService === 'juge' ? 'juges'
+                   : myService === 'mission' ? 'mission'
+                   : myService === 'comptabilite' ? 'compta'
+                   : 'avocats';
 
   let bandeauColor = 'rgba(231,76,60,0.06)';
   let bandeauBorder = 'rgba(231,76,60,0.2)';
@@ -11637,6 +11648,9 @@ function renderLogs() {
   } else if (myService === 'mission') {
     bandeauColor = 'rgba(20,184,166,0.06)'; bandeauBorder = 'rgba(20,184,166,0.3)'; bandeauTextColor = '#5eead4';
     bandeauMsg = '🎯 <strong>Bureau des Missions — Direction</strong> — Comptes des membres et des civils.';
+  } else if (myService === 'comptabilite') {
+    bandeauColor = 'rgba(34,197,94,0.06)'; bandeauBorder = 'rgba(34,197,94,0.3)'; bandeauTextColor = '#86efac';
+    bandeauMsg = '💰 <strong>Bureau de la Comptabilité — Direction</strong> — Comptes des comptables uniquement. Pour les comptes citoyens, voir l\'onglet <strong>👥 Membres</strong>.';
   }
 
   let html = `
@@ -11662,6 +11676,10 @@ function renderLogs() {
   if (showMission) {
     const isDefault = defaultTab === 'mission';
     html += `<button id="logs-tab-mission" onclick="switchLogsTab('mission')" style="background:${isDefault?'rgba(20,184,166,0.15)':'transparent'};color:${isDefault?'#5eead4':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#5eead4':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🎯 Mission (${missionAgents.length})</button>`;
+  }
+  if (showCompta) {
+    const isDefault = defaultTab === 'compta';
+    html += `<button id="logs-tab-compta" onclick="switchLogsTab('compta')" style="background:${isDefault?'rgba(34,197,94,0.15)':'transparent'};color:${isDefault?'#86efac':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#86efac':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">💰 Comptabilité (${comptaAgents.length})</button>`;
   }
   if (showCivils) {
     html += `<button id="logs-tab-civils" onclick="switchLogsTab('civils')" style="background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🍃 Civils (${civils.length})</button>`;
@@ -11808,8 +11826,41 @@ function renderLogs() {
   }
   html += `</div></div>`; // Ferme section-mission
 
-  // Section Civils (toujours accessible)
-  html += `<div id="logs-section-civils" style="display:none">
+  // Section Compta (Bureau de la Comptabilité)
+  const sectionComptaDisplay = (showCompta && defaultTab==='compta') ? 'block' : 'none';
+  html += `<div id="logs-section-compta" style="display:${sectionComptaDisplay}">
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
+        💰 <strong style="color:#86efac">Bureau de la Comptabilité</strong> — Comptes des comptables et leurs mots de passe.
+      </div>
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:1px">💰 Membres du Bureau de la Comptabilité (${comptaAgents.length})</div>`;
+  if (comptaAgents.length === 0) {
+    html += '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-style:italic">Aucun comptable enregistré.</div>';
+  } else {
+    comptaAgents.sort((a,b) => gradeRankForService('comptabilite', a.grade) - gradeRankForService('comptabilite', b.grade)).forEach(a => {
+      html += `
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <strong style="color:var(--text);font-size:14px">${escapeHtml(a.fullname)}</strong>
+              <span style="margin-left:6px;font-size:10px;color:#86efac;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);padding:2px 8px;border-radius:10px">${escapeHtml(a.grade||'—')}</span>
+              ${a.matricule ? `<span style="margin-left:6px;font-size:10px;color:var(--muted)">📋 ${escapeHtml(a.matricule)}</span>` : ''}
+            </div>
+            ${a.inscription ? `<span style="font-size:10px;color:var(--muted)">Inscrit le ${escapeHtml(a.inscription)}</span>` : ''}
+          </div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:8px 12px">
+            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🔑 Mot de passe :</span>
+            <code style="color:#86efac;font-family:monospace;font-size:13px;font-weight:700;flex:1">${escapeHtml(a.password || '(non défini)')}</code>
+            <button class="btn-sm" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-size:10px;padding:4px 8px" onclick="navigator.clipboard.writeText('${(a.password||'').replace(/'/g, "\\'")}').then(()=>alert('✓ Mot de passe copié'))">📋 Copier</button>
+          </div>
+        </div>`;
+    });
+  }
+  html += `</div></div>`; // Ferme section-compta
+
+  // Section Civils (masquée pour la Comptabilité)
+  if (showCivils) {
+    html += `<div id="logs-section-civils" style="display:none">
       <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
         ℹ️ <strong style="color:#93c5fd">Comptes citoyens</strong> — Permet de retransmettre un mot de passe en cas d'oubli. Utilisez la barre de recherche pour retrouver rapidement un citoyen.
       </div>
@@ -11850,21 +11901,23 @@ function renderLogs() {
     });
   }
   html += '</div></div>';
+  } // Ferme if (showCivils)
 
   el.innerHTML = html;
 }
 
 // Switch entre les onglets de Logs
 function switchLogsTab(tab) {
-  ['agents','juges','avocats','mission','civils'].forEach(t => {
+  ['agents','juges','avocats','mission','compta','civils'].forEach(t => {
     const btn = document.getElementById('logs-tab-' + t);
     const sec = document.getElementById('logs-section-' + t);
     const isMission = (t === 'mission');
+    const isCompta = (t === 'compta');
     if (btn) {
       if (t === tab) {
-        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : 'rgba(196,154,26,0.15)';
-        btn.style.color = isMission ? '#5eead4' : 'var(--accent)';
-        btn.style.borderBottomColor = isMission ? '#5eead4' : 'var(--accent)';
+        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : isCompta ? 'rgba(34,197,94,0.15)' : 'rgba(196,154,26,0.15)';
+        btn.style.color = isMission ? '#5eead4' : isCompta ? '#86efac' : 'var(--accent)';
+        btn.style.borderBottomColor = isMission ? '#5eead4' : isCompta ? '#86efac' : 'var(--accent)';
       } else {
         btn.style.background = 'transparent';
         btn.style.color = 'var(--muted)';
