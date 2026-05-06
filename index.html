@@ -12936,50 +12936,34 @@ async function verifierCoupureAuto02h() {
 }
 
 async function payerAgent(fullname, montant) {
-  if (!(await confirmAsync('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\nLes services seront archivés et le solde reviendra à zéro.'))) return;
+  if (!(await confirmAsync('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\n⚠️ Les services payés seront SUPPRIMÉS DÉFINITIVEMENT du registre (suppression complète, sans archivage).'))) return;
 
-  const datePaiement = new Date().toLocaleDateString('fr-FR');
-
-  // 1. Synchro Supabase EN PREMIER (avant le local) — bulk update de TOUTES les lignes non-payées
-  //    pour ce nom, peu importe leur _id. C'est la garantie que rien ne reviendra.
+  // 1. Synchro Supabase EN PREMIER : DELETE de toutes les lignes non-payées pour ce nom
   if (supabaseReady) {
     try {
       const { data, error } = await sb.from('shifts')
-        .update({ status: 'paid', paid_on: datePaiement })
+        .delete()
         .eq('fullname', fullname)
-        .neq('status', 'paid')   // tout ce qui n'est PAS déjà payé
+        .neq('status', 'paid')   // on supprime tout ce qui n'est pas déjà payé
         .select();
 
       if (error) {
         alert('⚠️ Erreur de synchronisation : ' + error.message + '\n\nLe paiement n\'a PAS été enregistré sur le serveur partagé. Réessayez.');
-        return; // ON ARRÊTE — pas de mise à jour locale si le serveur a échoué
+        return;
       }
 
-      console.log('✓ Paiement Supabase OK :', (data || []).length, 'ligne(s) mises à jour');
-
-      // Mettre à jour les _id locaux à partir des lignes serveur (au cas où certaines n'en avaient pas)
-      const idsServeur = new Set((data || []).map(r => r.id));
-      state.presences.forEach(p => {
-        if (p.fullname === fullname && p._id && idsServeur.has(p._id)) {
-          // déjà lié, rien à faire
-        }
-      });
+      console.log('✓ Suppression Supabase OK :', (data || []).length, 'ligne(s) supprimée(s)');
     } catch(e) {
       alert('⚠️ Erreur réseau : ' + (e.message || e) + '\n\nLe paiement n\'a PAS été enregistré. Réessayez.');
       return;
     }
   }
 
-  // 2. Mise à jour locale (seulement si Supabase a réussi, ou si on est offline)
-  state.presences.forEach(p => {
-    if (p.fullname === fullname && p.statut !== 'paye') {
-      p.statut = 'paye';
-      p.payeLe = datePaiement;
-    }
-  });
+  // 2. Suppression locale : on retire de state.presences toutes les lignes de cet agent qui n'étaient pas payées
+  state.presences = state.presences.filter(p => !(p.fullname === fullname && p.statut !== 'paye'));
 
   saveSession();
-  alert('✓ Paiement enregistré pour ' + fullname);
+  alert('✓ Paiement validé : ' + montant.toLocaleString() + ' Ryos versés à ' + fullname + '\nServices retirés du registre.');
   renderPresences();
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
@@ -13178,15 +13162,13 @@ async function confirmerAjout(fullname) {
 }
 
 async function resetToutesPresences() {
-  if (!(await confirmAsync('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme "payées" ?\nTous les soldes reviendront à zéro.\n\nL\'historique sera conservé mais marqué comme payé.'))) return;
+  if (!(await confirmAsync('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme payées ?\nTous les soldes reviendront à zéro.\n\n⚠️ Tous les services non-payés seront SUPPRIMÉS DÉFINITIVEMENT (pas d\'historique conservé).'))) return;
 
-  const datePaiement = new Date().toLocaleDateString('fr-FR');
-
-  // 1. Bulk update Supabase EN PREMIER : toutes les lignes non payées passent à "paid"
+  // 1. Suppression Supabase EN PREMIER : DELETE de toutes les lignes non-payées
   if (supabaseReady) {
     try {
       const { data, error } = await sb.from('shifts')
-        .update({ status: 'paid', paid_on: datePaiement })
+        .delete()
         .neq('status', 'paid')
         .select();
 
@@ -13194,23 +13176,20 @@ async function resetToutesPresences() {
         alert('⚠️ Erreur de synchronisation : ' + error.message + '\n\nLe reset n\'a PAS été enregistré sur le serveur. Réessayez.');
         return;
       }
-      console.log('✓ Reset Supabase OK :', (data || []).length, 'ligne(s) mises à jour');
+      console.log('✓ Reset Supabase OK :', (data || []).length, 'ligne(s) supprimée(s)');
     } catch(e) {
       alert('⚠️ Erreur réseau : ' + (e.message || e) + '\n\nLe reset n\'a PAS été enregistré. Réessayez.');
       return;
     }
   }
 
-  // 2. Mise à jour locale
-  state.presences.forEach(p => {
-    if (p.statut !== 'paye') {
-      p.statut = 'paye';
-      p.payeLe = datePaiement;
-    }
-  });
+  // 2. Suppression locale : on retire toutes les présences non-payées
+  const nbAvant = state.presences.length;
+  state.presences = state.presences.filter(p => p.statut === 'paye');
+  const nbSupp = nbAvant - state.presences.length;
 
   saveSession();
-  alert('✓ Toutes les fiches ont été remises à zéro');
+  alert('✓ ' + nbSupp + ' service(s) supprimé(s) du registre.\nToutes les fiches ont été remises à zéro.');
   renderPresences();
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
