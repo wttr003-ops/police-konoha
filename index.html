@@ -2423,6 +2423,7 @@
               <tr><td><strong>Ouverture des portes du village sans autorisation</strong></td><td>Manœuvrer les portes d'entrée ou de sortie sans ordre d'un supérieur habilité.</td><td class="amount">1 600</td><td class="amount">2 400</td><td class="amount">2 800</td></tr>
               <tr><td><strong>Présence sur les toits sans autorisation</strong></td><td>Se trouver sur les toits sans raison officielle validée par un supérieur.</td><td class="amount">1 600</td><td class="amount">2 000</td><td class="amount">2 400</td></tr>
               <tr><td><strong>Mensonge à un agent de police</strong></td><td>Fournir volontairement de fausses informations à un agent. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">600</td><td class="amount">1 600</td><td class="amount">2 000</td></tr>
+              <tr style="background:rgba(168,85,247,0.06)"><td><strong>Être en état d'ivresse dans les rues de Konoha</strong></td><td>Se trouver sous l'influence de l'alcool dans les rues ou espaces publics du village. Un ninja en état d'ivresse représente un danger pour lui-même et pour les citoyens. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">1 500</td><td class="amount">2 200</td><td class="amount">2 500</td></tr>
               <tr><td><strong>Non-respect du protocole de salut envers un gradé</strong></td><td>Bas gradé : mains derrière le dos + 'mes respects, sensei'. Haut gradé : à genoux + 'mes respects, maître'. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">800</td><td class="amount">1 200</td><td class="amount">1 600</td></tr>
               <tr><td><strong>Retard lors d'une convocation officielle</strong></td><td>Ne pas se présenter à l'heure fixée. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">600</td><td class="amount">800</td><td class="amount">1 000</td></tr>
               <tr style="background:rgba(168,85,247,0.06)"><td><strong>[Collectif] Prise de parole non autorisée dans les rangs</strong></td><td>Dès qu'un membre parle sans ordre, tous les membres dans les rangs sont sanctionnés.</td><td class="amount">500</td><td class="amount">500</td><td class="amount">500</td></tr>
@@ -2454,6 +2455,7 @@
               <tr><td><strong>Incitation à commettre une infraction</strong></td><td>Pousser ou encourager une autre personne à commettre un acte répréhensible.</td><td class="amount">2 400</td><td class="amount">3 000</td><td class="amount">3 500</td></tr>
               <tr><td><strong>Consommation ou détention de drogues</strong></td><td>Consommer ou détenir des substances illicites dans Konoha.</td><td class="amount">2 400</td><td class="amount">2 800</td><td class="amount">3 200</td></tr>
               <tr><td><strong>Impôts impayés</strong></td><td>Ne pas s'acquitter de ses impôts dans les délais. Le paiement est obligatoire le jour même de l'amende. <em style="color:#94a3b8;font-size:11px">x3 si cumul</em></td><td class="amount">2 400</td><td class="amount">2 800</td><td class="amount">3 200</td></tr>
+              <tr style="background:rgba(231,76,60,0.06)"><td><strong>Être en état d'ivresse en service en tant que ninja</strong></td><td>Se présenter en service sous l'influence de l'alcool. Met en danger les civils, les collègues et le ninja. <strong style="color:#fca5a5">+ Suspension de service immédiate</strong>. <em style="color:#94a3b8;font-size:11px">Amende fixe — tous grades confondus</em></td><td class="amount">5 000</td><td class="amount">5 000</td><td class="amount">5 000</td></tr>
             </tbody>
           </table>
         </div>
@@ -3484,23 +3486,32 @@ const SUPABASE_TABLES = {
   },
   amendes: {
     table: 'fines',
-    mapTo: a => ({
-      fullname: a.fullname,
-      // Concatène l'explication dans le champ offense pour la synchro Supabase (séparateur " ◆ ")
-      offense: (a.explication && a.explication.trim())
-        ? (a.infraction || '') + ' ◆ ' + a.explication.trim()
-        : (a.infraction || null),
-      offenses: a.infractions || null, tier: a.palier || null,
-      amount: a.montant || 0, recidivism: a.recidive || 'x1',
-      agent: a.agent || null, date: a.date || null,
-      status: a.statut || 'impaye', payment_date: a.datePaiement || null,
-      collecting_agent: a.agentEncaisseur || null,
-      is_collected: !!a.recupere, collected_at: a.recupereLe || null,
-      collected_by_direction: a.recupereParDirection || null,
-      recovery_id: a.recupId || null,
-      payments: a.paiements || [],
-      amount_paid: a.montantPaye || 0
-    }),
+    mapTo: a => {
+      // Encoder grade + multiplicateur dans le champ recidivism (rétrocompatible)
+      // Format ancien : "x1", "x2", "x3" → reste valide
+      // Format nouveau : "grade=x2|mult=3" → permet de distinguer grade ninja et récidive
+      let recidivismEncoded = a.recidive || 'x1';
+      if (a.gradeContrevenant && a.multiplicateur) {
+        recidivismEncoded = 'grade=' + a.gradeContrevenant + '|mult=' + a.multiplicateur;
+      }
+      return {
+        fullname: a.fullname,
+        // Concatène l'explication dans le champ offense pour la synchro Supabase (séparateur " ◆ ")
+        offense: (a.explication && a.explication.trim())
+          ? (a.infraction || '') + ' ◆ ' + a.explication.trim()
+          : (a.infraction || null),
+        offenses: a.infractions || null, tier: a.palier || null,
+        amount: a.montant || 0, recidivism: recidivismEncoded,
+        agent: a.agent || null, date: a.date || null,
+        status: a.statut || 'impaye', payment_date: a.datePaiement || null,
+        collecting_agent: a.agentEncaisseur || null,
+        is_collected: !!a.recupere, collected_at: a.recupereLe || null,
+        collected_by_direction: a.recupereParDirection || null,
+        recovery_id: a.recupId || null,
+        payments: a.paiements || [],
+        amount_paid: a.montantPaye || 0
+      };
+    },
     mapFrom: r => {
       // Sépare l'explication du champ offense si présente (séparateur " ◆ ")
       const rawOffense = r.offense || '';
@@ -3511,10 +3522,23 @@ const SUPABASE_TABLES = {
         infraction = rawOffense.substring(0, sepIdx);
         explication = rawOffense.substring(sepIdx + 3);
       }
+      // Décoder grade + multiplicateur depuis recidivism
+      let gradeContrevenant = null;
+      let multiplicateur = null;
+      let recidive = r.recidivism || 'x1';
+      if (recidive && recidive.indexOf('grade=') === 0) {
+        const m = recidive.match(/grade=(x\d)\|mult=(\d+)/);
+        if (m) {
+          gradeContrevenant = m[1];
+          multiplicateur = parseInt(m[2]);
+          recidive = multiplicateur === 1 ? 'x1' : multiplicateur === 2 ? 'x2' : 'x3';
+        }
+      }
       return {
         fullname: r.fullname, infraction: infraction, explication: explication,
         infractions: r.offenses,
-        palier: r.tier, montant: r.amount, recidive: r.recidivism,
+        palier: r.tier, montant: r.amount, recidive: recidive,
+        gradeContrevenant: gradeContrevenant, multiplicateur: multiplicateur,
         agent: r.agent, date: r.date, statut: r.status,
         datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
         recupere: r.is_collected, recupereLe: r.collected_at,
@@ -4707,6 +4731,7 @@ const INFRACTIONS = {
     { label: 'Ouverture des portes du village sans autorisation', x1: 1600, x2: 2400, x3: 2800 },
     { label: 'Présence sur les toits sans autorisation', x1: 1600, x2: 2000, x3: 2400 },
     { label: 'Mensonge à un agent de police', x1: 600, x2: 1600, x3: 2000 },
+    { label: 'Être en état d\'ivresse dans les rues de Konoha', x1: 1500, x2: 2200, x3: 2500 },
     { label: 'Non-respect du protocole de salut envers un gradé', x1: 800, x2: 1200, x3: 1600 },
     { label: 'Retard lors d\'une convocation officielle', x1: 600, x2: 800, x3: 1000 },
     { label: '[Collectif] Prise de parole non autorisée dans les rangs', x1: 500, x2: 500, x3: 500 },
@@ -4726,7 +4751,8 @@ const INFRACTIONS = {
     { label: 'Accès à la cour intérieure du palais sans autorisation', x1: 1600, x2: 2000, x3: 2400 },
     { label: 'Incitation à commettre une infraction', x1: 2400, x2: 3000, x3: 3500 },
     { label: 'Consommation ou détention de drogues', x1: 2400, x2: 2800, x3: 3200 },
-    { label: 'Impôts impayés (x3 si cumul)', x1: 2400, x2: 2800, x3: 3200 }
+    { label: 'Impôts impayés (x3 si cumul)', x1: 2400, x2: 2800, x3: 3200 },
+    { label: 'Être en état d\'ivresse en service en tant que ninja (+ suspension)', x1: 5000, x2: 5000, x3: 5000 }
   ],
   palier3: [
     { label: 'Menace majeure', x1: 5000, x2: 6000, x3: 7000 },
@@ -6748,13 +6774,24 @@ function renderAmendes() {
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Multiplicateur (récidive)</label>
-        <select id="am-mult" onchange="updateAmendeMontant()">
-          <option value="x1">×1 — Première fois</option>
-          <option value="x2">×2 — Récidive</option>
-          <option value="x3">×3 — Récidive multiple</option>
-        </select>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:0">
+        <div class="form-group" style="margin:0">
+          <label>🥷 Grade du contrevenant</label>
+          <select id="am-grade" onchange="updateAmendeMontant()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
+            <option value="x1">🟢 Genin / Tokubetsu Chunin</option>
+            <option value="x2" selected>🟡 Chunin / Kakunin</option>
+            <option value="x3">🔴 Tokubetsu Jonin / Jonin</option>
+          </select>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Le montant change selon le grade du contrevenant (cf. code pénal)</div>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>⚠ Récidive</label>
+          <select id="am-mult" onchange="updateAmendeMontant()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
+            <option value="1">×1 — Première fois</option>
+            <option value="2">×2 — Récidive</option>
+            <option value="3">×3 — Récidive multiple</option>
+          </select>
+        </div>
       </div>
 
       <div id="am-montant-preview" style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;text-align:center;display:none">
@@ -6887,22 +6924,30 @@ function renderInfractionsAmendeChips() {
 }
 
 function updateAmendeMontant() {
+  const gradeEl = document.getElementById('am-grade');
   const multEl = document.getElementById('am-mult');
-  if (!multEl) return;
-  const mult = multEl.value;
+  if (!gradeEl || !multEl) return;
+  const grade = gradeEl.value; // 'x1', 'x2', 'x3' (correspond à la colonne du tableau)
+  const mult = parseInt(multEl.value) || 1; // 1, 2, 3 (récidive)
   if (amInfractionsSelectionnees.length === 0) {
     document.getElementById('am-montant-preview').style.display = 'none';
     return;
   }
-  // Somme des montants de toutes les infractions sélectionnées
-  const total = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[mult] || 0), 0);
+  // Somme des montants de base selon le grade, puis multiplication par la récidive
+  const totalBase = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[grade] || 0), 0);
+  const total = totalBase * mult;
   document.getElementById('am-montant-preview').style.display = 'block';
-  document.getElementById('am-montant-display').textContent = total.toLocaleString() + ' Ryos';
+  let display = total.toLocaleString() + ' Ryos';
+  if (mult > 1) {
+    display = totalBase.toLocaleString() + ' × ' + mult + ' = ' + total.toLocaleString() + ' Ryos';
+  }
+  document.getElementById('am-montant-display').textContent = display;
 }
 
 async function emettreAmende() {
   let fullname = document.getElementById('am-fullname').value.trim();
-  const mult = document.getElementById('am-mult').value;
+  const grade = document.getElementById('am-grade').value;
+  const mult = parseInt(document.getElementById('am-mult').value) || 1;
   if (!fullname) { alert('Nom du contrevenant manquant'); return; }
   if (amInfractionsSelectionnees.length === 0) { alert('Sélectionnez au moins une infraction'); return; }
 
@@ -6913,7 +6958,8 @@ async function emettreAmende() {
     return;
   }
 
-  const total = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[mult] || 0), 0);
+  const totalBase = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[grade] || 0), 0);
+  const total = totalBase * mult;
 
   // Réutiliser graphie existante (anti-doublon dossier)
   const existante = state.amendes.find(a => matchFullname(a.fullname, fullname));
@@ -6945,7 +6991,9 @@ async function emettreAmende() {
     explication: (document.getElementById('am-explication')?.value || '').trim(),
     palier: palierMax,
     montant: total,
-    recidive: mult,
+    gradeContrevenant: grade, // 'x1', 'x2', 'x3' (grade ninja qui détermine le tarif)
+    recidive: mult === 1 ? 'x1' : mult === 2 ? 'x2' : 'x3', // compatibilité avec l'ancien format
+    multiplicateur: mult, // valeur numérique 1/2/3
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
     statut: 'impaye',
@@ -7153,7 +7201,12 @@ function refreshAmendesList() {
                         }).join('')}
                       </div>` : ''}
                     <div style="font-size:10px;color:var(--muted);margin-top:4px">
-                      ${a.date} · émis par ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
+                      ${a.date} · émis par ${a.agent}
+                      ${a.gradeContrevenant ? ' · 🥷 ' + (a.gradeContrevenant === 'x1' ? 'Genin/Toku Chunin' : a.gradeContrevenant === 'x2' ? 'Chunin/Kakunin' : 'Toku Jonin/Jonin') : ''}
+                      · ${(() => {
+                        const m = a.multiplicateur || (a.recidive === 'x2' ? 2 : a.recidive === 'x3' ? 3 : 1);
+                        return m === 1 ? '1ère fois' : m === 2 ? '⚠ récidive ×2' : '⚠ récidive multiple ×' + m;
+                      })()}
                       ${a.agentEncaisseur && isPaye ? ' · <span style="color:var(--green)">💰 Finalisée par '+a.agentEncaisseur+'</span>' : ''}
                       ${a.recupere ? ' · <span style="color:var(--lgold)">📦 Récupéré le '+a.recupereLe+'</span>' : ''}
                     </div>
@@ -12723,6 +12776,32 @@ async function enregistrerService(fullname, service, fin, options) {
       salaire,
       statut: 'a_payer'
     };
+
+    // === ANTI-DOUBLON SERVEUR ===
+    // Avant d'insérer, on vérifie sur Supabase qu'aucune presence identique n'existe.
+    // C'est crucial pour la coupure auto à 02h : tous les navigateurs ouverts
+    // déclenchent la coupure en même temps, le state.presences local n'est pas
+    // forcément à jour, donc seul Supabase peut nous dire si une autre instance
+    // a déjà inséré la ligne.
+    if (supabaseReady) {
+      try {
+        const { data: dejaExiste } = await sb.from('shifts')
+          .select('id')
+          .eq('fullname', fullname)
+          .eq('date', newPresence.date)
+          .eq('start_time', newPresence.heureDebut)
+          .limit(1);
+
+        if (dejaExiste && dejaExiste.length > 0) {
+          console.log('⏸ Doublon évité : presence déjà sur Supabase pour', fullname, newPresence.date, newPresence.heureDebut);
+          // On lie l'_id existant pour future synchro et on s'arrête là
+          return;
+        }
+      } catch(e) {
+        console.warn('⚠️ Check anti-doublon Supabase:', e);
+        // En cas d'échec du check, on continue (mieux vaut un doublon qu'une perte)
+      }
+    }
 
     // Push presence vers Supabase via le mapping standard
     if (supabaseReady) {
