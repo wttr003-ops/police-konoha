@@ -1714,7 +1714,6 @@
     <li><a onclick="showSection('renseignement-section')" style="color:#cbd5e1">🕵️ Renseignement</a></li>
     <li><a onclick="showSection('comptabilite-section')" style="color:#86efac">💰 Comptabilité</a></li>
     <li><a onclick="showSection('volonte')">Volonté du Feu</a></li>
-    <li><a onclick="showSection('missions')">Missions</a></li>
     <li><a onclick="showSection('grades')">Grades</a></li>
     <li><a onclick="showSection('penal')">Code Pénal</a></li>
     <li><a onclick="showSection('wanted')" style="color:#fca5a5">📕 Bingo Book</a></li>
@@ -1771,7 +1770,10 @@
     <div class="stat"><span class="stat-num" id="stat-agents">0</span><span class="stat-label">Officiers Police</span></div>
     <div class="stat"><span class="stat-num" id="stat-juges">0</span><span class="stat-label">Juges actifs</span></div>
     <div class="stat"><span class="stat-num" id="stat-avocats">0</span><span class="stat-label">Avocats actifs</span></div>
-    <div class="stat"><span class="stat-num" id="stat-candid">0</span><span class="stat-label">Candidatures</span></div>
+    <div class="stat"><span class="stat-num" id="stat-mission">0</span><span class="stat-label">Bureau Missions</span></div>
+    <div class="stat"><span class="stat-num" id="stat-diplomatie">0</span><span class="stat-label">Diplomates</span></div>
+    <div class="stat"><span class="stat-num" id="stat-renseignement">0</span><span class="stat-label">Renseignement</span></div>
+    <div class="stat"><span class="stat-num" id="stat-comptabilite">0</span><span class="stat-label">Comptables</span></div>
     <div class="stat"><span class="stat-num">24/7</span><span class="stat-label">Patrouilles</span></div>
   </div>
 
@@ -1853,10 +1855,22 @@
       <div class="history-layout">
         <div class="history-main">
           <div class="history-block">
-            <div class="history-year">Institution Judiciaire</div>
+            <div class="history-year">Ère du 2ème Hokage</div>
+            <h3 class="history-block-title">La Naissance d'une Justice Indépendante</h3>
+            <p>Lorsque le <strong>2ème Hokage</strong> fonda la Police de Konoha, il sut très vite qu'une force d'application des lois sans contrôle deviendrait une menace pour le village lui-même. Il prononça alors cette phrase devenue fondatrice : <em>« Qui sanctionne doit aussi pouvoir être sanctionné »</em>. C'est de cette conviction que naquit le <strong>Tribunal de Konoha</strong>.</p>
+            <p>Pensé dès l'origine comme une <strong>institution séparée et indépendante</strong> de la Police, le Tribunal devait incarner une justice impartiale, où aucune influence — ni clanique, ni politique, ni hiérarchique — ne pouvait peser sur les décisions des juges.</p>
+          </div>
+          <div class="history-block">
+            <div class="history-year">Composition</div>
             <h3 class="history-block-title">Les Juges, gardiens de la justice shinobi</h3>
-            <p>Au cœur du Pays du Feu, le <strong>Tribunal de Konoha</strong> est l'institution chargée de rendre la justice. Composé de juges expérimentés, il statue sur les affaires les plus graves portées par la Police de Konoha : trahisons, homicides, conspirations, infractions majeures au code shinobi.</p>
-            <p>Chaque juge prête serment de juger sans favoritisme, en respect de la <strong>Volonté du Feu</strong>. Leur autorité est reconnue par le Hokage lui-même, et leurs décisions s'appliquent à tous — du Genin au Jonin.</p>
+            <p>Au cœur du Pays du Feu, le <strong>Tribunal de Konoha</strong> est composé de juges expérimentés, sélectionnés pour leur rigueur, leur impartialité et leur connaissance approfondie des lois shinobis. Il statue sur les affaires les plus graves portées par la Police : trahisons, homicides, conspirations, infractions majeures au code shinobi.</p>
+            <p>Chaque juge prête serment de juger sans favoritisme, en respect de la <strong>Volonté du Feu</strong>. Leur autorité est reconnue par le Hokage lui-même, et leurs décisions s'appliquent à tous — du Genin au Jonin, du civil au noble de clan.</p>
+          </div>
+          <div class="history-block">
+            <div class="history-year">Pouvoirs uniques</div>
+            <h3 class="history-block-title">Le contre-pouvoir du village</h3>
+            <p>Le Tribunal détient une <strong>compétence exclusive</strong> qui en fait l'un des piliers les plus respectés de Konoha : il est le seul organe habilité à juger les <strong>plaintes des citoyens contre les agents de Police</strong>. Cette prérogative garantit qu'aucun abus de pouvoir ne reste impuni, même au sein même des Forces de l'Ordre.</p>
+            <p>Le Tribunal peut également <strong>requérir des rapports</strong> à la Police sur n'importe quel dossier en cours, et consulter librement tous les casiers judiciaires du village.</p>
           </div>
 
           <div class="history-block" style="border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.04)">
@@ -1872,8 +1886,19 @@
               <li style="padding:6px 0">🔒 <strong>Suivi des détentions</strong> — Validation des mises en cellule et durées d'emprisonnement.</li>
             </ul>
           </div>
+
+          <div class="history-block">
+            <div class="history-year">Code d'honneur</div>
+            <h3 class="history-block-title">L'impartialité comme dogme</h3>
+            <p>Tout juge de Konoha jure solennellement de <strong>juger sans favoritisme aucun</strong>. Aucun juge ne peut statuer dans une affaire impliquant un membre de son clan, un proche, ou toute personne avec qui il entretiendrait un lien personnel. Le manquement à cette règle entraîne immédiatement la <strong>révocation du grade</strong> et un procès devant le Premier Président.</p>
+          </div>
         </div>
         <aside class="history-sidebar">
+          <div class="history-fact-card">
+            <div class="history-fact-label">Fondateur</div>
+            <div class="history-fact-val">2ème Hokage</div>
+            <div class="history-fact-sub">En parallèle de la Police</div>
+          </div>
           <div class="history-fact-card">
             <div class="history-fact-label">Statut</div>
             <div class="history-fact-val">Indépendant</div>
@@ -1906,7 +1931,13 @@
       <div class="history-layout">
         <div class="history-main">
           <div class="history-block">
-            <div class="history-year">Défense des Droits</div>
+            <div class="history-year">Origine</div>
+            <h3 class="history-block-title">La création du Barreau de Konoha</h3>
+            <p>Pendant des décennies, accusés et coupables se présentaient seuls devant le Tribunal, sans aucun recours pour faire entendre leur version des faits. Beaucoup, intimidés par la solennité des juges ou ignorants des lois shinobis, étaient condamnés sans avoir pu réellement se défendre.</p>
+            <p>Conscient que <strong>la justice n'a de sens que si la défense est entendue</strong>, le <strong>3ème Hokage</strong> institua officiellement le <strong>Cabinet des Avocats de Konoha</strong>. Pour la première fois, tout shinobi ou citoyen accusé pouvait se faire représenter par un défenseur formé, expérimenté et reconnu par le village.</p>
+          </div>
+          <div class="history-block">
+            <div class="history-year">Mission première</div>
             <h3 class="history-block-title">Les défenseurs des shinobis</h3>
             <p>Le <strong>Cabinet des Avocats de Konoha</strong> rassemble les défenseurs jurés du village. Leur rôle : assister tout shinobi ou citoyen accusé, garantir un procès équitable, et plaider devant le Tribunal lorsque la liberté ou l'honneur d'un client est en jeu.</p>
             <p>Un avocat de Konoha étudie le casier judiciaire de son client, prépare sa défense, négocie avec le Tribunal et la Police, et rédige les contrats officiels qui scellent ses engagements.</p>
@@ -1931,8 +1962,20 @@
               <li style="padding:6px 0">📋 <strong>Conseil juridique</strong> — Accompagnement et conseil aux citoyens sur leurs droits et obligations.</li>
             </ul>
           </div>
+
+          <div class="history-block">
+            <div class="history-year">Code d'honneur</div>
+            <h3 class="history-block-title">"Défendre sans trahir, négocier sans céder"</h3>
+            <p>Tout avocat de Konoha jure deux serments fondamentaux. Le premier : <strong>le secret professionnel absolu</strong>. Aucune information confiée par un client ne peut être révélée, même sous la torture, même devant le Hokage. Le second : <strong>l'engagement total envers la défense de son client</strong>, dans la limite des lois du village.</p>
+            <p>Un avocat ne peut refuser un client pour des raisons personnelles ou claniques. Il ne peut non plus accepter de représenter deux parties opposées dans une même affaire. Tout manquement à ces règles entraîne <strong>l'exclusion immédiate du Barreau</strong>.</p>
+          </div>
         </div>
         <aside class="history-sidebar">
+          <div class="history-fact-card">
+            <div class="history-fact-label">Fondateur</div>
+            <div class="history-fact-val">3ème Hokage</div>
+            <div class="history-fact-sub">Pour l'équité des procès</div>
+          </div>
           <div class="history-fact-card">
             <div class="history-fact-label">Hiérarchie</div>
             <div class="history-fact-val">Bâtonnier</div>
@@ -5143,12 +5186,18 @@ function updateStats() {
   const agentsEl = document.getElementById('stat-agents');
   const jugesEl = document.getElementById('stat-juges');
   const avocatsEl = document.getElementById('stat-avocats');
-  const candidEl = document.getElementById('stat-candid');
+  const missionEl = document.getElementById('stat-mission');
+  const diplomatieEl = document.getElementById('stat-diplomatie');
+  const renseignementEl = document.getElementById('stat-renseignement');
+  const comptabiliteEl = document.getElementById('stat-comptabilite');
   // Exclure les comptes Hokage/Staff des compteurs publics (discrétion)
   if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent && (u.service||'police') === 'police' && !isSpecialRole(u.grade)).length;
   if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge' && !isSpecialRole(u.grade)).length;
   if (avocatsEl) avocatsEl.textContent = state.users.filter(u => u.isAgent && u.service === 'avocat' && !isSpecialRole(u.grade)).length;
-  if (candidEl) candidEl.textContent = state.candidatures.filter(c => c.status === 'ok').length;
+  if (missionEl) missionEl.textContent = state.users.filter(u => u.isAgent && u.service === 'mission' && !isSpecialRole(u.grade)).length;
+  if (diplomatieEl) diplomatieEl.textContent = state.users.filter(u => u.isAgent && u.service === 'diplomatie' && !isSpecialRole(u.grade)).length;
+  if (renseignementEl) renseignementEl.textContent = state.users.filter(u => u.isAgent && u.service === 'renseignement' && !isSpecialRole(u.grade)).length;
+  if (comptabiliteEl) comptabiliteEl.textContent = state.users.filter(u => u.isAgent && u.service === 'comptabilite' && !isSpecialRole(u.grade)).length;
   // Mettre à jour la section Recherchés sur la page d'accueil
   if (typeof renderWantedPublic === 'function') {
     try { renderWantedPublic(); } catch(e) {}
