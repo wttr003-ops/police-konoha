@@ -8504,62 +8504,25 @@ async function toggleImpot(idx, newStatut) {
   const i = state.impots[idx];
   if (!i) return;
   const u = state.currentUser;
-  // Conserver l'_id avant toute modif (peut être perdu si Realtime se déclenche)
+
+  // Sauvegarder les infos AVANT modif (au cas où Realtime écrase pendant les await)
+  const fullnameRef = i.fullname;
   const itemId = i._id;
+  const oldStatut = i.statut;
+  const oldCollecteur = i.collecteur;
+  const newCollecteur = newStatut === 'paye' && u ? (i.collecteur || u.fullname) : '';
 
-  i.statut = newStatut;
-
-  if (newStatut === 'non') {
-    // Si on passe en non payé, retirer l'historique de l'ancien collecteur
-    const oldCollecteur = i.collecteur;
-    if (oldCollecteur) {
-      const oldEntries = state.impotsHistorique.filter(h => matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur);
-      for (const old of oldEntries) {
-        if (old._id && supabaseReady) {
-          try { await deleteFromSupabase('impotsHistorique', old._id); } catch(e) {}
-        }
-      }
-      state.impotsHistorique = state.impotsHistorique.filter(h => !(matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur));
-      if (state.collectesEnCours[oldCollecteur]) {
-        state.collectesEnCours[oldCollecteur] = state.collectesEnCours[oldCollecteur].filter(c => !matchFullname(c.payeur, i.fullname));
-      }
-    }
-    i.collecteur = '';
-  } else if (newStatut === 'paye' && u) {
-    if (!i.collecteur) i.collecteur = u.fullname;
-    const collecteur = i.collecteur;
-    const montant = IMPOTS_MONTANTS[i.grade] || 0;
-    const date = new Date().toLocaleDateString('fr-FR');
-    const histExists = state.impotsHistorique.some(h => matchFullname(h.payeur, i.fullname) && h.agent === collecteur);
-    if (!histExists) {
-      const histEntry = {
-        payeur: i.fullname, grade: i.grade, montant: montant, agent: collecteur, date: date
-      };
-      if (supabaseReady) {
-        try {
-          const inserted = await pushToSupabase('impotsHistorique', histEntry);
-          if (inserted && inserted._id) histEntry._id = inserted._id;
-        } catch(e) {}
-      }
-      state.impotsHistorique.push(histEntry);
-    }
-    if (!state.collectesEnCours[collecteur]) state.collectesEnCours[collecteur] = [];
-    if (!state.collectesEnCours[collecteur].some(c => matchFullname(c.payeur, i.fullname))) {
-      state.collectesEnCours[collecteur].push({
-        payeur: i.fullname, grade: i.grade, montant: montant, date: date
-      });
-    }
-  }
-
-  // === PUSH DIRECT VERS SUPABASE — méthode robuste ===
+  // === ÉTAPE 1 : PUSH SUPABASE EN PREMIER (avant toute modif locale) ===
+  // Comme ça, même si Realtime arrive entre-temps, le serveur a déjà la bonne valeur.
   if (supabaseReady) {
     const newRow = {
       status: newStatut === 'paye' ? 'paid' : 'unpaid',
-      collector: i.collecteur || null,
+      collector: newCollecteur || null,
       grade: i.grade || null
     };
 
     let pushOk = false;
+    let serverItemId = itemId;
 
     // Méthode 1 : update par _id si on l'a
     if (itemId) {
@@ -8570,23 +8533,73 @@ async function toggleImpot(idx, newStatut) {
       } catch(e) { console.warn('⚠️ toggleImpot exception:', e); }
     }
 
-    // Méthode 2 : update par fullname si pas d'_id ou échec
-    if (!pushOk && i.fullname) {
+    // Méthode 2 (fallback) : update par fullname
+    if (!pushOk && fullnameRef) {
       try {
-        const { data, error } = await sb.from('taxes').update(newRow).eq('fullname', i.fullname).select();
+        const { data, error } = await sb.from('taxes').update(newRow).eq('fullname', fullnameRef).select();
         if (!error) {
           pushOk = true;
-          // Capturer l'_id pour les fois suivantes
-          if (data && data[0] && data[0].id) i._id = data[0].id;
+          if (data && data[0] && data[0].id) serverItemId = data[0].id;
         } else {
           console.warn('⚠️ toggleImpot update fullname échoué:', error.message);
         }
       } catch(e) { console.warn('⚠️ toggleImpot fallback exception:', e); }
     }
 
-    // Si rien n'a marché, alerter l'utilisateur
     if (!pushOk) {
-      alert('⚠️ La mise à jour n\'a pas pu être sauvegardée sur le serveur partagé.\n\nLes autres agents ne verront peut-être pas le changement. Réessayez dans quelques secondes.');
+      alert('⚠️ La mise à jour n\'a pas pu être sauvegardée sur le serveur.\n\nLe statut n\'a pas été modifié.\nRéessayez dans quelques secondes.');
+      return; // ON ARRÊTE — pas de modif locale si le serveur a échoué
+    }
+  }
+
+  // === ÉTAPE 2 : Modification locale (seulement après confirmation serveur) ===
+  // On retrouve l'item dans le state actuel (Realtime peut avoir rechargé entre-temps)
+  const currentIdx = state.impots.findIndex(x => x.fullname === fullnameRef);
+  if (currentIdx === -1) {
+    // L'item a disparu du state local, on recharge l'UI et on s'arrête
+    renderImpots();
+    return;
+  }
+  const current = state.impots[currentIdx];
+  current.statut = newStatut;
+
+  if (newStatut === 'non') {
+    // Si on passe en non payé, retirer l'historique de l'ancien collecteur
+    if (oldCollecteur) {
+      const oldEntries = state.impotsHistorique.filter(h => matchFullname(h.payeur, fullnameRef) && h.agent === oldCollecteur);
+      for (const old of oldEntries) {
+        if (old._id && supabaseReady) {
+          try { await deleteFromSupabase('impotsHistorique', old._id); } catch(e) {}
+        }
+      }
+      state.impotsHistorique = state.impotsHistorique.filter(h => !(matchFullname(h.payeur, fullnameRef) && h.agent === oldCollecteur));
+      if (state.collectesEnCours[oldCollecteur]) {
+        state.collectesEnCours[oldCollecteur] = state.collectesEnCours[oldCollecteur].filter(c => !matchFullname(c.payeur, fullnameRef));
+      }
+    }
+    current.collecteur = '';
+  } else if (newStatut === 'paye' && u) {
+    current.collecteur = newCollecteur;
+    const montant = IMPOTS_MONTANTS[current.grade] || 0;
+    const date = new Date().toLocaleDateString('fr-FR');
+    const histExists = state.impotsHistorique.some(h => matchFullname(h.payeur, fullnameRef) && h.agent === newCollecteur);
+    if (!histExists) {
+      const histEntry = {
+        payeur: fullnameRef, grade: current.grade, montant: montant, agent: newCollecteur, date: date
+      };
+      if (supabaseReady) {
+        try {
+          const inserted = await pushToSupabase('impotsHistorique', histEntry);
+          if (inserted && inserted._id) histEntry._id = inserted._id;
+        } catch(e) {}
+      }
+      state.impotsHistorique.push(histEntry);
+    }
+    if (!state.collectesEnCours[newCollecteur]) state.collectesEnCours[newCollecteur] = [];
+    if (!state.collectesEnCours[newCollecteur].some(c => matchFullname(c.payeur, fullnameRef))) {
+      state.collectesEnCours[newCollecteur].push({
+        payeur: fullnameRef, grade: current.grade, montant: montant, date: date
+      });
     }
   }
 
@@ -12524,7 +12537,9 @@ function renderPresences() {
     <div class="dash-block" style="margin-bottom:1.25rem">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📋 Mes services récents</div>`;
 
-  const myHistory = (state.presences || []).filter(p => p.fullname === u.fullname).slice().reverse().slice(0, 10);
+  const myHistory = (state.presences || [])
+    .filter(p => p.fullname === u.fullname && p.statut !== 'paye')
+    .slice().reverse().slice(0, 10);
   if (myHistory.length === 0) {
     html += '<div style="padding:1.5rem;text-align:center;color:var(--muted)">Aucun service enregistré.</div>';
   } else {
