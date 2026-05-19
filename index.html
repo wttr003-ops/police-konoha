@@ -1712,8 +1712,8 @@
     <li><a onclick="showSection('bureau-missions')" style="color:#5eead4">🎯 Bureau des Missions</a></li>
     <li><a onclick="showSection('diplomatie-section')" style="color:#d8b4fe">🤝 Diplomatie</a></li>
     <li><a onclick="showSection('renseignement-section')" style="color:#cbd5e1">🕵️ Renseignement</a></li>
-    <li><a onclick="showSection('comptabilite-section')" style="color:#86efac">💰 Comptabilité</a></li>
     <li><a onclick="showSection('volonte')">Volonté du Feu</a></li>
+    <li><a onclick="showSection('missions')">Missions</a></li>
     <li><a onclick="showSection('grades')">Grades</a></li>
     <li><a onclick="showSection('penal')">Code Pénal</a></li>
     <li><a onclick="showSection('wanted')" style="color:#fca5a5">📕 Bingo Book</a></li>
@@ -1758,7 +1758,6 @@
       <div class="hero-btns" style="margin-top:0.75rem">
         <button class="btn-diplomatie btn-lg" onclick="showPage('login')">🤝 Diplomatie</button>
         <button class="btn-renseignement btn-lg" onclick="showPage('login')">🕵️ Renseignement</button>
-        <button class="btn-lg" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none" onclick="showPage('login')">💰 Comptabilité</button>
         <button class="btn-civil btn-lg" onclick="showPage('civil')">🍃 Créer un compte citoyen</button>
         <button class="btn-outline btn-lg" onclick="showPage('login')">Espace agent</button>
       </div>
@@ -1770,10 +1769,7 @@
     <div class="stat"><span class="stat-num" id="stat-agents">0</span><span class="stat-label">Officiers Police</span></div>
     <div class="stat"><span class="stat-num" id="stat-juges">0</span><span class="stat-label">Juges actifs</span></div>
     <div class="stat"><span class="stat-num" id="stat-avocats">0</span><span class="stat-label">Avocats actifs</span></div>
-    <div class="stat"><span class="stat-num" id="stat-mission">0</span><span class="stat-label">Bureau Missions</span></div>
-    <div class="stat"><span class="stat-num" id="stat-diplomatie">0</span><span class="stat-label">Diplomates</span></div>
-    <div class="stat"><span class="stat-num" id="stat-renseignement">0</span><span class="stat-label">Renseignement</span></div>
-    <div class="stat"><span class="stat-num" id="stat-comptabilite">0</span><span class="stat-label">Comptables</span></div>
+    <div class="stat"><span class="stat-num" id="stat-candid">0</span><span class="stat-label">Candidatures</span></div>
     <div class="stat"><span class="stat-num">24/7</span><span class="stat-label">Patrouilles</span></div>
   </div>
 
@@ -1855,22 +1851,10 @@
       <div class="history-layout">
         <div class="history-main">
           <div class="history-block">
-            <div class="history-year">Ère du 2ème Hokage</div>
-            <h3 class="history-block-title">La Naissance d'une Justice Indépendante</h3>
-            <p>Lorsque le <strong>2ème Hokage</strong> fonda la Police de Konoha, il sut très vite qu'une force d'application des lois sans contrôle deviendrait une menace pour le village lui-même. Il prononça alors cette phrase devenue fondatrice : <em>« Qui sanctionne doit aussi pouvoir être sanctionné »</em>. C'est de cette conviction que naquit le <strong>Tribunal de Konoha</strong>.</p>
-            <p>Pensé dès l'origine comme une <strong>institution séparée et indépendante</strong> de la Police, le Tribunal devait incarner une justice impartiale, où aucune influence — ni clanique, ni politique, ni hiérarchique — ne pouvait peser sur les décisions des juges.</p>
-          </div>
-          <div class="history-block">
-            <div class="history-year">Composition</div>
+            <div class="history-year">Institution Judiciaire</div>
             <h3 class="history-block-title">Les Juges, gardiens de la justice shinobi</h3>
-            <p>Au cœur du Pays du Feu, le <strong>Tribunal de Konoha</strong> est composé de juges expérimentés, sélectionnés pour leur rigueur, leur impartialité et leur connaissance approfondie des lois shinobis. Il statue sur les affaires les plus graves portées par la Police : trahisons, homicides, conspirations, infractions majeures au code shinobi.</p>
-            <p>Chaque juge prête serment de juger sans favoritisme, en respect de la <strong>Volonté du Feu</strong>. Leur autorité est reconnue par le Hokage lui-même, et leurs décisions s'appliquent à tous — du Genin au Jonin, du civil au noble de clan.</p>
-          </div>
-          <div class="history-block">
-            <div class="history-year">Pouvoirs uniques</div>
-            <h3 class="history-block-title">Le contre-pouvoir du village</h3>
-            <p>Le Tribunal détient une <strong>compétence exclusive</strong> qui en fait l'un des piliers les plus respectés de Konoha : il est le seul organe habilité à juger les <strong>plaintes des citoyens contre les agents de Police</strong>. Cette prérogative garantit qu'aucun abus de pouvoir ne reste impuni, même au sein même des Forces de l'Ordre.</p>
-            <p>Le Tribunal peut également <strong>requérir des rapports</strong> à la Police sur n'importe quel dossier en cours, et consulter librement tous les casiers judiciaires du village.</p>
+            <p>Au cœur du Pays du Feu, le <strong>Tribunal de Konoha</strong> est l'institution chargée de rendre la justice. Composé de juges expérimentés, il statue sur les affaires les plus graves portées par la Police de Konoha : trahisons, homicides, conspirations, infractions majeures au code shinobi.</p>
+            <p>Chaque juge prête serment de juger sans favoritisme, en respect de la <strong>Volonté du Feu</strong>. Leur autorité est reconnue par le Hokage lui-même, et leurs décisions s'appliquent à tous — du Genin au Jonin.</p>
           </div>
 
           <div class="history-block" style="border-color:rgba(59,130,246,0.4);background:rgba(59,130,246,0.04)">
@@ -1886,19 +1870,8 @@
               <li style="padding:6px 0">🔒 <strong>Suivi des détentions</strong> — Validation des mises en cellule et durées d'emprisonnement.</li>
             </ul>
           </div>
-
-          <div class="history-block">
-            <div class="history-year">Code d'honneur</div>
-            <h3 class="history-block-title">L'impartialité comme dogme</h3>
-            <p>Tout juge de Konoha jure solennellement de <strong>juger sans favoritisme aucun</strong>. Aucun juge ne peut statuer dans une affaire impliquant un membre de son clan, un proche, ou toute personne avec qui il entretiendrait un lien personnel. Le manquement à cette règle entraîne immédiatement la <strong>révocation du grade</strong> et un procès devant le Premier Président.</p>
-          </div>
         </div>
         <aside class="history-sidebar">
-          <div class="history-fact-card">
-            <div class="history-fact-label">Fondateur</div>
-            <div class="history-fact-val">2ème Hokage</div>
-            <div class="history-fact-sub">En parallèle de la Police</div>
-          </div>
           <div class="history-fact-card">
             <div class="history-fact-label">Statut</div>
             <div class="history-fact-val">Indépendant</div>
@@ -1931,13 +1904,7 @@
       <div class="history-layout">
         <div class="history-main">
           <div class="history-block">
-            <div class="history-year">Origine</div>
-            <h3 class="history-block-title">La création du Barreau de Konoha</h3>
-            <p>Pendant des décennies, accusés et coupables se présentaient seuls devant le Tribunal, sans aucun recours pour faire entendre leur version des faits. Beaucoup, intimidés par la solennité des juges ou ignorants des lois shinobis, étaient condamnés sans avoir pu réellement se défendre.</p>
-            <p>Conscient que <strong>la justice n'a de sens que si la défense est entendue</strong>, le <strong>3ème Hokage</strong> institua officiellement le <strong>Cabinet des Avocats de Konoha</strong>. Pour la première fois, tout shinobi ou citoyen accusé pouvait se faire représenter par un défenseur formé, expérimenté et reconnu par le village.</p>
-          </div>
-          <div class="history-block">
-            <div class="history-year">Mission première</div>
+            <div class="history-year">Défense des Droits</div>
             <h3 class="history-block-title">Les défenseurs des shinobis</h3>
             <p>Le <strong>Cabinet des Avocats de Konoha</strong> rassemble les défenseurs jurés du village. Leur rôle : assister tout shinobi ou citoyen accusé, garantir un procès équitable, et plaider devant le Tribunal lorsque la liberté ou l'honneur d'un client est en jeu.</p>
             <p>Un avocat de Konoha étudie le casier judiciaire de son client, prépare sa défense, négocie avec le Tribunal et la Police, et rédige les contrats officiels qui scellent ses engagements.</p>
@@ -1962,20 +1929,8 @@
               <li style="padding:6px 0">📋 <strong>Conseil juridique</strong> — Accompagnement et conseil aux citoyens sur leurs droits et obligations.</li>
             </ul>
           </div>
-
-          <div class="history-block">
-            <div class="history-year">Code d'honneur</div>
-            <h3 class="history-block-title">"Défendre sans trahir, négocier sans céder"</h3>
-            <p>Tout avocat de Konoha jure deux serments fondamentaux. Le premier : <strong>le secret professionnel absolu</strong>. Aucune information confiée par un client ne peut être révélée, même sous la torture, même devant le Hokage. Le second : <strong>l'engagement total envers la défense de son client</strong>, dans la limite des lois du village.</p>
-            <p>Un avocat ne peut refuser un client pour des raisons personnelles ou claniques. Il ne peut non plus accepter de représenter deux parties opposées dans une même affaire. Tout manquement à ces règles entraîne <strong>l'exclusion immédiate du Barreau</strong>.</p>
-          </div>
         </div>
         <aside class="history-sidebar">
-          <div class="history-fact-card">
-            <div class="history-fact-label">Fondateur</div>
-            <div class="history-fact-val">3ème Hokage</div>
-            <div class="history-fact-sub">Pour l'équité des procès</div>
-          </div>
           <div class="history-fact-card">
             <div class="history-fact-label">Hiérarchie</div>
             <div class="history-fact-val">Bâtonnier</div>
@@ -2222,76 +2177,6 @@
     </div>
   </section>
 
-  <!-- COMPTABILITÉ -->
-  <section class="section" id="comptabilite-section" style="background:linear-gradient(180deg,#0a0e0a 0%, #0d1410 100%)">
-    <div class="section-inner">
-      <p class="section-tag" style="color:#86efac">💰 Comptabilité</p>
-      <h2 class="section-title">Le Bureau de la <span style="color:#86efac">Comptabilité</span></h2>
-      <div class="history-layout">
-        <div class="history-main">
-          <div class="history-block" style="border-color:rgba(34,197,94,0.3)">
-            <div class="history-year" style="color:#86efac">Origine</div>
-            <h3 class="history-block-title">Le pilier économique de Konoha</h3>
-            <p>Aucun village ne peut tenir longtemps sans une gestion rigoureuse de ses ressources. C'est en partant de ce constat que le <strong>3ème Hokage</strong> a fondé le <strong>Bureau de la Comptabilité</strong>, chargé de veiller sur le trésor du village et la circulation de ses biens.</p>
-            <p>Bien que moins visible que la Police ou le Tribunal, ce bureau est <strong>indispensable</strong> : sans lui, pas de salaires versés, pas de matériel acheté, pas de marchands payés. La sécurité de Konoha repose aussi sur sa solidité financière.</p>
-          </div>
-          <div class="history-block" style="border-color:rgba(34,197,94,0.3)">
-            <div class="history-year" style="color:#86efac">Rigueur & transparence</div>
-            <h3 class="history-block-title">Gardiens du trésor</h3>
-            <p>Les comptables de Konoha tiennent à jour le <strong>Grand Livre</strong> du village : chaque Ryo entrant ou sortant y est inscrit. Toute transaction passe par leurs mains, qu'il s'agisse de la solde des shinobis, des achats auprès des marchands, ou de la revente de ressources stratégiques.</p>
-            <p>Ils gèrent également le <strong>stock des ressources</strong> du village : nourriture, armes, équipement médical, matériaux de construction. Lorsqu'un excédent est constaté, ils négocient avec les marchands armuriers et cuisiniers pour le revendre au meilleur prix.</p>
-          </div>
-
-          <div class="history-block" style="border-color:rgba(34,197,94,0.4);background:rgba(34,197,94,0.04)">
-            <div class="history-year" style="color:#86efac">Missions & Responsabilités</div>
-            <h3 class="history-block-title">Les attributions du Bureau</h3>
-            <ul style="list-style:none;padding:0;margin:0">
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">💰 <strong>Trésor du village</strong> — Gestion des entrées et sorties d'argent, suivi du solde global.</li>
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">📦 <strong>Inventaire des ressources</strong> — Tenue à jour du stock : nourriture, armes, matériaux, équipement.</li>
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">🏪 <strong>Relations avec les marchands</strong> — Négociation et revente des ressources auprès des armuriers et cuisiniers.</li>
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">📊 <strong>Bilans financiers</strong> — Rapports réguliers transmis au Hokage et aux directions des autres bureaux.</li>
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">🔒 <strong>Audit et contrôle</strong> — Vérification que les fonds sont utilisés correctement et sans abus.</li>
-              <li style="padding:6px 0">⚖️ <strong>Lutte contre la fraude</strong> — Coordination avec la Police et le Renseignement pour signaler tout détournement.</li>
-            </ul>
-          </div>
-
-          <div class="history-block" style="border-color:rgba(34,197,94,0.3)">
-            <div class="history-year" style="color:#86efac">Code d'honneur</div>
-            <h3 class="history-block-title">"Chaque Ryo compte"</h3>
-            <p>Les comptables jurent un serment de <strong>probité absolue</strong>. Détourner ne serait-ce qu'un seul Ryo des caisses du village est considéré comme une trahison envers Konoha. La sanction est immédiate : exclusion du bureau et procès devant le Tribunal.</p>
-            <p>Leur devise : <strong>"Chaque Ryo compte, chaque écriture engage, chaque silence protège le village"</strong>.</p>
-          </div>
-        </div>
-        <aside class="history-sidebar">
-          <div class="history-fact-card">
-            <div class="history-fact-label">Fondateur</div>
-            <div class="history-fact-val">3ème Hokage</div>
-            <div class="history-fact-sub">Le bâtisseur prudent</div>
-          </div>
-          <div class="history-fact-card">
-            <div class="history-fact-label">Hiérarchie</div>
-            <div class="history-fact-val">Directeur</div>
-            <div class="history-fact-sub">Plus haute autorité du Bureau</div>
-          </div>
-          <div class="history-fact-card">
-            <div class="history-fact-label">Statut</div>
-            <div class="history-fact-val">Confidentiel</div>
-            <div class="history-fact-sub">Comptes audités régulièrement</div>
-          </div>
-          <div class="history-fact-card">
-            <div class="history-fact-label">Lien</div>
-            <div class="history-fact-val">Direct au Hokage</div>
-            <div class="history-fact-sub">Rapports réguliers</div>
-          </div>
-          <div class="history-quote">
-            <p>"Chaque Ryo compte, chaque écriture engage, chaque silence protège le village."</p>
-            <span>— Serment des comptables de Konoha</span>
-          </div>
-        </aside>
-      </div>
-    </div>
-  </section>
-
   <!-- VOLONTÉ DU FEU -->
   <section class="section section-dark" id="volonte">
     <div class="section-inner">
@@ -2401,8 +2286,13 @@
         </div>
         <div class="grade-card">
           <span class="grade-badge badge-a">Rang A</span>
+          <h3>Capitaine</h3>
+          <p>Supervision élargie : accès à tous les dossiers et services en cours. Commande les Lieutenants sur le terrain.</p>
+        </div>
+        <div class="grade-card">
+          <span class="grade-badge badge-a">Rang A</span>
           <h3>Lieutenant</h3>
-          <p>Supervision des équipes et gestion des opérations sur le terrain.</p>
+          <p>Supervision des équipes, gestion des opérations sur le terrain, accès aux services en cours.</p>
         </div>
         <div class="grade-card">
           <span class="grade-badge badge-b">Rang B</span>
@@ -2466,7 +2356,6 @@
               <tr><td><strong>Ouverture des portes du village sans autorisation</strong></td><td>Manœuvrer les portes d'entrée ou de sortie sans ordre d'un supérieur habilité.</td><td class="amount">1 600</td><td class="amount">2 400</td><td class="amount">2 800</td></tr>
               <tr><td><strong>Présence sur les toits sans autorisation</strong></td><td>Se trouver sur les toits sans raison officielle validée par un supérieur.</td><td class="amount">1 600</td><td class="amount">2 000</td><td class="amount">2 400</td></tr>
               <tr><td><strong>Mensonge à un agent de police</strong></td><td>Fournir volontairement de fausses informations à un agent. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">600</td><td class="amount">1 600</td><td class="amount">2 000</td></tr>
-              <tr style="background:rgba(168,85,247,0.06)"><td><strong>Être en état d'ivresse dans les rues de Konoha</strong></td><td>Se trouver sous l'influence de l'alcool dans les rues ou espaces publics du village. Un ninja en état d'ivresse représente un danger pour lui-même et pour les citoyens. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">1 500</td><td class="amount">2 200</td><td class="amount">2 500</td></tr>
               <tr><td><strong>Non-respect du protocole de salut envers un gradé</strong></td><td>Bas gradé : mains derrière le dos + 'mes respects, sensei'. Haut gradé : à genoux + 'mes respects, maître'. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">800</td><td class="amount">1 200</td><td class="amount">1 600</td></tr>
               <tr><td><strong>Retard lors d'une convocation officielle</strong></td><td>Ne pas se présenter à l'heure fixée. <em style="color:#94a3b8;font-size:11px">x2 si récidive</em></td><td class="amount">600</td><td class="amount">800</td><td class="amount">1 000</td></tr>
               <tr style="background:rgba(168,85,247,0.06)"><td><strong>[Collectif] Prise de parole non autorisée dans les rangs</strong></td><td>Dès qu'un membre parle sans ordre, tous les membres dans les rangs sont sanctionnés.</td><td class="amount">500</td><td class="amount">500</td><td class="amount">500</td></tr>
@@ -2498,7 +2387,6 @@
               <tr><td><strong>Incitation à commettre une infraction</strong></td><td>Pousser ou encourager une autre personne à commettre un acte répréhensible.</td><td class="amount">2 400</td><td class="amount">3 000</td><td class="amount">3 500</td></tr>
               <tr><td><strong>Consommation ou détention de drogues</strong></td><td>Consommer ou détenir des substances illicites dans Konoha.</td><td class="amount">2 400</td><td class="amount">2 800</td><td class="amount">3 200</td></tr>
               <tr><td><strong>Impôts impayés</strong></td><td>Ne pas s'acquitter de ses impôts dans les délais. Le paiement est obligatoire le jour même de l'amende. <em style="color:#94a3b8;font-size:11px">x3 si cumul</em></td><td class="amount">2 400</td><td class="amount">2 800</td><td class="amount">3 200</td></tr>
-              <tr style="background:rgba(231,76,60,0.06)"><td><strong>Être en état d'ivresse en service en tant que ninja</strong></td><td>Se présenter en service sous l'influence de l'alcool. Met en danger les civils, les collègues et le ninja. <strong style="color:#fca5a5">+ Suspension de service immédiate</strong>. <em style="color:#94a3b8;font-size:11px">Amende fixe — tous grades confondus</em></td><td class="amount">5 000</td><td class="amount">5 000</td><td class="amount">5 000</td></tr>
             </tbody>
           </table>
         </div>
@@ -2761,10 +2649,6 @@
           <button type="button" class="section-btn" data-section="renseignement" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
             <div style="font-size:24px;margin-bottom:4px">🕵️</div>
             Renseign.
-          </button>
-          <button type="button" class="section-btn" data-section="comptabilite" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
-            <div style="font-size:24px;margin-bottom:4px">💰</div>
-            Comptab.
           </button>
         </div>
       </div>
@@ -3042,10 +2926,10 @@
   <div class="dash-layout">
     <aside class="dash-sidebar">
       <nav class="dash-nav">
-        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission,diplomatie,renseignement,comptabilite" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
+        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
         <button class="dash-nav-btn" data-tab="plaintes" data-services="police,juge" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
-        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement,comptabilite" onclick="switchDashTab('membres', this)">👥 Membres</button>
+        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
         <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
         <button class="dash-nav-btn" data-tab="recensement" data-services="police" onclick="switchDashTab('recensement', this)" style="color:#5eead4">🔍 Recensement</button>
@@ -3056,15 +2940,12 @@
         <button class="dash-nav-btn" data-tab="cellules" data-services="police,juge,avocat" onclick="switchDashTab('cellules', this)">🔒 Cellules</button>
         <button class="dash-nav-btn" data-tab="portes" data-services="police" onclick="switchDashTab('portes', this)">🏯 Portes du village</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
-        <button class="dash-nav-btn" data-tab="tresor" data-services="comptabilite" onclick="switchDashTab('tresor', this)" style="color:#86efac">💰 Trésor du village</button>
-        <button class="dash-nav-btn" data-tab="ressources" data-services="comptabilite" onclick="switchDashTab('ressources', this)" style="color:#86efac">📦 Ressources</button>
-        <button class="dash-nav-btn" data-tab="marchands" data-services="comptabilite" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
-        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,comptabilite" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
-        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement,comptabilite" onclick="switchDashTab('documents', this)">📚 Documents</button>
+        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
-        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission,diplomatie,renseignement,comptabilite" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
-        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission,diplomatie,renseignement,comptabilite" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
+        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
+        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
       </nav>
     </aside>
 
@@ -3166,21 +3047,6 @@
       <div class="dash-tab" id="dash-dossiers">
         <h2 class="dash-section-title">📁 Dossiers clients (Avocat)</h2>
         <div id="dossiers-content"></div>
-      </div>
-
-      <div class="dash-tab" id="dash-tresor">
-        <h2 class="dash-section-title" style="color:#86efac">💰 Trésor du village</h2>
-        <div id="tresor-content"></div>
-      </div>
-
-      <div class="dash-tab" id="dash-ressources">
-        <h2 class="dash-section-title" style="color:#86efac">📦 Ressources du village</h2>
-        <div id="ressources-content"></div>
-      </div>
-
-      <div class="dash-tab" id="dash-marchands">
-        <h2 class="dash-section-title" style="color:#86efac">🏪 Marchands</h2>
-        <div id="marchands-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-logs">
@@ -3529,68 +3395,30 @@ const SUPABASE_TABLES = {
   },
   amendes: {
     table: 'fines',
-    mapTo: a => {
-      // Encoder grade + multiplicateur dans le champ recidivism (rétrocompatible)
-      // Format ancien : "x1", "x2", "x3" → reste valide
-      // Format nouveau : "grade=x2|mult=3" → permet de distinguer grade ninja et récidive
-      let recidivismEncoded = a.recidive || 'x1';
-      if (a.gradeContrevenant && a.multiplicateur) {
-        recidivismEncoded = 'grade=' + a.gradeContrevenant + '|mult=' + a.multiplicateur;
-      }
-      return {
-        fullname: a.fullname,
-        // Concatène l'explication dans le champ offense pour la synchro Supabase (séparateur " ◆ ")
-        offense: (a.explication && a.explication.trim())
-          ? (a.infraction || '') + ' ◆ ' + a.explication.trim()
-          : (a.infraction || null),
-        offenses: a.infractions || null, tier: a.palier || null,
-        amount: a.montant || 0, recidivism: recidivismEncoded,
-        agent: a.agent || null, date: a.date || null,
-        status: a.statut || 'impaye', payment_date: a.datePaiement || null,
-        collecting_agent: a.agentEncaisseur || null,
-        is_collected: !!a.recupere, collected_at: a.recupereLe || null,
-        collected_by_direction: a.recupereParDirection || null,
-        recovery_id: a.recupId || null,
-        payments: a.paiements || [],
-        amount_paid: a.montantPaye || 0
-      };
-    },
-    mapFrom: r => {
-      // Sépare l'explication du champ offense si présente (séparateur " ◆ ")
-      const rawOffense = r.offense || '';
-      let infraction = rawOffense;
-      let explication = '';
-      const sepIdx = rawOffense.indexOf(' ◆ ');
-      if (sepIdx !== -1) {
-        infraction = rawOffense.substring(0, sepIdx);
-        explication = rawOffense.substring(sepIdx + 3);
-      }
-      // Décoder grade + multiplicateur depuis recidivism
-      let gradeContrevenant = null;
-      let multiplicateur = null;
-      let recidive = r.recidivism || 'x1';
-      if (recidive && recidive.indexOf('grade=') === 0) {
-        const m = recidive.match(/grade=(x\d)\|mult=(\d+)/);
-        if (m) {
-          gradeContrevenant = m[1];
-          multiplicateur = parseInt(m[2]);
-          recidive = multiplicateur === 1 ? 'x1' : multiplicateur === 2 ? 'x2' : 'x3';
-        }
-      }
-      return {
-        fullname: r.fullname, infraction: infraction, explication: explication,
-        infractions: r.offenses,
-        palier: r.tier, montant: r.amount, recidive: recidive,
-        gradeContrevenant: gradeContrevenant, multiplicateur: multiplicateur,
-        agent: r.agent, date: r.date, statut: r.status,
-        datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
-        recupere: r.is_collected, recupereLe: r.collected_at,
-        recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
-        paiements: r.payments || [],
-        montantPaye: r.amount_paid || 0,
-        id: r.id, _id: r.id
-      };
-    }
+    mapTo: a => ({
+      fullname: a.fullname, offense: a.infraction || null,
+      offenses: a.infractions || null, tier: a.palier || null,
+      amount: a.montant || 0, recidivism: a.recidive || 'x1',
+      agent: a.agent || null, date: a.date || null,
+      status: a.statut || 'impaye', payment_date: a.datePaiement || null,
+      collecting_agent: a.agentEncaisseur || null,
+      is_collected: !!a.recupere, collected_at: a.recupereLe || null,
+      collected_by_direction: a.recupereParDirection || null,
+      recovery_id: a.recupId || null,
+      payments: a.paiements || [],
+      amount_paid: a.montantPaye || 0
+    }),
+    mapFrom: r => ({
+      fullname: r.fullname, infraction: r.offense, infractions: r.offenses,
+      palier: r.tier, montant: r.amount, recidive: r.recidivism,
+      agent: r.agent, date: r.date, statut: r.status,
+      datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
+      recupere: r.is_collected, recupereLe: r.collected_at,
+      recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
+      paiements: r.payments || [],
+      montantPaye: r.amount_paid || 0,
+      id: r.id, _id: r.id
+    })
   },
   cellules: {
     table: 'cells',
@@ -3963,66 +3791,6 @@ const SUPABASE_TABLES = {
       client: r.client, affaire: r.case_type, details: r.details,
       honoraires: r.fees, statut: r.status, avocat: r.lawyer,
       date: r.date, datePaiement: r.payment_date, _id: r.id, id: r.id
-    })
-  },
-  // === COMPTABILITÉ ===
-  tresorTransactions: {
-    table: 'treasury_transactions',
-    mapTo: t => ({
-      type: t.type || 'entree', amount: t.montant || 0,
-      reason: t.motif || null, agent: t.agent || null,
-      date: t.date || null
-    }),
-    mapFrom: r => ({
-      type: r.type, montant: r.amount, motif: r.reason,
-      agent: r.agent, date: r.date,
-      id: r.id, _id: r.id
-    })
-  },
-  ressources: {
-    table: 'resources',
-    mapTo: r => ({
-      name: r.nom, quantity: r.quantite || 0,
-      price: r.prix || 0, category: r.categorie || 'autre',
-      added_by: r.ajoutePar || null, date: r.date || null
-    }),
-    mapFrom: r => ({
-      nom: r.name, quantite: r.quantity, prix: r.price,
-      categorie: r.category, ajoutePar: r.added_by, date: r.date,
-      id: r.id, _id: r.id
-    })
-  },
-  marchands: {
-    table: 'merchants',
-    mapTo: m => ({
-      name: m.nom, category: m.categorie || 'autre',
-      notes: m.notes || null, added_by: m.ajoutePar || null,
-      date: m.date || null
-    }),
-    mapFrom: r => ({
-      nom: r.name, categorie: r.category, notes: r.notes,
-      ajoutePar: r.added_by, date: r.date,
-      id: r.id, _id: r.id
-    })
-  },
-  notificationsMarchands: {
-    table: 'merchant_notifications',
-    mapTo: n => ({
-      merchant: n.marchand, resource: n.ressource,
-      quantity: n.qty || 0, price: n.prix || 0,
-      total: n.total || 0, message: n.message || null,
-      status: n.statut || 'envoyee', agent: n.agent || null,
-      date: n.date || null,
-      accepted_at: n.dateAcceptee || null,
-      refused_at: n.dateRefusee || null
-    }),
-    mapFrom: r => ({
-      marchand: r.merchant, ressource: r.resource,
-      qty: r.quantity, prix: r.price, total: r.total,
-      message: r.message, statut: r.status, agent: r.agent,
-      date: r.date,
-      dateAcceptee: r.accepted_at, dateRefusee: r.refused_at,
-      id: r.id, _id: r.id
     })
   }
 };
@@ -4488,16 +4256,16 @@ setTimeout(function() {
 // ============================================================
 // CONSTANTES & ÉTAT
 // ============================================================
-const GRADES = ['Hokage', 'Staff', 'Directeur', 'Directeur Adjoint', 'Lieutenant', 'Sergent', 'Officier', 'Recrue'];
+const GRADES = ['Hokage', 'Staff', 'Directeur', 'Directeur Adjoint', 'Capitaine', 'Lieutenant', 'Sergent', 'Officier', 'Recrue'];
 const GRADE_RANK = {
   'Hokage': -2, 'Staff': -1,
-  'Directeur': 0, 'Directeur Adjoint': 1, 'Lieutenant': 2,
-  'Sergent': 3, 'Officier': 4, 'Recrue': 5, 'Citoyen': 9
+  'Directeur': 0, 'Directeur Adjoint': 1, 'Capitaine': 2, 'Lieutenant': 3,
+  'Sergent': 4, 'Officier': 5, 'Recrue': 6, 'Citoyen': 9
 };
 const GRADE_CLASS = {
   'Hokage': 'gp-hokage', 'Staff': 'gp-staff',
   'Directeur': 'gp-s', 'Directeur Adjoint': 'gp-s',
-  'Lieutenant': 'gp-a', 'Sergent': 'gp-b', 'Officier': 'gp-c', 'Recrue': 'gp-d',
+  'Capitaine': 'gp-a', 'Lieutenant': 'gp-a', 'Sergent': 'gp-b', 'Officier': 'gp-c', 'Recrue': 'gp-d',
   'Citoyen': 'gp-d',
   // Juges (bleu, du plus haut au plus bas)
   'Premier Président': 'gp-j1', 'Premier President': 'gp-j1',
@@ -4564,14 +4332,6 @@ const GRADE_RANK_RENSEIGNEMENT = {
   'Recrue': 5
 };
 
-const GRADE_RANK_COMPTABILITE = {
-  'Hokage': 0,
-  'Directeur': 1,
-  'Directeur Adjoint': 2,
-  'Comptable': 3,
-  'Stagiaire': 4
-};
-
 // Helper pour obtenir le rank selon le service
 function gradeRankForService(service, grade) {
   if (service === 'juge') return GRADE_RANK_JUGE[grade] !== undefined ? GRADE_RANK_JUGE[grade] : 99;
@@ -4579,7 +4339,6 @@ function gradeRankForService(service, grade) {
   if (service === 'mission') return GRADE_RANK_MISSION[grade] !== undefined ? GRADE_RANK_MISSION[grade] : 99;
   if (service === 'diplomatie') return GRADE_RANK_DIPLOMATIE[grade] !== undefined ? GRADE_RANK_DIPLOMATIE[grade] : 99;
   if (service === 'renseignement') return GRADE_RANK_RENSEIGNEMENT[grade] !== undefined ? GRADE_RANK_RENSEIGNEMENT[grade] : 99;
-  if (service === 'comptabilite') return GRADE_RANK_COMPTABILITE[grade] !== undefined ? GRADE_RANK_COMPTABILITE[grade] : 99;
   return gradeRank(grade); // police par défaut
 }
 
@@ -4681,16 +4440,7 @@ let state = {
   operations: [],
   ninjaRecords: [],
   // Paramètres carte : zone censurée Suna et autres réglages
-  mapSettings: { sunaZone: { left: 30, top: 38, width: 14, height: 12 } },
-  // === COMPTABILITÉ ===
-  // Transactions du trésor du village (entrées et sorties d'argent)
-  tresorTransactions: [],
-  // Stock des ressources du village
-  ressources: [],
-  // Marchands (armuriers, cuisiniers, etc.)
-  marchands: [],
-  // Notifications envoyées aux marchands (propositions de vente)
-  notificationsMarchands: []
+  mapSettings: { sunaZone: { left: 30, top: 38, width: 14, height: 12 } }
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4706,7 +4456,6 @@ const ALL_GRADES_AVOCAT = ['Bâtonnier', 'Maître', 'Avocat Senior', 'Avocat Con
 const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affecteur', 'Agent de Mission'];
 const ALL_GRADES_DIPLOMATIE = ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior', 'Diplomate', 'Émissaire', 'Apprenti Diplomate'];
 const ALL_GRADES_RENSEIGNEMENT = ['Maître du Renseignement', 'Commandant', 'Agent Senior', 'Agent', 'Informateur', 'Recrue'];
-const ALL_GRADES_COMPTABILITE = ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable', 'Stagiaire'];
 
 // Helper : compare 2 grades en ignorant accents/casse
 function _gradeMatch(a, b) {
@@ -4728,7 +4477,6 @@ function canAddMemberInSection(user) {
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
-  if (service === 'comptabilite') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   return false;
 }
 
@@ -4742,7 +4490,6 @@ function canSeeSectionLogs(user) {
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
-  if (service === 'comptabilite') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   return false;
 }
 
@@ -4756,7 +4503,6 @@ function canAccessDiscussions(user) {
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant', 'Agent Senior']);
-  if (service === 'comptabilite') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   return false;
 }
 
@@ -4774,7 +4520,6 @@ const INFRACTIONS = {
     { label: 'Ouverture des portes du village sans autorisation', x1: 1600, x2: 2400, x3: 2800 },
     { label: 'Présence sur les toits sans autorisation', x1: 1600, x2: 2000, x3: 2400 },
     { label: 'Mensonge à un agent de police', x1: 600, x2: 1600, x3: 2000 },
-    { label: 'Être en état d\'ivresse dans les rues de Konoha', x1: 1500, x2: 2200, x3: 2500 },
     { label: 'Non-respect du protocole de salut envers un gradé', x1: 800, x2: 1200, x3: 1600 },
     { label: 'Retard lors d\'une convocation officielle', x1: 600, x2: 800, x3: 1000 },
     { label: '[Collectif] Prise de parole non autorisée dans les rangs', x1: 500, x2: 500, x3: 500 },
@@ -4794,8 +4539,7 @@ const INFRACTIONS = {
     { label: 'Accès à la cour intérieure du palais sans autorisation', x1: 1600, x2: 2000, x3: 2400 },
     { label: 'Incitation à commettre une infraction', x1: 2400, x2: 3000, x3: 3500 },
     { label: 'Consommation ou détention de drogues', x1: 2400, x2: 2800, x3: 3200 },
-    { label: 'Impôts impayés (x3 si cumul)', x1: 2400, x2: 2800, x3: 3200 },
-    { label: 'Être en état d\'ivresse en service en tant que ninja (+ suspension)', x1: 5000, x2: 5000, x3: 5000 }
+    { label: 'Impôts impayés (x3 si cumul)', x1: 2400, x2: 2800, x3: 3200 }
   ],
   palier3: [
     { label: 'Menace majeure', x1: 5000, x2: 6000, x3: 7000 },
@@ -4871,13 +4615,13 @@ function getInitialsFromFullname(fullname) {
   return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
 }
 function gradeRank(g) { return GRADE_RANK[g] === undefined ? 99 : GRADE_RANK[g]; }
-function canTreatCandid(g) { return gradeRank(g) <= 4; } // Officier et plus
-function canDeleteCandid(g) { return gradeRank(g) <= 3; } // Sergent et plus (Sgt + Lt + Adj + Dir)
-function canManageMembers(g) { return gradeRank(g) <= 2; } // Lieutenant et plus
+function canTreatCandid(g) { return gradeRank(g) <= 5; } // Officier et plus
+function canDeleteCandid(g) { return gradeRank(g) <= 4; } // Sergent et plus (Sgt + Lt + Cap + Adj + Dir)
+function canManageMembers(g) { return gradeRank(g) <= 3; } // Lieutenant et plus (Lt + Cap + Adj + Dir)
 function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint + Hokage + Staff
-// Récupération des impôts/amendes : Lieutenant + Adjoint + Directeur + Hokage + Staff
-function canRecupererImpots(g) { return gradeRank(g) <= 2; }
-function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT
+// Récupération des impôts/amendes : Lieutenant + Capitaine + Adjoint + Directeur + Hokage + Staff
+function canRecupererImpots(g) { return gradeRank(g) <= 3; }
+function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT (le Capitaine NE VOIT PAS les logs)
 
 // === RÔLES SPÉCIAUX HOKAGE & STAFF ===
 function isSpecialRole(grade) {
@@ -4889,7 +4633,7 @@ function canManageSpecialRoles(user) {
   return (user.service || 'police') === 'police' && user.grade === 'Directeur';
 }
 function canResetImpots(g) { return gradeRank(g) <= 1; } // Dir + Adjoint
-function canTreatPlaintes(g) { return gradeRank(g) <= 4; } // Officier et plus
+function canTreatPlaintes(g) { return gradeRank(g) <= 5; } // Officier et plus
 // Permissions casier — par section + grade
 function canCreateCasier(user) {
   if (!user) return false;
@@ -4897,7 +4641,7 @@ function canCreateCasier(user) {
   if (service === 'avocat') return false; // Avocat NE PEUT JAMAIS créer
   if (service === 'juge') return true; // Tous les juges peuvent créer
   // Police : Officier et plus peuvent créer
-  return gradeRank(user.grade) <= 4;
+  return gradeRank(user.grade) <= 5;
 }
 function canViewCasier(user) {
   if (!user) return false;
@@ -5186,18 +4930,12 @@ function updateStats() {
   const agentsEl = document.getElementById('stat-agents');
   const jugesEl = document.getElementById('stat-juges');
   const avocatsEl = document.getElementById('stat-avocats');
-  const missionEl = document.getElementById('stat-mission');
-  const diplomatieEl = document.getElementById('stat-diplomatie');
-  const renseignementEl = document.getElementById('stat-renseignement');
-  const comptabiliteEl = document.getElementById('stat-comptabilite');
+  const candidEl = document.getElementById('stat-candid');
   // Exclure les comptes Hokage/Staff des compteurs publics (discrétion)
   if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent && (u.service||'police') === 'police' && !isSpecialRole(u.grade)).length;
   if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge' && !isSpecialRole(u.grade)).length;
   if (avocatsEl) avocatsEl.textContent = state.users.filter(u => u.isAgent && u.service === 'avocat' && !isSpecialRole(u.grade)).length;
-  if (missionEl) missionEl.textContent = state.users.filter(u => u.isAgent && u.service === 'mission' && !isSpecialRole(u.grade)).length;
-  if (diplomatieEl) diplomatieEl.textContent = state.users.filter(u => u.isAgent && u.service === 'diplomatie' && !isSpecialRole(u.grade)).length;
-  if (renseignementEl) renseignementEl.textContent = state.users.filter(u => u.isAgent && u.service === 'renseignement' && !isSpecialRole(u.grade)).length;
-  if (comptabiliteEl) comptabiliteEl.textContent = state.users.filter(u => u.isAgent && u.service === 'comptabilite' && !isSpecialRole(u.grade)).length;
+  if (candidEl) candidEl.textContent = state.candidatures.filter(c => c.status === 'ok').length;
   // Mettre à jour la section Recherchés sur la page d'accueil
   if (typeof renderWantedPublic === 'function') {
     try { renderWantedPublic(); } catch(e) {}
@@ -5817,12 +5555,6 @@ function renderDashboard(tab) {
       avatarEl.style.color = '#cbd5e1';
       avatarEl.style.border = '2px solid rgba(148,163,184,0.6)';
       avatarEl.style.boxShadow = '0 0 12px rgba(100,116,139,0.4)';
-    } else if (myService === 'comptabilite') {
-      // Vert pour Comptabilité
-      avatarEl.style.background = 'linear-gradient(135deg,#22c55e,#15803d)';
-      avatarEl.style.color = '#fff';
-      avatarEl.style.border = '2px solid rgba(34,197,94,0.5)';
-      avatarEl.style.boxShadow = '0 0 12px rgba(34,197,94,0.3)';
     } else {
       // Police = couleur dorée par défaut (laissé tel quel par CSS)
       avatarEl.style.boxShadow = '';
@@ -5842,10 +5574,6 @@ function renderDashboard(tab) {
     pill.style.background = 'rgba(100,116,139,0.2)';
     pill.style.color = '#cbd5e1';
     pill.style.border = '1px solid rgba(148,163,184,0.5)';
-  } else if (myService === 'comptabilite') {
-    pill.style.background = 'rgba(34,197,94,0.15)';
-    pill.style.color = '#86efac';
-    pill.style.border = '1px solid rgba(34,197,94,0.4)';
   } else {
     // Reset pour permettre au CSS de prendre la main
     pill.style.background = '';
@@ -5874,9 +5602,6 @@ function renderDashboard(tab) {
   } else if (myService === 'renseignement') {
     if (titleEl) titleEl.textContent = 'Bureau du Renseignement — Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Service Secret';
-  } else if (myService === 'comptabilite') {
-    if (titleEl) titleEl.textContent = 'Bureau de la Comptabilité — Konoha';
-    if (subEl) subEl.textContent = 'Tableau de bord — Trésor & Ressources';
   }
 
   document.querySelectorAll('.dash-nav-btn').forEach(btn => {
@@ -5921,9 +5646,6 @@ function switchDashTab(name, btn) {
   if (name === 'operations') renderOperations();
   if (name === 'recensement') renderRecensementNinjas();
   if (name === 'dossiers') renderDossiersAvocat();
-  if (name === 'tresor') renderTresor();
-  if (name === 'ressources') renderRessources();
-  if (name === 'marchands') renderMarchands();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
 }
@@ -6391,8 +6113,6 @@ function renderMembres() {
     canManage = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   } else if (myService === 'renseignement') {
     canManage = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
-  } else if (myService === 'comptabilite') {
-    canManage = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   }
 
   // Récupérer les citoyens depuis 3 sources :
@@ -6773,27 +6493,6 @@ function renderAmendes() {
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">💰 Émettre une amende</h3>
       <div class="form-group"><label>Nom et Prénom du contrevenant</label><input type="text" id="am-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
 
-      <!-- Sélecteur de casier judiciaire (optionnel) -->
-      <div class="form-group">
-        <label>📁 Importer dans un casier judiciaire <span style="color:var(--muted);font-size:11px;font-weight:400">(facultatif — l'amende sera ajoutée à ce dossier)</span></label>
-        <select id="am-casier-select" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
-          <option value="">— Aucun casier (amende simple) —</option>
-          ${(() => {
-            // Construire la liste unique des dossiers (par personne)
-            const dossiers = {};
-            (state.casiers || []).forEach(c => {
-              const key = normalize(c.fullname);
-              if (!dossiers[key]) dossiers[key] = c.fullname;
-            });
-            return Object.entries(dossiers)
-              .sort((a, b) => a[1].localeCompare(b[1]))
-              .map(([key, fullname]) => `<option value="${escapeHtml(fullname)}">N° ${getCasierNumero(fullname)} — ${escapeHtml(fullname)}</option>`)
-              .join('');
-          })()}
-        </select>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Si la personne n'a pas encore de casier, créez-en un d'abord dans la section Casier Judiciaire.</div>
-      </div>
-
       <!-- Sélection multi-infractions -->
       <div class="form-group">
         <label>Infractions <span style="color:var(--muted);font-size:11px;font-weight:400">(sélection multiple)</span></label>
@@ -6823,34 +6522,18 @@ function renderAmendes() {
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:0">
-        <div class="form-group" style="margin:0">
-          <label>🥷 Grade du contrevenant</label>
-          <select id="am-grade" onchange="updateAmendeMontant()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
-            <option value="x1">🟢 Genin / Tokubetsu Chunin</option>
-            <option value="x2" selected>🟡 Chunin / Kakunin</option>
-            <option value="x3">🔴 Tokubetsu Jonin / Jonin</option>
-          </select>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Le montant change selon le grade du contrevenant (cf. code pénal)</div>
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>⚠ Récidive</label>
-          <select id="am-mult" onchange="updateAmendeMontant()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px">
-            <option value="1">×1 — Première fois</option>
-            <option value="2">×2 — Récidive</option>
-            <option value="3">×3 — Récidive multiple</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label>Multiplicateur (récidive)</label>
+        <select id="am-mult" onchange="updateAmendeMontant()">
+          <option value="x1">×1 — Première fois</option>
+          <option value="x2">×2 — Récidive</option>
+          <option value="x3">×3 — Récidive multiple</option>
+        </select>
       </div>
 
       <div id="am-montant-preview" style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem;text-align:center;display:none">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Montant total</div>
         <div style="font-size:26px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif" id="am-montant-display">0 Ryos</div>
-      </div>
-
-      <div class="form-group">
-        <label>Explication / Précisions <span style="color:var(--muted);font-size:11px;font-weight:400">(facultatif — contexte des faits)</span></label>
-        <textarea id="am-explication" rows="3" placeholder="Ex: Surpris en train de faire du graffiti sur le mur du temple à 23h. Refus de présenter ses papiers à 2 reprises avant de coopérer." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;resize:vertical;line-height:1.5"></textarea>
       </div>
 
       <button class="btn-primary btn-full" onclick="emettreAmende()">💰 Émettre l'amende</button>
@@ -6973,30 +6656,22 @@ function renderInfractionsAmendeChips() {
 }
 
 function updateAmendeMontant() {
-  const gradeEl = document.getElementById('am-grade');
   const multEl = document.getElementById('am-mult');
-  if (!gradeEl || !multEl) return;
-  const grade = gradeEl.value; // 'x1', 'x2', 'x3' (correspond à la colonne du tableau)
-  const mult = parseInt(multEl.value) || 1; // 1, 2, 3 (récidive)
+  if (!multEl) return;
+  const mult = multEl.value;
   if (amInfractionsSelectionnees.length === 0) {
     document.getElementById('am-montant-preview').style.display = 'none';
     return;
   }
-  // Somme des montants de base selon le grade, puis multiplication par la récidive
-  const totalBase = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[grade] || 0), 0);
-  const total = totalBase * mult;
+  // Somme des montants de toutes les infractions sélectionnées
+  const total = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[mult] || 0), 0);
   document.getElementById('am-montant-preview').style.display = 'block';
-  let display = total.toLocaleString() + ' Ryos';
-  if (mult > 1) {
-    display = totalBase.toLocaleString() + ' × ' + mult + ' = ' + total.toLocaleString() + ' Ryos';
-  }
-  document.getElementById('am-montant-display').textContent = display;
+  document.getElementById('am-montant-display').textContent = total.toLocaleString() + ' Ryos';
 }
 
 async function emettreAmende() {
   let fullname = document.getElementById('am-fullname').value.trim();
-  const grade = document.getElementById('am-grade').value;
-  const mult = parseInt(document.getElementById('am-mult').value) || 1;
+  const mult = document.getElementById('am-mult').value;
   if (!fullname) { alert('Nom du contrevenant manquant'); return; }
   if (amInfractionsSelectionnees.length === 0) { alert('Sélectionnez au moins une infraction'); return; }
 
@@ -7007,8 +6682,7 @@ async function emettreAmende() {
     return;
   }
 
-  const totalBase = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[grade] || 0), 0);
-  const total = totalBase * mult;
+  const total = amInfractionsSelectionnees.reduce((s, inf) => s + (inf[mult] || 0), 0);
 
   // Réutiliser graphie existante (anti-doublon dossier)
   const existante = state.amendes.find(a => matchFullname(a.fullname, fullname));
@@ -7037,12 +6711,9 @@ async function emettreAmende() {
     fullname: fullname,
     infraction: infractionStr,
     infractions: amInfractionsSelectionnees.slice(),
-    explication: (document.getElementById('am-explication')?.value || '').trim(),
     palier: palierMax,
     montant: total,
-    gradeContrevenant: grade, // 'x1', 'x2', 'x3' (grade ninja qui détermine le tarif)
-    recidive: mult === 1 ? 'x1' : mult === 2 ? 'x2' : 'x3', // compatibilité avec l'ancien format
-    multiplicateur: mult, // valeur numérique 1/2/3
+    recidive: mult,
     agent: state.currentUser.fullname,
     date: new Date().toLocaleDateString('fr-FR'),
     statut: 'impaye',
@@ -7060,73 +6731,12 @@ async function emettreAmende() {
   state.amendes.push(newAmende);
   saveSession();
 
-  // === IMPORT DANS LE CASIER JUDICIAIRE (si un casier est sélectionné) ===
-  let casierImporte = false;
-  let numeroCasierImporte = '';
-  const casierSelectEl = document.getElementById('am-casier-select');
-  const casierSelectionne = casierSelectEl ? casierSelectEl.value.trim() : '';
-
-  if (casierSelectionne) {
-    // Trouver le grade depuis un casier existant (pour cohérence)
-    const casierExistant = state.casiers.find(c => matchFullname(c.fullname, casierSelectionne));
-    const gradeCasier = casierExistant ? (casierExistant.grade || '—') : '—';
-    numeroCasierImporte = getCasierNumero(casierSelectionne);
-
-    // Construire les "faits" à partir des infos de l'amende
-    const explicationAmende = (document.getElementById('am-explication')?.value || '').trim();
-    const faitsAuto = '🔗 Importé depuis l\'amende du ' + newAmende.date + ' (' + total.toLocaleString() + ' Ryos)\n'
-      + 'Infraction(s) : ' + infractionStr
-      + (explicationAmende ? '\n\nContexte : ' + explicationAmende : '');
-
-    // Sanction par défaut selon palier
-    const sanctionAuto = palierMax === 'palier3' ? 'Sanction sévère à déterminer'
-                       : palierMax === 'palier2' ? 'Sanction modérée à déterminer'
-                       : 'Avertissement / amende';
-
-    const casierUid = 'cas_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    const newCasier = {
-      fullname: casierSelectionne,
-      grade: gradeCasier,
-      palier: palierMax,
-      infraction: infractionStr,
-      infractions: amInfractionsSelectionnees.slice(),
-      faits: faitsAuto,
-      sanction: sanctionAuto,
-      agent: state.currentUser.fullname,
-      date: newAmende.date,
-      statutJustice: 'en_cours',
-      recidive: !!casierExistant, // récidive si la personne a déjà un casier
-      id: Date.now() + 1, // +1 pour éviter collision avec l'ID de l'amende
-      casierUid: casierUid
-    };
-
-    // Push vers Supabase
-    if (supabaseReady) {
-      try {
-        const inserted = await pushToSupabase('casiers', newCasier);
-        if (inserted && inserted._id) newCasier._id = inserted._id;
-      } catch(e) { console.warn('⚠️ Import casier échoué:', e); }
-    }
-
-    state.casiers.push(newCasier);
-    saveSession();
-    casierImporte = true;
-  }
-
   // Reset
   const nbInfractionsEmises = amInfractionsSelectionnees.length;
   amInfractionsSelectionnees = [];
   document.getElementById('am-fullname').value = '';
-  const explEl = document.getElementById('am-explication');
-  if (explEl) explEl.value = '';
-  if (casierSelectEl) casierSelectEl.value = '';
   document.getElementById('am-montant-preview').style.display = 'none';
-
-  let msg = '✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))';
-  if (casierImporte) {
-    msg += '\n\n📁 Fiche ajoutée au casier judiciaire N° ' + numeroCasierImporte + ' (' + casierSelectionne + ')';
-  }
-  alert(msg);
+  alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))');
   renderAmendes();
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
@@ -7250,20 +6860,10 @@ function refreshAmendesList() {
                         }).join('')}
                       </div>` : ''}
                     <div style="font-size:10px;color:var(--muted);margin-top:4px">
-                      ${a.date} · émis par ${a.agent}
-                      ${a.gradeContrevenant ? ' · 🥷 ' + (a.gradeContrevenant === 'x1' ? 'Genin/Toku Chunin' : a.gradeContrevenant === 'x2' ? 'Chunin/Kakunin' : 'Toku Jonin/Jonin') : ''}
-                      · ${(() => {
-                        const m = a.multiplicateur || (a.recidive === 'x2' ? 2 : a.recidive === 'x3' ? 3 : 1);
-                        return m === 1 ? '1ère fois' : m === 2 ? '⚠ récidive ×2' : '⚠ récidive multiple ×' + m;
-                      })()}
+                      ${a.date} · émis par ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
                       ${a.agentEncaisseur && isPaye ? ' · <span style="color:var(--green)">💰 Finalisée par '+a.agentEncaisseur+'</span>' : ''}
                       ${a.recupere ? ' · <span style="color:var(--lgold)">📦 Récupéré le '+a.recupereLe+'</span>' : ''}
                     </div>
-                    ${a.explication ? `
-                      <div style="margin-top:6px;padding:8px 10px;background:rgba(232,197,71,0.06);border-left:3px solid rgba(232,197,71,0.5);border-radius:3px;font-size:11px;color:var(--text);font-style:italic;line-height:1.5">
-                        <span style="color:var(--lgold);font-weight:700;font-style:normal">📝 Explication :</span> ${escapeHtml(a.explication)}
-                      </div>
-                    ` : ''}
                   </div>
                   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                     <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${cBg};color:${cColor};border:1px solid ${cBorder}">${lbl}</span>
@@ -8479,7 +8079,7 @@ async function ajouterImpot() {
   const g = document.getElementById('imp-grade').value;
   if (!fullname) { alert('Nom requis'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (ex: Naruto Uzumaki)'); return; }
-  if (state.impots.some(i => matchFullnameStrict(i.fullname, fullname))) { alert('Ce ninja est déjà dans le registre (nom et prénom identiques). Pour ajouter un homonyme, modifiez légèrement l\'orthographe ou l\'ordre.'); return; }
+  if (state.impots.some(i => matchFullname(i.fullname, fullname))) { alert('Ce ninja est déjà dans le registre'); return; }
 
   const newImpot = { fullname: fullname, grade: g, statut: 'non', collecteur: '' };
 
@@ -8504,25 +8104,62 @@ async function toggleImpot(idx, newStatut) {
   const i = state.impots[idx];
   if (!i) return;
   const u = state.currentUser;
-
-  // Sauvegarder les infos AVANT modif (au cas où Realtime écrase pendant les await)
-  const fullnameRef = i.fullname;
+  // Conserver l'_id avant toute modif (peut être perdu si Realtime se déclenche)
   const itemId = i._id;
-  const oldStatut = i.statut;
-  const oldCollecteur = i.collecteur;
-  const newCollecteur = newStatut === 'paye' && u ? (i.collecteur || u.fullname) : '';
 
-  // === ÉTAPE 1 : PUSH SUPABASE EN PREMIER (avant toute modif locale) ===
-  // Comme ça, même si Realtime arrive entre-temps, le serveur a déjà la bonne valeur.
+  i.statut = newStatut;
+
+  if (newStatut === 'non') {
+    // Si on passe en non payé, retirer l'historique de l'ancien collecteur
+    const oldCollecteur = i.collecteur;
+    if (oldCollecteur) {
+      const oldEntries = state.impotsHistorique.filter(h => matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur);
+      for (const old of oldEntries) {
+        if (old._id && supabaseReady) {
+          try { await deleteFromSupabase('impotsHistorique', old._id); } catch(e) {}
+        }
+      }
+      state.impotsHistorique = state.impotsHistorique.filter(h => !(matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur));
+      if (state.collectesEnCours[oldCollecteur]) {
+        state.collectesEnCours[oldCollecteur] = state.collectesEnCours[oldCollecteur].filter(c => !matchFullname(c.payeur, i.fullname));
+      }
+    }
+    i.collecteur = '';
+  } else if (newStatut === 'paye' && u) {
+    if (!i.collecteur) i.collecteur = u.fullname;
+    const collecteur = i.collecteur;
+    const montant = IMPOTS_MONTANTS[i.grade] || 0;
+    const date = new Date().toLocaleDateString('fr-FR');
+    const histExists = state.impotsHistorique.some(h => matchFullname(h.payeur, i.fullname) && h.agent === collecteur);
+    if (!histExists) {
+      const histEntry = {
+        payeur: i.fullname, grade: i.grade, montant: montant, agent: collecteur, date: date
+      };
+      if (supabaseReady) {
+        try {
+          const inserted = await pushToSupabase('impotsHistorique', histEntry);
+          if (inserted && inserted._id) histEntry._id = inserted._id;
+        } catch(e) {}
+      }
+      state.impotsHistorique.push(histEntry);
+    }
+    if (!state.collectesEnCours[collecteur]) state.collectesEnCours[collecteur] = [];
+    if (!state.collectesEnCours[collecteur].some(c => matchFullname(c.payeur, i.fullname))) {
+      state.collectesEnCours[collecteur].push({
+        payeur: i.fullname, grade: i.grade, montant: montant, date: date
+      });
+    }
+  }
+
+  // === PUSH DIRECT VERS SUPABASE — méthode robuste ===
   if (supabaseReady) {
     const newRow = {
       status: newStatut === 'paye' ? 'paid' : 'unpaid',
-      collector: newCollecteur || null,
+      collector: i.collecteur || null,
       grade: i.grade || null
     };
 
     let pushOk = false;
-    let serverItemId = itemId;
 
     // Méthode 1 : update par _id si on l'a
     if (itemId) {
@@ -8533,73 +8170,23 @@ async function toggleImpot(idx, newStatut) {
       } catch(e) { console.warn('⚠️ toggleImpot exception:', e); }
     }
 
-    // Méthode 2 (fallback) : update par fullname
-    if (!pushOk && fullnameRef) {
+    // Méthode 2 : update par fullname si pas d'_id ou échec
+    if (!pushOk && i.fullname) {
       try {
-        const { data, error } = await sb.from('taxes').update(newRow).eq('fullname', fullnameRef).select();
+        const { data, error } = await sb.from('taxes').update(newRow).eq('fullname', i.fullname).select();
         if (!error) {
           pushOk = true;
-          if (data && data[0] && data[0].id) serverItemId = data[0].id;
+          // Capturer l'_id pour les fois suivantes
+          if (data && data[0] && data[0].id) i._id = data[0].id;
         } else {
           console.warn('⚠️ toggleImpot update fullname échoué:', error.message);
         }
       } catch(e) { console.warn('⚠️ toggleImpot fallback exception:', e); }
     }
 
+    // Si rien n'a marché, alerter l'utilisateur
     if (!pushOk) {
-      alert('⚠️ La mise à jour n\'a pas pu être sauvegardée sur le serveur.\n\nLe statut n\'a pas été modifié.\nRéessayez dans quelques secondes.');
-      return; // ON ARRÊTE — pas de modif locale si le serveur a échoué
-    }
-  }
-
-  // === ÉTAPE 2 : Modification locale (seulement après confirmation serveur) ===
-  // On retrouve l'item dans le state actuel (Realtime peut avoir rechargé entre-temps)
-  const currentIdx = state.impots.findIndex(x => x.fullname === fullnameRef);
-  if (currentIdx === -1) {
-    // L'item a disparu du state local, on recharge l'UI et on s'arrête
-    renderImpots();
-    return;
-  }
-  const current = state.impots[currentIdx];
-  current.statut = newStatut;
-
-  if (newStatut === 'non') {
-    // Si on passe en non payé, retirer l'historique de l'ancien collecteur
-    if (oldCollecteur) {
-      const oldEntries = state.impotsHistorique.filter(h => matchFullname(h.payeur, fullnameRef) && h.agent === oldCollecteur);
-      for (const old of oldEntries) {
-        if (old._id && supabaseReady) {
-          try { await deleteFromSupabase('impotsHistorique', old._id); } catch(e) {}
-        }
-      }
-      state.impotsHistorique = state.impotsHistorique.filter(h => !(matchFullname(h.payeur, fullnameRef) && h.agent === oldCollecteur));
-      if (state.collectesEnCours[oldCollecteur]) {
-        state.collectesEnCours[oldCollecteur] = state.collectesEnCours[oldCollecteur].filter(c => !matchFullname(c.payeur, fullnameRef));
-      }
-    }
-    current.collecteur = '';
-  } else if (newStatut === 'paye' && u) {
-    current.collecteur = newCollecteur;
-    const montant = IMPOTS_MONTANTS[current.grade] || 0;
-    const date = new Date().toLocaleDateString('fr-FR');
-    const histExists = state.impotsHistorique.some(h => matchFullname(h.payeur, fullnameRef) && h.agent === newCollecteur);
-    if (!histExists) {
-      const histEntry = {
-        payeur: fullnameRef, grade: current.grade, montant: montant, agent: newCollecteur, date: date
-      };
-      if (supabaseReady) {
-        try {
-          const inserted = await pushToSupabase('impotsHistorique', histEntry);
-          if (inserted && inserted._id) histEntry._id = inserted._id;
-        } catch(e) {}
-      }
-      state.impotsHistorique.push(histEntry);
-    }
-    if (!state.collectesEnCours[newCollecteur]) state.collectesEnCours[newCollecteur] = [];
-    if (!state.collectesEnCours[newCollecteur].some(c => matchFullname(c.payeur, fullnameRef))) {
-      state.collectesEnCours[newCollecteur].push({
-        payeur: fullnameRef, grade: current.grade, montant: montant, date: date
-      });
+      alert('⚠️ La mise à jour n\'a pas pu être sauvegardée sur le serveur partagé.\n\nLes autres agents ne verront peut-être pas le changement. Réessayez dans quelques secondes.');
     }
   }
 
@@ -8757,8 +8344,6 @@ function setImpotFiltre(btn) {
 function filtrerImpots() {
   const search = document.getElementById('imp-search');
   const q = search ? normalize(search.value) : '';
-  // On découpe la recherche en mots pour gérer l'inversion nom/prénom et la recherche partielle
-  const queryWords = q.split(/\s+/).filter(w => w);
   document.querySelectorAll('.imp-row').forEach(row => {
     const name = row.dataset.name || '';
     const statut = row.dataset.statut || '';
@@ -8768,11 +8353,8 @@ function filtrerImpots() {
     // Filtre statut
     if (impotFiltreActuel === 'paye' && statut !== 'paye') show = false;
     if (impotFiltreActuel === 'non' && (statut === 'paye' || exo)) show = false;
-    // Filtre recherche : tous les mots saisis doivent être présents (peu importe l'ordre)
-    if (queryWords.length > 0) {
-      const allMatch = queryWords.every(w => name.includes(w));
-      if (!allMatch) show = false;
-    }
+    // Filtre recherche
+    if (q && !name.includes(q)) show = false;
 
     row.style.display = show ? '' : 'none';
   });
@@ -8789,7 +8371,6 @@ function renderAjout() {
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
-    if (myService === 'comptabilite') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -8819,11 +8400,6 @@ function renderAjout() {
     gradesDispo = ALL_GRADES_RENSEIGNEMENT;
     titreSection = 'Bureau du Renseignement';
     labelBouton = 'Ajouter l\'agent';
-  } else if (myService === 'comptabilite') {
-    // Pas de Hokage par défaut (réservé au Directeur Police)
-    gradesDispo = ALL_GRADES_COMPTABILITE.filter(g => g !== 'Hokage');
-    titreSection = 'Bureau de la Comptabilité';
-    labelBouton = 'Ajouter le comptable';
   } else if (myService === 'police') {
     // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
     if (canManageSpecialRoles(u)) {
@@ -9830,21 +9406,6 @@ async function deleteRapport(idx) {
 // ============================================================
 // CASIER JUDICIAIRE
 // ============================================================
-// Génère un numéro de dossier de 6 chiffres unique et stable par personne
-// Basé sur un hash du nom complet normalisé (même nom → toujours même numéro)
-function getCasierNumero(fullname) {
-  if (!fullname) return '000000';
-  const normalized = normalize(fullname);
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
-    hash = hash & hash; // Conversion en 32-bit integer
-  }
-  // Numéro entre 100000 et 9999999 (6 à 7 chiffres)
-  const num = Math.abs(hash) % 9000000 + 1000000;
-  return String(num);
-}
-
 function renderCasier() {
   const u = state.currentUser;
   const el = document.getElementById('casier-content');
@@ -10021,10 +9582,7 @@ function renderCasier() {
             <div style="width:42px;height:42px;border-radius:50%;background:rgba(231,76,60,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--red2)">${getInitialsFromFullname(d.fullname)}</div>
             <div style="flex:1">
               <div style="font-weight:700;color:var(--red2)">${d.fullname}${recidiveBadge}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">
-                <span style="color:var(--lgold);font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.5px">N° ${getCasierNumero(d.fullname)}</span>
-                <span style="margin:0 6px">·</span>${d.grade||'—'} · ${d.fiches.length} infraction(s) au total
-              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${d.grade||'—'} · ${d.fiches.length} infraction(s) au total</div>
             </div>
             ${enCoursBadge}${traitesBadge}
             <span style="color:var(--muted);font-size:11px;margin-left:6px">▼</span>
@@ -11779,7 +11337,6 @@ function renderLogs() {
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
-    if (myService === 'comptabilite') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès strictement restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -11793,22 +11350,14 @@ function renderLogs() {
   const juges = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'juge'));
   const avocats = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'avocat'));
   const missionAgents = state.users.filter(x => x.isAgent && x.service === 'mission');
-  const comptaAgents = state.users.filter(x => x.isAgent && x.service === 'comptabilite');
 
   // Détermine quels onglets afficher selon la section
   const showPolice = (myService === 'police');
   const showJuges = (myService === 'police' || myService === 'juge');
   const showAvocats = (myService === 'police' || myService === 'avocat');
   const showMission = (myService === 'police' || myService === 'mission');
-  const showCompta = (myService === 'police' || myService === 'comptabilite');
-  // ⚠️ Sécurité : la Comptabilité ne voit PAS les mots de passe des civils
-  // (passe par "Membres" pour voir les comptes citoyens sans mot de passe)
-  const showCivils = (myService !== 'comptabilite');
-  const defaultTab = myService === 'police' ? 'agents'
-                   : myService === 'juge' ? 'juges'
-                   : myService === 'mission' ? 'mission'
-                   : myService === 'comptabilite' ? 'compta'
-                   : 'avocats';
+  const showCivils = true; // Toutes les directions peuvent voir les civils
+  const defaultTab = myService === 'police' ? 'agents' : myService === 'juge' ? 'juges' : myService === 'mission' ? 'mission' : 'avocats';
 
   let bandeauColor = 'rgba(231,76,60,0.06)';
   let bandeauBorder = 'rgba(231,76,60,0.2)';
@@ -11823,9 +11372,6 @@ function renderLogs() {
   } else if (myService === 'mission') {
     bandeauColor = 'rgba(20,184,166,0.06)'; bandeauBorder = 'rgba(20,184,166,0.3)'; bandeauTextColor = '#5eead4';
     bandeauMsg = '🎯 <strong>Bureau des Missions — Direction</strong> — Comptes des membres et des civils.';
-  } else if (myService === 'comptabilite') {
-    bandeauColor = 'rgba(34,197,94,0.06)'; bandeauBorder = 'rgba(34,197,94,0.3)'; bandeauTextColor = '#86efac';
-    bandeauMsg = '💰 <strong>Bureau de la Comptabilité — Direction</strong> — Comptes des comptables uniquement. Pour les comptes citoyens, voir l\'onglet <strong>👥 Membres</strong>.';
   }
 
   let html = `
@@ -11851,10 +11397,6 @@ function renderLogs() {
   if (showMission) {
     const isDefault = defaultTab === 'mission';
     html += `<button id="logs-tab-mission" onclick="switchLogsTab('mission')" style="background:${isDefault?'rgba(20,184,166,0.15)':'transparent'};color:${isDefault?'#5eead4':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#5eead4':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🎯 Mission (${missionAgents.length})</button>`;
-  }
-  if (showCompta) {
-    const isDefault = defaultTab === 'compta';
-    html += `<button id="logs-tab-compta" onclick="switchLogsTab('compta')" style="background:${isDefault?'rgba(34,197,94,0.15)':'transparent'};color:${isDefault?'#86efac':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#86efac':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">💰 Comptabilité (${comptaAgents.length})</button>`;
   }
   if (showCivils) {
     html += `<button id="logs-tab-civils" onclick="switchLogsTab('civils')" style="background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🍃 Civils (${civils.length})</button>`;
@@ -12001,41 +11543,8 @@ function renderLogs() {
   }
   html += `</div></div>`; // Ferme section-mission
 
-  // Section Compta (Bureau de la Comptabilité)
-  const sectionComptaDisplay = (showCompta && defaultTab==='compta') ? 'block' : 'none';
-  html += `<div id="logs-section-compta" style="display:${sectionComptaDisplay}">
-      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
-        💰 <strong style="color:#86efac">Bureau de la Comptabilité</strong> — Comptes des comptables et leurs mots de passe.
-      </div>
-      <div class="dash-block">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:1px">💰 Membres du Bureau de la Comptabilité (${comptaAgents.length})</div>`;
-  if (comptaAgents.length === 0) {
-    html += '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-style:italic">Aucun comptable enregistré.</div>';
-  } else {
-    comptaAgents.sort((a,b) => gradeRankForService('comptabilite', a.grade) - gradeRankForService('comptabilite', b.grade)).forEach(a => {
-      html += `
-        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <div>
-              <strong style="color:var(--text);font-size:14px">${escapeHtml(a.fullname)}</strong>
-              <span style="margin-left:6px;font-size:10px;color:#86efac;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);padding:2px 8px;border-radius:10px">${escapeHtml(a.grade||'—')}</span>
-              ${a.matricule ? `<span style="margin-left:6px;font-size:10px;color:var(--muted)">📋 ${escapeHtml(a.matricule)}</span>` : ''}
-            </div>
-            ${a.inscription ? `<span style="font-size:10px;color:var(--muted)">Inscrit le ${escapeHtml(a.inscription)}</span>` : ''}
-          </div>
-          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:8px 12px">
-            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🔑 Mot de passe :</span>
-            <code style="color:#86efac;font-family:monospace;font-size:13px;font-weight:700;flex:1">${escapeHtml(a.password || '(non défini)')}</code>
-            <button class="btn-sm" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-size:10px;padding:4px 8px" onclick="navigator.clipboard.writeText('${(a.password||'').replace(/'/g, "\\'")}').then(()=>alert('✓ Mot de passe copié'))">📋 Copier</button>
-          </div>
-        </div>`;
-    });
-  }
-  html += `</div></div>`; // Ferme section-compta
-
-  // Section Civils (masquée pour la Comptabilité)
-  if (showCivils) {
-    html += `<div id="logs-section-civils" style="display:none">
+  // Section Civils (toujours accessible)
+  html += `<div id="logs-section-civils" style="display:none">
       <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
         ℹ️ <strong style="color:#93c5fd">Comptes citoyens</strong> — Permet de retransmettre un mot de passe en cas d'oubli. Utilisez la barre de recherche pour retrouver rapidement un citoyen.
       </div>
@@ -12076,23 +11585,21 @@ function renderLogs() {
     });
   }
   html += '</div></div>';
-  } // Ferme if (showCivils)
 
   el.innerHTML = html;
 }
 
 // Switch entre les onglets de Logs
 function switchLogsTab(tab) {
-  ['agents','juges','avocats','mission','compta','civils'].forEach(t => {
+  ['agents','juges','avocats','mission','civils'].forEach(t => {
     const btn = document.getElementById('logs-tab-' + t);
     const sec = document.getElementById('logs-section-' + t);
     const isMission = (t === 'mission');
-    const isCompta = (t === 'compta');
     if (btn) {
       if (t === tab) {
-        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : isCompta ? 'rgba(34,197,94,0.15)' : 'rgba(196,154,26,0.15)';
-        btn.style.color = isMission ? '#5eead4' : isCompta ? '#86efac' : 'var(--accent)';
-        btn.style.borderBottomColor = isMission ? '#5eead4' : isCompta ? '#86efac' : 'var(--accent)';
+        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : 'rgba(196,154,26,0.15)';
+        btn.style.color = isMission ? '#5eead4' : 'var(--accent)';
+        btn.style.borderBottomColor = isMission ? '#5eead4' : 'var(--accent)';
       } else {
         btn.style.background = 'transparent';
         btn.style.color = 'var(--muted)';
@@ -12142,7 +11649,7 @@ function togglePwdView(id, btn) {
 }
 
 function generateMatriculeFromGrade(grade) {
-  const prefixes = { 'Directeur':'DIR', 'Directeur Adjoint':'ADJ', 'Lieutenant':'LT', 'Sergent':'SGT', 'Officier':'OFF', 'Recrue':'REC' };
+  const prefixes = { 'Directeur':'DIR', 'Directeur Adjoint':'ADJ', 'Capitaine':'CAP', 'Lieutenant':'LT', 'Sergent':'SGT', 'Officier':'OFF', 'Recrue':'REC' };
   const p = prefixes[grade] || 'AGT';
   const n = Math.floor(1000 + Math.random() * 9000);
   return 'KNH-' + p + '-' + n;
@@ -12423,6 +11930,7 @@ async function deleteDiscussion(idx) {
 const TARIF_HORAIRE = {
   'Directeur': 200,
   'Directeur Adjoint': 150,
+  'Capitaine': 140,
   'Lieutenant': 125,
   'Sergent': 100,
   'Officier': 90,
@@ -12435,7 +11943,12 @@ state.serviceActif = state.serviceActif || {};
 function renderPresences() {
   const u = state.currentUser;
   const el = document.getElementById('presences-content');
-  const isDir = canAddAgent(u.grade); // Directeur + Adjoint
+  // Voir qui est en service : Lieutenant + Capitaine + Direction + Hokage/Staff (rang ≤ 3)
+  const peutVoirEnService = canManageMembers(u.grade);
+  // Gérer les paiements (marquer payé, remettre à zéro) : Direction uniquement (rang ≤ 1)
+  const peutGererPayes = canAddAgent(u.grade);
+  // isDir conservé pour compatibilité avec le reste du code
+  const isDir = peutVoirEnService;
 
   // ⛔ Plus de coupure automatique — l'agent gère son service lui-même
 
@@ -12537,9 +12050,7 @@ function renderPresences() {
     <div class="dash-block" style="margin-bottom:1.25rem">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">📋 Mes services récents</div>`;
 
-  const myHistory = (state.presences || [])
-    .filter(p => p.fullname === u.fullname && p.statut !== 'paye')
-    .slice().reverse().slice(0, 10);
+  const myHistory = (state.presences || []).filter(p => p.fullname === u.fullname).slice().reverse().slice(0, 10);
   if (myHistory.length === 0) {
     html += '<div style="padding:1.5rem;text-align:center;color:var(--muted)">Aucun service enregistré.</div>';
   } else {
@@ -12611,6 +12122,15 @@ function renderPresences() {
       });
     }
     html += '</div>';
+
+    // ===== FICHES DE PAYE — DIRECTION UNIQUEMENT =====
+    // (Lieutenant et Capitaine peuvent voir qui est en service ci-dessus,
+    // mais seule la Direction peut marquer payé / remettre à zéro)
+    if (!peutGererPayes) {
+      html += '<div style="background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.25);border-radius:8px;padding:14px 18px;margin-top:1rem;color:var(--text);font-size:12px;text-align:center">🔒 La gestion des fiches de paye (marquer payé, remettre à zéro) est réservée au Directeur et au Directeur Adjoint.</div>';
+      el.innerHTML = html;
+      return;
+    }
 
     // Fiches de paye par agent
     const ficheParAgent = {};
@@ -12841,32 +12361,6 @@ async function enregistrerService(fullname, service, fin, options) {
       statut: 'a_payer'
     };
 
-    // === ANTI-DOUBLON SERVEUR ===
-    // Avant d'insérer, on vérifie sur Supabase qu'aucune presence identique n'existe.
-    // C'est crucial pour la coupure auto à 02h : tous les navigateurs ouverts
-    // déclenchent la coupure en même temps, le state.presences local n'est pas
-    // forcément à jour, donc seul Supabase peut nous dire si une autre instance
-    // a déjà inséré la ligne.
-    if (supabaseReady) {
-      try {
-        const { data: dejaExiste } = await sb.from('shifts')
-          .select('id')
-          .eq('fullname', fullname)
-          .eq('date', newPresence.date)
-          .eq('start_time', newPresence.heureDebut)
-          .limit(1);
-
-        if (dejaExiste && dejaExiste.length > 0) {
-          console.log('⏸ Doublon évité : presence déjà sur Supabase pour', fullname, newPresence.date, newPresence.heureDebut);
-          // On lie l'_id existant pour future synchro et on s'arrête là
-          return;
-        }
-      } catch(e) {
-        console.warn('⚠️ Check anti-doublon Supabase:', e);
-        // En cas d'échec du check, on continue (mieux vaut un doublon qu'une perte)
-      }
-    }
-
     // Push presence vers Supabase via le mapping standard
     if (supabaseReady) {
       try {
@@ -12914,73 +12408,24 @@ async function forcerFinService(fullname) {
 
 // Vérifier les services qui dépassent 02h00 et les clôturer automatiquement
 async function verifierCoupureAuto02h() {
-  if (!state.serviceActif) return;
-
-  const now = new Date();
-  const noms = Object.keys(state.serviceActif);
-  if (noms.length === 0) return;
-
-  for (const fullname of noms) {
-    const service = state.serviceActif[fullname];
-    if (!service || !service.debut) continue;
-
-    const debut = new Date(service.debut);
-
-    // Calculer l'heure de coupure = 02h00 du jour SUIVANT le début du service
-    // (un service pris à 21h le 5 mai → coupure à 02h le 6 mai)
-    const coupure = new Date(debut);
-    coupure.setDate(coupure.getDate() + 1);
-    coupure.setHours(2, 0, 0, 0);
-
-    // Cas particulier : si le service a été pris entre 00h et 02h,
-    // la coupure c'est à 02h le MÊME jour
-    if (debut.getHours() < 2) {
-      coupure.setDate(coupure.getDate() - 1);
-    }
-
-    // Si on a dépassé l'heure de coupure → clôturer
-    if (now >= coupure) {
-      console.log('⏰ Coupure auto 02h pour', fullname, '— début:', debut.toLocaleString('fr-FR'), '— coupure:', coupure.toLocaleString('fr-FR'));
-      try {
-        await enregistrerService(fullname, service, coupure, { auto: true });
-      } catch(e) {
-        console.warn('⚠️ Erreur coupure auto pour', fullname, ':', e);
-      }
-    }
-  }
+  // ⛔ DÉSACTIVÉ : la coupure automatique du service est désactivée.
+  // Seul l'agent peut clôturer son propre service en cliquant manuellement
+  // sur "Fin de service" ou "Clôturer avec heure personnalisée".
+  // Aucune action automatique ne supprime un service.
+  return;
 }
 
 async function payerAgent(fullname, montant) {
-  if (!(await confirmAsync('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\n⚠️ Les services payés seront SUPPRIMÉS DÉFINITIVEMENT du registre (suppression complète, sans archivage).'))) return;
-
-  // 1. Synchro Supabase EN PREMIER : DELETE de toutes les lignes non-payées pour ce nom
-  if (supabaseReady) {
-    try {
-      const { data, error } = await sb.from('shifts')
-        .delete()
-        .eq('fullname', fullname)
-        .neq('status', 'paid')   // on supprime tout ce qui n'est pas déjà payé
-        .select();
-
-      if (error) {
-        alert('⚠️ Erreur de synchronisation : ' + error.message + '\n\nLe paiement n\'a PAS été enregistré sur le serveur partagé. Réessayez.');
-        return;
-      }
-
-      console.log('✓ Suppression Supabase OK :', (data || []).length, 'ligne(s) supprimée(s)');
-    } catch(e) {
-      alert('⚠️ Erreur réseau : ' + (e.message || e) + '\n\nLe paiement n\'a PAS été enregistré. Réessayez.');
-      return;
+  if (!(await confirmAsync('Marquer comme payé pour ' + fullname + ' ?\n\nMontant : ' + montant.toLocaleString() + ' Ryos\n\nLes services seront archivés et le solde reviendra à zéro.'))) return;
+  state.presences.forEach(p => {
+    if (p.fullname === fullname && p.statut !== 'paye') {
+      p.statut = 'paye';
+      p.payeLe = new Date().toLocaleDateString('fr-FR');
     }
-  }
-
-  // 2. Suppression locale : on retire de state.presences toutes les lignes de cet agent qui n'étaient pas payées
-  state.presences = state.presences.filter(p => !(p.fullname === fullname && p.statut !== 'paye'));
-
+  });
   saveSession();
-  alert('✓ Paiement validé : ' + montant.toLocaleString() + ' Ryos versés à ' + fullname + '\nServices retirés du registre.');
+  alert('✓ Paiement enregistré pour ' + fullname);
   renderPresences();
-  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function ouvrirRetrait(fullname, soldeActuel) {
@@ -13177,36 +12622,16 @@ async function confirmerAjout(fullname) {
 }
 
 async function resetToutesPresences() {
-  if (!(await confirmAsync('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme payées ?\nTous les soldes reviendront à zéro.\n\n⚠️ Tous les services non-payés seront SUPPRIMÉS DÉFINITIVEMENT (pas d\'historique conservé).'))) return;
-
-  // 1. Suppression Supabase EN PREMIER : DELETE de toutes les lignes non-payées
-  if (supabaseReady) {
-    try {
-      const { data, error } = await sb.from('shifts')
-        .delete()
-        .neq('status', 'paid')
-        .select();
-
-      if (error) {
-        alert('⚠️ Erreur de synchronisation : ' + error.message + '\n\nLe reset n\'a PAS été enregistré sur le serveur. Réessayez.');
-        return;
-      }
-      console.log('✓ Reset Supabase OK :', (data || []).length, 'ligne(s) supprimée(s)');
-    } catch(e) {
-      alert('⚠️ Erreur réseau : ' + (e.message || e) + '\n\nLe reset n\'a PAS été enregistré. Réessayez.');
-      return;
+  if (!(await confirmAsync('⚠ ATTENTION\n\nMarquer TOUTES les présences en attente comme "payées" ?\nTous les soldes reviendront à zéro.\n\nL\'historique sera conservé mais marqué comme payé.'))) return;
+  state.presences.forEach(p => {
+    if (p.statut !== 'paye') {
+      p.statut = 'paye';
+      p.payeLe = new Date().toLocaleDateString('fr-FR');
     }
-  }
-
-  // 2. Suppression locale : on retire toutes les présences non-payées
-  const nbAvant = state.presences.length;
-  state.presences = state.presences.filter(p => p.statut === 'paye');
-  const nbSupp = nbAvant - state.presences.length;
-
+  });
   saveSession();
-  alert('✓ ' + nbSupp + ' service(s) supprimé(s) du registre.\nToutes les fiches ont été remises à zéro.');
+  alert('✓ Toutes les fiches ont été remises à zéro');
   renderPresences();
-  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 // ===== CHRONO TEMPS RÉEL =====
@@ -16282,9 +15707,9 @@ const NINJA_SECTIONS = [
   { id: 'civil',         label: '🍃 Civil',               color: '#22c55e' }
 ];
 
-// Permission de voir la liste : Officier, Sergent, Lieutenant, Direction (rang ≤ 4)
+// Permission de voir la liste : Officier, Sergent, Lieutenant, Capitaine, Direction
 function canSeeRecensement(grade) {
-  return gradeRank(grade) <= 4;
+  return gradeRank(grade) <= 5;
 }
 
 function renderRecensementNinjas() {
@@ -16305,7 +15730,7 @@ function renderRecensementNinjas() {
     <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text)">🔍 <strong style="color:#5eead4">Recensement des Ninjas</strong> — Registre des shinobis du village</div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">
-        ✅ Tous les agents Police (Officier et plus) peuvent <strong>ajouter</strong> un ninja et <strong>voir la liste complète</strong>.
+        ✅ Tous les agents Police peuvent <strong>ajouter</strong> un ninja · 🔒 Seuls le Lieutenant et la Direction peuvent <strong>voir la liste complète</strong> et générer le document.
       </div>
     </div>
 
@@ -16348,7 +15773,7 @@ function renderRecensementNinjas() {
       <div class="dash-block" style="padding:2rem;text-align:center">
         <div style="font-size:48px;margin-bottom:10px">🔒</div>
         <h3 style="color:var(--text);font-size:16px;margin-bottom:8px">Liste confidentielle</h3>
-        <p style="color:var(--muted);font-size:12px">La consultation de la liste complète est réservée aux agents Police titulaires (Officier et plus).</p>
+        <p style="color:var(--muted);font-size:12px">Seuls le <strong>Lieutenant</strong> et la <strong>Direction</strong> peuvent consulter la liste complète des ninjas recensés et générer le document officiel.</p>
         <p style="color:var(--lgold);font-size:11px;margin-top:8px;font-style:italic">Vous avez bien la permission de continuer à ajouter des ninjas au recensement ci-dessus. Merci pour votre contribution.</p>
       </div>`;
     el.innerHTML = html;
@@ -16583,7 +16008,7 @@ async function supprimerNinjaRecensement(idx) {
 async function genererDocRecensement() {
   const u = state.currentUser;
   if (!canSeeRecensement(u.grade)) {
-    alert('⚠️ Réservé aux agents Police (Officier et plus).');
+    alert('⚠️ Réservé au Lieutenant et à la Direction.');
     return;
   }
 
@@ -18349,1046 +17774,7 @@ async function initSupabase() {
         }
       }
     } catch(e) { console.warn('Auto-create avocat:', e); }
-
-    // === Auto-création du compte Arakawa Akihiro pour la Comptabilité ===
-    try {
-      const existeCompta = state.users.find(x =>
-        x.isAgent &&
-        (x.service||'police') === 'comptabilite' &&
-        matchFullname(x.fullname, 'Arakawa Akihiro')
-      );
-      if (!existeCompta) {
-        const newComptaAccount = {
-          fullname: 'Arakawa Akihiro',
-          password: 'akihiro2026',
-          grade: 'Directeur',
-          service: 'comptabilite',
-          isAgent: true,
-          matricule: 'KNH-CPT-' + Math.floor(1000 + Math.random() * 9000),
-          inscription: new Date().toLocaleDateString('fr-FR')
-        };
-        if (supabaseReady) {
-          try {
-            const inserted = await pushToSupabase('users', newComptaAccount);
-            if (inserted && inserted._id) {
-              newComptaAccount._id = inserted._id;
-              state.users.push(newComptaAccount);
-              console.log('💰 Compte Comptabilité créé pour Arakawa Akihiro (Directeur)');
-            }
-          } catch(e) { console.warn('Erreur auto-création compte comptabilité:', e); }
-        }
-      }
-    } catch(e) { console.warn('Auto-create comptabilité:', e); }
   }
-}
-
-// ============================================================
-// COMPTABILITÉ — Trésor / Ressources / Marchands
-// ============================================================
-
-// === TRÉSOR DU VILLAGE ===
-function renderTresor() {
-  const u = state.currentUser;
-  const el = document.getElementById('tresor-content');
-  if (!el || !u) return;
-  if ((u.service || '') !== 'comptabilite') {
-    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Comptabilité.</p></div>';
-    return;
-  }
-
-  const transactions = (state.tresorTransactions || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
-  const totalEntrees = transactions.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
-  const totalSorties = transactions.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
-  const solde = totalEntrees - totalSorties;
-  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
-
-  let html = `
-    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:16px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💵 Solde actuel</div>
-        <div style="font-size:26px;font-weight:800;color:${solde >= 0 ? '#86efac' : '#fca5a5'};font-family:'Cinzel',serif">${solde.toLocaleString()} Ryos</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📈 Total entrées</div>
-        <div style="font-size:20px;font-weight:700;color:#86efac;font-family:'Cinzel',serif">+${totalEntrees.toLocaleString()}</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📉 Total sorties</div>
-        <div style="font-size:20px;font-weight:700;color:#fca5a5;font-family:'Cinzel',serif">-${totalSorties.toLocaleString()}</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📋 Mouvements</div>
-        <div style="font-size:20px;font-weight:700;color:var(--text);font-family:'Cinzel',serif">${transactions.length}</div>
-      </div>
-    </div>`;
-
-  if (canEdit) {
-    html += `
-    <div class="dash-block" style="padding:1rem 1.5rem;margin-bottom:1.5rem">
-      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Nouvelle transaction</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div class="form-group" style="margin:0">
-          <label>Type</label>
-          <select id="tres-type" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%">
-            <option value="entree">📈 Entrée d'argent</option>
-            <option value="sortie">📉 Sortie d'argent</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>Montant (Ryos)</label>
-          <input type="number" id="tres-montant" placeholder="Ex: 5000" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:10px">
-        <label>Motif / Description</label>
-        <input type="text" id="tres-motif" placeholder="Ex: Vente d'armes au marchand armurier · Paiement salaire des agents · Don du clan Uchiha"  style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
-      </div>
-      <button class="btn-primary btn-full" onclick="ajouterTransactionTresor()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white">💰 Enregistrer la transaction</button>
-    </div>`;
-  }
-
-  html += `<div class="dash-block" style="padding:0">
-    <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#86efac">📋 Historique des transactions</div>`;
-
-  if (transactions.length === 0) {
-    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem">Aucune transaction enregistrée.</p>';
-  } else {
-    transactions.forEach((t, idx) => {
-      const realIdx = state.tresorTransactions.indexOf(t);
-      const isEntree = t.type === 'entree';
-      const color = isEntree ? '#86efac' : '#fca5a5';
-      const bg = isEntree ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)';
-      const sign = isEntree ? '+' : '-';
-      const icon = isEntree ? '📈' : '📉';
-      html += `
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);background:${bg}">
-          <div style="font-size:18px">${icon}</div>
-          <div style="flex:1">
-            <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(t.motif || '(sans motif)')}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">${t.date || ''} · enregistré par ${escapeHtml(t.agent || '—')}</div>
-          </div>
-          <div style="font-size:16px;font-weight:800;color:${color};font-family:'Cinzel',serif">${sign}${(t.montant || 0).toLocaleString()} Ryos</div>
-          ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerTransactionTresor(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>` : ''}
-        </div>`;
-    });
-  }
-
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-async function ajouterTransactionTresor() {
-  const u = state.currentUser;
-  if (!u) return;
-  const type = document.getElementById('tres-type').value;
-  const montant = parseInt(document.getElementById('tres-montant').value);
-  const motif = document.getElementById('tres-motif').value.trim();
-
-  if (!montant || montant <= 0) { alert('Veuillez entrer un montant valide.'); return; }
-  if (!motif) { alert('Veuillez entrer un motif.'); return; }
-
-  const newTx = {
-    id: Date.now(),
-    type, montant, motif,
-    agent: u.fullname,
-    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-  };
-
-  // === DEBUG : afficher l'état Supabase ===
-  console.log('═══════════════════════════════════════');
-  console.log('💰 AJOUT TRANSACTION TRÉSOR');
-  console.log('  supabaseReady =', supabaseReady);
-  console.log('  newTx =', newTx);
-
-  // Push Supabase d'abord pour récupérer l'_id
-  if (!supabaseReady) {
-    alert('⚠️ ATTENTION : Supabase n\'est pas connecté !\n\nLa transaction est sauvegardée localement seulement.\nElle disparaîtra au refresh.\n\nVérifiez votre connexion internet et rechargez la page.');
-  } else {
-    try {
-      console.log('  → Tentative push Supabase...');
-      const cfg = SUPABASE_TABLES.tresorTransactions;
-      const row = cfg.mapTo(newTx);
-      console.log('  → Row Supabase :', row);
-
-      const { data, error } = await sb.from('treasury_transactions').insert(row).select().single();
-
-      if (error) {
-        console.error('❌ ERREUR Supabase:', error);
-        alert('❌ Erreur Supabase :\n\n' + error.message + '\n\nDétails : ' + (error.details || 'aucun') + '\n\nCode : ' + (error.code || 'aucun') + '\n\nRegardez la console (F12) pour plus de détails.');
-        return;
-      }
-
-      if (data) {
-        newTx._id = data.id;
-        console.log('  ✅ Inséré avec _id =', data.id);
-      }
-    } catch(e) {
-      console.error('❌ Exception push:', e);
-      alert('❌ Exception : ' + (e.message || e) + '\n\nRegardez la console (F12).');
-      return;
-    }
-  }
-
-  state.tresorTransactions = state.tresorTransactions || [];
-  state.tresorTransactions.push(newTx);
-  saveSession();
-
-  document.getElementById('tres-montant').value = '';
-  document.getElementById('tres-motif').value = '';
-  alert('✓ Transaction enregistrée');
-  renderTresor();
-}
-
-async function supprimerTransactionTresor(idx) {
-  if (!(await confirmAsync('Supprimer cette transaction du registre ?'))) return;
-  const tx = state.tresorTransactions[idx];
-  if (!tx) return;
-
-  console.log('🗑 SUPPRESSION TRANSACTION', tx);
-
-  // 1. Suppression Supabase EN PREMIER (pour qu'elle ne revienne pas via Realtime)
-  if (supabaseReady) {
-    try {
-      let deleted = false;
-      // Méthode 1 : par _id si on l'a
-      if (tx._id) {
-        const { error } = await sb.from('treasury_transactions').delete().eq('id', tx._id);
-        if (!error) { deleted = true; console.log('  ✓ supprimé par _id'); }
-        else console.warn('  ⚠️ erreur _id:', error.message);
-      }
-      // Méthode 2 (fallback) : par contenu si pas d'_id ou échec
-      if (!deleted) {
-        const { error } = await sb.from('treasury_transactions').delete()
-          .eq('type', tx.type)
-          .eq('amount', tx.montant)
-          .eq('reason', tx.motif)
-          .eq('agent', tx.agent)
-          .eq('date', tx.date);
-        if (!error) { deleted = true; console.log('  ✓ supprimé par contenu'); }
-        else console.warn('  ⚠️ erreur contenu:', error.message);
-      }
-      if (!deleted) {
-        alert('⚠️ La suppression sur le serveur a échoué.\nLa transaction risque de revenir au refresh.\nRegardez la console (F12) pour les détails.');
-        return;
-      }
-    } catch(e) {
-      console.error('❌ Exception delete:', e);
-      alert('❌ Erreur réseau : ' + (e.message || e));
-      return;
-    }
-  }
-
-  // 2. Suppression locale
-  state.tresorTransactions.splice(idx, 1);
-  saveSession();
-  renderTresor();
-}
-
-// === RESSOURCES DU VILLAGE ===
-function renderRessources() {
-  const u = state.currentUser;
-  const el = document.getElementById('ressources-content');
-  if (!el || !u) return;
-  if ((u.service || '') !== 'comptabilite') {
-    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Comptabilité.</p></div>';
-    return;
-  }
-
-  const ressources = (state.ressources || []).slice().sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
-  const valeurStock = ressources.reduce((s, r) => s + ((r.quantite || 0) * (r.prix || 0)), 0);
-  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
-
-  let html = `
-    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:16px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📦 Ressources distinctes</div>
-        <div style="font-size:24px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${ressources.length}</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💵 Valeur totale du stock</div>
-        <div style="font-size:24px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${valeurStock.toLocaleString()} Ryos</div>
-      </div>
-    </div>`;
-
-  if (canEdit) {
-    // Ressources prédéfinies avec leur catégorie
-    const RESSOURCES_PREDEF = [
-      { nom: 'Titane',           categorie: 'armurerie', icon: '⚙️' },
-      { nom: 'Fer',              categorie: 'armurerie', icon: '⚙️' },
-      { nom: 'Cuivre',           categorie: 'armurerie', icon: '⚙️' },
-      { nom: 'Pierre de chakra', categorie: 'armurerie', icon: '💠' },
-      { nom: 'Bois',             categorie: 'autre',     icon: '🌳' },
-      { nom: 'Coton',            categorie: 'autre',     icon: '🧵' },
-      { nom: 'Lin',              categorie: 'autre',     icon: '🧵' },
-      { nom: 'Peau',             categorie: 'autre',     icon: '🦌' },
-      { nom: 'Poisson',          categorie: 'cuisine',   icon: '🐟' }
-    ];
-
-    html += `
-    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.25)">
-      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
-        <span>➕</span> <span>Ajouter / Réapprovisionner une ressource</span>
-      </h3>
-      <div class="form-group" style="margin-bottom:12px">
-        <label>Ressource</label>
-        <select id="res-nom-select" onchange="onRessourcePredefChange()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-size:13px;font-family:'Rajdhani',sans-serif">
-          <option value="">— Sélectionner une ressource —</option>
-          ${RESSOURCES_PREDEF.map(r => `<option value="${r.nom}" data-cat="${r.categorie}">${r.icon} ${r.nom}</option>`).join('')}
-          <option value="__autre__" data-cat="autre">✏️ Autre (saisir manuellement)</option>
-        </select>
-      </div>
-      <div class="form-group" id="res-nom-libre-group" style="margin-bottom:12px;display:none">
-        <label>Nom personnalisé</label>
-        <input type="text" id="res-nom-libre" placeholder="Ex: Parchemins · Bandages · Charbon" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="form-group" style="margin:0">
-          <label>Quantité</label>
-          <input type="number" id="res-quantite" placeholder="Ex: 50" min="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>Prix unitaire (Ryos)</label>
-          <input type="number" id="res-prix" placeholder="Ex: 25" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>Catégorie</label>
-          <select id="res-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
-            <option value="armurerie">⚔️ Armurerie</option>
-            <option value="cuisine">🍱 Cuisine</option>
-            <option value="medical">⚕️ Médical</option>
-            <option value="autre" selected>📦 Autre</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn-primary btn-full" onclick="ajouterRessource()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">📦 Ajouter au stock</button>
-      <p style="font-size:10px;color:var(--muted);margin-top:8px;font-style:italic;text-align:center">💡 Si la ressource existe déjà avec le même nom, la quantité sera additionnée à l'existante.</p>
-    </div>`;
-  }
-
-  html += `<div class="dash-block" style="padding:0">
-    <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#86efac">📋 Inventaire</div>`;
-
-  if (ressources.length === 0) {
-    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem">Aucune ressource enregistrée.</p>';
-  } else {
-    const catIcon = c => c === 'armurerie' ? '⚔️' : c === 'cuisine' ? '🍱' : c === 'medical' ? '⚕️' : '📦';
-    ressources.forEach(r => {
-      const realIdx = state.ressources.indexOf(r);
-      const valeur = (r.quantite || 0) * (r.prix || 0);
-      html += `
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
-          <div style="font-size:20px">${catIcon(r.categorie)}</div>
-          <div style="flex:1">
-            <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(r.nom)}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">Stock: <strong style="color:#86efac">${(r.quantite || 0).toLocaleString()}</strong> · Prix unitaire: <strong>${(r.prix || 0).toLocaleString()} Ryos</strong> · Valeur totale: <strong style="color:#86efac">${valeur.toLocaleString()} Ryos</strong></div>
-          </div>
-          ${canEdit ? `
-            <button class="btn-sm" onclick="vendreRessourceModal(${realIdx})" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);font-size:10px;padding:3px 8px">🏪 Vendre</button>
-            <button class="btn-sm" onclick="retirerStock(${realIdx})" style="background:rgba(251,146,60,0.15);color:#fb923c;border:1px solid rgba(251,146,60,0.4);font-size:10px;padding:3px 8px">➖ Retirer</button>
-            <button class="btn-sm" onclick="modifierPrix(${realIdx})" style="background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);font-size:10px;padding:3px 8px">💰 Prix</button>
-            <button class="btn-sm btn-sm-red" onclick="supprimerRessource(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>
-          ` : ''}
-        </div>`;
-    });
-  }
-
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-// Quand on change la ressource pré-définie : afficher le champ libre si "Autre", auto-remplir la catégorie
-function onRessourcePredefChange() {
-  const sel = document.getElementById('res-nom-select');
-  const libreGroup = document.getElementById('res-nom-libre-group');
-  const cat = document.getElementById('res-categorie');
-  if (!sel) return;
-
-  const val = sel.value;
-  if (val === '__autre__') {
-    if (libreGroup) libreGroup.style.display = '';
-    if (cat) cat.value = 'autre';
-  } else if (val) {
-    if (libreGroup) libreGroup.style.display = 'none';
-    // Auto-définir la catégorie d'après data-cat
-    const opt = sel.options[sel.selectedIndex];
-    const dataCat = opt?.dataset?.cat;
-    if (cat && dataCat) cat.value = dataCat;
-  } else {
-    if (libreGroup) libreGroup.style.display = 'none';
-  }
-}
-
-async function ajouterRessource() {
-  const u = state.currentUser;
-  if (!u) return;
-
-  const sel = document.getElementById('res-nom-select');
-  let nom = sel ? sel.value : '';
-  if (nom === '__autre__') {
-    nom = (document.getElementById('res-nom-libre')?.value || '').trim();
-  }
-  const quantite = parseInt(document.getElementById('res-quantite').value);
-  const prix = parseInt(document.getElementById('res-prix').value);
-  const categorie = document.getElementById('res-categorie').value;
-
-  if (!nom) { alert('Veuillez sélectionner une ressource (ou saisir un nom personnalisé).'); return; }
-  if (!quantite || quantite <= 0) { alert('Veuillez entrer une quantité valide.'); return; }
-  if (isNaN(prix) || prix < 0) { alert('Veuillez entrer un prix valide.'); return; }
-
-  state.ressources = state.ressources || [];
-
-  // Si la ressource existe déjà avec le même nom (insensible à la casse) → ajouter la quantité
-  const existante = state.ressources.find(r => normalize(r.nom) === normalize(nom));
-  if (existante) {
-    existante.quantite = (existante.quantite || 0) + quantite;
-    existante.prix = prix; // on met à jour le prix au cas où
-    // Push update Supabase
-    if (supabaseReady) {
-      try { await pushToSupabase('ressources', existante); } catch(e) { console.warn('⚠️ Update ressource:', e); }
-    }
-  } else {
-    const newRes = {
-      id: Date.now(),
-      nom, quantite, prix, categorie,
-      ajoutePar: u.fullname,
-      date: new Date().toLocaleDateString('fr-FR')
-    };
-    // Push insert Supabase d'abord pour récupérer l'_id
-    if (supabaseReady) {
-      try {
-        const inserted = await pushToSupabase('ressources', newRes);
-        if (inserted && inserted._id) newRes._id = inserted._id;
-      } catch(e) { console.warn('⚠️ Push ressource:', e); }
-    }
-    state.ressources.push(newRes);
-  }
-
-  saveSession();
-  // Reset du formulaire
-  if (sel) sel.value = '';
-  const libreInp = document.getElementById('res-nom-libre');
-  if (libreInp) libreInp.value = '';
-  const libreGroup = document.getElementById('res-nom-libre-group');
-  if (libreGroup) libreGroup.style.display = 'none';
-  document.getElementById('res-quantite').value = '';
-  document.getElementById('res-prix').value = '';
-
-  alert(existante ? '✓ Stock de "' + nom + '" mis à jour' : '✓ Nouvelle ressource ajoutée au stock');
-  renderRessources();
-}
-
-async function retirerStock(idx) {
-  const r = state.ressources[idx];
-  if (!r) return;
-
-  // Modale custom centrée et stylée
-  const overlay = document.createElement('div');
-  overlay.id = 'res-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
-  overlay.innerHTML = `
-    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(34,197,94,0.4);border-radius:12px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 30px rgba(34,197,94,0.15)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
-        <div style="font-size:28px">📦</div>
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:16px;color:#86efac;font-weight:700">Retirer du stock</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Ressource : <strong style="color:var(--text)">${escapeHtml(r.nom)}</strong></div>
-        </div>
-      </div>
-      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:6px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:var(--text);text-align:center">
-        Stock actuel : <strong style="color:#86efac;font-size:15px">${(r.quantite || 0).toLocaleString()}</strong>
-      </div>
-      <label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:block;margin-bottom:6px">Quantité à retirer</label>
-      <input type="number" id="modal-retrait-qty" value="1" min="1" max="${r.quantite}" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-size:14px;font-family:'Rajdhani',sans-serif"/>
-      <div style="display:flex;gap:8px;margin-top:1rem">
-        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
-        <button class="btn-primary" onclick="confirmerRetraitStock(${idx})" style="flex:2;background:linear-gradient(135deg,#fb923c,#ea580c);color:white;border:none">➖ Confirmer le retrait</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  setTimeout(() => document.getElementById('modal-retrait-qty')?.focus(), 100);
-}
-
-async function confirmerRetraitStock(idx) {
-  const r = state.ressources[idx];
-  if (!r) return;
-  const q = parseInt(document.getElementById('modal-retrait-qty').value);
-  if (!q || q <= 0) { alert('Quantité invalide.'); return; }
-  if (q > r.quantite) { alert('Stock insuffisant. Maximum : ' + r.quantite); return; }
-
-  document.getElementById('res-modal-overlay')?.remove();
-  r.quantite -= q;
-  if (r.quantite === 0) {
-    if (await confirmAsync('Le stock est maintenant à 0. Supprimer la ressource de la liste ?')) {
-      // Suppression Supabase
-      if (supabaseReady && r._id) {
-        try { await deleteFromSupabase('ressources', r._id); } catch(e) {}
-      }
-      state.ressources.splice(idx, 1);
-    } else {
-      // Quantité 0 mais on garde — push update
-      if (supabaseReady) {
-        try { await pushToSupabase('ressources', r); } catch(e) {}
-      }
-    }
-  } else {
-    // Push update du nouveau stock
-    if (supabaseReady) {
-      try { await pushToSupabase('ressources', r); } catch(e) {}
-    }
-  }
-  saveSession();
-  renderRessources();
-}
-
-async function modifierPrix(idx) {
-  const r = state.ressources[idx];
-  if (!r) return;
-
-  const overlay = document.createElement('div');
-  overlay.id = 'res-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
-  overlay.innerHTML = `
-    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(232,197,71,0.4);border-radius:12px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 30px rgba(232,197,71,0.15)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
-        <div style="font-size:28px">💰</div>
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:16px;color:var(--lgold);font-weight:700">Modifier le prix unitaire</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Ressource : <strong style="color:var(--text)">${escapeHtml(r.nom)}</strong></div>
-        </div>
-      </div>
-      <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.2);border-radius:6px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:var(--text);text-align:center">
-        Prix actuel : <strong style="color:var(--lgold);font-size:15px">${(r.prix || 0).toLocaleString()} Ryos</strong>
-      </div>
-      <label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:block;margin-bottom:6px">Nouveau prix unitaire (Ryos)</label>
-      <input type="number" id="modal-prix-val" value="${r.prix || 0}" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-size:14px;font-family:'Rajdhani',sans-serif"/>
-      <div style="display:flex;gap:8px;margin-top:1rem">
-        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
-        <button class="btn-primary" onclick="confirmerModifPrix(${idx})" style="flex:2">💰 Confirmer</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  setTimeout(() => {
-    const inp = document.getElementById('modal-prix-val');
-    if (inp) { inp.focus(); inp.select(); }
-  }, 100);
-}
-
-async function confirmerModifPrix(idx) {
-  const r = state.ressources[idx];
-  if (!r) return;
-  const p = parseInt(document.getElementById('modal-prix-val').value);
-  if (isNaN(p) || p < 0) { alert('Prix invalide.'); return; }
-  document.getElementById('res-modal-overlay')?.remove();
-  r.prix = p;
-  // Push update Supabase
-  if (supabaseReady) {
-    try { await pushToSupabase('ressources', r); } catch(e) {}
-  }
-  saveSession();
-  renderRessources();
-}
-
-// === VENDRE UNE RESSOURCE À UN MARCHAND ===
-async function vendreRessourceModal(idx) {
-  const r = state.ressources[idx];
-  if (!r) return;
-
-  const marchands = (state.marchands || []);
-  if (marchands.length === 0) {
-    alert('⚠️ Aucun marchand enregistré.\n\nEnregistrez d\'abord un marchand dans l\'onglet "🏪 Marchands" avant de pouvoir vendre.');
-    return;
-  }
-
-  // Suggérer la catégorie de marchand pertinente selon la ressource
-  const catMatch = r.categorie === 'armurerie' ? 'armurier' : r.categorie === 'cuisine' ? 'cuisinier' : null;
-  const marchandsTries = marchands.slice().sort((a, b) => {
-    if (catMatch) {
-      if (a.categorie === catMatch && b.categorie !== catMatch) return -1;
-      if (b.categorie === catMatch && a.categorie !== catMatch) return 1;
-    }
-    return (a.nom || '').localeCompare(b.nom || '');
-  });
-
-  const overlay = document.createElement('div');
-  overlay.id = 'res-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
-  overlay.innerHTML = `
-    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(34,197,94,0.4);border-radius:12px;padding:1.5rem;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 30px rgba(34,197,94,0.15);max-height:90vh;overflow-y:auto">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
-        <div style="font-size:28px">🏪</div>
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:16px;color:#86efac;font-weight:700">Vendre à un marchand</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Ressource : <strong style="color:var(--text)">${escapeHtml(r.nom)}</strong></div>
-        </div>
-      </div>
-
-      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:6px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:var(--text);display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center">
-        <div>Stock disponible<br/><strong style="color:#86efac;font-size:15px">${(r.quantite || 0).toLocaleString()}</strong></div>
-        <div>Prix unitaire actuel<br/><strong style="color:var(--lgold);font-size:15px">${(r.prix || 0).toLocaleString()} Ryos</strong></div>
-      </div>
-
-      <div class="form-group" style="margin-bottom:12px">
-        <label>Marchand acheteur</label>
-        <select id="vente-marchand" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
-          ${marchandsTries.map(m => `<option value="${escapeHtml(m.nom)}" data-cat="${m.categorie}">${m.categorie === 'armurier' ? '⚔️' : '🍱'} ${escapeHtml(m.nom)} ${catMatch && m.categorie === catMatch ? ' ★ recommandé' : ''}</option>`).join('')}
-        </select>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="form-group" style="margin:0">
-          <label>Quantité à vendre</label>
-          <input type="number" id="vente-qty" value="1" min="1" max="${r.quantite}" oninput="majTotalVente(${idx})" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>Prix de vente unitaire</label>
-          <input type="number" id="vente-prix" value="${r.prix || 0}" min="0" oninput="majTotalVente(${idx})" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-        </div>
-      </div>
-
-      <div id="vente-total" style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px;margin-bottom:1rem;text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💵 Total de la vente</div>
-        <div style="font-size:22px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${(r.prix || 0).toLocaleString()} Ryos</div>
-      </div>
-
-      <div style="font-size:11px;color:var(--muted);background:rgba(0,0,0,0.25);border-radius:4px;padding:8px 10px;margin-bottom:1rem;line-height:1.5">
-        ℹ️ La vente va automatiquement :<br/>
-        • Retirer la quantité du stock<br/>
-        • Ajouter le total au trésor du village (entrée d'argent)
-      </div>
-
-      <div style="display:flex;gap:8px">
-        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
-        <button class="btn-primary" onclick="confirmerVente(${idx})" style="flex:2;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none">🏪 Confirmer la vente</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-function majTotalVente(idx) {
-  const r = state.ressources[idx];
-  if (!r) return;
-  const qty = parseInt(document.getElementById('vente-qty')?.value) || 0;
-  const prix = parseInt(document.getElementById('vente-prix')?.value) || 0;
-  const total = qty * prix;
-  const tot = document.getElementById('vente-total');
-  if (tot) {
-    tot.querySelector('div:last-child').textContent = total.toLocaleString() + ' Ryos';
-  }
-}
-
-async function confirmerVente(idx) {
-  const u = state.currentUser;
-  const r = state.ressources[idx];
-  if (!r || !u) return;
-
-  const marchand = document.getElementById('vente-marchand').value;
-  const qty = parseInt(document.getElementById('vente-qty').value);
-  const prix = parseInt(document.getElementById('vente-prix').value);
-
-  if (!marchand) { alert('Veuillez sélectionner un marchand.'); return; }
-  if (!qty || qty <= 0) { alert('Quantité invalide.'); return; }
-  if (qty > r.quantite) { alert('Stock insuffisant. Maximum : ' + r.quantite); return; }
-  if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
-
-  const total = qty * prix;
-  document.getElementById('res-modal-overlay')?.remove();
-
-  // 1. Retirer du stock
-  r.quantite -= qty;
-
-  // 2. Enregistrer la transaction au trésor (entrée)
-  state.tresorTransactions = state.tresorTransactions || [];
-  const newTx = {
-    id: Date.now(),
-    type: 'entree',
-    montant: total,
-    motif: '🏪 Vente de ' + qty + ' × ' + r.nom + ' à ' + marchand + ' (' + prix + ' Ryos/unité)',
-    agent: u.fullname,
-    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-  };
-  // Push transaction Supabase
-  if (supabaseReady) {
-    try {
-      const inserted = await pushToSupabase('tresorTransactions', newTx);
-      if (inserted && inserted._id) newTx._id = inserted._id;
-    } catch(e) { console.warn('⚠️ Push vente trésor:', e); }
-  }
-  state.tresorTransactions.push(newTx);
-
-  // 3. Si le stock tombe à 0, proposer la suppression
-  if (r.quantite === 0) {
-    if (await confirmAsync('✓ Vente effectuée : +' + total.toLocaleString() + ' Ryos au trésor.\n\nLe stock de "' + r.nom + '" est maintenant à 0. Le supprimer du registre ?')) {
-      // Suppression Supabase
-      if (supabaseReady && r._id) {
-        try { await deleteFromSupabase('ressources', r._id); } catch(e) {}
-      }
-      const i = state.ressources.indexOf(r);
-      if (i !== -1) state.ressources.splice(i, 1);
-    } else {
-      // Stock à 0 mais on garde — push update
-      if (supabaseReady) {
-        try { await pushToSupabase('ressources', r); } catch(e) {}
-      }
-    }
-  } else {
-    // Push update du stock
-    if (supabaseReady) {
-      try { await pushToSupabase('ressources', r); } catch(e) {}
-    }
-    alert('✓ Vente effectuée\n\n' + qty + ' × ' + r.nom + ' vendus à ' + marchand + '\n+' + total.toLocaleString() + ' Ryos ajoutés au trésor.\n\nStock restant : ' + r.quantite);
-  }
-
-  saveSession();
-  renderRessources();
-}
-
-async function supprimerRessource(idx) {
-  const r = state.ressources[idx];
-  if (!r) return;
-  if (!(await confirmAsync('Supprimer définitivement la ressource "' + r.nom + '" du registre ?'))) return;
-
-  // Suppression Supabase robuste
-  if (supabaseReady) {
-    try {
-      let deleted = false;
-      if (r._id) {
-        const { error } = await sb.from('resources').delete().eq('id', r._id);
-        if (!error) deleted = true;
-      }
-      if (!deleted) {
-        const { error } = await sb.from('resources').delete()
-          .eq('name', r.nom).eq('quantity', r.quantite).eq('price', r.prix);
-        if (!error) deleted = true;
-      }
-      if (!deleted) {
-        alert('⚠️ Suppression serveur échouée. La ressource risque de revenir au refresh.');
-        return;
-      }
-    } catch(e) {
-      alert('❌ Erreur réseau : ' + (e.message || e));
-      return;
-    }
-  }
-
-  state.ressources.splice(idx, 1);
-  saveSession();
-  renderRessources();
-}
-
-// === MARCHANDS ===
-function renderMarchands() {
-  const u = state.currentUser;
-  const el = document.getElementById('marchands-content');
-  if (!el || !u) return;
-  if ((u.service || '') !== 'comptabilite') {
-    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Comptabilité.</p></div>';
-    return;
-  }
-
-  const marchands = (state.marchands || []).slice().sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
-  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
-
-  let html = `
-    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:16px;margin-bottom:1.5rem;text-align:center">
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🏪 Marchands enregistrés</div>
-      <div style="font-size:26px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${marchands.length}</div>
-    </div>`;
-
-  if (canEdit) {
-    const ressources = state.ressources || [];
-    html += `
-    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.25)">
-      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
-        <span>➕</span> <span>Enregistrer un marchand</span>
-      </h3>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="form-group" style="margin:0">
-          <label>Nom du marchand</label>
-          <input type="text" id="mar-nom" placeholder="Ex: Tazuna · Forge des Lames · Oden de Teuchi" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>Catégorie</label>
-          <select id="mar-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
-            <option value="armurier">⚔️ Armurier</option>
-            <option value="cuisinier">🍱 Cuisinier</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:12px">
-        <label>Notes / Spécialité <span style="color:var(--muted);font-size:11px">(facultatif)</span></label>
-        <textarea id="mar-notes" rows="2" placeholder="Ex: Spécialisé dans les lames courtes · Achète régulièrement nos surplus de riz" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif"></textarea>
-      </div>
-      <button class="btn-primary btn-full" onclick="ajouterMarchand()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">🏪 Enregistrer le marchand</button>
-    </div>
-
-    ${marchands.length > 0 ? `
-      <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(168,85,247,0.25)">
-        <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#d8b4fe;margin-bottom:1rem;display:flex;align-items:center;gap:8px">
-          <span>📨</span> <span>Notifier un marchand (proposition de vente)</span>
-        </h3>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:12px;font-style:italic">💡 Pour informer un marchand qu'on a une ressource à proposer, sans toucher au stock. Idéal pour négocier avant la vente effective.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div class="form-group" style="margin:0">
-            <label>Marchand destinataire</label>
-            <select id="notif-marchand" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
-              ${marchands.slice().sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(m => `<option value="${escapeHtml(m.nom)}">${m.categorie === 'armurier' ? '⚔️' : '🍱'} ${escapeHtml(m.nom)}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label>Ressource proposée</label>
-            <select id="notif-ressource" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
-              ${ressources.length === 0
-                ? '<option value="">— Aucune ressource au stock —</option>'
-                : ressources.slice().sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(r => `<option value="${escapeHtml(r.nom)}">${escapeHtml(r.nom)} (stock : ${r.quantite})</option>`).join('')
-              }
-            </select>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div class="form-group" style="margin:0">
-            <label>Quantité proposée</label>
-            <input type="number" id="notif-qty" placeholder="Ex: 50" min="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label>Prix unitaire demandé (Ryos)</label>
-            <input type="number" id="notif-prix" placeholder="Ex: 30" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:12px">
-          <label>Message <span style="color:var(--muted);font-size:11px">(facultatif)</span></label>
-          <textarea id="notif-message" rows="2" placeholder="Ex: Surplus de la dernière récolte. Disponible immédiatement, négociable selon volume." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif"></textarea>
-        </div>
-        <button class="btn-primary btn-full" onclick="envoyerNotificationMarchand()" style="background:linear-gradient(135deg,#a855f7,#7e22ce);color:white;border:none;padding:12px;font-weight:700">📨 Envoyer la proposition</button>
-      </div>
-    ` : ''}`;
-  }
-
-  // Grouper par catégorie
-  const armuriers = marchands.filter(m => m.categorie === 'armurier');
-  const cuisiniers = marchands.filter(m => m.categorie === 'cuisinier');
-
-  const renderListeMarchands = (list, titre, icon, color) => {
-    if (list.length === 0) return '';
-    let h = `<div class="dash-block" style="padding:0;margin-bottom:1rem">
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:${color}">${icon} ${titre} (${list.length})</div>`;
-    list.forEach(m => {
-      const realIdx = state.marchands.indexOf(m);
-      h += `
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="flex:1">
-              <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(m.nom)}</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:2px">Enregistré le ${m.date || '—'} par ${escapeHtml(m.ajoutePar || '—')}</div>
-            </div>
-            ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerMarchand(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>` : ''}
-          </div>
-          ${m.notes ? `<div style="margin-top:6px;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:4px;font-size:11px;color:var(--text);font-style:italic;line-height:1.5">${escapeHtml(m.notes)}</div>` : ''}
-        </div>`;
-    });
-    h += '</div>';
-    return h;
-  };
-
-  html += renderListeMarchands(armuriers, 'Armuriers', '⚔️', '#fb923c');
-  html += renderListeMarchands(cuisiniers, 'Cuisiniers', '🍱', '#fbbf24');
-
-  if (marchands.length === 0) {
-    html += '<p style="color:var(--muted);text-align:center;padding:1rem">Aucun marchand enregistré.</p>';
-  }
-
-  // === Historique des notifications envoyées ===
-  const notifs = (state.notificationsMarchands || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
-  if (notifs.length > 0) {
-    html += `
-      <div class="dash-block" style="padding:0;margin-top:1.5rem;border:1px solid rgba(168,85,247,0.25)">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#d8b4fe;display:flex;align-items:center;gap:8px">
-          <span>📨</span> <span>Historique des notifications envoyées (${notifs.length})</span>
-        </div>`;
-    notifs.forEach(n => {
-      const realIdx = state.notificationsMarchands.indexOf(n);
-      const statutColor = n.statut === 'acceptee' ? '#86efac' : n.statut === 'refusee' ? '#fca5a5' : '#fbbf24';
-      const statutBg = n.statut === 'acceptee' ? 'rgba(34,197,94,0.12)' : n.statut === 'refusee' ? 'rgba(239,68,68,0.12)' : 'rgba(251,191,36,0.12)';
-      const statutLbl = n.statut === 'acceptee' ? '✓ Acceptée' : n.statut === 'refusee' ? '✗ Refusée' : '⏳ En attente';
-      html += `
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
-            <div style="flex:1">
-              <div style="font-weight:600;color:var(--text);font-size:13px">📨 ${escapeHtml(n.marchand)}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:3px">
-                <strong style="color:#86efac">${n.qty}</strong> × ${escapeHtml(n.ressource)} à <strong style="color:var(--lgold)">${n.prix} Ryos/u</strong> = <strong style="color:var(--lgold)">${(n.total || 0).toLocaleString()} Ryos</strong>
-              </div>
-              <div style="font-size:10px;color:var(--muted);margin-top:2px">Envoyée le ${n.date} par ${escapeHtml(n.agent || '—')}</div>
-            </div>
-            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;background:${statutBg};color:${statutColor};border:1px solid ${statutColor}55;white-space:nowrap">${statutLbl}</span>
-          </div>
-          ${n.message ? `<div style="font-size:11px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:4px;margin-top:6px;line-height:1.5;font-style:italic">💬 ${escapeHtml(n.message)}</div>` : ''}
-          ${canEdit ? `
-            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-              ${n.statut === 'envoyee' ? `
-                <button class="btn-sm" onclick="marquerNotificationStatut(${realIdx}, 'acceptee')" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);font-size:10px;padding:3px 8px">✓ Acceptée</button>
-                <button class="btn-sm" onclick="marquerNotificationStatut(${realIdx}, 'refusee')" style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);font-size:10px;padding:3px 8px">✗ Refusée</button>
-              ` : `
-                <button class="btn-sm" onclick="marquerNotificationStatut(${realIdx}, 'envoyee')" style="background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.4);font-size:10px;padding:3px 8px">↩ Remettre en attente</button>
-              `}
-              <button class="btn-sm btn-sm-red" onclick="supprimerNotification(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>
-            </div>
-          ` : ''}
-        </div>`;
-    });
-    html += '</div>';
-  }
-
-  el.innerHTML = html;
-}
-
-async function ajouterMarchand() {
-  const u = state.currentUser;
-  if (!u) return;
-  const nom = document.getElementById('mar-nom').value.trim();
-  const categorie = document.getElementById('mar-categorie').value;
-  const notes = document.getElementById('mar-notes').value.trim();
-
-  if (!nom) { alert('Veuillez entrer le nom du marchand.'); return; }
-
-  state.marchands = state.marchands || [];
-  const newMar = {
-    id: Date.now(),
-    nom, categorie, notes,
-    ajoutePar: u.fullname,
-    date: new Date().toLocaleDateString('fr-FR')
-  };
-  // Push Supabase
-  if (supabaseReady) {
-    try {
-      const inserted = await pushToSupabase('marchands', newMar);
-      if (inserted && inserted._id) newMar._id = inserted._id;
-    } catch(e) { console.warn('⚠️ Push marchand:', e); }
-  }
-  state.marchands.push(newMar);
-
-  saveSession();
-  document.getElementById('mar-nom').value = '';
-  document.getElementById('mar-notes').value = '';
-  alert('✓ Marchand "' + nom + '" enregistré');
-  renderMarchands();
-}
-
-async function envoyerNotificationMarchand() {
-  const u = state.currentUser;
-  if (!u) return;
-  const marchand = document.getElementById('notif-marchand')?.value;
-  const ressource = document.getElementById('notif-ressource')?.value;
-  const qty = parseInt(document.getElementById('notif-qty').value);
-  const prix = parseInt(document.getElementById('notif-prix').value);
-  const message = (document.getElementById('notif-message')?.value || '').trim();
-
-  if (!marchand) { alert('Veuillez sélectionner un marchand.'); return; }
-  if (!ressource) { alert('Veuillez sélectionner une ressource.'); return; }
-  if (!qty || qty <= 0) { alert('Quantité invalide.'); return; }
-  if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
-
-  state.notificationsMarchands = state.notificationsMarchands || [];
-  const newNotif = {
-    id: Date.now(),
-    marchand, ressource, qty, prix, message,
-    total: qty * prix,
-    statut: 'envoyee',
-    agent: u.fullname,
-    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
-  };
-  // Push Supabase
-  if (supabaseReady) {
-    try {
-      const inserted = await pushToSupabase('notificationsMarchands', newNotif);
-      if (inserted && inserted._id) newNotif._id = inserted._id;
-    } catch(e) { console.warn('⚠️ Push notification:', e); }
-  }
-  state.notificationsMarchands.push(newNotif);
-  saveSession();
-
-  document.getElementById('notif-qty').value = '';
-  document.getElementById('notif-prix').value = '';
-  document.getElementById('notif-message').value = '';
-  alert('📨 Proposition envoyée à ' + marchand + '\n\n' + qty + ' × ' + ressource + ' à ' + prix + ' Ryos/unité\nTotal proposé : ' + (qty * prix).toLocaleString() + ' Ryos');
-  renderMarchands();
-}
-
-async function supprimerNotification(idx) {
-  if (!(await confirmAsync('Supprimer cette notification de l\'historique ?'))) return;
-  const n = state.notificationsMarchands[idx];
-  if (!n) return;
-
-  if (supabaseReady) {
-    try {
-      let deleted = false;
-      if (n._id) {
-        const { error } = await sb.from('merchant_notifications').delete().eq('id', n._id);
-        if (!error) deleted = true;
-      }
-      if (!deleted) {
-        const { error } = await sb.from('merchant_notifications').delete()
-          .eq('merchant', n.marchand).eq('resource', n.ressource).eq('date', n.date);
-        if (!error) deleted = true;
-      }
-      if (!deleted) {
-        alert('⚠️ Suppression serveur échouée. La notification risque de revenir au refresh.');
-        return;
-      }
-    } catch(e) {
-      alert('❌ Erreur réseau : ' + (e.message || e));
-      return;
-    }
-  }
-
-  state.notificationsMarchands.splice(idx, 1);
-  saveSession();
-  renderMarchands();
-}
-
-async function marquerNotificationStatut(idx, statut) {
-  const n = state.notificationsMarchands[idx];
-  if (!n) return;
-  n.statut = statut;
-  if (statut === 'acceptee') n.dateAcceptee = new Date().toLocaleDateString('fr-FR');
-  if (statut === 'refusee') n.dateRefusee = new Date().toLocaleDateString('fr-FR');
-  // Push update Supabase
-  if (supabaseReady) {
-    try { await pushToSupabase('notificationsMarchands', n); } catch(e) {}
-  }
-  saveSession();
-  renderMarchands();
-}
-
-async function supprimerMarchand(idx) {
-  const m = state.marchands[idx];
-  if (!m) return;
-  if (!(await confirmAsync('Supprimer le marchand "' + m.nom + '" du registre ?'))) return;
-
-  if (supabaseReady) {
-    try {
-      let deleted = false;
-      if (m._id) {
-        const { error } = await sb.from('merchants').delete().eq('id', m._id);
-        if (!error) deleted = true;
-      }
-      if (!deleted) {
-        const { error } = await sb.from('merchants').delete()
-          .eq('name', m.nom).eq('category', m.categorie);
-        if (!error) deleted = true;
-      }
-      if (!deleted) {
-        alert('⚠️ Suppression serveur échouée. Le marchand risque de revenir au refresh.');
-        return;
-      }
-    } catch(e) {
-      alert('❌ Erreur réseau : ' + (e.message || e));
-      return;
-    }
-  }
-
-  state.marchands.splice(idx, 1);
-  saveSession();
-  renderMarchands();
 }
 
 // Lancer l'init Supabase (en arrière-plan)
