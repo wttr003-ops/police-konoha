@@ -1807,7 +1807,6 @@
               <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🗂 <strong>Gestion des casiers judiciaires</strong> — Constitution, mise à jour et transmission des dossiers au Tribunal pour jugement.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🔒 <strong>Détention en cellules</strong> — Mise en cellule provisoire des suspects en attente de jugement ou de transfert vers le palais.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🏯 <strong>Collecte des impôts</strong> — Récupération des taxes ninja selon le grade auprès des shinobis du village.</li>
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">🚪 <strong>Contrôle des Portes du village</strong> — Validation des sorties d'équipes ninja, registre des entrées/sorties, gestion des missions à l'extérieur.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(196,154,26,0.2)">📕 <strong>Bingo Book</strong> — Tenue du registre officiel des fugitifs et déserteurs recherchés par le village.</li>
               <li style="padding:6px 0">📋 <strong>Rédaction de rapports</strong> — Documentation des interventions, missions et incidents à transmettre à la hiérarchie ou au Tribunal sur demande.</li>
             </ul>
@@ -1993,7 +1992,7 @@
               <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">👥 <strong>Constitution d'équipes</strong> — Validation des équipes formées par les shinobis pour les missions, vérification des grades requis.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">🗺️ <strong>Suivi sur carte</strong> — Tableau des opérations en cours avec localisation en temps réel des équipes en mission.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">✅ <strong>Validation des accomplissements</strong> — Marquage officiel d'une mission comme « Terminée » et clôture du dossier.</li>
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">🤝 <strong>Coordination avec la Police</strong> — Transmission automatique des équipes en mission au registre des Portes du village.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(20,184,166,0.2)">🤝 <strong>Coordination avec la Police</strong> — Communication des équipes en mission et partage des informations stratégiques avec les Forces de l'Ordre.</li>
               <li style="padding:6px 0">📜 <strong>Archives</strong> — Conservation de l'historique de toutes les missions accomplies par les shinobis du village.</li>
             </ul>
           </div>
@@ -2938,7 +2937,6 @@
         <button class="dash-nav-btn" data-tab="casier" data-services="police,juge,avocat" onclick="switchDashTab('casier', this)">🗂 Casier judiciaire</button>
         <button class="dash-nav-btn" data-tab="impots" data-services="police" onclick="switchDashTab('impots', this)">🏯 Impôts</button>
         <button class="dash-nav-btn" data-tab="cellules" data-services="police,juge,avocat" onclick="switchDashTab('cellules', this)">🔒 Cellules</button>
-        <button class="dash-nav-btn" data-tab="portes" data-services="police" onclick="switchDashTab('portes', this)">🏯 Portes du village</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
         <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
         <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('documents', this)">📚 Documents</button>
@@ -3002,11 +3000,6 @@
       <div class="dash-tab" id="dash-casier">
         <h2 class="dash-section-title">🗂 Casier judiciaire</h2>
         <div id="casier-content"></div>
-      </div>
-
-      <div class="dash-tab" id="dash-portes">
-        <h2 class="dash-section-title">🏯 Portes du village</h2>
-        <div id="portes-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-presences">
@@ -5637,7 +5630,6 @@ function switchDashTab(name, btn) {
   if (name === 'casier') renderCasier();
   if (name === 'impots') renderImpots();
   if (name === 'cellules') renderCellules();
-  if (name === 'portes') renderPortes();
   if (name === 'presences') renderPresences();
   if (name === 'discussions') renderDiscussions();
   if (name === 'documents') renderDocuments();
@@ -17260,48 +17252,9 @@ function renderCivilDash() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">
         <button class="btn-outline" onclick="showPage('postuler')">📝 Postuler à un emploi</button>
         <button class="btn-outline" onclick="showPage('plainte')">⚖️ Porter plainte</button>
-        ${peutSortir ? `<button class="btn-outline" style="background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.4);color:#93c5fd" onclick="ouvrirDemandeSortie()">📤 Demander une sortie</button>` : ''}
       </div>
-      ${!peutSortir ? `<p style="font-size:11px;color:var(--muted);margin-top:8px;font-style:italic">ℹ️ Pour demander une sortie de village, votre grade doit être au moins Genin Confirmé.</p>` : ''}
     </div>`;
 
-  // === Mes sorties de village ===
-  const mesSorties = (state.exitRequests || []).filter(r =>
-    matchFullname(r.requestedBy, u.fullname) ||
-    (r.members || []).some(m => matchFullname(m.fullname, u.fullname))
-  );
-  if (mesSorties.length > 0) {
-    html += `
-      <div class="dash-block" style="padding:1.5rem;margin-top:1.25rem">
-        <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">📤 Mes sorties de village (${mesSorties.length})</h3>`;
-    mesSorties.slice().sort((a,b) => (b._id||0) - (a._id||0)).forEach(r => {
-      const realIdx = state.exitRequests.indexOf(r);
-      const isOwner = matchFullname(r.requestedBy, u.fullname);
-      let badgeColor = 'var(--lgold)', badgeBg = 'rgba(232,197,71,0.15)', badgeText = '⏳ En attente';
-      if (r.status === 'refused') { badgeColor = 'var(--red2)'; badgeBg = 'rgba(231,76,60,0.15)'; badgeText = '✗ Refusée'; }
-      else if (r.status === 'validated') { badgeColor = '#3b82f6'; badgeBg = 'rgba(59,130,246,0.15)'; badgeText = '🟢 En mission'; }
-      else if (r.status === 'returned') { badgeColor = 'var(--green)'; badgeBg = 'rgba(39,174,96,0.15)'; badgeText = '✓ Mission terminée'; }
-
-      html += `
-        <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;padding:14px">
-          <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-            <div style="flex:1;min-width:200px">
-              <div style="font-size:14px;font-weight:700;color:white">📤 ${escapeHtml(r.teamName)}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:3px">${r.date} ${isOwner ? '· <strong>Vous êtes le demandeur</strong>' : '· par '+escapeHtml(r.requestedBy)}</div>
-            </div>
-            <span style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:14px;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor}44">${badgeText}</span>
-          </div>
-          <div style="font-size:12px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:5px;margin-bottom:8px">${escapeHtml(r.reason)}</div>
-          ${r.refusalReason ? '<div style="background:rgba(231,76,60,0.06);border-left:2px solid var(--red2);padding:6px 10px;margin-bottom:8px;font-size:11px;color:#fca5a5"><strong>Motif du refus :</strong> '+escapeHtml(r.refusalReason)+'</div>' : ''}
-          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-            ${r.members.map(m => `<span style="background:rgba(59,130,246,0.1);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);padding:2px 8px;border-radius:10px;font-size:10px">${escapeHtml(m.fullname)}</span>`).join('')}
-          </div>
-          ${r.status === 'validated' && isOwner ? `<button class="btn-primary btn-full" onclick="ouvrirDissolutionEquipe(${realIdx})" style="background:linear-gradient(135deg,#22c55e,#16a34a)">🏯 Retour au village (dissoudre l'équipe)</button>` : ''}
-          ${r.returnNote ? '<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:6px">Note finale : '+escapeHtml(r.returnNote)+'</div>' : ''}
-        </div>`;
-    });
-    html += '</div>';
-  }
   // === Mes candidatures avec messagerie ===
   const mesCandidatures = state.candidatures.filter(c => matchFullname(c.fullname, u.fullname));
   if (mesCandidatures.length > 0) {
