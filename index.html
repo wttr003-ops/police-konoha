@@ -5301,8 +5301,20 @@ setInterval(() => {
 async function submitCandidature() {
   const errEl = document.getElementById('post-err');
   const okEl = document.getElementById('post-ok');
-  errEl.style.display = 'none';
-  okEl.style.display = 'none';
+  if (errEl) errEl.style.display = 'none';
+  if (okEl) okEl.style.display = 'none';
+
+  // Helper : afficher un message d'erreur de manière TRÈS visible (inline + scroll + alert filet de sécurité)
+  function montrerErreur(html, alertText) {
+    if (errEl) {
+      errEl.innerHTML = html;
+      errEl.style.display = 'block';
+      errEl.style.color = '';
+      // Scroll vers le haut pour que le candidat voie le message
+      errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (alertText) alert(alertText);
+  }
 
   console.log('═══════════════════════════════════════');
   console.log('📝 SOUMISSION CANDIDATURE');
@@ -5310,9 +5322,11 @@ async function submitCandidature() {
   // === VÉRIFICATION 1 : connexion civile obligatoire ===
   if (!civilUser) {
     console.warn('  ⛔ Pas de civilUser connecté');
-    errEl.innerHTML = '⚠️ Vous devez être connecté à votre <strong>Espace Civil</strong> pour postuler.<br><br>' +
-      '<button onclick="showPage(\'civil\')" style="margin-top:8px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:8px 16px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:700">🍃 Aller à l\'Espace Civil</button>';
-    errEl.style.display = 'block';
+    montrerErreur(
+      '⚠️ Vous devez être connecté à votre <strong>Espace Civil</strong> pour postuler.<br><br>' +
+      '<button onclick="showPage(\'civil\')" style="margin-top:8px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:8px 16px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:700">🍃 Aller à l\'Espace Civil</button>',
+      '⚠️ Vous devez être connecté à votre Espace Civil pour postuler.'
+    );
     return;
   }
   console.log('  ✓ civilUser :', civilUser.fullname);
@@ -5331,23 +5345,37 @@ async function submitCandidature() {
   };
   console.log('  ✓ Données formulaire :', data);
 
-  if (!data.genre || !data.niveau || !data.section || !data.casier || !data.motiv) {
-    console.warn('  ⛔ Champs manquants');
-    errEl.textContent = 'Tous les champs sont obligatoires.';
-    errEl.style.display = 'block';
+  // === VÉRIFICATION 2 : champs obligatoires (un par un pour message clair) ===
+  const champsManquants = [];
+  if (!data.genre) champsManquants.push('Genre');
+  if (!data.niveau) champsManquants.push('Grade Ninja');
+  if (!data.section) champsManquants.push('Section actuelle');
+  if (!data.casier) champsManquants.push('Casier judiciaire');
+  if (!data.motiv) champsManquants.push('Motivation');
+
+  if (champsManquants.length > 0) {
+    console.warn('  ⛔ Champs manquants :', champsManquants);
+    montrerErreur(
+      '⚠️ <strong>Champs obligatoires manquants :</strong><br>• ' + champsManquants.join('<br>• '),
+      '⚠️ Veuillez remplir tous les champs obligatoires :\n\n• ' + champsManquants.join('\n• ')
+    );
     return;
   }
 
-  // === VÉRIFICATION 2 : anti-doublon par section ===
-  const sectionTarget = selectedPostSection;
-  const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
+  // === VÉRIFICATION 3 : anti-doublon par section ===
+  const sectionTarget = selectedPostSection || 'police';
+  const labels = {
+    police: 'Police',
+    juge: 'Tribunal',
+    avocat: 'Cabinet des Avocats',
+    mission: 'Bureau des Missions',
+    diplomatie: 'Diplomatie',
+    renseignement: 'Renseignement'
+  };
   console.log('  ✓ Section ciblée :', sectionTarget);
 
-  // Refresh Supabase pour avoir l'état le plus récent (mais on continue même si ça échoue)
+  // Refresh Supabase pour avoir l'état le plus récent
   if (supabaseReady) {
-    errEl.textContent = '⏳ Vérification en cours...';
-    errEl.style.color = 'var(--accent)';
-    errEl.style.display = 'block';
     try {
       const cfg = SUPABASE_TABLES.candidatures;
       const { data: cloud, error: errRefresh } = await sb.from(cfg.table).select('*');
@@ -5360,10 +5388,6 @@ async function submitCandidature() {
     } catch(e) {
       console.warn('  ⚠️ Exception refresh :', e);
     }
-    errEl.style.display = 'none';
-    errEl.style.color = '';
-  } else {
-    console.log('  ℹ️ Mode hors ligne (Supabase pas prêt)');
   }
 
   const candidatureExistante = state.candidatures.find(c =>
@@ -5373,16 +5397,16 @@ async function submitCandidature() {
   );
   if (candidatureExistante) {
     console.warn('  ⛔ Candidature déjà existante pour cette section');
-    let msgStatut = candidatureExistante.status === 'wait'
-      ? 'est en cours d\'examen' : 'a déjà été acceptée';
-    errEl.innerHTML = '⚠️ Vous avez déjà une candidature pour la section <strong>' + labels[sectionTarget] + '</strong> qui ' + msgStatut + '.<br><br>' +
-      'Vous ne pouvez pas envoyer plusieurs candidatures à la même section.<br>' +
-      '<small style="color:var(--muted)">Vous pouvez postuler aux autres sections en sélectionnant un autre service.</small>';
-    errEl.style.display = 'block';
+    let msgStatut = candidatureExistante.status === 'wait' ? 'est en cours d\'examen' : 'a déjà été acceptée';
+    montrerErreur(
+      '⚠️ Vous avez déjà une candidature pour la section <strong>' + (labels[sectionTarget] || sectionTarget) + '</strong> qui ' + msgStatut + '.<br><br>' +
+      'Vous ne pouvez pas envoyer plusieurs candidatures à la même section.',
+      '⚠️ Vous avez déjà une candidature pour ' + (labels[sectionTarget] || sectionTarget) + ' qui ' + msgStatut + '.\n\nVous ne pouvez pas envoyer plusieurs candidatures à la même section.'
+    );
     return;
   }
 
-  // BLOCAGE CASIER JUDICIAIRE
+  // === VÉRIFICATION 4 : casier judiciaire ===
   const ficheCasier = state.casiers.find(c => matchFullname(c.fullname, data.fullname));
   if (data.casier === 'oui' || ficheCasier) {
     console.warn('  ⛔ Casier judiciaire détecté → refus');
@@ -5390,10 +5414,10 @@ async function submitCandidature() {
     return;
   }
 
-  const newCand = {...data, target: selectedPostSection, messages: []};
+  const newCand = {...data, target: sectionTarget, messages: []};
   console.log('  ✓ Candidature prête à envoyer :', newCand);
 
-  // === PUSH SUPABASE avec gestion d'erreur explicite ===
+  // === PUSH SUPABASE ===
   let pushOk = false;
   let erreurDetails = '';
 
@@ -5402,8 +5426,6 @@ async function submitCandidature() {
       console.log('  → Tentative push Supabase...');
       const cfg = SUPABASE_TABLES.candidatures;
       const row = cfg.mapTo(newCand);
-      console.log('  → Row à insérer :', row);
-
       const { data: inserted, error } = await sb.from(cfg.table).insert(row).select().single();
 
       if (error) {
@@ -5419,18 +5441,17 @@ async function submitCandidature() {
       erreurDetails = (e.message || e) + ' (exception réseau)';
     }
   } else {
-    // Pas de Supabase : on enregistre localement quand même
     console.log('  ℹ️ Hors ligne : enregistrement local uniquement');
-    pushOk = true; // considéré comme OK en mode offline
+    pushOk = true;
   }
 
-  // === Si Supabase a échoué, on alerte clairement ===
   if (!pushOk) {
-    errEl.innerHTML = '❌ <strong>Erreur lors de l\'envoi</strong><br><br>'
+    montrerErreur(
+      '❌ <strong>Erreur lors de l\'envoi</strong><br><br>'
       + 'Votre candidature n\'a pas pu être enregistrée sur le serveur.<br><br>'
-      + '<small style="color:var(--muted);font-family:monospace;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;display:inline-block;margin-top:4px">' + escapeHtml(erreurDetails) + '</small><br><br>'
-      + '<small>Vérifiez votre connexion internet et réessayez. Si le problème persiste, contactez la Direction.</small>';
-    errEl.style.display = 'block';
+      + '<small style="color:var(--muted);font-family:monospace;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;display:inline-block">' + escapeHtml(erreurDetails) + '</small>',
+      '❌ Erreur lors de l\'envoi : ' + erreurDetails + '\n\nVérifiez votre connexion et réessayez.'
+    );
     return;
   }
 
@@ -5439,15 +5460,56 @@ async function submitCandidature() {
   saveSession();
   console.log('  ✅ Candidature enregistrée localement (total :', state.candidatures.length, ')');
 
-  okEl.innerHTML = '✓ Votre candidature pour <strong>' + labels[sectionTarget] + '</strong> a été envoyée !<br>Vous serez contacté(e) après examen de votre dossier.';
-  okEl.style.display = 'block';
+  // === MODALE DE SUCCÈS AU CENTRE DE L'ÉCRAN ===
+  afficherModaleSuccesCandidature(labels[sectionTarget] || sectionTarget);
+
+  // Réinitialiser le formulaire
   ['post-genre','post-niveau','post-section','post-casier','post-motiv'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  setTimeout(() => okEl.style.display = 'none', 6000);
   updateStats();
   console.log('═══════════════════════════════════════');
+}
+
+// Affiche une grosse modale centrée pour confirmer l'envoi
+function afficherModaleSuccesCandidature(sectionNom) {
+  // Retirer l'ancienne modale si elle existe encore
+  const existing = document.getElementById('candid-success-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'candid-success-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(6px);animation:fadeIn 0.25s ease';
+
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(180deg,#0a1a0a 0%, #0d2010 100%);border:2px solid #16a34a;border-radius:16px;padding:2.5rem;max-width:540px;width:100%;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,0.7),0 0 50px rgba(34,197,94,0.25);animation:scaleIn 0.3s ease">
+      <div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,rgba(34,197,94,0.25),rgba(22,163,74,0.15));border:3px solid #16a34a;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:44px;box-shadow:0 0 30px rgba(34,197,94,0.4)">✓</div>
+      <h2 style="font-family:'Cinzel',serif;font-size:24px;color:#86efac;margin:0 0 0.75rem;font-weight:700;letter-spacing:1px">Candidature envoyée</h2>
+      <p style="color:var(--text);font-size:15px;line-height:1.6;margin:0 0 1.5rem">Votre candidature pour la section <strong style="color:#86efac">${escapeHtml(sectionNom)}</strong> a été <strong>transmise aux Forces de l'Ordre</strong>.</p>
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:14px 18px;margin-bottom:1.5rem;font-size:13px;color:var(--text);line-height:1.5">
+        📬 Vous serez contacté(e) après examen de votre dossier.<br>
+        Vous pouvez suivre l'état de votre candidature depuis votre <strong>Espace Civil</strong>.
+      </div>
+      <button onclick="document.getElementById('candid-success-overlay').remove()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px 32px;border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;box-shadow:0 4px 15px rgba(22,163,74,0.4)">Fermer</button>
+    </div>
+    <style>
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+    </style>
+  `;
+  document.body.appendChild(overlay);
+
+  // Fermeture en cliquant sur le fond
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  // Auto-fermeture après 8 secondes
+  setTimeout(() => {
+    const el = document.getElementById('candid-success-overlay');
+    if (el) el.remove();
+  }, 8000);
 }
 
 // Modal de refus pour casier judiciaire
