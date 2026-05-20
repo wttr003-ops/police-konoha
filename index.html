@@ -5304,13 +5304,18 @@ async function submitCandidature() {
   errEl.style.display = 'none';
   okEl.style.display = 'none';
 
+  console.log('═══════════════════════════════════════');
+  console.log('📝 SOUMISSION CANDIDATURE');
+
   // === VÉRIFICATION 1 : connexion civile obligatoire ===
   if (!civilUser) {
+    console.warn('  ⛔ Pas de civilUser connecté');
     errEl.innerHTML = '⚠️ Vous devez être connecté à votre <strong>Espace Civil</strong> pour postuler.<br><br>' +
       '<button onclick="showPage(\'civil\')" style="margin-top:8px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:8px 16px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:700">🍃 Aller à l\'Espace Civil</button>';
     errEl.style.display = 'block';
     return;
   }
+  console.log('  ✓ civilUser :', civilUser.fullname);
 
   const data = {
     fullname: civilUser.fullname,
@@ -5324,29 +5329,41 @@ async function submitCandidature() {
     date: new Date().toLocaleDateString('fr-FR'),
     id: Date.now()
   };
+  console.log('  ✓ Données formulaire :', data);
 
   if (!data.genre || !data.niveau || !data.section || !data.casier || !data.motiv) {
+    console.warn('  ⛔ Champs manquants');
     errEl.textContent = 'Tous les champs sont obligatoires.';
     errEl.style.display = 'block';
     return;
   }
 
   // === VÉRIFICATION 2 : anti-doublon par section ===
-  // Rafraîchir d'abord les candidatures depuis Supabase pour avoir l'état réel
   const sectionTarget = selectedPostSection;
   const labels = { police:'Police', juge:'Tribunal', avocat:'Cabinet des Avocats' };
+  console.log('  ✓ Section ciblée :', sectionTarget);
 
+  // Refresh Supabase pour avoir l'état le plus récent (mais on continue même si ça échoue)
   if (supabaseReady) {
     errEl.textContent = '⏳ Vérification en cours...';
     errEl.style.color = 'var(--accent)';
     errEl.style.display = 'block';
     try {
       const cfg = SUPABASE_TABLES.candidatures;
-      const { data: cloud } = await sb.from(cfg.table).select('*');
-      if (cloud) state.candidatures = cloud.map(cfg.mapFrom);
-    } catch(e) {}
+      const { data: cloud, error: errRefresh } = await sb.from(cfg.table).select('*');
+      if (errRefresh) {
+        console.warn('  ⚠️ Erreur refresh candidatures :', errRefresh);
+      } else if (cloud) {
+        state.candidatures = cloud.map(cfg.mapFrom);
+        console.log('  ✓ Refresh OK,', cloud.length, 'candidatures connues');
+      }
+    } catch(e) {
+      console.warn('  ⚠️ Exception refresh :', e);
+    }
     errEl.style.display = 'none';
     errEl.style.color = '';
+  } else {
+    console.log('  ℹ️ Mode hors ligne (Supabase pas prêt)');
   }
 
   const candidatureExistante = state.candidatures.find(c =>
@@ -5355,6 +5372,7 @@ async function submitCandidature() {
     (c.status === 'wait' || c.status === 'ok')
   );
   if (candidatureExistante) {
+    console.warn('  ⛔ Candidature déjà existante pour cette section');
     let msgStatut = candidatureExistante.status === 'wait'
       ? 'est en cours d\'examen' : 'a déjà été acceptée';
     errEl.innerHTML = '⚠️ Vous avez déjà une candidature pour la section <strong>' + labels[sectionTarget] + '</strong> qui ' + msgStatut + '.<br><br>' +
@@ -5367,21 +5385,59 @@ async function submitCandidature() {
   // BLOCAGE CASIER JUDICIAIRE
   const ficheCasier = state.casiers.find(c => matchFullname(c.fullname, data.fullname));
   if (data.casier === 'oui' || ficheCasier) {
+    console.warn('  ⛔ Casier judiciaire détecté → refus');
     showCasierRefusModal(data.fullname, ficheCasier);
     return;
   }
 
   const newCand = {...data, target: selectedPostSection, messages: []};
+  console.log('  ✓ Candidature prête à envoyer :', newCand);
 
-  // Push immédiat vers Supabase (synchronisé pour vrai)
+  // === PUSH SUPABASE avec gestion d'erreur explicite ===
+  let pushOk = false;
+  let erreurDetails = '';
+
   if (supabaseReady) {
     try {
-      const inserted = await pushToSupabase('candidatures', newCand);
-      if (inserted && inserted._id) newCand._id = inserted._id;
-    } catch(e) {}
+      console.log('  → Tentative push Supabase...');
+      const cfg = SUPABASE_TABLES.candidatures;
+      const row = cfg.mapTo(newCand);
+      console.log('  → Row à insérer :', row);
+
+      const { data: inserted, error } = await sb.from(cfg.table).insert(row).select().single();
+
+      if (error) {
+        console.error('  ❌ ERREUR Supabase :', error);
+        erreurDetails = error.message + (error.details ? ' (' + error.details + ')' : '') + (error.code ? ' [code: ' + error.code + ']' : '');
+      } else if (inserted) {
+        newCand._id = inserted.id;
+        pushOk = true;
+        console.log('  ✅ Candidature insérée avec _id =', inserted.id);
+      }
+    } catch(e) {
+      console.error('  ❌ Exception push :', e);
+      erreurDetails = (e.message || e) + ' (exception réseau)';
+    }
+  } else {
+    // Pas de Supabase : on enregistre localement quand même
+    console.log('  ℹ️ Hors ligne : enregistrement local uniquement');
+    pushOk = true; // considéré comme OK en mode offline
   }
+
+  // === Si Supabase a échoué, on alerte clairement ===
+  if (!pushOk) {
+    errEl.innerHTML = '❌ <strong>Erreur lors de l\'envoi</strong><br><br>'
+      + 'Votre candidature n\'a pas pu être enregistrée sur le serveur.<br><br>'
+      + '<small style="color:var(--muted);font-family:monospace;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;display:inline-block;margin-top:4px">' + escapeHtml(erreurDetails) + '</small><br><br>'
+      + '<small>Vérifiez votre connexion internet et réessayez. Si le problème persiste, contactez la Direction.</small>';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // === Enregistrement local ===
   state.candidatures.push(newCand);
   saveSession();
+  console.log('  ✅ Candidature enregistrée localement (total :', state.candidatures.length, ')');
 
   okEl.innerHTML = '✓ Votre candidature pour <strong>' + labels[sectionTarget] + '</strong> a été envoyée !<br>Vous serez contacté(e) après examen de votre dossier.';
   okEl.style.display = 'block';
@@ -5391,6 +5447,7 @@ async function submitCandidature() {
   });
   setTimeout(() => okEl.style.display = 'none', 6000);
   updateStats();
+  console.log('═══════════════════════════════════════');
 }
 
 // Modal de refus pour casier judiciaire
