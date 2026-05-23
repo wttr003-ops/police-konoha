@@ -1712,6 +1712,7 @@
     <li><a onclick="showSection('bureau-missions')" style="color:#5eead4">🎯 Bureau des Missions</a></li>
     <li><a onclick="showSection('diplomatie-section')" style="color:#d8b4fe">🤝 Diplomatie</a></li>
     <li><a onclick="showSection('renseignement-section')" style="color:#cbd5e1">🕵️ Renseignement</a></li>
+    <li><a onclick="showSection('finance-section')" style="color:#86efac">💰 Finance</a></li>
     <li><a onclick="showSection('volonte')">Volonté du Feu</a></li>
     <li><a onclick="showSection('missions')">Missions</a></li>
     <li><a onclick="showSection('grades')">Grades</a></li>
@@ -1758,6 +1759,7 @@
       <div class="hero-btns" style="margin-top:0.75rem">
         <button class="btn-diplomatie btn-lg" onclick="showPage('login')">🤝 Diplomatie</button>
         <button class="btn-renseignement btn-lg" onclick="showPage('login')">🕵️ Renseignement</button>
+        <button class="btn-lg" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none" onclick="showPage('login')">💰 Finance</button>
         <button class="btn-civil btn-lg" onclick="showPage('civil')">🍃 Créer un compte citoyen</button>
         <button class="btn-outline btn-lg" onclick="showPage('login')">Espace agent</button>
       </div>
@@ -1769,7 +1771,10 @@
     <div class="stat"><span class="stat-num" id="stat-agents">0</span><span class="stat-label">Officiers Police</span></div>
     <div class="stat"><span class="stat-num" id="stat-juges">0</span><span class="stat-label">Juges actifs</span></div>
     <div class="stat"><span class="stat-num" id="stat-avocats">0</span><span class="stat-label">Avocats actifs</span></div>
-    <div class="stat"><span class="stat-num" id="stat-candid">0</span><span class="stat-label">Candidatures</span></div>
+    <div class="stat"><span class="stat-num" id="stat-mission">0</span><span class="stat-label">Bureau Missions</span></div>
+    <div class="stat"><span class="stat-num" id="stat-diplomatie">0</span><span class="stat-label">Diplomates</span></div>
+    <div class="stat"><span class="stat-num" id="stat-renseignement">0</span><span class="stat-label">Renseignement</span></div>
+    <div class="stat"><span class="stat-num" id="stat-finance">0</span><span class="stat-label">Finance</span></div>
     <div class="stat"><span class="stat-num">24/7</span><span class="stat-label">Patrouilles</span></div>
   </div>
 
@@ -2170,6 +2175,76 @@
           <div class="history-quote">
             <p>"Voir sans être vu, savoir sans être connu, protéger sans être remercié."</p>
             <span>— Serment des agents du Renseignement</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINANCE -->
+  <section class="section" id="finance-section" style="background:linear-gradient(180deg,#0a0e0a 0%, #0d1410 100%)">
+    <div class="section-inner">
+      <p class="section-tag" style="color:#86efac">💰 Finance</p>
+      <h2 class="section-title">Le Bureau de la <span style="color:#86efac">Finance</span></h2>
+      <div class="history-layout">
+        <div class="history-main">
+          <div class="history-block" style="border-color:rgba(34,197,94,0.3)">
+            <div class="history-year" style="color:#86efac">Origine</div>
+            <h3 class="history-block-title">Le pilier économique de Konoha</h3>
+            <p>Aucun village ne peut tenir longtemps sans une gestion rigoureuse de ses ressources. C'est en partant de ce constat que le <strong>3ème Hokage</strong> a fondé le <strong>Bureau de la Finance</strong>, chargé de veiller sur le trésor du village et la circulation de ses biens.</p>
+            <p>Bien que moins visible que la Police ou le Tribunal, ce bureau est <strong>indispensable</strong> : sans lui, pas de salaires versés, pas de matériel acheté, pas de marchands payés. La sécurité de Konoha repose aussi sur sa solidité financière.</p>
+          </div>
+          <div class="history-block" style="border-color:rgba(34,197,94,0.3)">
+            <div class="history-year" style="color:#86efac">Rigueur & transparence</div>
+            <h3 class="history-block-title">Gardiens du trésor</h3>
+            <p>Les comptables de Konoha tiennent à jour le <strong>Grand Livre</strong> du village : chaque Ryo entrant ou sortant y est inscrit. Toute transaction passe par leurs mains, qu'il s'agisse de la solde des shinobis, des achats auprès des marchands, ou de la revente de ressources stratégiques.</p>
+            <p>Ils gèrent également le <strong>stock des ressources</strong> du village : nourriture, armes, équipement médical, matériaux de construction. Lorsqu'un excédent est constaté, ils négocient avec les marchands armuriers et cuisiniers pour le revendre au meilleur prix.</p>
+          </div>
+
+          <div class="history-block" style="border-color:rgba(34,197,94,0.4);background:rgba(34,197,94,0.04)">
+            <div class="history-year" style="color:#86efac">Missions & Responsabilités</div>
+            <h3 class="history-block-title">Les attributions du Bureau</h3>
+            <ul style="list-style:none;padding:0;margin:0">
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">💰 <strong>Trésor du village</strong> — Gestion des entrées et sorties d'argent, suivi du solde global.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">📦 <strong>Inventaire des ressources</strong> — Tenue à jour du stock : nourriture, armes, matériaux, équipement.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">🏪 <strong>Relations avec les marchands</strong> — Négociation et revente des ressources auprès des armuriers et cuisiniers.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">📊 <strong>Bilans financiers</strong> — Rapports réguliers transmis au Hokage et aux directions des autres bureaux.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(34,197,94,0.2)">🔒 <strong>Audit et contrôle</strong> — Vérification que les fonds sont utilisés correctement et sans abus.</li>
+              <li style="padding:6px 0">⚖️ <strong>Lutte contre la fraude</strong> — Coordination avec la Police et le Renseignement pour signaler tout détournement.</li>
+            </ul>
+          </div>
+
+          <div class="history-block" style="border-color:rgba(34,197,94,0.3)">
+            <div class="history-year" style="color:#86efac">Code d'honneur</div>
+            <h3 class="history-block-title">"Chaque Ryo compte"</h3>
+            <p>Les comptables jurent un serment de <strong>probité absolue</strong>. Détourner ne serait-ce qu'un seul Ryo des caisses du village est considéré comme une trahison envers Konoha. La sanction est immédiate : exclusion du bureau et procès devant le Tribunal.</p>
+            <p>Leur devise : <strong>"Chaque Ryo compte, chaque écriture engage, chaque silence protège le village"</strong>.</p>
+          </div>
+        </div>
+        <aside class="history-sidebar">
+          <div class="history-fact-card">
+            <div class="history-fact-label">Fondateur</div>
+            <div class="history-fact-val">3ème Hokage</div>
+            <div class="history-fact-sub">Le bâtisseur prudent</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Hiérarchie</div>
+            <div class="history-fact-val">Directeur</div>
+            <div class="history-fact-sub">Plus haute autorité du Bureau</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Statut</div>
+            <div class="history-fact-val">Confidentiel</div>
+            <div class="history-fact-sub">Comptes audités régulièrement</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Lien</div>
+            <div class="history-fact-val">Direct au Hokage</div>
+            <div class="history-fact-sub">Rapports réguliers</div>
+          </div>
+          <div class="history-quote">
+            <p>"Chaque Ryo compte, chaque écriture engage, chaque silence protège le village."</p>
+            <span>— Serment des comptables de Konoha</span>
           </div>
         </aside>
       </div>
@@ -2649,6 +2724,10 @@
             <div style="font-size:24px;margin-bottom:4px">🕵️</div>
             Renseign.
           </button>
+          <button type="button" class="section-btn" data-section="finance" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
+            <div style="font-size:24px;margin-bottom:4px">💰</div>
+            Finance
+          </button>
         </div>
       </div>
 
@@ -2925,10 +3004,10 @@
   <div class="dash-layout">
     <aside class="dash-sidebar">
       <nav class="dash-nav">
-        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
+        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
         <button class="dash-nav-btn" data-tab="plaintes" data-services="police,juge" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
-        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('membres', this)">👥 Membres</button>
+        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
         <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
         <button class="dash-nav-btn" data-tab="recensement" data-services="police" onclick="switchDashTab('recensement', this)" style="color:#5eead4">🔍 Recensement</button>
@@ -2938,12 +3017,15 @@
         <button class="dash-nav-btn" data-tab="impots" data-services="police" onclick="switchDashTab('impots', this)">🏯 Impôts</button>
         <button class="dash-nav-btn" data-tab="cellules" data-services="police,juge,avocat" onclick="switchDashTab('cellules', this)">🔒 Cellules</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
-        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
-        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('documents', this)">📚 Documents</button>
+        <button class="dash-nav-btn" data-tab="tresor" data-services="finance" onclick="switchDashTab('tresor', this)" style="color:#86efac">💰 Trésor du village</button>
+        <button class="dash-nav-btn" data-tab="ressources" data-services="finance" onclick="switchDashTab('ressources', this)" style="color:#86efac">📦 Ressources</button>
+        <button class="dash-nav-btn" data-tab="marchands" data-services="finance" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
+        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
-        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
-        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission,diplomatie,renseignement" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
+        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
+        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
       </nav>
     </aside>
 
@@ -3040,6 +3122,21 @@
       <div class="dash-tab" id="dash-dossiers">
         <h2 class="dash-section-title">📁 Dossiers clients (Avocat)</h2>
         <div id="dossiers-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-tresor">
+        <h2 class="dash-section-title" style="color:#86efac">💰 Trésor du village</h2>
+        <div id="tresor-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-ressources">
+        <h2 class="dash-section-title" style="color:#86efac">📦 Ressources du village</h2>
+        <div id="ressources-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-marchands">
+        <h2 class="dash-section-title" style="color:#86efac">🏪 Marchands</h2>
+        <div id="marchands-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-logs">
@@ -3785,6 +3882,66 @@ const SUPABASE_TABLES = {
       honoraires: r.fees, statut: r.status, avocat: r.lawyer,
       date: r.date, datePaiement: r.payment_date, _id: r.id, id: r.id
     })
+  },
+  // === FINANCE ===
+  tresorTransactions: {
+    table: 'treasury_transactions',
+    mapTo: t => ({
+      type: t.type || 'entree', amount: t.montant || 0,
+      reason: t.motif || null, agent: t.agent || null,
+      date: t.date || null
+    }),
+    mapFrom: r => ({
+      type: r.type, montant: r.amount, motif: r.reason,
+      agent: r.agent, date: r.date,
+      id: r.id, _id: r.id
+    })
+  },
+  ressources: {
+    table: 'resources',
+    mapTo: r => ({
+      name: r.nom, quantity: r.quantite || 0,
+      price: r.prix || 0, category: r.categorie || 'autre',
+      added_by: r.ajoutePar || null, date: r.date || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, quantite: r.quantity, prix: r.price,
+      categorie: r.category, ajoutePar: r.added_by, date: r.date,
+      id: r.id, _id: r.id
+    })
+  },
+  marchands: {
+    table: 'merchants',
+    mapTo: m => ({
+      name: m.nom, category: m.categorie || 'autre',
+      notes: m.notes || null, added_by: m.ajoutePar || null,
+      date: m.date || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, categorie: r.category, notes: r.notes,
+      ajoutePar: r.added_by, date: r.date,
+      id: r.id, _id: r.id
+    })
+  },
+  notificationsMarchands: {
+    table: 'merchant_notifications',
+    mapTo: n => ({
+      merchant: n.marchand, resource: n.ressource,
+      quantity: n.qty || 0, price: n.prix || 0,
+      total: n.total || 0, message: n.message || null,
+      status: n.statut || 'envoyee', agent: n.agent || null,
+      date: n.date || null,
+      accepted_at: n.dateAcceptee || null,
+      refused_at: n.dateRefusee || null
+    }),
+    mapFrom: r => ({
+      marchand: r.merchant, ressource: r.resource,
+      qty: r.quantity, prix: r.price, total: r.total,
+      message: r.message, statut: r.status, agent: r.agent,
+      date: r.date,
+      dateAcceptee: r.accepted_at, dateRefusee: r.refused_at,
+      id: r.id, _id: r.id
+    })
   }
 };
 
@@ -4325,6 +4482,14 @@ const GRADE_RANK_RENSEIGNEMENT = {
   'Recrue': 5
 };
 
+const GRADE_RANK_FINANCE = {
+  'Hokage': 0,
+  'Directeur': 1,
+  'Directeur Adjoint': 2,
+  'Comptable': 3,
+  'Stagiaire': 4
+};
+
 // Helper pour obtenir le rank selon le service
 function gradeRankForService(service, grade) {
   if (service === 'juge') return GRADE_RANK_JUGE[grade] !== undefined ? GRADE_RANK_JUGE[grade] : 99;
@@ -4332,6 +4497,7 @@ function gradeRankForService(service, grade) {
   if (service === 'mission') return GRADE_RANK_MISSION[grade] !== undefined ? GRADE_RANK_MISSION[grade] : 99;
   if (service === 'diplomatie') return GRADE_RANK_DIPLOMATIE[grade] !== undefined ? GRADE_RANK_DIPLOMATIE[grade] : 99;
   if (service === 'renseignement') return GRADE_RANK_RENSEIGNEMENT[grade] !== undefined ? GRADE_RANK_RENSEIGNEMENT[grade] : 99;
+  if (service === 'finance') return GRADE_RANK_FINANCE[grade] !== undefined ? GRADE_RANK_FINANCE[grade] : 99;
   return gradeRank(grade); // police par défaut
 }
 
@@ -4433,7 +4599,12 @@ let state = {
   operations: [],
   ninjaRecords: [],
   // Paramètres carte : zone censurée Suna et autres réglages
-  mapSettings: { sunaZone: { left: 30, top: 38, width: 14, height: 12 } }
+  mapSettings: { sunaZone: { left: 30, top: 38, width: 14, height: 12 } },
+  // === FINANCE ===
+  tresorTransactions: [],
+  ressources: [],
+  marchands: [],
+  notificationsMarchands: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4449,6 +4620,7 @@ const ALL_GRADES_AVOCAT = ['Bâtonnier', 'Maître', 'Avocat Senior', 'Avocat Con
 const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affecteur', 'Agent de Mission'];
 const ALL_GRADES_DIPLOMATIE = ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior', 'Diplomate', 'Émissaire', 'Apprenti Diplomate'];
 const ALL_GRADES_RENSEIGNEMENT = ['Maître du Renseignement', 'Commandant', 'Agent Senior', 'Agent', 'Informateur', 'Recrue'];
+const ALL_GRADES_FINANCE = ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable', 'Stagiaire'];
 
 // Helper : compare 2 grades en ignorant accents/casse
 function _gradeMatch(a, b) {
@@ -4470,6 +4642,7 @@ function canAddMemberInSection(user) {
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
+  if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   return false;
 }
 
@@ -4483,6 +4656,7 @@ function canSeeSectionLogs(user) {
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
+  if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   return false;
 }
 
@@ -4496,6 +4670,7 @@ function canAccessDiscussions(user) {
   if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant', 'Agent Senior']);
+  if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   return false;
 }
 
@@ -4923,12 +5098,18 @@ function updateStats() {
   const agentsEl = document.getElementById('stat-agents');
   const jugesEl = document.getElementById('stat-juges');
   const avocatsEl = document.getElementById('stat-avocats');
-  const candidEl = document.getElementById('stat-candid');
+  const missionEl = document.getElementById('stat-mission');
+  const diplomatieEl = document.getElementById('stat-diplomatie');
+  const renseignementEl = document.getElementById('stat-renseignement');
+  const financeEl = document.getElementById('stat-finance');
   // Exclure les comptes Hokage/Staff des compteurs publics (discrétion)
   if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent && (u.service||'police') === 'police' && !isSpecialRole(u.grade)).length;
   if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge' && !isSpecialRole(u.grade)).length;
   if (avocatsEl) avocatsEl.textContent = state.users.filter(u => u.isAgent && u.service === 'avocat' && !isSpecialRole(u.grade)).length;
-  if (candidEl) candidEl.textContent = state.candidatures.filter(c => c.status === 'ok').length;
+  if (missionEl) missionEl.textContent = state.users.filter(u => u.isAgent && u.service === 'mission' && !isSpecialRole(u.grade)).length;
+  if (diplomatieEl) diplomatieEl.textContent = state.users.filter(u => u.isAgent && u.service === 'diplomatie' && !isSpecialRole(u.grade)).length;
+  if (renseignementEl) renseignementEl.textContent = state.users.filter(u => u.isAgent && u.service === 'renseignement' && !isSpecialRole(u.grade)).length;
+  if (financeEl) financeEl.textContent = state.users.filter(u => u.isAgent && u.service === 'finance' && !isSpecialRole(u.grade)).length;
   // Mettre à jour la section Recherchés sur la page d'accueil
   if (typeof renderWantedPublic === 'function') {
     try { renderWantedPublic(); } catch(e) {}
@@ -5667,6 +5848,12 @@ function renderDashboard(tab) {
       avatarEl.style.color = '#cbd5e1';
       avatarEl.style.border = '2px solid rgba(148,163,184,0.6)';
       avatarEl.style.boxShadow = '0 0 12px rgba(100,116,139,0.4)';
+    } else if (myService === 'finance') {
+      // Vert pour Finance
+      avatarEl.style.background = 'linear-gradient(135deg,#22c55e,#15803d)';
+      avatarEl.style.color = '#fff';
+      avatarEl.style.border = '2px solid rgba(34,197,94,0.5)';
+      avatarEl.style.boxShadow = '0 0 12px rgba(34,197,94,0.3)';
     } else {
       // Police = couleur dorée par défaut (laissé tel quel par CSS)
       avatarEl.style.boxShadow = '';
@@ -5686,6 +5873,10 @@ function renderDashboard(tab) {
     pill.style.background = 'rgba(100,116,139,0.2)';
     pill.style.color = '#cbd5e1';
     pill.style.border = '1px solid rgba(148,163,184,0.5)';
+  } else if (myService === 'finance') {
+    pill.style.background = 'rgba(34,197,94,0.15)';
+    pill.style.color = '#86efac';
+    pill.style.border = '1px solid rgba(34,197,94,0.4)';
   } else {
     // Reset pour permettre au CSS de prendre la main
     pill.style.background = '';
@@ -5714,6 +5905,9 @@ function renderDashboard(tab) {
   } else if (myService === 'renseignement') {
     if (titleEl) titleEl.textContent = 'Bureau du Renseignement — Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Service Secret';
+  } else if (myService === 'finance') {
+    if (titleEl) titleEl.textContent = 'Bureau de la Finance — Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord — Trésor & Ressources';
   }
 
   document.querySelectorAll('.dash-nav-btn').forEach(btn => {
@@ -5757,6 +5951,9 @@ function switchDashTab(name, btn) {
   if (name === 'operations') renderOperations();
   if (name === 'recensement') renderRecensementNinjas();
   if (name === 'dossiers') renderDossiersAvocat();
+  if (name === 'tresor') renderTresor();
+  if (name === 'ressources') renderRessources();
+  if (name === 'marchands') renderMarchands();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
 }
@@ -8482,6 +8679,7 @@ function renderAjout() {
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
+    if (myService === 'finance') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -8511,6 +8709,11 @@ function renderAjout() {
     gradesDispo = ALL_GRADES_RENSEIGNEMENT;
     titreSection = 'Bureau du Renseignement';
     labelBouton = 'Ajouter l\'agent';
+  } else if (myService === 'finance') {
+    // Pas de Hokage par défaut (réservé au Directeur Police)
+    gradesDispo = ALL_GRADES_FINANCE.filter(g => g !== 'Hokage');
+    titreSection = 'Bureau de la Finance';
+    labelBouton = 'Ajouter le comptable';
   } else if (myService === 'police') {
     // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
     if (canManageSpecialRoles(u)) {
@@ -17787,6 +17990,36 @@ async function initSupabase() {
       }
     } catch(e) { console.warn('Auto-create renseignement:', e); }
 
+    // === Auto-création du compte Haruki Senju pour la Finance ===
+    try {
+      const existeFinance = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'finance' &&
+        matchFullname(x.fullname, 'Haruki Senju')
+      );
+      if (!existeFinance) {
+        const newFinanceAccount = {
+          fullname: 'Haruki Senju',
+          password: 'Senju-Haruki-2026',
+          grade: 'Directeur',
+          service: 'finance',
+          isAgent: true,
+          matricule: 'KNH-FIN-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newFinanceAccount);
+            if (inserted && inserted._id) {
+              newFinanceAccount._id = inserted._id;
+              state.users.push(newFinanceAccount);
+              console.log('💰 Compte Finance créé pour Haruki Senju (Directeur)');
+            }
+          } catch(e) { console.warn('Erreur auto-création compte finance:', e); }
+        }
+      }
+    } catch(e) { console.warn('Auto-create finance:', e); }
+
     // === Auto-création du compte Arakawa Akihiro pour le Tribunal (Juge) ===
     try {
       const existeJuge = state.users.find(x =>
@@ -17847,6 +18080,662 @@ async function initSupabase() {
       }
     } catch(e) { console.warn('Auto-create avocat:', e); }
   }
+}
+
+// ============================================================
+// FINANCE — Trésor / Ressources / Marchands
+// ============================================================
+
+// === TRÉSOR DU VILLAGE ===
+function renderTresor() {
+  const u = state.currentUser;
+  const el = document.getElementById('tresor-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const transactions = (state.tresorTransactions || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
+  const totalEntrees = transactions.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
+  const totalSorties = transactions.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
+  const solde = totalEntrees - totalSorties;
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
+
+  let html = `
+    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:16px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💵 Solde actuel</div>
+        <div style="font-size:26px;font-weight:800;color:${solde >= 0 ? '#86efac' : '#fca5a5'};font-family:'Cinzel',serif">${solde.toLocaleString()} Ryos</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📈 Total entrées</div>
+        <div style="font-size:20px;font-weight:700;color:#86efac;font-family:'Cinzel',serif">+${totalEntrees.toLocaleString()}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📉 Total sorties</div>
+        <div style="font-size:20px;font-weight:700;color:#fca5a5;font-family:'Cinzel',serif">-${totalSorties.toLocaleString()}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📋 Mouvements</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text);font-family:'Cinzel',serif">${transactions.length}</div>
+      </div>
+    </div>`;
+
+  if (canEdit) {
+    html += `
+    <div class="dash-block" style="padding:1rem 1.5rem;margin-bottom:1.5rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Nouvelle transaction</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>Type</label>
+          <select id="tres-type" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%">
+            <option value="entree">📈 Entrée d'argent</option>
+            <option value="sortie">📉 Sortie d'argent</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Montant (Ryos)</label>
+          <input type="number" id="tres-montant" placeholder="Ex: 5000" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Motif / Description</label>
+        <input type="text" id="tres-motif" placeholder="Ex: Vente d'armes au marchand · Paiement salaire · Don du clan Uchiha"  style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
+      </div>
+      <button class="btn-primary btn-full" onclick="ajouterTransactionTresor()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white">💰 Enregistrer la transaction</button>
+    </div>`;
+  }
+
+  html += `<div class="dash-block" style="padding:0">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#86efac">📋 Historique des transactions</div>`;
+
+  if (transactions.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem">Aucune transaction enregistrée.</p>';
+  } else {
+    transactions.forEach(t => {
+      const realIdx = state.tresorTransactions.indexOf(t);
+      const isEntree = t.type === 'entree';
+      const color = isEntree ? '#86efac' : '#fca5a5';
+      const bg = isEntree ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)';
+      const sign = isEntree ? '+' : '-';
+      const icon = isEntree ? '📈' : '📉';
+      html += `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);background:${bg}">
+          <div style="font-size:18px">${icon}</div>
+          <div style="flex:1">
+            <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(t.motif || '(sans motif)')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">${t.date || ''} · enregistré par ${escapeHtml(t.agent || '—')}</div>
+          </div>
+          <div style="font-size:16px;font-weight:800;color:${color};font-family:'Cinzel',serif">${sign}${(t.montant || 0).toLocaleString()} Ryos</div>
+          ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerTransactionTresor(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>` : ''}
+        </div>`;
+    });
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function ajouterTransactionTresor() {
+  const u = state.currentUser;
+  if (!u) return;
+  const type = document.getElementById('tres-type').value;
+  const montant = parseInt(document.getElementById('tres-montant').value);
+  const motif = document.getElementById('tres-motif').value.trim();
+
+  if (!montant || montant <= 0) { alert('Veuillez entrer un montant valide.'); return; }
+  if (!motif) { alert('Veuillez entrer un motif.'); return; }
+
+  const newTx = {
+    id: Date.now(), type, montant, motif,
+    agent: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.tresorTransactions;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newTx)).select().single();
+      if (error) {
+        alert('❌ Erreur Supabase : ' + error.message);
+        return;
+      }
+      if (inserted) newTx._id = inserted.id;
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+
+  state.tresorTransactions = state.tresorTransactions || [];
+  state.tresorTransactions.push(newTx);
+  saveSession();
+  document.getElementById('tres-montant').value = '';
+  document.getElementById('tres-motif').value = '';
+  renderTresor();
+}
+
+async function supprimerTransactionTresor(idx) {
+  if (!(await confirmAsync('Supprimer cette transaction du registre ?'))) return;
+  const tx = state.tresorTransactions[idx];
+  if (!tx) return;
+
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (tx._id) {
+        const { error } = await sb.from('treasury_transactions').delete().eq('id', tx._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('treasury_transactions').delete()
+          .eq('type', tx.type).eq('amount', tx.montant).eq('reason', tx.motif).eq('agent', tx.agent).eq('date', tx.date);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        alert('⚠️ Suppression serveur échouée. La transaction risque de revenir au refresh.');
+        return;
+      }
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+
+  state.tresorTransactions.splice(idx, 1);
+  saveSession();
+  renderTresor();
+}
+
+// === RESSOURCES ===
+function renderRessources() {
+  const u = state.currentUser;
+  const el = document.getElementById('ressources-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const ressources = (state.ressources || []).slice().sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+  const valeurStock = ressources.reduce((s, r) => s + ((r.quantite || 0) * (r.prix || 0)), 0);
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
+
+  let html = `
+    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:16px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📦 Ressources distinctes</div>
+        <div style="font-size:24px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${ressources.length}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💵 Valeur totale du stock</div>
+        <div style="font-size:24px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${valeurStock.toLocaleString()} Ryos</div>
+      </div>
+    </div>`;
+
+  if (canEdit) {
+    const RESSOURCES_PREDEF = [
+      { nom: 'Titane', categorie: 'armurerie', icon: '⚙️' },
+      { nom: 'Fer', categorie: 'armurerie', icon: '⚙️' },
+      { nom: 'Cuivre', categorie: 'armurerie', icon: '⚙️' },
+      { nom: 'Pierre de chakra', categorie: 'armurerie', icon: '💠' },
+      { nom: 'Bois', categorie: 'autre', icon: '🌳' },
+      { nom: 'Coton', categorie: 'autre', icon: '🧵' },
+      { nom: 'Lin', categorie: 'autre', icon: '🧵' },
+      { nom: 'Peau', categorie: 'autre', icon: '🦌' },
+      { nom: 'Poisson', categorie: 'cuisine', icon: '🐟' }
+    ];
+
+    html += `
+    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.25)">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Ajouter / Réapprovisionner une ressource</h3>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Ressource</label>
+        <select id="res-nom-select" onchange="onRessourcePredefChange()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+          <option value="">— Sélectionner une ressource —</option>
+          ${RESSOURCES_PREDEF.map(r => `<option value="${r.nom}" data-cat="${r.categorie}">${r.icon} ${r.nom}</option>`).join('')}
+          <option value="__autre__" data-cat="autre">✏️ Autre (saisir manuellement)</option>
+        </select>
+      </div>
+      <div class="form-group" id="res-nom-libre-group" style="margin-bottom:12px;display:none">
+        <label>Nom personnalisé</label>
+        <input type="text" id="res-nom-libre" placeholder="Ex: Parchemins · Charbon" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>Quantité</label>
+          <input type="number" id="res-quantite" placeholder="Ex: 50" min="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Prix unitaire (Ryos)</label>
+          <input type="number" id="res-prix" placeholder="Ex: 25" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Catégorie</label>
+          <select id="res-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%">
+            <option value="armurerie">⚔️ Armurerie</option>
+            <option value="cuisine">🍱 Cuisine</option>
+            <option value="medical">⚕️ Médical</option>
+            <option value="autre" selected>📦 Autre</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary btn-full" onclick="ajouterRessource()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;padding:12px;font-weight:700">📦 Ajouter au stock</button>
+      <p style="font-size:10px;color:var(--muted);margin-top:8px;font-style:italic;text-align:center">💡 Si la ressource existe déjà avec le même nom, la quantité sera additionnée.</p>
+    </div>`;
+  }
+
+  html += `<div class="dash-block" style="padding:0">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#86efac">📋 Inventaire</div>`;
+
+  if (ressources.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem">Aucune ressource enregistrée.</p>';
+  } else {
+    const catIcon = c => c === 'armurerie' ? '⚔️' : c === 'cuisine' ? '🍱' : c === 'medical' ? '⚕️' : '📦';
+    ressources.forEach(r => {
+      const realIdx = state.ressources.indexOf(r);
+      const valeur = (r.quantite || 0) * (r.prix || 0);
+      html += `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="font-size:20px">${catIcon(r.categorie)}</div>
+          <div style="flex:1">
+            <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(r.nom)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Stock: <strong style="color:#86efac">${(r.quantite || 0).toLocaleString()}</strong> · Prix unitaire: <strong>${(r.prix || 0).toLocaleString()} Ryos</strong> · Valeur: <strong style="color:#86efac">${valeur.toLocaleString()} Ryos</strong></div>
+          </div>
+          ${canEdit ? `
+            <button class="btn-sm" onclick="vendreRessourceModal(${realIdx})" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);font-size:10px;padding:3px 8px">🏪 Vendre</button>
+            <button class="btn-sm" onclick="retirerStock(${realIdx})" style="background:rgba(251,146,60,0.15);color:#fb923c;border:1px solid rgba(251,146,60,0.4);font-size:10px;padding:3px 8px">➖</button>
+            <button class="btn-sm btn-sm-red" onclick="supprimerRessource(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>
+          ` : ''}
+        </div>`;
+    });
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function onRessourcePredefChange() {
+  const sel = document.getElementById('res-nom-select');
+  const libreGroup = document.getElementById('res-nom-libre-group');
+  const cat = document.getElementById('res-categorie');
+  if (!sel) return;
+  const val = sel.value;
+  if (val === '__autre__') {
+    if (libreGroup) libreGroup.style.display = '';
+    if (cat) cat.value = 'autre';
+  } else if (val) {
+    if (libreGroup) libreGroup.style.display = 'none';
+    const opt = sel.options[sel.selectedIndex];
+    const dataCat = opt?.dataset?.cat;
+    if (cat && dataCat) cat.value = dataCat;
+  } else {
+    if (libreGroup) libreGroup.style.display = 'none';
+  }
+}
+
+async function ajouterRessource() {
+  const u = state.currentUser;
+  if (!u) return;
+  const sel = document.getElementById('res-nom-select');
+  let nom = sel ? sel.value : '';
+  if (nom === '__autre__') {
+    nom = (document.getElementById('res-nom-libre')?.value || '').trim();
+  }
+  const quantite = parseInt(document.getElementById('res-quantite').value);
+  const prix = parseInt(document.getElementById('res-prix').value);
+  const categorie = document.getElementById('res-categorie').value;
+
+  if (!nom) { alert('Sélectionnez une ressource.'); return; }
+  if (!quantite || quantite <= 0) { alert('Quantité invalide.'); return; }
+  if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
+
+  state.ressources = state.ressources || [];
+  const existante = state.ressources.find(r => normalize(r.nom) === normalize(nom));
+
+  if (existante) {
+    existante.quantite = (existante.quantite || 0) + quantite;
+    existante.prix = prix;
+    if (supabaseReady && existante._id) {
+      try {
+        await sb.from('resources').update({ quantity: existante.quantite, price: prix }).eq('id', existante._id);
+      } catch(e) {}
+    }
+  } else {
+    const newRes = {
+      id: Date.now(), nom, quantite, prix, categorie,
+      ajoutePar: u.fullname,
+      date: new Date().toLocaleDateString('fr-FR')
+    };
+    if (supabaseReady) {
+      try {
+        const cfg = SUPABASE_TABLES.ressources;
+        const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newRes)).select().single();
+        if (error) {
+          alert('❌ Erreur Supabase : ' + error.message);
+          return;
+        }
+        if (inserted) newRes._id = inserted.id;
+      } catch(e) {
+        alert('❌ Erreur réseau : ' + (e.message || e));
+        return;
+      }
+    }
+    state.ressources.push(newRes);
+  }
+
+  saveSession();
+  if (sel) sel.value = '';
+  document.getElementById('res-nom-libre').value = '';
+  document.getElementById('res-nom-libre-group').style.display = 'none';
+  document.getElementById('res-quantite').value = '';
+  document.getElementById('res-prix').value = '';
+  renderRessources();
+}
+
+async function retirerStock(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'res-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(34,197,94,0.4);border-radius:12px;padding:1.5rem;max-width:420px;width:100%">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:#86efac;margin-bottom:1rem">📦 Retirer du stock — ${escapeHtml(r.nom)}</h3>
+      <div style="background:rgba(34,197,94,0.06);border-radius:6px;padding:10px;margin-bottom:1rem;text-align:center;font-size:12px">
+        Stock actuel : <strong style="color:#86efac;font-size:15px">${r.quantite.toLocaleString()}</strong>
+      </div>
+      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Quantité à retirer</label>
+      <input type="number" id="modal-retrait-qty" value="1" min="1" max="${r.quantite}" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%;margin-top:6px"/>
+      <div style="display:flex;gap:8px;margin-top:1rem">
+        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
+        <button class="btn-primary" onclick="confirmerRetraitStock(${idx})" style="flex:2;background:linear-gradient(135deg,#fb923c,#ea580c);color:white;border:none">➖ Confirmer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function confirmerRetraitStock(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+  const q = parseInt(document.getElementById('modal-retrait-qty').value);
+  if (!q || q <= 0 || q > r.quantite) { alert('Quantité invalide.'); return; }
+  document.getElementById('res-modal-overlay')?.remove();
+  r.quantite -= q;
+  if (supabaseReady && r._id) {
+    try { await sb.from('resources').update({ quantity: r.quantite }).eq('id', r._id); } catch(e) {}
+  }
+  if (r.quantite === 0) {
+    if (await confirmAsync('Stock à 0. Supprimer la ressource ?')) {
+      if (supabaseReady && r._id) {
+        try { await sb.from('resources').delete().eq('id', r._id); } catch(e) {}
+      }
+      state.ressources.splice(idx, 1);
+    }
+  }
+  saveSession();
+  renderRessources();
+}
+
+async function supprimerRessource(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+  if (!(await confirmAsync('Supprimer la ressource "' + r.nom + '" ?'))) return;
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (r._id) {
+        const { error } = await sb.from('resources').delete().eq('id', r._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('resources').delete()
+          .eq('name', r.nom).eq('quantity', r.quantite).eq('price', r.prix);
+        if (!error) deleted = true;
+      }
+      if (!deleted) { alert('⚠️ Suppression serveur échouée.'); return; }
+    } catch(e) { alert('❌ Erreur réseau'); return; }
+  }
+  state.ressources.splice(idx, 1);
+  saveSession();
+  renderRessources();
+}
+
+async function vendreRessourceModal(idx) {
+  const r = state.ressources[idx];
+  if (!r) return;
+  const marchands = (state.marchands || []);
+  if (marchands.length === 0) {
+    alert('⚠️ Aucun marchand enregistré. Allez dans l\'onglet "🏪 Marchands" pour en ajouter.');
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.id = 'res-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
+  overlay.innerHTML = `
+    <div style="background:linear-gradient(180deg,#161a17,#0f1311);border:1px solid rgba(34,197,94,0.4);border-radius:12px;padding:1.5rem;max-width:480px;width:100%">
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:#86efac;margin-bottom:1rem">🏪 Vendre — ${escapeHtml(r.nom)}</h3>
+      <div style="background:rgba(34,197,94,0.06);border-radius:6px;padding:10px;margin-bottom:1rem;font-size:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center">
+        <div>Stock<br/><strong style="color:#86efac;font-size:15px">${r.quantite.toLocaleString()}</strong></div>
+        <div>Prix actuel<br/><strong style="color:var(--lgold);font-size:15px">${(r.prix || 0).toLocaleString()} Ryos</strong></div>
+      </div>
+      <div class="form-group">
+        <label>Marchand acheteur</label>
+        <select id="vente-marchand" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%">
+          ${marchands.map(m => `<option value="${escapeHtml(m.nom)}">${m.categorie === 'armurier' ? '⚔️' : '🍱'} ${escapeHtml(m.nom)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin:0">
+          <label>Quantité</label>
+          <input type="number" id="vente-qty" value="1" min="1" max="${r.quantite}" oninput="majTotalVente(${idx})" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Prix unitaire</label>
+          <input type="number" id="vente-prix" value="${r.prix || 0}" min="0" oninput="majTotalVente(${idx})" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%"/>
+        </div>
+      </div>
+      <div id="vente-total" style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px;margin:12px 0;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase">💵 Total</div>
+        <div style="font-size:22px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${(r.prix || 0).toLocaleString()} Ryos</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);background:rgba(0,0,0,0.25);padding:8px;border-radius:4px;margin-bottom:1rem">
+        ℹ️ Retire du stock + ajoute au trésor automatiquement.
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-outline" onclick="document.getElementById('res-modal-overlay').remove()" style="flex:1">Annuler</button>
+        <button class="btn-primary" onclick="confirmerVente(${idx})" style="flex:2;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none">🏪 Confirmer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function majTotalVente(idx) {
+  const qty = parseInt(document.getElementById('vente-qty')?.value) || 0;
+  const prix = parseInt(document.getElementById('vente-prix')?.value) || 0;
+  const tot = document.getElementById('vente-total');
+  if (tot) tot.querySelector('div:last-child').textContent = (qty * prix).toLocaleString() + ' Ryos';
+}
+
+async function confirmerVente(idx) {
+  const u = state.currentUser;
+  const r = state.ressources[idx];
+  if (!r || !u) return;
+  const marchand = document.getElementById('vente-marchand').value;
+  const qty = parseInt(document.getElementById('vente-qty').value);
+  const prix = parseInt(document.getElementById('vente-prix').value);
+  if (!qty || qty <= 0 || qty > r.quantite) { alert('Quantité invalide.'); return; }
+  if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
+
+  const total = qty * prix;
+  document.getElementById('res-modal-overlay')?.remove();
+
+  r.quantite -= qty;
+  if (supabaseReady && r._id) {
+    try { await sb.from('resources').update({ quantity: r.quantite }).eq('id', r._id); } catch(e) {}
+  }
+
+  const newTx = {
+    id: Date.now(), type: 'entree', montant: total,
+    motif: '🏪 Vente de ' + qty + ' × ' + r.nom + ' à ' + marchand + ' (' + prix + ' Ryos/u)',
+    agent: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  };
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.tresorTransactions;
+      const { data: inserted } = await sb.from(cfg.table).insert(cfg.mapTo(newTx)).select().single();
+      if (inserted) newTx._id = inserted.id;
+    } catch(e) {}
+  }
+  state.tresorTransactions = state.tresorTransactions || [];
+  state.tresorTransactions.push(newTx);
+
+  if (r.quantite === 0) {
+    if (await confirmAsync('Stock à 0. Supprimer ?')) {
+      if (supabaseReady && r._id) {
+        try { await sb.from('resources').delete().eq('id', r._id); } catch(e) {}
+      }
+      const i = state.ressources.indexOf(r);
+      if (i !== -1) state.ressources.splice(i, 1);
+    }
+  }
+  alert('✓ Vente : ' + qty + ' × ' + r.nom + ' à ' + marchand + '\n+' + total.toLocaleString() + ' Ryos au trésor');
+  saveSession();
+  renderRessources();
+}
+
+// === MARCHANDS ===
+function renderMarchands() {
+  const u = state.currentUser;
+  const el = document.getElementById('marchands-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const marchands = (state.marchands || []).slice().sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
+
+  let html = `
+    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:16px;margin-bottom:1.5rem;text-align:center">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🏪 Marchands enregistrés</div>
+      <div style="font-size:26px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${marchands.length}</div>
+    </div>`;
+
+  if (canEdit) {
+    html += `
+    <div class="dash-block" style="padding:1rem 1.5rem;margin-bottom:1.5rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Enregistrer un marchand</h3>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>Nom du marchand</label>
+          <input type="text" id="mar-nom" placeholder="Ex: Tazuna · Forge des Lames" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Catégorie</label>
+          <select id="mar-categorie" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%">
+            <option value="armurier">⚔️ Armurier</option>
+            <option value="cuisinier">🍱 Cuisinier</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Notes (facultatif)</label>
+        <textarea id="mar-notes" rows="2" placeholder="Ex: Spécialisé dans les lames courtes" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif"></textarea>
+      </div>
+      <button class="btn-primary btn-full" onclick="ajouterMarchand()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white">🏪 Enregistrer</button>
+    </div>`;
+  }
+
+  const armuriers = marchands.filter(m => m.categorie === 'armurier');
+  const cuisiniers = marchands.filter(m => m.categorie === 'cuisinier');
+
+  const renderListe = (list, titre, icon, color) => {
+    if (list.length === 0) return '';
+    let h = `<div class="dash-block" style="padding:0;margin-bottom:1rem">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:${color}">${icon} ${titre} (${list.length})</div>`;
+    list.forEach(m => {
+      const realIdx = state.marchands.indexOf(m);
+      h += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="flex:1">
+              <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(m.nom)}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">Enregistré le ${m.date || '—'} par ${escapeHtml(m.ajoutePar || '—')}</div>
+            </div>
+            ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerMarchand(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>` : ''}
+          </div>
+          ${m.notes ? `<div style="margin-top:6px;padding:8px;background:rgba(0,0,0,0.25);border-radius:4px;font-size:11px;color:var(--text);font-style:italic">${escapeHtml(m.notes)}</div>` : ''}
+        </div>`;
+    });
+    h += '</div>';
+    return h;
+  };
+
+  html += renderListe(armuriers, 'Armuriers', '⚔️', '#fb923c');
+  html += renderListe(cuisiniers, 'Cuisiniers', '🍱', '#fbbf24');
+  if (marchands.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:1rem">Aucun marchand enregistré.</p>';
+  }
+
+  el.innerHTML = html;
+}
+
+async function ajouterMarchand() {
+  const u = state.currentUser;
+  if (!u) return;
+  const nom = document.getElementById('mar-nom').value.trim();
+  const categorie = document.getElementById('mar-categorie').value;
+  const notes = document.getElementById('mar-notes').value.trim();
+  if (!nom) { alert('Nom du marchand requis.'); return; }
+
+  const newMar = {
+    id: Date.now(), nom, categorie, notes,
+    ajoutePar: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR')
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.marchands;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newMar)).select().single();
+      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
+      if (inserted) newMar._id = inserted.id;
+    } catch(e) { alert('❌ Erreur réseau'); return; }
+  }
+
+  state.marchands = state.marchands || [];
+  state.marchands.push(newMar);
+  saveSession();
+  document.getElementById('mar-nom').value = '';
+  document.getElementById('mar-notes').value = '';
+  renderMarchands();
+}
+
+async function supprimerMarchand(idx) {
+  const m = state.marchands[idx];
+  if (!m) return;
+  if (!(await confirmAsync('Supprimer "' + m.nom + '" ?'))) return;
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (m._id) {
+        const { error } = await sb.from('merchants').delete().eq('id', m._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('merchants').delete().eq('name', m.nom).eq('category', m.categorie);
+        if (!error) deleted = true;
+      }
+      if (!deleted) { alert('⚠️ Suppression échouée.'); return; }
+    } catch(e) { alert('❌ Erreur réseau'); return; }
+  }
+  state.marchands.splice(idx, 1);
+  saveSession();
+  renderMarchands();
 }
 
 // Lancer l'init Supabase (en arrière-plan)
