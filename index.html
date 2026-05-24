@@ -3888,14 +3888,28 @@ const SUPABASE_TABLES = {
     table: 'treasury_transactions',
     mapTo: t => ({
       type: t.type || 'entree', amount: t.montant || 0,
-      reason: t.motif || null, agent: t.agent || null,
+      // Section encodée dans reason avec séparateur §§§ (pour éviter ALTER TABLE)
+      // Format : "§§§section§§§motif" ou juste "motif" si pas de section
+      reason: t.section ? ('§§§' + t.section + '§§§' + (t.motif || '')) : (t.motif || null),
+      agent: t.agent || null,
       date: t.date || null
     }),
-    mapFrom: r => ({
-      type: r.type, montant: r.amount, motif: r.reason,
-      agent: r.agent, date: r.date,
-      id: r.id, _id: r.id
-    })
+    mapFrom: r => {
+      // Décoder section depuis reason si présente
+      const rawReason = r.reason || '';
+      let section = null;
+      let motif = rawReason;
+      const m = rawReason.match(/^§§§([^§]+)§§§(.*)$/);
+      if (m) {
+        section = m[1];
+        motif = m[2];
+      }
+      return {
+        type: r.type, montant: r.amount, motif: motif, section: section,
+        agent: r.agent, date: r.date,
+        id: r.id, _id: r.id
+      };
+    }
   },
   ressources: {
     table: 'resources',
@@ -5181,7 +5195,8 @@ function renderSavedAccounts() {
     mission:       { icon: '🎯', label: 'Bureau Missions',  color: '#14b8a6', rgb: '20,184,166' },
     civil:         { icon: '🍃', label: 'Citoyen',           color: '#22c55e', rgb: '34,197,94' },
     diplomatie:    { icon: '🤝', label: 'Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
-    renseignement: { icon: '🕵️', label: 'Renseignement',    color: '#94a3b8', rgb: '148,163,184' }
+    renseignement: { icon: '🕵️', label: 'Renseignement',    color: '#94a3b8', rgb: '148,163,184' },
+    finance:       { icon: '💰', label: 'Finance',           color: '#16a34a', rgb: '22,163,74' }
   };
 
   list.innerHTML = accounts.map((a) => {
@@ -5992,6 +6007,40 @@ function renderOverview() {
   if (elTotal) elTotal.textContent = total + (plaintesWait > 0 ? ' · '+plaintesWait+' plaintes' : '');
   if (elAgents) elAgents.textContent = agents;
   if (elGrade) elGrade.textContent = u.grade;
+
+  // === KPIs spéciaux Finance : remplacer les candidatures par Trésor + Mouvements ===
+  const elWaitLabel = elWait ? elWait.parentElement.querySelector('.kpi-label') : null;
+  const elTotalLabel = elTotal ? elTotal.parentElement.querySelector('.kpi-label') : null;
+  if (myService === 'finance') {
+    const txs = state.tresorTransactions || [];
+    const entrees = txs.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
+    const sorties = txs.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
+    const solde = entrees - sorties;
+    if (elWaitLabel) elWaitLabel.textContent = '💰 Trésor du village';
+    if (elWait) {
+      elWait.textContent = solde.toLocaleString() + ' Ryos';
+      elWait.style.color = solde >= 0 ? '#86efac' : '#fca5a5';
+      elWait.style.fontSize = '20px';
+    }
+    if (elTotalLabel) elTotalLabel.textContent = '📋 Mouvements totaux';
+    if (elTotal) elTotal.textContent = txs.length;
+  } else {
+    if (elWaitLabel) elWaitLabel.textContent = 'Candidatures en attente';
+    if (elTotalLabel) elTotalLabel.textContent = 'Candidatures totales';
+    if (elWait) { elWait.style.color = ''; elWait.style.fontSize = ''; }
+  }
+
+  // Renommer le label de la KPI "Agents enregistrés" selon la section
+  const elAgentsLabel = elAgents ? elAgents.parentElement.querySelector('.kpi-label') : null;
+  if (elAgentsLabel) {
+    if (myService === 'juge') elAgentsLabel.textContent = 'Juges enregistrés';
+    else if (myService === 'avocat') elAgentsLabel.textContent = 'Avocats enregistrés';
+    else if (myService === 'mission') elAgentsLabel.textContent = 'Membres du Bureau';
+    else if (myService === 'diplomatie') elAgentsLabel.textContent = 'Diplomates enregistrés';
+    else if (myService === 'renseignement') elAgentsLabel.textContent = 'Agents du Renseignement';
+    else if (myService === 'finance') elAgentsLabel.textContent = 'Trésoriers enregistrés';
+    else elAgentsLabel.textContent = 'Agents enregistrés';
+  }
 
   const permsList = document.getElementById('perms-list');
   if (permsList) {
@@ -11651,6 +11700,7 @@ function renderLogs() {
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
+    if (myService === 'finance') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès strictement restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -11664,14 +11714,21 @@ function renderLogs() {
   const juges = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'juge'));
   const avocats = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'avocat'));
   const missionAgents = state.users.filter(x => x.isAgent && x.service === 'mission');
+  const financeAgents = state.users.filter(x => x.isAgent && x.service === 'finance');
 
   // Détermine quels onglets afficher selon la section
   const showPolice = (myService === 'police');
   const showJuges = (myService === 'police' || myService === 'juge');
   const showAvocats = (myService === 'police' || myService === 'avocat');
   const showMission = (myService === 'police' || myService === 'mission');
-  const showCivils = true; // Toutes les directions peuvent voir les civils
-  const defaultTab = myService === 'police' ? 'agents' : myService === 'juge' ? 'juges' : myService === 'mission' ? 'mission' : 'avocats';
+  const showFinance = (myService === 'police' || myService === 'finance');
+  // ⚠️ Sécurité : la Finance ne voit PAS les mots de passe des civils
+  const showCivils = (myService !== 'finance');
+  const defaultTab = myService === 'police' ? 'agents'
+                   : myService === 'juge' ? 'juges'
+                   : myService === 'mission' ? 'mission'
+                   : myService === 'finance' ? 'finance'
+                   : 'avocats';
 
   let bandeauColor = 'rgba(231,76,60,0.06)';
   let bandeauBorder = 'rgba(231,76,60,0.2)';
@@ -11686,6 +11743,9 @@ function renderLogs() {
   } else if (myService === 'mission') {
     bandeauColor = 'rgba(20,184,166,0.06)'; bandeauBorder = 'rgba(20,184,166,0.3)'; bandeauTextColor = '#5eead4';
     bandeauMsg = '🎯 <strong>Bureau des Missions — Direction</strong> — Comptes des membres et des civils.';
+  } else if (myService === 'finance') {
+    bandeauColor = 'rgba(34,197,94,0.06)'; bandeauBorder = 'rgba(34,197,94,0.3)'; bandeauTextColor = '#86efac';
+    bandeauMsg = '💰 <strong>Bureau de la Finance — Direction</strong> — Comptes des trésoriers uniquement. Les comptes citoyens ne sont pas accessibles depuis cette section.';
   }
 
   let html = `
@@ -11711,6 +11771,10 @@ function renderLogs() {
   if (showMission) {
     const isDefault = defaultTab === 'mission';
     html += `<button id="logs-tab-mission" onclick="switchLogsTab('mission')" style="background:${isDefault?'rgba(20,184,166,0.15)':'transparent'};color:${isDefault?'#5eead4':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#5eead4':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🎯 Mission (${missionAgents.length})</button>`;
+  }
+  if (showFinance) {
+    const isDefault = defaultTab === 'finance';
+    html += `<button id="logs-tab-finance" onclick="switchLogsTab('finance')" style="background:${isDefault?'rgba(34,197,94,0.15)':'transparent'};color:${isDefault?'#86efac':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#86efac':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">💰 Finance (${financeAgents.length})</button>`;
   }
   if (showCivils) {
     html += `<button id="logs-tab-civils" onclick="switchLogsTab('civils')" style="background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🍃 Civils (${civils.length})</button>`;
@@ -11857,7 +11921,40 @@ function renderLogs() {
   }
   html += `</div></div>`; // Ferme section-mission
 
-  // Section Civils (toujours accessible)
+  // Section Finance (Bureau de la Finance)
+  const sectionFinanceDisplay = (showFinance && defaultTab==='finance') ? 'block' : 'none';
+  html += `<div id="logs-section-finance" style="display:${sectionFinanceDisplay}">
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
+        💰 <strong style="color:#86efac">Bureau de la Finance</strong> — Comptes des trésoriers et leurs mots de passe.
+      </div>
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:1px">💰 Membres du Bureau de la Finance (${financeAgents.length})</div>`;
+  if (financeAgents.length === 0) {
+    html += '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-style:italic">Aucun trésorier enregistré.</div>';
+  } else {
+    financeAgents.sort((a,b) => gradeRankForService('finance', a.grade) - gradeRankForService('finance', b.grade)).forEach(a => {
+      html += `
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <strong style="color:var(--text);font-size:14px">${escapeHtml(a.fullname)}</strong>
+              <span style="margin-left:6px;font-size:10px;color:#86efac;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);padding:2px 8px;border-radius:10px">${escapeHtml(a.grade||'—')}</span>
+              ${a.matricule ? `<span style="margin-left:6px;font-size:10px;color:var(--muted)">📋 ${escapeHtml(a.matricule)}</span>` : ''}
+            </div>
+            ${a.inscription ? `<span style="font-size:10px;color:var(--muted)">Inscrit le ${escapeHtml(a.inscription)}</span>` : ''}
+          </div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:8px 12px">
+            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🔑 Mot de passe :</span>
+            <code style="color:#86efac;font-family:monospace;font-size:13px;font-weight:700;flex:1">${escapeHtml(a.password || '(non défini)')}</code>
+            <button class="btn-sm" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-size:10px;padding:4px 8px" onclick="navigator.clipboard.writeText('${(a.password||'').replace(/'/g, "\\'")}').then(()=>alert('✓ Mot de passe copié'))">📋 Copier</button>
+          </div>
+        </div>`;
+    });
+  }
+  html += `</div></div>`; // Ferme section-finance
+
+  // Section Civils (masquée pour la Finance)
+  if (showCivils) {
   html += `<div id="logs-section-civils" style="display:none">
       <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
         ℹ️ <strong style="color:#93c5fd">Comptes citoyens</strong> — Permet de retransmettre un mot de passe en cas d'oubli. Utilisez la barre de recherche pour retrouver rapidement un citoyen.
@@ -11899,21 +11996,23 @@ function renderLogs() {
     });
   }
   html += '</div></div>';
+  } // Ferme if (showCivils)
 
   el.innerHTML = html;
 }
 
 // Switch entre les onglets de Logs
 function switchLogsTab(tab) {
-  ['agents','juges','avocats','mission','civils'].forEach(t => {
+  ['agents','juges','avocats','mission','finance','civils'].forEach(t => {
     const btn = document.getElementById('logs-tab-' + t);
     const sec = document.getElementById('logs-section-' + t);
     const isMission = (t === 'mission');
+    const isFinance = (t === 'finance');
     if (btn) {
       if (t === tab) {
-        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : 'rgba(196,154,26,0.15)';
-        btn.style.color = isMission ? '#5eead4' : 'var(--accent)';
-        btn.style.borderBottomColor = isMission ? '#5eead4' : 'var(--accent)';
+        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : isFinance ? 'rgba(34,197,94,0.15)' : 'rgba(196,154,26,0.15)';
+        btn.style.color = isMission ? '#5eead4' : isFinance ? '#86efac' : 'var(--accent)';
+        btn.style.borderBottomColor = isMission ? '#5eead4' : isFinance ? '#86efac' : 'var(--accent)';
       } else {
         btn.style.background = 'transparent';
         btn.style.color = 'var(--muted)';
@@ -18087,6 +18186,23 @@ async function initSupabase() {
 // ============================================================
 
 // === TRÉSOR DU VILLAGE ===
+// Liste des sections du village pour le sélecteur de transaction
+const SECTIONS_VILLAGE = [
+  { key: 'academie',      label: '🎓 Académie',          color: '#fbbf24', rgb: '251,191,36' },
+  { key: 'police',        label: '👮 Police',            color: '#c49a1a', rgb: '196,154,26' },
+  { key: 'tribunal',      label: '⚖️ Tribunal',          color: '#3b82f6', rgb: '59,130,246' },
+  { key: 'avocats',       label: '🧑‍⚖️ Avocats',          color: '#d97706', rgb: '217,119,6' },
+  { key: 'mission',       label: '🎯 Bureau Missions',   color: '#14b8a6', rgb: '20,184,166' },
+  { key: 'diplomatie',    label: '🤝 Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
+  { key: 'renseignement', label: '🕵️ Renseignement',    color: '#94a3b8', rgb: '148,163,184' },
+  { key: 'finance',       label: '💰 Finance',           color: '#22c55e', rgb: '34,197,94' },
+  { key: 'autre',         label: '📦 Autre / Marchand',  color: '#cbd5e1', rgb: '203,213,225' }
+];
+
+function getSectionMeta(key) {
+  return SECTIONS_VILLAGE.find(s => s.key === key) || SECTIONS_VILLAGE[SECTIONS_VILLAGE.length - 1];
+}
+
 function renderTresor() {
   const u = state.currentUser;
   const el = document.getElementById('tresor-content');
@@ -18102,51 +18218,102 @@ function renderTresor() {
   const solde = totalEntrees - totalSorties;
   const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
 
+  // === GRAND BANDEAU "TRÉSOR DU VILLAGE" très visible ===
   let html = `
-    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:16px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💵 Solde actuel</div>
-        <div style="font-size:26px;font-weight:800;color:${solde >= 0 ? '#86efac' : '#fca5a5'};font-family:'Cinzel',serif">${solde.toLocaleString()} Ryos</div>
-      </div>
+    <div style="background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(22,163,74,0.08));border:2px solid rgba(34,197,94,0.4);border-radius:14px;padding:24px 28px;margin-bottom:1.5rem;text-align:center;box-shadow:0 4px 20px rgba(34,197,94,0.1)">
+      <div style="font-size:12px;color:#86efac;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700">💰 Trésor du Village de Konoha</div>
+      <div style="font-size:42px;font-weight:800;color:${solde >= 0 ? '#86efac' : '#fca5a5'};font-family:'Cinzel',serif;letter-spacing:1px;text-shadow:0 0 20px rgba(34,197,94,0.3)">${solde.toLocaleString()} Ryos</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Solde total disponible</div>
+    </div>
+
+    <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
       <div style="text-align:center">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📈 Total entrées</div>
-        <div style="font-size:20px;font-weight:700;color:#86efac;font-family:'Cinzel',serif">+${totalEntrees.toLocaleString()}</div>
+        <div style="font-size:18px;font-weight:700;color:#86efac;font-family:'Cinzel',serif">+${totalEntrees.toLocaleString()}</div>
       </div>
       <div style="text-align:center">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📉 Total sorties</div>
-        <div style="font-size:20px;font-weight:700;color:#fca5a5;font-family:'Cinzel',serif">-${totalSorties.toLocaleString()}</div>
+        <div style="font-size:18px;font-weight:700;color:#fca5a5;font-family:'Cinzel',serif">-${totalSorties.toLocaleString()}</div>
       </div>
       <div style="text-align:center">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📋 Mouvements</div>
-        <div style="font-size:20px;font-weight:700;color:var(--text);font-family:'Cinzel',serif">${transactions.length}</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);font-family:'Cinzel',serif">${transactions.length}</div>
       </div>
     </div>`;
 
+  // === STATS PAR SECTION (combien chaque section a apporté/dépensé) ===
+  const statsParSection = {};
+  transactions.forEach(t => {
+    const key = t.section || 'autre';
+    if (!statsParSection[key]) statsParSection[key] = { entrees: 0, sorties: 0, count: 0 };
+    if (t.type === 'entree') statsParSection[key].entrees += (t.montant || 0);
+    else statsParSection[key].sorties += (t.montant || 0);
+    statsParSection[key].count++;
+  });
+
+  const sectionsAvecActivite = SECTIONS_VILLAGE.filter(s => statsParSection[s.key]);
+  if (sectionsAvecActivite.length > 0) {
+    html += `<div class="dash-block" style="padding:0;margin-bottom:1.5rem">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#86efac">📊 Répartition par section</div>
+      <div style="padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">`;
+
+    sectionsAvecActivite.forEach(s => {
+      const stats = statsParSection[s.key];
+      const net = stats.entrees - stats.sorties;
+      const netColor = net >= 0 ? '#86efac' : '#fca5a5';
+      html += `
+        <div style="background:rgba(${s.rgb},0.08);border:1px solid rgba(${s.rgb},0.3);border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:700;color:${s.color};margin-bottom:8px">${s.label}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px">
+            <span>Entrées</span><strong style="color:#86efac">+${stats.entrees.toLocaleString()}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px">
+            <span>Sorties</span><strong style="color:#fca5a5">-${stats.sorties.toLocaleString()}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px dashed rgba(${s.rgb},0.3);font-size:12px">
+            <span style="color:var(--text);font-weight:700">Net</span>
+            <strong style="color:${netColor};font-family:'Cinzel',serif">${net >= 0 ? '+' : ''}${net.toLocaleString()} Ryos</strong>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">${stats.count} mouvement(s)</div>
+        </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // === FORMULAIRE D'AJOUT ===
   if (canEdit) {
     html += `
-    <div class="dash-block" style="padding:1rem 1.5rem;margin-bottom:1.5rem">
+    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.25)">
       <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Nouvelle transaction</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div class="form-group" style="margin:0">
           <label>Type</label>
-          <select id="tres-type" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%">
+          <select id="tres-type" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
             <option value="entree">📈 Entrée d'argent</option>
             <option value="sortie">📉 Sortie d'argent</option>
           </select>
         </div>
         <div class="form-group" style="margin:0">
           <label>Montant (Ryos)</label>
-          <input type="number" id="tres-montant" placeholder="Ex: 5000" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
+          <input type="number" id="tres-montant" placeholder="Ex: 5000" min="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:10px">
-        <label>Motif / Description</label>
-        <input type="text" id="tres-motif" placeholder="Ex: Vente d'armes au marchand · Paiement salaire · Don du clan Uchiha"  style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;width:100%"/>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>📂 Section concernée</label>
+        <select id="tres-section" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+          ${SECTIONS_VILLAGE.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
+        </select>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Choisissez quelle section du village est concernée par cette transaction</div>
       </div>
-      <button class="btn-primary btn-full" onclick="ajouterTransactionTresor()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white">💰 Enregistrer la transaction</button>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Motif / Description</label>
+        <input type="text" id="tres-motif" placeholder="Ex: Récolte des impôts du mois · Achat matériel ninja · Don d'un clan" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+      </div>
+      <button class="btn-primary btn-full" onclick="ajouterTransactionTresor()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">💰 Enregistrer la transaction</button>
     </div>`;
   }
 
+  // === HISTORIQUE DES TRANSACTIONS ===
   html += `<div class="dash-block" style="padding:0">
     <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#86efac">📋 Historique des transactions</div>`;
 
@@ -18160,12 +18327,16 @@ function renderTresor() {
       const bg = isEntree ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)';
       const sign = isEntree ? '+' : '-';
       const icon = isEntree ? '📈' : '📉';
+      const secMeta = getSectionMeta(t.section || 'autre');
       html += `
         <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);background:${bg}">
           <div style="font-size:18px">${icon}</div>
           <div style="flex:1">
-            <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(t.motif || '(sans motif)')}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">${t.date || ''} · enregistré par ${escapeHtml(t.agent || '—')}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+              <span style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(t.motif || '(sans motif)')}</span>
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(${secMeta.rgb},0.15);color:${secMeta.color};border:1px solid rgba(${secMeta.rgb},0.3)">${secMeta.label}</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted)">${t.date || ''} · enregistré par ${escapeHtml(t.agent || '—')}</div>
           </div>
           <div style="font-size:16px;font-weight:800;color:${color};font-family:'Cinzel',serif">${sign}${(t.montant || 0).toLocaleString()} Ryos</div>
           ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerTransactionTresor(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>` : ''}
@@ -18183,12 +18354,13 @@ async function ajouterTransactionTresor() {
   const type = document.getElementById('tres-type').value;
   const montant = parseInt(document.getElementById('tres-montant').value);
   const motif = document.getElementById('tres-motif').value.trim();
+  const section = document.getElementById('tres-section')?.value || 'autre';
 
   if (!montant || montant <= 0) { alert('Veuillez entrer un montant valide.'); return; }
   if (!motif) { alert('Veuillez entrer un motif.'); return; }
 
   const newTx = {
-    id: Date.now(), type, montant, motif,
+    id: Date.now(), type, montant, motif, section,
     agent: u.fullname,
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
   };
@@ -18229,8 +18401,10 @@ async function supprimerTransactionTresor(idx) {
         if (!error) deleted = true;
       }
       if (!deleted) {
+        // Reconstruire le reason encodé (avec section si présente) pour matcher Supabase
+        const reasonEncoded = tx.section ? ('§§§' + tx.section + '§§§' + (tx.motif || '')) : (tx.motif || '');
         const { error } = await sb.from('treasury_transactions').delete()
-          .eq('type', tx.type).eq('amount', tx.montant).eq('reason', tx.motif).eq('agent', tx.agent).eq('date', tx.date);
+          .eq('type', tx.type).eq('amount', tx.montant).eq('reason', reasonEncoded).eq('agent', tx.agent).eq('date', tx.date);
         if (!error) deleted = true;
       }
       if (!deleted) {
