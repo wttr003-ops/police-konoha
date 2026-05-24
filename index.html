@@ -3014,7 +3014,7 @@
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
         <button class="dash-nav-btn" data-tab="amendes" data-services="police,juge,avocat" onclick="switchDashTab('amendes', this)">💰 Amendes</button>
         <button class="dash-nav-btn" data-tab="casier" data-services="police,juge,avocat" onclick="switchDashTab('casier', this)">🗂 Casier judiciaire</button>
-        <button class="dash-nav-btn" data-tab="impots" data-services="police" onclick="switchDashTab('impots', this)">🏯 Impôts</button>
+        <button class="dash-nav-btn" data-tab="impots" data-services="police,finance" onclick="switchDashTab('impots', this)">🏯 Impôts</button>
         <button class="dash-nav-btn" data-tab="cellules" data-services="police,juge,avocat" onclick="switchDashTab('cellules', this)">🔒 Cellules</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
         <button class="dash-nav-btn" data-tab="tresor" data-services="finance" onclick="switchDashTab('tresor', this)" style="color:#86efac">💰 Trésor du village</button>
@@ -5491,6 +5491,13 @@ setInterval(() => {
   if (state.currentUser) saveSession();
 }, 5000);
 
+// Coupure auto 02h00 : vérifier toutes les 30 secondes pendant la fenêtre 02h-04h
+setInterval(() => {
+  if (typeof verifierCoupureAuto02h === 'function') {
+    verifierCoupureAuto02h().catch(e => console.warn('Coupure auto:', e));
+  }
+}, 30000);
+
 // ============================================================
 // CANDIDATURE PUBLIQUE
 // ============================================================
@@ -7588,6 +7595,18 @@ function renderImpots() {
     </div>
     ` : ''}
 
+    ${(u.service || 'police') === 'finance' ? `
+    <!-- Bandeau Finance : lecture seule -->
+    <div class="dash-block" style="padding:14px 18px;margin-bottom:1rem;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:20px">💰</div>
+        <div>
+          <div style="font-size:13px;color:#86efac;font-weight:700">Bureau de la Finance — Consultation</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Vous pouvez consulter les impôts du village et suivre les rentrées. La gestion (modification, paiements) est réservée à la Police.</div>
+        </div>
+      </div>
+    </div>
+    ` : `
     <!-- Ajouter un ninja -->
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">➕ Ajouter un ninja au registre</h3>
@@ -7601,6 +7620,7 @@ function renderImpots() {
         <button class="btn-primary" onclick="ajouterImpot()">➕ Ajouter</button>
       </div>
     </div>
+    `}
 
     <!-- Barre de recherche + filtres -->
     <div class="dash-block" style="padding:1rem 1.25rem;margin-bottom:1rem">
@@ -7653,19 +7673,24 @@ function renderImpots() {
         </td>
         <td class="amount">${isExo?'—':m.toLocaleString()+' Ryos'}</td>
         <td>
-          ${isExo ? '<span style="font-size:11px;color:var(--muted)">Exonéré</span>' : `
-          <select onchange="toggleImpot(${idx}, this.value)" style="background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${isPaye?'var(--green)':'var(--red2)'};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'};padding:5px 10px;border-radius:5px;font-weight:700;font-size:11px;cursor:pointer">
+          ${isExo ? '<span style="font-size:11px;color:var(--muted)">Exonéré</span>' : (
+            (u.service || 'police') === 'finance'
+              ? `<span style="display:inline-block;padding:5px 10px;border-radius:5px;font-weight:700;font-size:11px;background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${isPaye?'var(--green)':'var(--red2)'};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'}">${isPaye ? '✓ Payé' : '✗ Non payé'}</span>`
+              : `<select onchange="toggleImpot(${idx}, this.value)" style="background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${isPaye?'var(--green)':'var(--red2)'};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'};padding:5px 10px;border-radius:5px;font-weight:700;font-size:11px;cursor:pointer">
             <option value="non" ${!isPaye?'selected':''}>✗ Non payé</option>
             <option value="paye" ${isPaye?'selected':''}>✓ Payé</option>
-          </select>`}
+          </select>`
+          )}
         </td>
         <td>
-          ${isPaye && !isExo ? `
-            <select onchange="setCollecteur(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer">
+          ${isPaye && !isExo ? (
+            (u.service || 'police') === 'finance'
+              ? `<span style="font-size:11px;color:var(--muted)">${collecteur ? '🤝 ' + escapeHtml(collecteur) : '—'}</span>`
+              : `<select onchange="setCollecteur(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer">
               <option value="">— Agent collecteur —</option>
               ${agentsList.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''}>${a.fullname}</option>`).join('')}
-            </select>
-          ` : '<span style="font-size:11px;color:var(--muted)">—</span>'}
+            </select>`
+          ) : '<span style="font-size:11px;color:var(--muted)">—</span>'}
         </td>
         ${canAddAgent(u.grade) ? `<td><button class="btn-sm btn-sm-red" onclick="supprimerImpot(${idx})" title="Supprimer du registre" style="padding:4px 8px;font-size:11px">🗑</button></td>` : ''}
       </tr>`;
@@ -12821,11 +12846,44 @@ async function forcerFinService(fullname) {
 
 // Vérifier les services qui dépassent 02h00 et les clôturer automatiquement
 async function verifierCoupureAuto02h() {
-  // ⛔ DÉSACTIVÉ : la coupure automatique du service est désactivée.
-  // Seul l'agent peut clôturer son propre service en cliquant manuellement
-  // sur "Fin de service" ou "Clôturer avec heure personnalisée".
-  // Aucune action automatique ne supprime un service.
-  return;
+  if (!state.currentUser) return; // Pas connecté
+  if (!state.serviceActif) return;
+
+  const now = new Date();
+  const heureActuelle = now.getHours();
+  const minuteActuelle = now.getMinutes();
+
+  // On clôture à partir de 02h00 (jusqu'à 04h00 pour rattraper les retards)
+  // En dehors de cette fenêtre, on ne fait rien
+  if (heureActuelle < 2 || heureActuelle >= 4) return;
+
+  for (const fullname of Object.keys(state.serviceActif)) {
+    const service = state.serviceActif[fullname];
+    if (!service || service.fin) continue;
+
+    const debut = new Date(service.debut);
+    if (isNaN(debut.getTime())) continue;
+
+    // Le service doit avoir commencé AVANT 02h00 (la veille ou aujourd'hui)
+    // Construire la date de coupure : 02h00 du jour qui suit le début du service
+    const coupure = new Date(debut);
+    if (debut.getHours() >= 20) {
+      // Service démarré en soirée (20h-23h59) → coupure à 02h le lendemain
+      coupure.setDate(coupure.getDate() + 1);
+    }
+    // Sinon : service démarré entre 00h-01h59 → coupure à 02h le même jour (déjà bon)
+    coupure.setHours(2, 0, 0, 0);
+
+    // Si on a dépassé l'heure de coupure, on clôture
+    if (now.getTime() >= coupure.getTime()) {
+      console.log('🌙 Coupure auto 02h00 pour', fullname, '(début:', debut.toLocaleString('fr-FR'), '→ fin: 02:00)');
+      try {
+        await enregistrerService(fullname, service, coupure, { auto: true });
+      } catch(e) {
+        console.warn('⚠️ Erreur coupure auto', fullname, e);
+      }
+    }
+  }
 }
 
 async function payerAgent(fullname, montant) {
