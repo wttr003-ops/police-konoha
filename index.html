@@ -3020,6 +3020,7 @@
         <button class="dash-nav-btn" data-tab="tresor" data-services="finance" onclick="switchDashTab('tresor', this)" style="color:#86efac">💰 Trésor du village</button>
         <button class="dash-nav-btn" data-tab="ressources" data-services="finance" onclick="switchDashTab('ressources', this)" style="color:#86efac">📦 Ressources</button>
         <button class="dash-nav-btn" data-tab="marchands" data-services="finance" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
+        <button class="dash-nav-btn" data-tab="equipements" data-services="finance" onclick="switchDashTab('equipements', this)" style="color:#86efac">🛡️ Équipements</button>
         <button class="dash-nav-btn" data-tab="rapports-finance" data-services="finance" onclick="switchDashTab('rapports-finance', this)" style="color:#86efac">📄 Rapports financiers</button>
         <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
         <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('documents', this)">📚 Documents</button>
@@ -3138,6 +3139,11 @@
       <div class="dash-tab" id="dash-marchands">
         <h2 class="dash-section-title" style="color:#86efac">🏪 Marchands</h2>
         <div id="marchands-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-equipements">
+        <h2 class="dash-section-title" style="color:#86efac">🛡️ Équipements du village</h2>
+        <div id="equipements-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-rapports-finance">
@@ -3983,6 +3989,25 @@ const SUPABASE_TABLES = {
       auteur: r.author, auteurGrade: r.author_grade, date: r.date,
       id: r.id, _id: r.id
     })
+  },
+  equipementsFinance: {
+    table: 'finance_equipment',
+    mapTo: e => ({
+      name: e.nom || null,
+      type: e.type || 'arme',        // 'arme' ou 'armure'
+      sous_type: e.sousType || null,  // pour armure : 'casque', 'gilet', 'gants', 'jambieres', 'bottes'
+      tier: e.tier || 'T1',           // 'T1', 'T2', 'T3'
+      quantity: e.quantite || 1,
+      notes: e.notes || null,
+      added_by: e.ajoutePar || null,
+      date: e.date || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, type: r.type, sousType: r.sous_type,
+      tier: r.tier, quantite: r.quantity, notes: r.notes,
+      ajoutePar: r.added_by, date: r.date,
+      id: r.id, _id: r.id
+    })
   }
 };
 
@@ -4646,7 +4671,8 @@ let state = {
   ressources: [],
   marchands: [],
   notificationsMarchands: [],
-  rapportsFinance: []
+  rapportsFinance: [],
+  equipementsFinance: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -6004,6 +6030,7 @@ function switchDashTab(name, btn) {
   if (name === 'tresor') renderTresor();
   if (name === 'ressources') renderRessources();
   if (name === 'marchands') renderMarchands();
+  if (name === 'equipements') renderEquipements();
   if (name === 'rapports-finance') renderRapportsFinance();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
@@ -19053,6 +19080,276 @@ async function supprimerMarchand(idx) {
   state.marchands.splice(idx, 1);
   saveSession();
   renderMarchands();
+}
+
+// ============================================================
+// FINANCE — ÉQUIPEMENTS (armes & armures par tier)
+// ============================================================
+
+const EQUIPEMENT_SOUS_TYPES_ARMURE = [
+  { key: 'casque',     label: '⛑️ Casque',     icon: '⛑️' },
+  { key: 'gilet',      label: '🦺 Gilet',      icon: '🦺' },
+  { key: 'gants',      label: '🧤 Gants',      icon: '🧤' },
+  { key: 'jambieres',  label: '🦵 Jambières',  icon: '🦵' },
+  { key: 'bottes',     label: '👢 Bottes',     icon: '👢' }
+];
+
+const TIER_META = {
+  T1: { label: 'T1', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.4)', nom: 'Standard' },
+  T2: { label: 'T2', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.4)', nom: 'Avancé' },
+  T3: { label: 'T3', color: '#fca5a5', bg: 'rgba(252,165,165,0.12)', border: 'rgba(252,165,165,0.45)', nom: 'Élite' }
+};
+
+function getSousTypeArmureLabel(key) {
+  const sst = EQUIPEMENT_SOUS_TYPES_ARMURE.find(s => s.key === key);
+  return sst ? sst.label : '—';
+}
+
+function renderEquipements() {
+  const u = state.currentUser;
+  const el = document.getElementById('equipements-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
+  const equipements = (state.equipementsFinance || []).slice();
+
+  // Totaux globaux
+  const armes = equipements.filter(e => e.type === 'arme');
+  const armures = equipements.filter(e => e.type === 'armure');
+  const totalArmes = armes.reduce((s, e) => s + (e.quantite || 0), 0);
+  const totalArmures = armures.reduce((s, e) => s + (e.quantite || 0), 0);
+
+  // === GRAND BANDEAU EN HAUT ===
+  let html = `
+    <div style="background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(22,163,74,0.05));border:1px solid rgba(34,197,94,0.3);border-radius:12px;padding:18px 24px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔️ Total Armes</div>
+        <div style="font-size:26px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${totalArmes}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${armes.length} entrée(s)</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🛡️ Total Armures</div>
+        <div style="font-size:26px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${totalArmures}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${armures.length} entrée(s)</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📦 Total général</div>
+        <div style="font-size:26px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif">${totalArmes + totalArmures}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">pièces fabriquées</div>
+      </div>
+    </div>`;
+
+  // === FORMULAIRE D'AJOUT ===
+  if (canEdit) {
+    html += `
+    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.3)">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;margin-bottom:1rem">➕ Enregistrer un équipement fabriqué</h3>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>🔧 Type</label>
+          <select id="eq-type" onchange="onEquipementTypeChange()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+            <option value="arme">⚔️ Arme</option>
+            <option value="armure">🛡️ Armure</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>🏆 Tier</label>
+          <select id="eq-tier" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+            <option value="T1">T1 — Standard</option>
+            <option value="T2">T2 — Avancé</option>
+            <option value="T3">T3 — Élite</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>🔢 Quantité</label>
+          <input type="number" id="eq-quantite" min="1" value="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+        </div>
+      </div>
+
+      <div class="form-group" id="eq-sous-type-group" style="margin-bottom:12px;display:none">
+        <label>🛡️ Type d'armure</label>
+        <select id="eq-sous-type" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+          ${EQUIPEMENT_SOUS_TYPES_ARMURE.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>📝 Nom de l'équipement</label>
+        <input type="text" id="eq-nom" placeholder="Ex: Kunai, Katana, Shuriken, Gilet renforcé en cuir..." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>🗒️ Notes (facultatif)</label>
+        <textarea id="eq-notes" rows="2" placeholder="Ex: Forgé par le Clan Higurashi · Renforcement chakra-conducteur" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;resize:vertical"></textarea>
+      </div>
+
+      <button class="btn-primary btn-full" onclick="ajouterEquipement()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">🛡️ Enregistrer l'équipement</button>
+    </div>`;
+  }
+
+  // === AFFICHAGE SÉPARÉ : ARMURES PAR TIER PUIS ARMES PAR TIER ===
+
+  // Helper qui affiche une section (armes ou armures) groupée par tier
+  const renderSection = (titre, icon, color, items, isArmure) => {
+    if (items.length === 0) {
+      return `<div class="dash-block" style="padding:0;margin-bottom:1.5rem">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:${color}">${icon} ${titre} (0)</div>
+        <p style="color:var(--muted);text-align:center;padding:1.5rem;font-style:italic">Aucun équipement enregistré.</p>
+      </div>`;
+    }
+
+    let h = `<div class="dash-block" style="padding:0;margin-bottom:1.5rem">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:${color};display:flex;justify-content:space-between;align-items:center">
+        <span>${icon} ${titre}</span>
+        <span style="font-size:11px;color:var(--muted);font-family:'Rajdhani',sans-serif">${items.reduce((s, e) => s + (e.quantite || 0), 0)} pièce(s) · ${items.length} entrée(s)</span>
+      </div>`;
+
+    // Grouper par tier
+    ['T3', 'T2', 'T1'].forEach(tier => {
+      const itemsTier = items.filter(e => (e.tier || 'T1') === tier);
+      if (itemsTier.length === 0) return;
+
+      const tierMeta = TIER_META[tier];
+      const totalTier = itemsTier.reduce((s, e) => s + (e.quantite || 0), 0);
+
+      h += `
+        <div style="padding:8px 16px;background:${tierMeta.bg};border-bottom:1px solid ${tierMeta.border};display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="display:inline-block;padding:3px 12px;background:rgba(0,0,0,0.3);border:1px solid ${tierMeta.border};border-radius:12px;color:${tierMeta.color};font-size:11px;font-weight:800;letter-spacing:1px">${tierMeta.label}</span>
+            <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">${tierMeta.nom}</span>
+          </div>
+          <span style="font-size:13px;color:${tierMeta.color};font-weight:700;font-family:'Cinzel',serif">${totalTier} pièce(s)</span>
+        </div>`;
+
+      // Si c'est des armures, on sous-groupe par sousType
+      if (isArmure) {
+        EQUIPEMENT_SOUS_TYPES_ARMURE.forEach(sst => {
+          const itemsSst = itemsTier.filter(e => e.sousType === sst.key);
+          if (itemsSst.length === 0) return;
+          const totalSst = itemsSst.reduce((s, e) => s + (e.quantite || 0), 0);
+          h += `<div style="padding:6px 16px 6px 28px;background:rgba(0,0,0,0.15);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">↳ ${sst.label} · <strong style="color:var(--text)">${totalSst}</strong></div>`;
+          itemsSst.forEach(e => {
+            const realIdx = state.equipementsFinance.indexOf(e);
+            h += renderEquipementLigne(e, realIdx, canEdit, tierMeta);
+          });
+        });
+      } else {
+        // Pour les armes, on liste directement
+        itemsTier.forEach(e => {
+          const realIdx = state.equipementsFinance.indexOf(e);
+          h += renderEquipementLigne(e, realIdx, canEdit, tierMeta);
+        });
+      }
+    });
+
+    h += `</div>`;
+    return h;
+  };
+
+  // ARMURES (en premier) groupées par tier
+  html += renderSection('Armures', '🛡️', '#86efac', armures, true);
+  // ARMES après
+  html += renderSection('Armes', '⚔️', '#fbbf24', armes, false);
+
+  el.innerHTML = html;
+}
+
+// Helper pour afficher une ligne d'équipement
+function renderEquipementLigne(e, realIdx, canEdit, tierMeta) {
+  return `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px 10px ${e.type === 'armure' ? '44px' : '28px'};border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-weight:600;color:var(--text);font-size:13px">${escapeHtml(e.nom || '(sans nom)')}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">Enregistré le ${escapeHtml(e.date || '—')} par ${escapeHtml(e.ajoutePar || '—')}</div>
+        ${e.notes ? `<div style="margin-top:4px;font-size:11px;color:var(--text);font-style:italic;background:rgba(0,0,0,0.2);padding:4px 8px;border-radius:4px">${escapeHtml(e.notes)}</div>` : ''}
+      </div>
+      <div style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:6px;padding:4px 12px;font-size:14px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;min-width:50px;text-align:center">×${e.quantite || 0}</div>
+      ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerEquipement(${realIdx})" style="font-size:10px;padding:3px 8px">🗑</button>` : ''}
+    </div>`;
+}
+
+// Quand on change le type (arme/armure), afficher ou cacher le sous-type
+function onEquipementTypeChange() {
+  const type = document.getElementById('eq-type').value;
+  const group = document.getElementById('eq-sous-type-group');
+  if (group) group.style.display = (type === 'armure') ? '' : 'none';
+}
+
+async function ajouterEquipement() {
+  const u = state.currentUser;
+  if (!u) return;
+  const type = document.getElementById('eq-type').value;
+  const tier = document.getElementById('eq-tier').value;
+  const nom = document.getElementById('eq-nom').value.trim();
+  const quantite = parseInt(document.getElementById('eq-quantite').value) || 1;
+  const notes = document.getElementById('eq-notes').value.trim();
+  const sousType = type === 'armure' ? document.getElementById('eq-sous-type').value : null;
+
+  if (!nom) { alert('⚠️ Veuillez entrer un nom pour l\'équipement.'); return; }
+  if (quantite <= 0) { alert('⚠️ Quantité invalide.'); return; }
+
+  const newEq = {
+    id: Date.now(),
+    nom, type, sousType, tier, quantite, notes,
+    ajoutePar: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR')
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.equipementsFinance;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newEq)).select().single();
+      if (error) {
+        alert('❌ Erreur Supabase : ' + error.message + '\n\n(Vérifiez que la table finance_equipment existe — voir le fichier SQL.)');
+        return;
+      }
+      if (inserted) newEq._id = inserted.id;
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+
+  state.equipementsFinance = state.equipementsFinance || [];
+  state.equipementsFinance.push(newEq);
+  saveSession();
+
+  document.getElementById('eq-nom').value = '';
+  document.getElementById('eq-notes').value = '';
+  document.getElementById('eq-quantite').value = '1';
+  alert('✓ ' + quantite + '× ' + nom + ' (' + tier + ') ajouté(e)(s) au registre');
+  renderEquipements();
+}
+
+async function supprimerEquipement(idx) {
+  const e = state.equipementsFinance[idx];
+  if (!e) return;
+  if (!(await confirmAsync('Supprimer "' + (e.nom || '') + '" (' + (e.tier || '') + ') du registre ?'))) return;
+
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (e._id) {
+        const { error } = await sb.from('finance_equipment').delete().eq('id', e._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('finance_equipment').delete()
+          .eq('name', e.nom).eq('type', e.type).eq('tier', e.tier).eq('date', e.date);
+        if (!error) deleted = true;
+      }
+      if (!deleted) { alert('⚠️ Suppression serveur échouée.'); return; }
+    } catch(err) { alert('❌ Erreur réseau'); return; }
+  }
+
+  state.equipementsFinance.splice(idx, 1);
+  saveSession();
+  renderEquipements();
 }
 
 // ============================================================
