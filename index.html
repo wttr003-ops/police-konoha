@@ -18271,9 +18271,29 @@ function renderTresor() {
   }
 
   const transactions = (state.tresorTransactions || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
-  const totalEntrees = transactions.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
-  const totalSorties = transactions.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
-  const solde = totalEntrees - totalSorties;
+  // SOLDE TOTAL : toujours basé sur TOUT l'historique (jamais réinitialisé)
+  const totalEntreesGlobal = transactions.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
+  const totalSortiesGlobal = transactions.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
+  const solde = totalEntreesGlobal - totalSortiesGlobal;
+
+  // COMPTEURS RÉINITIALISABLES : on filtre par "date de reset" (les transactions plus anciennes ne sont plus comptées)
+  state.tresorResetDates = state.tresorResetDates || { entrees: 0, sorties: 0, mouvements: 0 };
+  const resetEntrees = state.tresorResetDates.entrees || 0;
+  const resetSorties = state.tresorResetDates.sorties || 0;
+  const resetMouvements = state.tresorResetDates.mouvements || 0;
+
+  // ID = Date.now() au moment de la création → on compare avec le timestamp de reset
+  const totalEntrees = transactions.filter(t => t.type === 'entree' && (t.id || 0) > resetEntrees).reduce((s, t) => s + (t.montant || 0), 0);
+  const totalSorties = transactions.filter(t => t.type === 'sortie' && (t.id || 0) > resetSorties).reduce((s, t) => s + (t.montant || 0), 0);
+  const nbMouvements = transactions.filter(t => (t.id || 0) > resetMouvements).length;
+
+  // Helper pour afficher "depuis le ..."
+  const formatDepuis = (ts) => {
+    if (!ts || ts === 0) return 'depuis toujours';
+    const d = new Date(ts);
+    return 'depuis le ' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  };
+
   const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
 
   // === GRAND BANDEAU "TRÉSOR DU VILLAGE" très visible ===
@@ -18281,22 +18301,32 @@ function renderTresor() {
     <div style="background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(22,163,74,0.08));border:2px solid rgba(34,197,94,0.4);border-radius:14px;padding:24px 28px;margin-bottom:1.5rem;text-align:center;box-shadow:0 4px 20px rgba(34,197,94,0.1)">
       <div style="font-size:12px;color:#86efac;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700">💰 Trésor du Village de Konoha</div>
       <div style="font-size:42px;font-weight:800;color:${solde >= 0 ? '#86efac' : '#fca5a5'};font-family:'Cinzel',serif;letter-spacing:1px;text-shadow:0 0 20px rgba(34,197,94,0.3)">${solde.toLocaleString()} Ryos</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">Solde total disponible</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Solde total disponible (jamais réinitialisable)</div>
     </div>
 
-    <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
-      <div style="text-align:center">
+    <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div style="text-align:center;padding:8px;background:rgba(34,197,94,0.04);border-radius:6px;border:1px solid rgba(34,197,94,0.15)">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📈 Total entrées</div>
         <div style="font-size:18px;font-weight:700;color:#86efac;font-family:'Cinzel',serif">+${totalEntrees.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px;font-style:italic">${formatDepuis(resetEntrees)}</div>
+        ${canEdit ? `<button onclick="resetCompteurTresor('entrees')" style="margin-top:6px;background:rgba(34,197,94,0.1);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">🔄 Reset</button>` : ''}
       </div>
-      <div style="text-align:center">
+      <div style="text-align:center;padding:8px;background:rgba(239,68,68,0.04);border-radius:6px;border:1px solid rgba(239,68,68,0.15)">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📉 Total sorties</div>
         <div style="font-size:18px;font-weight:700;color:#fca5a5;font-family:'Cinzel',serif">-${totalSorties.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px;font-style:italic">${formatDepuis(resetSorties)}</div>
+        ${canEdit ? `<button onclick="resetCompteurTresor('sorties')" style="margin-top:6px;background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">🔄 Reset</button>` : ''}
       </div>
-      <div style="text-align:center">
+      <div style="text-align:center;padding:8px;background:rgba(196,154,26,0.04);border-radius:6px;border:1px solid rgba(196,154,26,0.15)">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📋 Mouvements</div>
-        <div style="font-size:18px;font-weight:700;color:var(--text);font-family:'Cinzel',serif">${transactions.length}</div>
+        <div style="font-size:18px;font-weight:700;color:var(--lgold);font-family:'Cinzel',serif">${nbMouvements}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px;font-style:italic">${formatDepuis(resetMouvements)}</div>
+        ${canEdit ? `<button onclick="resetCompteurTresor('mouvements')" style="margin-top:6px;background:rgba(196,154,26,0.1);color:var(--lgold);border:1px solid rgba(196,154,26,0.3);font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">🔄 Reset</button>` : ''}
       </div>
+    </div>
+
+    <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:6px;padding:8px 12px;margin-bottom:1.5rem;font-size:11px;color:#93c5fd;text-align:center">
+      ℹ️ Les boutons <strong>Reset</strong> remettent juste les <strong>compteurs visuels à zéro</strong> (pour suivre par exemple les rentrées du soir). L'historique et le solde du trésor ne sont <strong>jamais touchés</strong>.
     </div>`;
 
   // === STATS PAR SECTION (combien chaque section a apporté/dépensé) ===
@@ -18404,6 +18434,32 @@ function renderTresor() {
 
   html += '</div>';
   el.innerHTML = html;
+}
+
+// Réinitialiser un compteur (entrées / sorties / mouvements) sans toucher au trésor
+async function resetCompteurTresor(type) {
+  const labels = {
+    entrees: { nom: 'Total entrées', emoji: '📈' },
+    sorties: { nom: 'Total sorties', emoji: '📉' },
+    mouvements: { nom: 'Mouvements', emoji: '📋' }
+  };
+  const info = labels[type];
+  if (!info) return;
+
+  const ok = await confirmAsync(
+    info.emoji + ' Remettre à zéro le compteur "' + info.nom + '" ?\n\n' +
+    '✅ Ça ne touche PAS :\n' +
+    '   • L\'historique des transactions\n' +
+    '   • Le solde total du trésor\n' +
+    '   • Les données enregistrées\n\n' +
+    '🔄 Ça remet juste le compteur visuel à zéro à partir de maintenant.'
+  );
+  if (!ok) return;
+
+  state.tresorResetDates = state.tresorResetDates || { entrees: 0, sorties: 0, mouvements: 0 };
+  state.tresorResetDates[type] = Date.now();
+  saveSession();
+  renderTresor();
 }
 
 async function ajouterTransactionTresor() {
