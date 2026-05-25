@@ -19130,6 +19130,23 @@ function renderRapportsFinance() {
         <textarea id="rap-contenu" rows="6" placeholder="Rédigez ici les observations, recommandations, demandes ou commentaires que vous souhaitez transmettre au destinataire. Les données chiffrées (trésor, mouvements, stock) seront automatiquement ajoutées au rapport." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;resize:vertical"></textarea>
       </div>
 
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>💵 Montant versé / impliqué (Ryos)</label>
+          <input type="number" id="rap-montant" placeholder="Ex: 15000" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Montant concerné par ce rapport (versement, demande de fonds, total impôts…)</div>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>🔀 Sens du mouvement</label>
+          <select id="rap-sens" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+            <option value="aucun">— Aucun mouvement —</option>
+            <option value="versement">📤 Versement à cette section</option>
+            <option value="recu">📥 Reçu de cette section</option>
+            <option value="information">ℹ️ Information seulement</option>
+          </select>
+        </div>
+      </div>
+
       <div style="background:rgba(34,197,94,0.05);border:1px dashed rgba(34,197,94,0.3);border-radius:8px;padding:12px;margin-bottom:12px;font-size:11px;color:var(--text)">
         <strong style="color:#86efac">📊 Données qui seront automatiquement incluses :</strong>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px">
@@ -19173,6 +19190,7 @@ function renderRapportsFinance() {
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-self:center">
             <button class="btn-sm" onclick="ouvrirRapportFinance(${realIdx})" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-size:10px;padding:5px 12px;font-weight:700">👁️ Ouvrir</button>
+            <button class="btn-sm" onclick="copierLienRapportFinance(${realIdx})" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);font-size:10px;padding:5px 12px;font-weight:700">🔗 Copier lien</button>
             <button class="btn-sm" onclick="imprimerRapportFinance(${realIdx})" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);font-size:10px;padding:5px 12px;font-weight:700">🖨️ Imprimer</button>
             ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerRapportFinance(${realIdx})" style="font-size:10px;padding:5px 12px">🗑 Supprimer</button>` : ''}
           </div>
@@ -19245,6 +19263,19 @@ function buildRapportFinanceHTML(rapport) {
 
   ${rapport.periode ? `<div class="periode">Période concernée : ${escapeHtml(rapport.periode)}</div>` : ''}
 
+  ${stats.montantVerse > 0 ? `
+  <div style="background:linear-gradient(135deg, #f0fdf4, #dcfce7); border: 2px solid #16a34a; border-radius:8px; padding:18px 24px; margin-bottom:25px; text-align:center">
+    <div style="font-size:10px; color:#15803d; text-transform:uppercase; letter-spacing:2px; font-weight:700; margin-bottom:6px">
+      ${stats.sensMouvement === 'versement' ? '📤 Versement effectué à cette section' :
+        stats.sensMouvement === 'recu' ? '📥 Montant reçu de cette section' :
+        stats.sensMouvement === 'information' ? 'ℹ️ Montant concerné' : '💵 Montant concerné'}
+    </div>
+    <div style="font-size:32px; font-weight:bold; color:#15803d; font-family:'Cinzel', serif; letter-spacing:1px">
+      ${stats.montantVerse.toLocaleString()} Ryos
+    </div>
+  </div>
+  ` : ''}
+
   <div class="section-title">📊 Situation financière du village</div>
   <div class="stats-grid">
     <div class="stat"><div class="label">Solde du Trésor</div><div class="val">${(stats.solde || 0).toLocaleString()} Ryos</div></div>
@@ -19288,6 +19319,8 @@ function apercuRapportFinance() {
   const titre = document.getElementById('rap-titre').value.trim() || 'Rapport financier';
   const periode = document.getElementById('rap-periode').value.trim();
   const contenu = document.getElementById('rap-contenu').value.trim();
+  const montantVerse = parseInt(document.getElementById('rap-montant')?.value) || 0;
+  const sensMouvement = document.getElementById('rap-sens')?.value || 'aucun';
 
   const txs = state.tresorTransactions || [];
   const entrees = txs.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
@@ -19299,7 +19332,10 @@ function apercuRapportFinance() {
     titre, destinataire: destKey, periode, contenu,
     auteur: u.fullname, auteurGrade: u.grade,
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
-    stats: { solde: entrees - sorties, entrees, sorties, valeurStock, nbMouvements: txs.length }
+    stats: {
+      solde: entrees - sorties, entrees, sorties, valeurStock, nbMouvements: txs.length,
+      montantVerse: montantVerse, sensMouvement: sensMouvement
+    }
   };
 
   const win = window.open('', '_blank', 'width=900,height=900');
@@ -19319,6 +19355,8 @@ async function genererRapportFinance() {
   const titre = document.getElementById('rap-titre').value.trim();
   const periode = document.getElementById('rap-periode').value.trim();
   const contenu = document.getElementById('rap-contenu').value.trim();
+  const montantVerse = parseInt(document.getElementById('rap-montant')?.value) || 0;
+  const sensMouvement = document.getElementById('rap-sens')?.value || 'aucun';
 
   if (!titre) { alert('⚠️ Veuillez entrer un titre pour le rapport.'); return; }
   if (!destKey) { alert('⚠️ Veuillez sélectionner un destinataire.'); return; }
@@ -19334,7 +19372,10 @@ async function genererRapportFinance() {
     titre, destinataire: destKey, destinataireLabel: meta.label, periode, contenu,
     auteur: u.fullname, auteurGrade: u.grade,
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
-    stats: { solde: entrees - sorties, entrees, sorties, valeurStock, nbMouvements: txs.length }
+    stats: {
+      solde: entrees - sorties, entrees, sorties, valeurStock, nbMouvements: txs.length,
+      montantVerse: montantVerse, sensMouvement: sensMouvement
+    }
   };
 
   // Push Supabase
@@ -19397,6 +19438,96 @@ function imprimerRapportFinance(idx) {
     setTimeout(() => { try { win.print(); } catch(e) {} }, 500);
   }
 }
+
+// Copier un lien partageable vers le rapport
+function copierLienRapportFinance(idx) {
+  const r = state.rapportsFinance[idx];
+  if (!r) return;
+  if (!r._id) {
+    alert('⚠️ Ce rapport n\'est pas encore synchronisé avec Supabase. Réessayez dans quelques secondes.');
+    return;
+  }
+
+  // Construire l'URL complète avec le hash de partage
+  // Exemple : https://ton-site.com/police-kona.html#rapport-finance/123
+  const url = window.location.origin + window.location.pathname + '#rapport-finance/' + r._id;
+
+  // Copier dans le presse-papier
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      afficherToastCopieRapport(url, r.destinataireLabel || r.destinataire);
+    }).catch(() => {
+      promptCopieManuelle(url);
+    });
+  } else {
+    promptCopieManuelle(url);
+  }
+}
+
+// Toast vert "lien copié" qui apparaît en bas
+function afficherToastCopieRapport(url, destinataire) {
+  // Supprimer un éventuel ancien toast
+  const oldToast = document.getElementById('toast-rapport-copie');
+  if (oldToast) oldToast.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'toast-rapport-copie';
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#16a34a,#15803d);color:white;padding:18px 28px;border-radius:12px;box-shadow:0 12px 40px rgba(22,163,74,0.5);max-width:500px;width:90%;text-align:center;font-family:"Rajdhani",sans-serif;animation:slideUp 0.3s ease';
+  toast.innerHTML = `
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px;letter-spacing:0.5px">🔗 Lien du rapport copié !</div>
+    <div style="font-size:11px;opacity:0.9;margin-bottom:8px">À transmettre à : <strong>${escapeHtml(destinataire || '')}</strong></div>
+    <code style="display:block;background:rgba(0,0,0,0.25);padding:6px 10px;border-radius:4px;font-size:10px;word-break:break-all;font-family:monospace">${escapeHtml(url)}</code>
+    <style>@keyframes slideUp { from { opacity:0; transform:translate(-50%, 20px); } to { opacity:1; transform:translate(-50%, 0); } }</style>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.transition = 'opacity 0.4s'; toast.style.opacity = '0'; }, 4000);
+  setTimeout(() => toast.remove(), 4500);
+}
+
+// Fallback : afficher l'URL dans un prompt pour copier manuellement
+function promptCopieManuelle(url) {
+  prompt('Copiez ce lien (Ctrl+C / Cmd+C) pour le partager :', url);
+}
+
+// === HANDLER : ouvrir automatiquement un rapport depuis le lien partagé ===
+// Si l'URL contient #rapport-finance/123, on attend le chargement Supabase
+// et on ouvre directement le rapport en plein écran
+function verifierLienRapportPartage() {
+  const hash = window.location.hash;
+  if (!hash || hash.indexOf('#rapport-finance/') !== 0) return;
+
+  const reportId = parseInt(hash.replace('#rapport-finance/', ''), 10);
+  if (!reportId) return;
+
+  // Attendre que Supabase ait chargé les rapports
+  let tentatives = 0;
+  const tryOuvrir = setInterval(() => {
+    tentatives++;
+    const rapports = state.rapportsFinance || [];
+    const rapport = rapports.find(r => r._id === reportId);
+
+    if (rapport) {
+      clearInterval(tryOuvrir);
+      // Ouvrir directement dans une nouvelle fenêtre prêt à imprimer
+      const win = window.open('', '_self');
+      // Si on est déjà dans le bon onglet, on remplace le contenu
+      document.open();
+      document.write(buildRapportFinanceHTML(rapport));
+      document.close();
+    } else if (tentatives > 30) {
+      // Après 15 secondes, abandon : rapport introuvable
+      clearInterval(tryOuvrir);
+      alert('⚠️ Rapport introuvable.\n\nCe rapport a peut-être été supprimé ou le lien est invalide.');
+      // Nettoyer le hash
+      try { history.replaceState(null, '', window.location.pathname); } catch(e) {}
+    }
+  }, 500);
+}
+
+// Au chargement de la page, vérifier si un lien de rapport partagé est demandé
+window.addEventListener('load', () => {
+  setTimeout(verifierLienRapportPartage, 1500); // laisse à Supabase le temps de charger
+});
 
 // Supprimer un rapport du registre
 async function supprimerRapportFinance(idx) {
