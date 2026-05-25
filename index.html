@@ -3020,6 +3020,7 @@
         <button class="dash-nav-btn" data-tab="tresor" data-services="finance" onclick="switchDashTab('tresor', this)" style="color:#86efac">💰 Trésor du village</button>
         <button class="dash-nav-btn" data-tab="ressources" data-services="finance" onclick="switchDashTab('ressources', this)" style="color:#86efac">📦 Ressources</button>
         <button class="dash-nav-btn" data-tab="marchands" data-services="finance" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
+        <button class="dash-nav-btn" data-tab="rapports-finance" data-services="finance" onclick="switchDashTab('rapports-finance', this)" style="color:#86efac">📄 Rapports financiers</button>
         <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
         <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
@@ -3137,6 +3138,11 @@
       <div class="dash-tab" id="dash-marchands">
         <h2 class="dash-section-title" style="color:#86efac">🏪 Marchands</h2>
         <div id="marchands-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-rapports-finance">
+        <h2 class="dash-section-title" style="color:#86efac">📄 Rapports financiers</h2>
+        <div id="rapports-finance-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-logs">
@@ -3956,6 +3962,27 @@ const SUPABASE_TABLES = {
       dateAcceptee: r.accepted_at, dateRefusee: r.refused_at,
       id: r.id, _id: r.id
     })
+  },
+  rapportsFinance: {
+    table: 'finance_reports',
+    mapTo: r => ({
+      title: r.titre || null,
+      destinataire: r.destinataire || null,
+      destinataire_label: r.destinataireLabel || null,
+      periode: r.periode || null,
+      content: r.contenu || null,
+      stats: r.stats || null,
+      author: r.auteur || null,
+      author_grade: r.auteurGrade || null,
+      date: r.date || null
+    }),
+    mapFrom: r => ({
+      titre: r.title, destinataire: r.destinataire,
+      destinataireLabel: r.destinataire_label, periode: r.periode,
+      contenu: r.content, stats: r.stats,
+      auteur: r.author, auteurGrade: r.author_grade, date: r.date,
+      id: r.id, _id: r.id
+    })
   }
 };
 
@@ -4618,7 +4645,8 @@ let state = {
   tresorTransactions: [],
   ressources: [],
   marchands: [],
-  notificationsMarchands: []
+  notificationsMarchands: [],
+  rapportsFinance: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -5976,6 +6004,7 @@ function switchDashTab(name, btn) {
   if (name === 'tresor') renderTresor();
   if (name === 'ressources') renderRessources();
   if (name === 'marchands') renderMarchands();
+  if (name === 'rapports-finance') renderRapportsFinance();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
 }
@@ -19024,6 +19053,382 @@ async function supprimerMarchand(idx) {
   state.marchands.splice(idx, 1);
   saveSession();
   renderMarchands();
+}
+
+// ============================================================
+// FINANCE — RAPPORTS FINANCIERS (générateur + registre)
+// ============================================================
+
+// Destinataires possibles (toutes les sections du village)
+const DESTINATAIRES_RAPPORT = [
+  { key: 'hokage',        label: '🍃 Hokage',              color: '#22c55e', rgb: '34,197,94' },
+  { key: 'police',        label: '👮 Police de Konoha',    color: '#c49a1a', rgb: '196,154,26' },
+  { key: 'tribunal',      label: '⚖️ Tribunal',            color: '#3b82f6', rgb: '59,130,246' },
+  { key: 'avocats',       label: '🧑‍⚖️ Cabinet des Avocats', color: '#d97706', rgb: '217,119,6' },
+  { key: 'mission',       label: '🎯 Bureau des Missions', color: '#14b8a6', rgb: '20,184,166' },
+  { key: 'diplomatie',    label: '🤝 Diplomatie',          color: '#a855f7', rgb: '168,85,247' },
+  { key: 'renseignement', label: '🕵️ Renseignement',      color: '#94a3b8', rgb: '148,163,184' },
+  { key: 'academie',      label: '🎓 Académie',            color: '#fbbf24', rgb: '251,191,36' }
+];
+
+function getDestinataireMeta(key) {
+  return DESTINATAIRES_RAPPORT.find(d => d.key === key) || DESTINATAIRES_RAPPORT[0];
+}
+
+function renderRapportsFinance() {
+  const u = state.currentUser;
+  const el = document.getElementById('rapports-finance-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable']);
+  const rapports = (state.rapportsFinance || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
+
+  // Calculs auto pour pré-remplissage
+  const txs = state.tresorTransactions || [];
+  const totalEntrees = txs.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
+  const totalSorties = txs.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
+  const solde = totalEntrees - totalSorties;
+  const valeurStock = (state.ressources || []).reduce((s, r) => s + ((r.quantite || 0) * (r.prix || 0)), 0);
+
+  let html = `
+    <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:14px 18px;margin-bottom:1.5rem;font-size:13px;color:var(--text)">
+      📄 <strong style="color:#86efac">Générateur de Rapports Financiers</strong> — Génère un rapport officiel pré-rempli à transmettre aux autres sections du village. Tous les rapports sont enregistrés dans le registre partagé ci-dessous.
+    </div>`;
+
+  // === FORMULAIRE DE GÉNÉRATION ===
+  if (canEdit) {
+    const today = new Date().toLocaleDateString('fr-FR');
+    html += `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.5rem;border:1px solid rgba(34,197,94,0.3)">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:#86efac;margin-bottom:1rem">✍️ Nouveau rapport financier</h3>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>📨 Destinataire</label>
+        <select id="rap-destinataire" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif">
+          ${DESTINATAIRES_RAPPORT.map(d => `<option value="${d.key}">${d.label}</option>`).join('')}
+        </select>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Le rapport sera classé selon le destinataire dans le registre</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>📝 Titre du rapport</label>
+          <input type="text" id="rap-titre" placeholder="Ex: Rapport financier hebdomadaire" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>📅 Période concernée</label>
+          <input type="text" id="rap-periode" placeholder="Ex: Du 01/05 au 07/05" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>📋 Contenu / Observations</label>
+        <textarea id="rap-contenu" rows="6" placeholder="Rédigez ici les observations, recommandations, demandes ou commentaires que vous souhaitez transmettre au destinataire. Les données chiffrées (trésor, mouvements, stock) seront automatiquement ajoutées au rapport." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;resize:vertical"></textarea>
+      </div>
+
+      <div style="background:rgba(34,197,94,0.05);border:1px dashed rgba(34,197,94,0.3);border-radius:8px;padding:12px;margin-bottom:12px;font-size:11px;color:var(--text)">
+        <strong style="color:#86efac">📊 Données qui seront automatiquement incluses :</strong>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px">
+          <div>💰 Solde trésor : <strong>${solde.toLocaleString()} Ryos</strong></div>
+          <div>📈 Total entrées : <strong style="color:#86efac">+${totalEntrees.toLocaleString()}</strong></div>
+          <div>📉 Total sorties : <strong style="color:#fca5a5">-${totalSorties.toLocaleString()}</strong></div>
+          <div>📦 Valeur stock : <strong>${valeurStock.toLocaleString()} Ryos</strong></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" onclick="genererRapportFinance()" style="flex:2;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">📄 Générer le rapport</button>
+        <button class="btn-outline" onclick="apercuRapportFinance()" style="flex:1">👁️ Aperçu</button>
+      </div>
+    </div>`;
+  }
+
+  // === REGISTRE DES DOCUMENTS GÉNÉRÉS ===
+  html += `<div class="dash-block" style="padding:0">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="font-family:'Cinzel',serif;font-size:14px;color:#86efac">📚 Registre des rapports émis (${rapports.length})</div>
+      <div style="font-size:11px;color:var(--muted)">Partagé entre tous les comptables</div>
+    </div>`;
+
+  if (rapports.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:2rem;font-style:italic">Aucun rapport émis pour le moment.</p>';
+  } else {
+    rapports.forEach(r => {
+      const realIdx = state.rapportsFinance.indexOf(r);
+      const meta = getDestinataireMeta(r.destinataire);
+      html += `
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap;align-items:start">
+          <div style="flex:1;min-width:240px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+              <strong style="color:var(--text);font-size:14px">${escapeHtml(r.titre || '(sans titre)')}</strong>
+              <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:10px;background:rgba(${meta.rgb},0.15);color:${meta.color};border:1px solid rgba(${meta.rgb},0.3)">${meta.label}</span>
+            </div>
+            ${r.periode ? `<div style="font-size:11px;color:var(--muted);margin-bottom:3px">📅 Période : ${escapeHtml(r.periode)}</div>` : ''}
+            <div style="font-size:10px;color:var(--muted)">${r.date || ''} · émis par ${escapeHtml(r.auteur || '—')}${r.auteurGrade ? ' (' + escapeHtml(r.auteurGrade) + ')' : ''}</div>
+            ${r.contenu ? `<div style="margin-top:6px;font-size:11px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:4px;font-style:italic;max-height:60px;overflow:hidden">${escapeHtml(r.contenu.substring(0, 200))}${r.contenu.length > 200 ? '…' : ''}</div>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-self:center">
+            <button class="btn-sm" onclick="ouvrirRapportFinance(${realIdx})" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);font-size:10px;padding:5px 12px;font-weight:700">👁️ Ouvrir</button>
+            <button class="btn-sm" onclick="imprimerRapportFinance(${realIdx})" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);font-size:10px;padding:5px 12px;font-weight:700">🖨️ Imprimer</button>
+            ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerRapportFinance(${realIdx})" style="font-size:10px;padding:5px 12px">🗑 Supprimer</button>` : ''}
+          </div>
+        </div>`;
+    });
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// Construit le HTML complet du rapport (utilisé pour aperçu + impression)
+function buildRapportFinanceHTML(rapport) {
+  const meta = getDestinataireMeta(rapport.destinataire);
+  const stats = rapport.stats || {};
+  const numDoc = 'KNH-FIN-' + (rapport.id || Date.now()).toString().slice(-6);
+
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
+<title>${escapeHtml(rapport.titre || 'Rapport financier')} — Bureau de la Finance de Konoha</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #222; background: #f5f5f0; padding: 30px; }
+  .doc { max-width: 800px; margin: 0 auto; background: white; padding: 50px 60px; box-shadow: 0 4px 25px rgba(0,0,0,0.15); border-top: 6px solid #16a34a; }
+  .header { text-align: center; border-bottom: 2px solid #16a34a; padding-bottom: 20px; margin-bottom: 25px; }
+  .crest { font-size: 38px; margin-bottom: 8px; }
+  .header h1 { font-family: 'Cinzel', serif; font-size: 22px; color: #15803d; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .header h2 { font-size: 13px; color: #666; font-weight: normal; letter-spacing: 1px; text-transform: uppercase; }
+  .ref-box { display: flex; justify-content: space-between; margin: 20px 0; font-size: 11px; color: #666; }
+  .ref-box strong { color: #222; }
+  .destinataire { background: linear-gradient(135deg, rgba(${meta.rgb},0.08), rgba(${meta.rgb},0.03)); border-left: 4px solid ${meta.color}; padding: 12px 18px; margin-bottom: 25px; }
+  .destinataire .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .destinataire .name { font-size: 16px; font-weight: bold; color: ${meta.color}; }
+  .titre-rapport { font-family: 'Cinzel', serif; font-size: 22px; color: #222; text-align: center; padding: 18px 0; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; margin-bottom: 25px; }
+  .periode { text-align: center; color: #666; font-style: italic; margin-bottom: 25px; font-size: 13px; }
+  .section-title { font-family: 'Cinzel', serif; font-size: 14px; color: #15803d; text-transform: uppercase; letter-spacing: 1px; margin: 25px 0 12px; border-bottom: 1px solid #16a34a; padding-bottom: 5px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: #f8fcf8; border: 1px solid #d4e8d4; padding: 12px 15px; border-radius: 4px; }
+  .stat .label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .stat .val { font-size: 17px; font-weight: bold; color: #15803d; font-family: 'Cinzel', serif; }
+  .stat.negative .val { color: #b91c1c; }
+  .contenu { font-size: 13px; line-height: 1.7; color: #333; white-space: pre-wrap; background: #fafaf5; padding: 18px 22px; border-left: 3px solid #16a34a; border-radius: 0 4px 4px 0; }
+  .signature { margin-top: 40px; padding-top: 25px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: end; font-size: 12px; }
+  .sig-bloc { text-align: right; }
+  .sig-bloc .nom { font-weight: bold; color: #222; font-size: 14px; }
+  .sig-bloc .grade { color: #666; font-style: italic; font-size: 11px; }
+  .footer { margin-top: 35px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; font-size: 10px; color: #999; font-style: italic; }
+  @media print { body { background: white; padding: 0; } .doc { box-shadow: none; padding: 25px 35px; } .no-print { display: none; } }
+  .actions { max-width: 800px; margin: 20px auto 0; text-align: center; }
+  .actions button { background: #16a34a; color: white; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: bold; margin: 0 6px; }
+  .actions button.secondary { background: #6b7280; }
+</style>
+</head><body>
+<div class="doc">
+  <div class="header">
+    <div class="crest">🍃</div>
+    <h1>Bureau de la Finance — Konoha</h1>
+    <h2>Pays du Feu · Village Caché des Feuilles</h2>
+  </div>
+
+  <div class="ref-box">
+    <div>N° de document : <strong>${numDoc}</strong></div>
+    <div>Émis le : <strong>${escapeHtml(rapport.date || '—')}</strong></div>
+  </div>
+
+  <div class="destinataire">
+    <div class="label">À l'attention de</div>
+    <div class="name">${meta.label}</div>
+  </div>
+
+  <div class="titre-rapport">${escapeHtml(rapport.titre || 'Rapport financier')}</div>
+
+  ${rapport.periode ? `<div class="periode">Période concernée : ${escapeHtml(rapport.periode)}</div>` : ''}
+
+  <div class="section-title">📊 Situation financière du village</div>
+  <div class="stats-grid">
+    <div class="stat"><div class="label">Solde du Trésor</div><div class="val">${(stats.solde || 0).toLocaleString()} Ryos</div></div>
+    <div class="stat"><div class="label">Mouvements totaux</div><div class="val">${stats.nbMouvements || 0}</div></div>
+    <div class="stat"><div class="label">Total des entrées</div><div class="val">+${(stats.entrees || 0).toLocaleString()} Ryos</div></div>
+    <div class="stat negative"><div class="label">Total des sorties</div><div class="val">-${(stats.sorties || 0).toLocaleString()} Ryos</div></div>
+    <div class="stat"><div class="label">Valeur du stock</div><div class="val">${(stats.valeurStock || 0).toLocaleString()} Ryos</div></div>
+    <div class="stat"><div class="label">Patrimoine total</div><div class="val">${((stats.solde || 0) + (stats.valeurStock || 0)).toLocaleString()} Ryos</div></div>
+  </div>
+
+  ${rapport.contenu ? `
+  <div class="section-title">📝 Observations et recommandations</div>
+  <div class="contenu">${escapeHtml(rapport.contenu)}</div>
+  ` : ''}
+
+  <div class="signature">
+    <div style="font-size:11px;color:#666;font-style:italic">Document officiel scellé du<br>Bureau de la Finance de Konoha</div>
+    <div class="sig-bloc">
+      <div class="nom">${escapeHtml(rapport.auteur || '—')}</div>
+      <div class="grade">${escapeHtml(rapport.auteurGrade || '—')} · Bureau de la Finance</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Ce document est confidentiel et destiné exclusivement à son destinataire.<br>
+    Bureau de la Finance — Police de Konoha — Projet Ninja Road
+  </div>
+</div>
+<div class="actions no-print">
+  <button onclick="window.print()">🖨️ Imprimer / Sauver en PDF</button>
+  <button class="secondary" onclick="window.close()">Fermer</button>
+</div>
+</body></html>`;
+}
+
+// Aperçu avant génération (utilise les valeurs du formulaire)
+function apercuRapportFinance() {
+  const u = state.currentUser;
+  if (!u) return;
+  const destKey = document.getElementById('rap-destinataire').value;
+  const titre = document.getElementById('rap-titre').value.trim() || 'Rapport financier';
+  const periode = document.getElementById('rap-periode').value.trim();
+  const contenu = document.getElementById('rap-contenu').value.trim();
+
+  const txs = state.tresorTransactions || [];
+  const entrees = txs.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
+  const sorties = txs.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
+  const valeurStock = (state.ressources || []).reduce((s, r) => s + ((r.quantite || 0) * (r.prix || 0)), 0);
+
+  const apercu = {
+    id: Date.now(),
+    titre, destinataire: destKey, periode, contenu,
+    auteur: u.fullname, auteurGrade: u.grade,
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+    stats: { solde: entrees - sorties, entrees, sorties, valeurStock, nbMouvements: txs.length }
+  };
+
+  const win = window.open('', '_blank', 'width=900,height=900');
+  if (win) {
+    win.document.write(buildRapportFinanceHTML(apercu));
+    win.document.close();
+  } else {
+    alert('⚠️ La fenêtre d\'aperçu est bloquée. Autorisez les popups pour ce site.');
+  }
+}
+
+// Générer & enregistrer le rapport
+async function genererRapportFinance() {
+  const u = state.currentUser;
+  if (!u) return;
+  const destKey = document.getElementById('rap-destinataire').value;
+  const titre = document.getElementById('rap-titre').value.trim();
+  const periode = document.getElementById('rap-periode').value.trim();
+  const contenu = document.getElementById('rap-contenu').value.trim();
+
+  if (!titre) { alert('⚠️ Veuillez entrer un titre pour le rapport.'); return; }
+  if (!destKey) { alert('⚠️ Veuillez sélectionner un destinataire.'); return; }
+
+  const txs = state.tresorTransactions || [];
+  const entrees = txs.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
+  const sorties = txs.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
+  const valeurStock = (state.ressources || []).reduce((s, r) => s + ((r.quantite || 0) * (r.prix || 0)), 0);
+  const meta = getDestinataireMeta(destKey);
+
+  const newRapport = {
+    id: Date.now(),
+    titre, destinataire: destKey, destinataireLabel: meta.label, periode, contenu,
+    auteur: u.fullname, auteurGrade: u.grade,
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+    stats: { solde: entrees - sorties, entrees, sorties, valeurStock, nbMouvements: txs.length }
+  };
+
+  // Push Supabase
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.rapportsFinance;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newRapport)).select().single();
+      if (error) {
+        alert('❌ Erreur Supabase : ' + error.message + '\n\n(La table finance_reports doit être créée dans Supabase — voir le fichier SQL fourni.)');
+        return;
+      }
+      if (inserted) newRapport._id = inserted.id;
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+
+  state.rapportsFinance = state.rapportsFinance || [];
+  state.rapportsFinance.push(newRapport);
+  saveSession();
+
+  // Reset form
+  document.getElementById('rap-titre').value = '';
+  document.getElementById('rap-periode').value = '';
+  document.getElementById('rap-contenu').value = '';
+
+  // Ouvrir le document dans une nouvelle fenêtre prêt à imprimer/transmettre
+  const win = window.open('', '_blank', 'width=900,height=900');
+  if (win) {
+    win.document.write(buildRapportFinanceHTML(newRapport));
+    win.document.close();
+  }
+
+  alert('✓ Rapport généré et enregistré dans le registre !\nIl est partagé avec tous les comptables.');
+  renderRapportsFinance();
+}
+
+// Ouvrir un rapport déjà enregistré
+function ouvrirRapportFinance(idx) {
+  const r = state.rapportsFinance[idx];
+  if (!r) return;
+  const win = window.open('', '_blank', 'width=900,height=900');
+  if (win) {
+    win.document.write(buildRapportFinanceHTML(r));
+    win.document.close();
+  } else {
+    alert('⚠️ Autorisez les popups pour ce site.');
+  }
+}
+
+// Imprimer directement
+function imprimerRapportFinance(idx) {
+  const r = state.rapportsFinance[idx];
+  if (!r) return;
+  const win = window.open('', '_blank', 'width=900,height=900');
+  if (win) {
+    win.document.write(buildRapportFinanceHTML(r));
+    win.document.close();
+    setTimeout(() => { try { win.print(); } catch(e) {} }, 500);
+  }
+}
+
+// Supprimer un rapport du registre
+async function supprimerRapportFinance(idx) {
+  const r = state.rapportsFinance[idx];
+  if (!r) return;
+  if (!(await confirmAsync('Supprimer ce rapport du registre ?\n\n"' + (r.titre || '(sans titre)') + '"'))) return;
+
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (r._id) {
+        const { error } = await sb.from('finance_reports').delete().eq('id', r._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('finance_reports').delete()
+          .eq('title', r.titre).eq('author', r.auteur).eq('date', r.date);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        alert('⚠️ Suppression serveur échouée.');
+        return;
+      }
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+
+  state.rapportsFinance.splice(idx, 1);
+  saveSession();
+  renderRapportsFinance();
 }
 
 // Lancer l'init Supabase (en arrière-plan)
