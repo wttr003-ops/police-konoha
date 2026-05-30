@@ -1084,17 +1084,25 @@
     background: var(--mid);
     border: 1px solid var(--border);
     border-radius: 5px;
-    padding: 9px 12px;
+    padding: 11px 14px;
     color: var(--text);
     font-size: 14px;
     font-family: 'Rajdhani', sans-serif;
+    line-height: 1.6;
+    letter-spacing: 0.2px;
     outline: none;
     transition: border-color 0.2s;
   }
   .form-group input:focus,
   .form-group select:focus,
   .form-group textarea:focus { border-color: var(--accent); }
-  .form-group textarea { resize: vertical; min-height: 80px; }
+  .form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.7;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
   .form-group select option { background: var(--dark); }
 
   /* === MODAL DE CONFIRMATION CUSTOM === */
@@ -9770,7 +9778,8 @@ function renderRapports() {
 
       <div class="form-group">
         <label>Description complète du rapport *</label>
-        <textarea id="rap-desc" rows="5" placeholder="Décrivez la mission de A à Z : déroulement, personnes impliquées, actions menées, résultat..."></textarea>
+        <textarea id="rap-desc" rows="10" placeholder="Décrivez la mission de A à Z : déroulement, personnes impliquées, actions menées, résultat..." style="font-size:14px;line-height:1.7;padding:14px 16px;min-height:220px;letter-spacing:0.3px;resize:vertical"></textarea>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;font-style:italic">💡 Vous pouvez utiliser les flèches ↑↓ et le scroll pour naviguer. Étirez le coin inférieur droit ↘ pour agrandir si besoin.</div>
       </div>
 
       <button class="btn-primary btn-full" onclick="submitRapport()">📋 Soumettre le rapport</button>
@@ -9825,17 +9834,17 @@ function renderRapports() {
             ${rapportsTries.map(r => {
               const idx = state.rapports.indexOf(r);
               return `
-                <div style="background:rgba(196,154,26,0.04);border:1px solid rgba(196,154,26,0.2);border-radius:5px;padding:10px;margin-bottom:6px">
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
-                    <div style="font-size:13px;color:var(--text);font-weight:600;flex:1;min-width:160px">${r.type}</div>
-                    <div style="font-size:10px;color:var(--muted)">${r.date}</div>
+                <div style="background:rgba(196,154,26,0.04);border:1px solid rgba(196,154,26,0.2);border-radius:5px;padding:14px;margin-bottom:10px">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+                    <div style="font-size:15px;color:var(--text);font-weight:700;flex:1;min-width:160px">${r.type}</div>
+                    <div style="font-size:11px;color:var(--muted)">${r.date}</div>
                   </div>
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Agents présents :</strong></div>
-                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-                    ${(r.agentsPresents||[]).map(a => `<span style="background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.25);padding:2px 8px;border-radius:10px;font-size:10px">${a}</span>`).join('')}
+                  <div style="font-size:12px;color:var(--muted);margin-bottom:6px"><strong style="color:var(--text)">Agents présents :</strong></div>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+                    ${(r.agentsPresents||[]).map(a => `<span style="background:rgba(196,154,26,0.1);color:var(--accent);border:1px solid rgba(196,154,26,0.25);padding:3px 10px;border-radius:10px;font-size:11px">${a}</span>`).join('')}
                   </div>
-                  <div style="font-size:11px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:4px;line-height:1.5">${r.desc}</div>
-                  ${canManageMembers(u.grade) ? `<button class="btn-sm btn-sm-red" style="margin-top:8px;font-size:10px;padding:3px 8px" onclick="deleteRapport(${idx})">🗑 Supprimer</button>` : ''}
+                  <div style="font-size:14px;color:var(--text);background:rgba(0,0,0,0.25);padding:14px 16px;border-radius:6px;line-height:1.75;word-wrap:break-word;white-space:pre-wrap;letter-spacing:0.3px">${r.desc}</div>
+                  ${canManageMembers(u.grade) ? `<button class="btn-sm btn-sm-red" style="margin-top:10px;font-size:10px;padding:4px 10px" onclick="deleteRapport(${idx})">🗑 Supprimer</button>` : ''}
                 </div>`;
             }).join('')}
           </div>
@@ -10129,7 +10138,7 @@ function renderCasier() {
                       <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(231,76,60,0.15);color:${palCol};border:1px solid ${palCol}44">${c.palier === 'palier3' ? 'P3' : 'P2'}</span>
                     </div>
                   </div>
-                  <div style="font-size:11px;color:var(--text);background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:4px;line-height:1.5">${c.faits}</div>
+                  <div style="font-size:13px;color:var(--text);background:rgba(0,0,0,0.25);padding:12px 14px;border-radius:6px;line-height:1.7;letter-spacing:0.3px;word-wrap:break-word;white-space:pre-wrap">${c.faits}</div>
                   ${c.noteJuge ? `
                     <div style="margin-top:6px;font-size:11px;color:#93c5fd;background:rgba(59,130,246,0.06);border-left:2px solid #3b82f6;padding:6px 10px;border-radius:0 4px 4px 0">
                       <strong>Note du juge :</strong> ${c.noteJuge}
