@@ -12514,8 +12514,8 @@ function renderPresences() {
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-primary btn-full" style="background:linear-gradient(135deg,#c0392b,#922b21);color:white;flex:1" onclick="finService()">■ Fin de service (heure actuelle)</button>
-        <button class="btn-outline" style="flex:1" onclick="cloturerHeurePersonnalisee()">🕐 Clôturer avec heure personnalisée</button>
+        <button class="btn-primary btn-full" style="background:linear-gradient(135deg,#c0392b,#922b21);color:white;flex:1" onclick="finService(this)">■ Fin de service (heure actuelle)</button>
+        <button class="btn-outline" style="flex:1" onclick="cloturerHeurePersonnalisee(this)">🕐 Clôturer avec heure personnalisée</button>
       </div>`;
 
     setTimeout(updateChronoService, 50);
@@ -12753,15 +12753,28 @@ async function prendreService() {
   if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
-function finService() {
+async function finService(btn) {
   const u = state.currentUser;
   const service = state.serviceActif[u.fullname];
   if (!service) return;
+
+  // Désactiver le bouton pour empêcher le double-clic
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'wait';
+    btn.textContent = '⏳ Clôture en cours...';
+  }
+
   const fin = new Date();
-  enregistrerService(u.fullname, service, fin);
+  try {
+    await enregistrerService(u.fullname, service, fin);
+  } finally {
+    // Bouton réactivé via le re-render renderPresences()
+  }
 }
 
-function cloturerHeurePersonnalisee() {
+async function cloturerHeurePersonnalisee(btn) {
   const u = state.currentUser;
   const service = state.serviceActif[u.fullname];
   if (!service) return;
@@ -12784,7 +12797,15 @@ function cloturerHeurePersonnalisee() {
   }
   finCustom.setHours(hh, mm, 0, 0);
 
-  enregistrerService(u.fullname, service, finCustom);
+  // Désactiver le bouton
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'wait';
+    btn.textContent = '⏳ Clôture en cours...';
+  }
+
+  await enregistrerService(u.fullname, service, finCustom);
 }
 
 async function enregistrerService(fullname, service, fin, options) {
@@ -12854,6 +12875,29 @@ async function enregistrerService(fullname, service, fin, options) {
       salaire,
       statut: 'a_payer'
     };
+
+    // === ANTI-DOUBLON SERVEUR (crucial pour coupure auto multi-navigateurs) ===
+    // Avant d'insérer, on demande directement à Supabase si une presence identique
+    // existe déjà. Le state local peut être en retard de plusieurs secondes par rapport
+    // au serveur (Realtime), seul le serveur peut nous dire la vérité.
+    if (supabaseReady) {
+      try {
+        const { data: dejaExiste } = await sb.from('shifts')
+          .select('id')
+          .eq('fullname', fullname)
+          .eq('date', newPresence.date)
+          .eq('start_time', newPresence.heureDebut)
+          .limit(1);
+
+        if (dejaExiste && dejaExiste.length > 0) {
+          console.log('⏸ Doublon évité (serveur) :', fullname, newPresence.date, newPresence.heureDebut);
+          return; // une autre instance a déjà inséré
+        }
+      } catch(e) {
+        console.warn('⚠️ Check anti-doublon Supabase:', e);
+        // En cas d'erreur, on continue (mieux vaut une presence que rien)
+      }
+    }
 
     // Push presence vers Supabase via le mapping standard
     if (supabaseReady) {
@@ -18451,7 +18495,7 @@ function renderTresor() {
       </div>
       <div class="form-group" style="margin-bottom:12px">
         <label>Motif / Description</label>
-        <input type="text" id="tres-motif" placeholder="Ex: Récolte des impôts du mois · Achat matériel ninja · Don d'un clan" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+        <input type="text" id="tres-motif" placeholder="Ex: Récolte des impôts du mois · Achat matériel ninja · Don d'un clan" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px"/>
       </div>
       <button class="btn-primary btn-full" onclick="ajouterTransactionTresor()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">💰 Enregistrer la transaction</button>
     </div>`;
@@ -18988,7 +19032,7 @@ function renderMarchands() {
       </div>
       <div class="form-group" style="margin-bottom:10px">
         <label>Notes (facultatif)</label>
-        <textarea id="mar-notes" rows="2" placeholder="Ex: Spécialisé dans les lames courtes" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif"></textarea>
+        <textarea id="mar-notes" rows="3" placeholder="Ex: Spécialisé dans les lames courtes" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;resize:vertical;font-family:'Rajdhani',sans-serif;font-size:13px;line-height:1.6;min-height:80px"></textarea>
       </div>
       <button class="btn-primary btn-full" onclick="ajouterMarchand()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white">🏪 Enregistrer</button>
     </div>`;
@@ -19185,7 +19229,7 @@ function renderEquipements() {
 
       <div class="form-group" style="margin-bottom:12px">
         <label>🗒️ Notes (facultatif)</label>
-        <textarea id="eq-notes" rows="2" placeholder="Ex: Forgé par le Clan Higurashi · Renforcement chakra-conducteur" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;resize:vertical"></textarea>
+        <textarea id="eq-notes" rows="3" placeholder="Ex: Forgé par le Clan Higurashi · Renforcement chakra-conducteur" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;resize:vertical;font-size:13px;line-height:1.6;min-height:80px"></textarea>
       </div>
 
       <button class="btn-primary btn-full" onclick="ajouterEquipement()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px;font-weight:700">🛡️ Enregistrer l'équipement</button>
@@ -19414,17 +19458,18 @@ function renderRapportsFinance() {
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
         <div class="form-group" style="margin:0">
           <label>📝 Titre du rapport</label>
-          <input type="text" id="rap-titre" placeholder="Ex: Rapport financier hebdomadaire" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+          <input type="text" id="rap-titre" placeholder="Ex: Rapport financier hebdomadaire" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px"/>
         </div>
         <div class="form-group" style="margin:0">
           <label>📅 Période concernée</label>
-          <input type="text" id="rap-periode" placeholder="Ex: Du 01/05 au 07/05" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif"/>
+          <input type="text" id="rap-periode" placeholder="Ex: Du 01/05 au 07/05" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px"/>
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom:12px">
         <label>📋 Contenu / Observations</label>
-        <textarea id="rap-contenu" rows="6" placeholder="Rédigez ici les observations, recommandations, demandes ou commentaires que vous souhaitez transmettre au destinataire. Les données chiffrées (trésor, mouvements, stock) seront automatiquement ajoutées au rapport." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;resize:vertical"></textarea>
+        <textarea id="rap-contenu" rows="12" placeholder="Rédigez ici les observations, recommandations, demandes ou commentaires que vous souhaitez transmettre au destinataire. Les données chiffrées (trésor, mouvements, stock) seront automatiquement ajoutées au rapport." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:14px 16px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;resize:vertical;font-size:14px;line-height:1.7;min-height:240px;letter-spacing:0.3px"></textarea>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;font-style:italic">💡 Vous pouvez utiliser les flèches ↑↓ et le scroll pour naviguer. Étirez le coin inférieur droit ↘ pour agrandir si besoin.</div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
