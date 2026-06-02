@@ -20400,10 +20400,8 @@ function renderDrapeaux() {
         <textarea id="drap-description" rows="3" placeholder="Ex: Position stratégique à l'entrée du village. Permet de contrôler les routes commerciales." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;line-height:1.6;resize:vertical;min-height:80px"></textarea>
       </div>
 
-      <div class="form-group" style="margin-bottom:12px">
-        <label>🥷 Capturé par (facultatif)</label>
-        <input type="text" id="drap-capturepar" placeholder="Ex: Équipe 7 · Naruto Uzumaki · Anonyme..." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px"/>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Laissez vide si le drapeau n'a pas encore été capturé</div>
+      <div style="background:rgba(251,113,133,0.05);border:1px dashed rgba(251,113,133,0.3);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--text);line-height:1.6">
+        💡 <strong style="color:#fb7185">Note :</strong> Si vous choisissez "Konoha" ou "Suna" comme camp initial, le drapeau sera automatiquement marqué comme <strong>capturé par ce village</strong>.
       </div>
 
       <button class="btn-primary btn-full" onclick="ajouterDrapeau()" style="background:linear-gradient(135deg,#fb7185,#be123c);color:white;border:none;padding:12px;font-weight:700">🚩 Créer le drapeau</button>
@@ -20484,9 +20482,13 @@ async function ajouterDrapeau() {
   const camp = document.getElementById('drap-camp').value;
   const pays = document.getElementById('drap-pays').value || 'autre';
   const description = document.getElementById('drap-description').value.trim();
-  const captureBy = document.getElementById('drap-capturepar').value.trim();
 
   if (!nom) { alert('⚠️ Veuillez entrer un nom pour le drapeau.'); return; }
+
+  // Auto-déduction : si camp = konoha → capturé par Konoha, si suna → capturé par Suna, sinon vide
+  const captureBy = camp === 'konoha' ? '🍃 Village de Konoha'
+                  : camp === 'suna' ? '🏜️ Village de Suna'
+                  : null;
 
   // Si on crée le drapeau directement dans un camp non-neutre, on déclenche la protection 2h
   const declenche = (camp !== 'neutre');
@@ -20494,7 +20496,7 @@ async function ajouterDrapeau() {
   const newDrap = {
     id: Date.now(),
     nom, camp, pays, description,
-    captureBy: captureBy || null,
+    captureBy: captureBy,
     captureAt: captureBy ? (new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})) : null,
     protectionUntil: declenche ? (Date.now() + DUREE_PROTECTION_DRAPEAU) : null,
     createdBy: u.fullname,
@@ -20519,15 +20521,14 @@ async function ajouterDrapeau() {
   state.drapeaux = state.drapeaux || [];
   state.drapeaux.push(newDrap);
 
-  // Si le drapeau est créé directement dans un camp (pas neutre), on log dans l'historique
-  if (camp !== 'neutre' || captureBy) {
+  // Log dans l'historique si le drapeau démarre dans un camp
+  if (camp !== 'neutre') {
     await logHistoriqueDrapeau(nom, null, camp, captureBy || u.fullname);
   }
 
   saveSession();
   document.getElementById('drap-nom').value = '';
   document.getElementById('drap-description').value = '';
-  document.getElementById('drap-capturepar').value = '';
   renderDrapeaux();
 }
 
@@ -20551,13 +20552,10 @@ async function modifierCampDrapeau(idx, nouveauCamp) {
     if (!confirmer) return;
   }
 
-  // Demander qui a capturé (sauf si passe à neutre)
-  let captureBy = null;
-  if (nouveauCamp !== 'neutre') {
-    captureBy = prompt('🥷 Qui a capturé le drapeau "' + d.nom + '" pour ' + (nouveauCamp === 'konoha' ? 'Konoha' : 'Suna') + ' ?\n\n(Laissez vide pour passer ce drapeau au camp sans préciser de capteur)');
-    if (captureBy === null) return; // annulé
-    captureBy = captureBy.trim() || u.fullname;
-  }
+  // Auto-déduction du "capturé par" depuis le camp
+  const captureBy = nouveauCamp === 'konoha' ? '🍃 Village de Konoha'
+                  : nouveauCamp === 'suna' ? '🏜️ Village de Suna'
+                  : null;
 
   // Mettre à jour
   d.camp = nouveauCamp;
