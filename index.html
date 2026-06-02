@@ -18938,11 +18938,57 @@ function renderTresor() {
     return;
   }
 
+  // 🔄 AUTO-SYNC SILENCIEUX : à chaque ouverture, on recharge depuis Supabase
+  if (supabaseReady && !window._tresorSyncEnCours) {
+    window._tresorSyncEnCours = true;
+    (async () => {
+      try {
+        const { data, error } = await sb.from('treasury_transactions').select('*').order('id', { ascending: true });
+        if (error) {
+          console.error('❌ Erreur chargement treasury_transactions:', error);
+        } else if (data) {
+          const ancien = (state.tresorTransactions || []).length;
+          state.tresorTransactions = data.map(SUPABASE_TABLES.tresorTransactions.mapFrom);
+          console.log('🔄 Trésor: ' + ancien + ' → ' + state.tresorTransactions.length + ' transactions chargées');
+          // Log des types pour debug
+          const types = {};
+          state.tresorTransactions.forEach(t => { types[t.type] = (types[t.type]||0)+1; });
+          console.log('   Types après normalisation:', types);
+        }
+      } catch(e) {
+        console.warn('⚠️ Auto-sync tresor échoué:', e);
+      }
+      window._tresorSyncEnCours = false;
+      // Re-render après chargement
+      const onglet = document.getElementById('dash-tresor');
+      if (onglet && onglet.classList.contains('active')) {
+        renderTresorContenu();
+      }
+    })();
+  }
+
+  renderTresorContenu();
+}
+
+function renderTresorContenu() {
+  const u = state.currentUser;
+  const el = document.getElementById('tresor-content');
+  if (!el || !u) return;
+
   const transactions = (state.tresorTransactions || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
+
+  // 🔍 LOG DIAGNOSTIC dans la console
+  console.log('💰 renderTresorContenu: ' + transactions.length + ' transactions en mémoire');
+  if (transactions.length > 0) {
+    console.log('   Première (id ' + transactions[0].id + '): type="' + transactions[0].type + '", montant=' + transactions[0].montant);
+  }
+
   // SOLDE TOTAL : toujours basé sur TOUT l'historique (jamais réinitialisé)
   const totalEntreesGlobal = transactions.filter(t => t.type === 'entree').reduce((s, t) => s + (t.montant || 0), 0);
   const totalSortiesGlobal = transactions.filter(t => t.type === 'sortie').reduce((s, t) => s + (t.montant || 0), 0);
   const solde = totalEntreesGlobal - totalSortiesGlobal;
+
+  console.log('   Entrées: ' + totalEntreesGlobal + ' | Sorties: ' + totalSortiesGlobal + ' | Solde: ' + solde);
 
   // COMPTEURS RÉINITIALISABLES : on filtre par "date de reset" (les transactions plus anciennes ne sont plus comptées)
   state.tresorResetDates = state.tresorResetDates || { entrees: 0, sorties: 0, mouvements: 0 };
