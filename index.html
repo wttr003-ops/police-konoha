@@ -2310,7 +2310,7 @@
           </div>
           <div class="history-fact-card">
             <div class="history-fact-label">Hiérarchie</div>
-            <div class="history-fact-val">Maître Stratège</div>
+            <div class="history-fact-val">Gérant</div>
             <div class="history-fact-sub">Plus haute autorité du Bureau</div>
           </div>
           <div class="history-fact-card">
@@ -4853,11 +4853,11 @@ const GRADE_RANK_FINANCE = {
 
 const GRADE_RANK_STRATEGIE = {
   'Hokage': 0,
-  'Maître Stratège': 1,
-  'Tacticien': 2,
-  'Stratège': 3,
-  'Analyste': 4,
-  'Recrue': 5
+  'Gérant': 1,
+  'Co-gérant': 2,
+  'Stratège Vétéran': 3,
+  'Stratège Expérimenté': 4,
+  'Stratège Intermédiaire': 5
 };
 
 // Helper pour obtenir le rank selon le service
@@ -4999,7 +4999,7 @@ const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affect
 const ALL_GRADES_DIPLOMATIE = ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior', 'Diplomate', 'Émissaire', 'Apprenti Diplomate'];
 const ALL_GRADES_RENSEIGNEMENT = ['Maître du Renseignement', 'Commandant', 'Agent Senior', 'Agent', 'Informateur', 'Recrue'];
 const ALL_GRADES_FINANCE = ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable', 'Stagiaire'];
-const ALL_GRADES_STRATEGIE = ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste', 'Recrue'];
+const ALL_GRADES_STRATEGIE = ['Hokage', 'Gérant', 'Co-gérant', 'Stratège Vétéran', 'Stratège Expérimenté', 'Stratège Intermédiaire'];
 
 // Helper : compare 2 grades en ignorant accents/casse
 function _gradeMatch(a, b) {
@@ -5022,7 +5022,7 @@ function canAddMemberInSection(user) {
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
-  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
+  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Gérant', 'Co-gérant']);
   return false;
 }
 
@@ -5037,7 +5037,7 @@ function canSeeSectionLogs(user) {
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
-  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
+  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Gérant', 'Co-gérant']);
   return false;
 }
 
@@ -6938,7 +6938,7 @@ function renderMembres() {
   } else if (myService === 'finance') {
     canManage = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
   } else if (myService === 'strategie') {
-    canManage = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
+    canManage = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant']);
   }
 
   // Récupérer les citoyens depuis 3 sources :
@@ -7065,7 +7065,7 @@ function renderMembres() {
             // Top de hiérarchie : Hokage (rang 0) OU directeur effectif du bureau (rang 1)
             // (le rang 0 est souvent réservé au Hokage qui n'existe pas pour tous les bureaux)
             const isTopOfHierarchy = myRank === 0
-              || (myService === 'strategie' && u.grade === 'Maître Stratège')
+              || (myService === 'strategie' && u.grade === 'Gérant')
               || (myService === 'finance' && u.grade === 'Directeur');
             const canPromote = targetRank > 0;
             const canDemote = targetRank >= 0;
@@ -7080,7 +7080,7 @@ function renderMembres() {
             const myRank = gradeRankForService(myService, u.grade);
             const targetRank = gradeRankForService(myService, a.grade);
             const isTopOfHierarchy = myRank === 0
-              || (myService === 'strategie' && u.grade === 'Maître Stratège')
+              || (myService === 'strategie' && u.grade === 'Gérant')
               || (myService === 'finance' && u.grade === 'Directeur');
             if (isTopOfHierarchy || targetRank > myRank) {
               return `<button class="btn-sm btn-sm-red" onclick="supprimerCompte('${a.fullname.replace(/'/g,"\\'")}', '${myService}')" title="Supprimer le compte" style="background:rgba(192,57,43,0.3)">🗑</button>`;
@@ -7218,7 +7218,7 @@ async function changeGrade(fullname, dir) {
   else if (myService === 'diplomatie') canDo = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   else if (myService === 'renseignement') canDo = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
   else if (myService === 'finance') canDo = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
-  else if (myService === 'strategie') canDo = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
+  else if (myService === 'strategie') canDo = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant']);
   if (!canDo) { alert('Vous n\'avez pas la permission de gérer les grades.'); return; }
 
   // Trouver l'agent dans la même section
@@ -9283,7 +9283,7 @@ function renderAjout() {
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
     if (myService === 'finance') msg = 'Réservé au Directeur et au Directeur Adjoint.';
-    if (myService === 'strategie') msg = 'Réservé au Maître Stratège et au Tacticien.';
+    if (myService === 'strategie') msg = 'Réservé au Gérant et au Co-gérant.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -13870,8 +13870,8 @@ async function supprimerCompte(fullname, service) {
     hasPermission = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
     labelSection = 'au Directeur ou Directeur Adjoint de la Finance';
   } else if (myService === 'strategie') {
-    hasPermission = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
-    labelSection = 'au Maître Stratège ou Tacticien';
+    hasPermission = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant']);
+    labelSection = 'au Gérant ou Co-gérant';
   }
 
   if (!hasPermission) {
@@ -18815,7 +18815,32 @@ async function initSupabase() {
       }
     } catch(e) { console.warn('Auto-create finance:', e); }
 
-    // === Auto-création du compte Arakawa Akihiro pour la Stratégie (Maître Stratège) ===
+    // === 🔄 Migration des anciens grades Stratégie vers les nouveaux ===
+    // Maître Stratège → Gérant, Tacticien → Co-gérant, etc.
+    try {
+      const mapMigration = {
+        'Maître Stratège': 'Gérant',
+        'Tacticien': 'Co-gérant',
+        'Stratège': 'Stratège Vétéran',
+        'Analyste': 'Stratège Expérimenté',
+        'Recrue': 'Stratège Intermédiaire'
+      };
+      for (const user of state.users) {
+        if ((user.service || 'police') === 'strategie' && mapMigration[user.grade]) {
+          const ancien = user.grade;
+          const nouveau = mapMigration[user.grade];
+          console.log('🔄 Migration grade Stratégie : ' + user.fullname + ' (' + ancien + ' → ' + nouveau + ')');
+          user.grade = nouveau;
+          if (supabaseReady && user._id) {
+            try {
+              await sb.from('users').update({ grade: nouveau }).eq('id', user._id);
+            } catch(e) { console.warn('⚠️ Migration échouée pour ' + user.fullname, e); }
+          }
+        }
+      }
+    } catch(e) { console.warn('⚠️ Migration grades Stratégie:', e); }
+
+    // === Auto-création du compte Arakawa Akihiro pour la Stratégie (Gérant) ===
     try {
       const existeStrategie = state.users.find(x =>
         x.isAgent &&
@@ -18826,7 +18851,7 @@ async function initSupabase() {
         const newStrategieAccount = {
           fullname: 'Arakawa Akihiro',
           password: 'akihiro2026',
-          grade: 'Maître Stratège',
+          grade: 'Gérant',
           service: 'strategie',
           isAgent: true,
           matricule: 'KNH-STR-' + Math.floor(1000 + Math.random() * 9000),
@@ -18838,7 +18863,7 @@ async function initSupabase() {
             if (inserted && inserted._id) {
               newStrategieAccount._id = inserted._id;
               state.users.push(newStrategieAccount);
-              console.log('⚔️ Compte Stratégie créé pour Arakawa Akihiro (Maître Stratège)');
+              console.log('⚔️ Compte Stratégie créé pour Arakawa Akihiro (Gérant)');
             }
           } catch(e) { console.warn('Erreur auto-création compte stratégie:', e); }
         }
@@ -20632,7 +20657,7 @@ function renderDrapeauxContenu() {
   if (!el || !u) return;
 
   const drapeaux = (state.drapeaux || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
-  const canEdit = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste']);
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant', 'Stratège', 'Analyste']);
 
   // Comptage par camp (score global)
   const konohaCount = drapeaux.filter(d => d.camp === 'konoha').length;
@@ -21373,7 +21398,7 @@ function renderRapportsSituation() {
     return;
   }
 
-  const canEdit = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste']);
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant', 'Stratège', 'Analyste']);
   const rapports = (state.rapportsSituation || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
 
   let html = `
