@@ -7232,12 +7232,55 @@ async function changeGrade(fullname, dir) {
     alert(dir < 0 ? 'Cet agent est déjà au grade le plus élevé.' : 'Cet agent est déjà au grade le plus bas.');
     return;
   }
+
+  // === 🚫 PROTECTION : Le Hokage est un rôle TRÈS SPÉCIAL ===
+  // Seul le Directeur Police peut promouvoir quelqu'un à Hokage (via canManageSpecialRoles).
+  // Personne d'autre (même Maître Stratège, Directeur Finance, etc.) ne peut le faire.
+  if (isSpecialRole(newGradeName) && !canManageSpecialRoles(u)) {
+    alert('⚠️ Le grade "' + newGradeName + '" est un rôle très spécial.\n\nIl est réservé au Directeur de la Police de Konoha. Vous ne pouvez pas promouvoir quelqu\'un à ce grade depuis votre bureau.');
+    return;
+  }
+
   if (!(await confirmAsync((dir < 0 ? 'Promouvoir' : 'Rétrograder') + ' ' + a.fullname + ' au grade ' + newGradeName + ' ?'))) return;
+
+  const ancienGrade = a.grade;
   a.grade = newGradeName;
 
-  // Push le changement vers Supabase
-  if (supabaseReady && a._id) {
-    try { await pushToSupabase('users', a); } catch(e) {}
+  // === 💾 SAUVEGARDE SUPABASE (obligatoire pour que le changement persiste) ===
+  if (!supabaseReady) {
+    a.grade = ancienGrade; // rollback
+    alert('🔴 Supabase n\'est pas connecté.\n\nLe changement de grade ne peut pas être sauvegardé. Refraîchissez la page et réessayez.');
+    return;
+  }
+
+  try {
+    if (a._id) {
+      // L'agent a un ID Supabase : on met à jour
+      const { error } = await sb.from('users').update({ grade: newGradeName }).eq('id', a._id);
+      if (error) {
+        a.grade = ancienGrade; // rollback
+        console.error('❌ Erreur update grade:', error);
+        alert('❌ Le grade n\'a PAS été sauvegardé.\n\nCode : ' + (error.code || '?') + '\nMessage : ' + error.message);
+        return;
+      }
+      console.log('✅ Grade mis à jour dans Supabase : ' + ancienGrade + ' → ' + newGradeName);
+    } else {
+      // Pas d'ID Supabase : on essaie d'insérer (cas d'un agent ajouté en local mais jamais synchronisé)
+      console.warn('⚠️ Agent sans _id, tentative d\'insertion');
+      const inserted = await pushToSupabase('users', a);
+      if (inserted && inserted._id) {
+        a._id = inserted._id;
+      } else {
+        a.grade = ancienGrade; // rollback
+        alert('❌ Impossible de sauvegarder ce compte dans Supabase. Le grade reste inchangé.');
+        return;
+      }
+    }
+  } catch(e) {
+    a.grade = ancienGrade; // rollback
+    console.error('❌ Exception:', e);
+    alert('❌ Erreur réseau : ' + (e.message || e));
+    return;
   }
 
   saveSession();
