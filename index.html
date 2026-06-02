@@ -6240,6 +6240,20 @@ function renderDashboard(tab) {
   const u = state.currentUser;
   if (!u) return;
 
+  // 🔄 FORCE RESYNC : on s'assure que state.currentUser a toujours les données fraîches
+  // de state.users (qui est la source de vérité après chaque chargement Supabase)
+  const fresh = state.users.find(x =>
+    x.fullname === u.fullname &&
+    (x.service||'police') === (u.service||'police')
+  );
+  if (fresh) {
+    if (fresh.grade !== u.grade) {
+      console.log('🔄 renderDashboard: grade resync ' + u.grade + ' → ' + fresh.grade);
+    }
+    // Copier tous les champs frais dans currentUser SANS changer la référence
+    Object.assign(u, fresh);
+  }
+
   document.getElementById('dash-avatar').textContent = getInitialsFromFullname(u.fullname);
   document.getElementById('dash-username-display').textContent = u.fullname;
   const pill = document.getElementById('dash-grade-pill');
@@ -21977,6 +21991,46 @@ setInterval(() => {
     }
   } catch(e) {}
 }, 60000);
+
+// 🔄 WATCHDOG GRADE : toutes les 20 secondes, on vérifie si notre grade en mémoire
+// correspond à celui sur le serveur. Si différent, on resync + alerte.
+// → utile si pour une raison X le Realtime n'a pas marché.
+setInterval(async () => {
+  try {
+    if (!supabaseReady || !state.currentUser) return;
+    const myFull = state.currentUser.fullname;
+    const myService = state.currentUser.service || 'police';
+    const myCurrentGrade = state.currentUser.grade;
+
+    // Lire MON utilisateur depuis Supabase
+    const { data, error } = await sb.from('users').select('*')
+      .eq('fullname', myFull).eq('service', myService).limit(1);
+    if (error || !data || data.length === 0) return;
+
+    const serverGrade = data[0].grade;
+    if (serverGrade && serverGrade !== myCurrentGrade) {
+      console.log('🔄 WATCHDOG : grade serveur différent, resync ' + myCurrentGrade + ' → ' + serverGrade);
+      const ancien = myCurrentGrade;
+      // Met à jour state.currentUser et state.users
+      state.currentUser.grade = serverGrade;
+      const localUser = state.users.find(u =>
+        u.fullname === myFull && (u.service||'police') === myService
+      );
+      if (localUser) localUser.grade = serverGrade;
+
+      // Notifie l'utilisateur et re-render
+      try { saveSession(); } catch(e) {}
+      try {
+        if (typeof refreshAllUI === 'function') refreshAllUI();
+        const activeTab = document.querySelector('.dash-nav-btn.active');
+        const tabName = activeTab ? activeTab.dataset.tab : 'overview';
+        if (typeof renderDashboard === 'function') renderDashboard(tabName);
+      } catch(e) {}
+
+      alert('🎖️ Votre grade a été mis à jour !\n\nAncien : ' + ancien + '\nNouveau : ' + serverGrade);
+    }
+  } catch(e) { /* silencieux */ }
+}, 20000);
 setInterval(() => {
   try {
     const onglet = document.getElementById('dash-drapeaux');
