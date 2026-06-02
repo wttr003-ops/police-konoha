@@ -4135,33 +4135,50 @@ const SUPABASE_TABLES = {
       date: d.date || null
     }),
     mapFrom: r => {
-      // Décoder pays depuis description
-      const rawDesc = r.description || '';
-      let pays = null;
-      let description = rawDesc;
-      const m = rawDesc.match(/^§§§([^§]+)§§§(.*)$/s);
-      if (m) {
-        pays = m[1];
-        description = m[2];
+      try {
+        // Décoder pays depuis description
+        const rawDesc = r.description || '';
+        let pays = null;
+        let description = rawDesc;
+        const m = rawDesc.match(/^§§§([^§]+)§§§([\s\S]*)$/);
+        if (m) {
+          pays = m[1];
+          description = m[2];
+        }
+        // Décoder protectionUntil depuis captured_at
+        const rawCaptured = r.captured_at || '';
+        let captureAt = rawCaptured;
+        let protectionUntil = null;
+        const idx = rawCaptured.indexOf('|||');
+        if (idx !== -1) {
+          captureAt = rawCaptured.substring(0, idx);
+          protectionUntil = parseInt(rawCaptured.substring(idx + 3)) || null;
+        }
+        return {
+          nom: r.name, camp: r.camp, pays: pays,
+          description: description,
+          captureBy: r.captured_by,
+          captureAt: captureAt || null,
+          protectionUntil: protectionUntil,
+          createdBy: r.created_by, date: r.date,
+          id: r.id, _id: r.id
+        };
+      } catch(e) {
+        console.warn('⚠️ mapFrom drapeau échoué pour id=' + r.id + ':', e);
+        // Retour minimal pour ne pas perdre la ligne
+        return {
+          nom: r.name || '(nom corrompu)',
+          camp: r.camp || 'neutre',
+          pays: null,
+          description: r.description || '',
+          captureBy: r.captured_by || null,
+          captureAt: r.captured_at || null,
+          protectionUntil: null,
+          createdBy: r.created_by || null,
+          date: r.date || null,
+          id: r.id, _id: r.id
+        };
       }
-      // Décoder protectionUntil depuis captured_at
-      const rawCaptured = r.captured_at || '';
-      let captureAt = rawCaptured;
-      let protectionUntil = null;
-      const idx = rawCaptured.indexOf('|||');
-      if (idx !== -1) {
-        captureAt = rawCaptured.substring(0, idx);
-        protectionUntil = parseInt(rawCaptured.substring(idx + 3)) || null;
-      }
-      return {
-        nom: r.name, camp: r.camp, pays: pays,
-        description: description,
-        captureBy: r.captured_by,
-        captureAt: captureAt || null,
-        protectionUntil: protectionUntil,
-        createdBy: r.created_by, date: r.date,
-        id: r.id, _id: r.id
-      };
     }
   },
   drapeauxHistorique: {
@@ -5761,7 +5778,16 @@ function saveSession() {
 // Synchronise toutes les listes vers Supabase (insert/update différentiel)
 let _lastSyncSnapshot = {};
 // Tables qu'on ne synchronise JAMAIS automatiquement (gestion manuelle uniquement)
-const SUPABASE_NO_AUTO_SYNC = new Set(['users']);
+// Tables où Supabase est la SEULE source de vérité (pas de fusion avec le cache local)
+// → évite que des données corrompues ou supprimées d'un côté ne reviennent par fusion
+const SUPABASE_NO_AUTO_SYNC = new Set([
+  'users',
+  // Stratégie : tout est partagé, le serveur est seul juge
+  'drapeaux', 'drapeauxHistorique', 'rapportsSituation',
+  // Finance : pareil
+  'tresorTransactions', 'ressources', 'marchands', 'notificationsMarchands',
+  'rapportsFinance', 'equipementsFinance'
+]);
 
 async function syncAllStateToSupabase() {
   if (!supabaseReady) return;
@@ -20408,6 +20434,18 @@ function renderDrapeaux() {
 
   // === BANDEAU SCORE EN HAUT ===
   let html = `
+    <!-- 🔧 Panneau de diagnostic / re-synchronisation -->
+    <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1.25rem;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px;font-size:12px;color:var(--text)">
+        🔧 <strong style="color:#60a5fa">État de la synchronisation</strong><br>
+        <span style="color:var(--muted);font-size:11px">
+          📊 ${drapeaux.length} drapeau(x) en mémoire ·
+          ${supabaseReady ? '🟢 Supabase connecté' : '🔴 Supabase non connecté'}
+        </span>
+      </div>
+      <button onclick="resyncDrapeauxDepuisSupabase()" style="background:rgba(96,165,250,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.4);padding:8px 16px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">🔄 Re-synchroniser depuis Supabase</button>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:1.5rem">
       <div style="background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:2px solid rgba(239,68,68,0.4);border-radius:12px;padding:18px 20px;text-align:center;box-shadow:0 4px 15px rgba(239,68,68,0.1)">
         <div style="font-size:13px;color:#fca5a5;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700">🍃 Konoha</div>
@@ -20541,6 +20579,57 @@ function renderDrapeaux() {
   }
 
   el.innerHTML = html;
+}
+
+// Re-synchroniser manuellement les drapeaux + historique depuis Supabase
+// Force une lecture fraîche du serveur, ignore tout cache local
+async function resyncDrapeauxDepuisSupabase() {
+  if (!supabaseReady) {
+    alert('🔴 Supabase n\'est pas connecté.\n\nVérifiez votre connexion internet et refraîchissez la page (F5).');
+    return;
+  }
+
+  console.log('🔄 Re-synchronisation manuelle déclenchée...');
+
+  try {
+    // Charger les drapeaux
+    const { data: dataFlags, error: errorFlags } = await sb.from('strategy_flags').select('*').order('id', { ascending: true });
+    if (errorFlags) {
+      console.error('❌ Erreur lecture strategy_flags:', errorFlags);
+      alert('❌ Erreur de lecture des drapeaux :\n\nCode : ' + (errorFlags.code || '?') + '\nMessage : ' + errorFlags.message);
+      return;
+    }
+    const ancienCount = (state.drapeaux || []).length;
+    state.drapeaux = (dataFlags || []).map(SUPABASE_TABLES.drapeaux.mapFrom);
+    console.log('✅ Drapeaux rechargés : ' + ancienCount + ' → ' + state.drapeaux.length);
+
+    // Charger l'historique
+    const { data: dataHisto, error: errorHisto } = await sb.from('strategy_flags_history').select('*').order('id', { ascending: true });
+    if (!errorHisto) {
+      state.drapeauxHistorique = (dataHisto || []).map(SUPABASE_TABLES.drapeauxHistorique.mapFrom);
+      console.log('✅ Historique rechargé : ' + state.drapeauxHistorique.length + ' entrées');
+    }
+
+    // Charger les rapports de situation
+    try {
+      const { data: dataRap, error: errorRap } = await sb.from('strategy_reports').select('*').order('id', { ascending: true });
+      if (!errorRap) {
+        state.rapportsSituation = (dataRap || []).map(SUPABASE_TABLES.rapportsSituation.mapFrom);
+        console.log('✅ Rapports de situation rechargés : ' + state.rapportsSituation.length);
+      }
+    } catch(e) { console.warn('⚠️ Rapports situation:', e); }
+
+    saveSession();
+    renderDrapeaux();
+
+    alert('✅ Re-synchronisation réussie !\n\n' +
+          '🚩 ' + state.drapeaux.length + ' drapeau(x) chargé(s)\n' +
+          '📜 ' + (state.drapeauxHistorique || []).length + ' entrée(s) d\'historique\n' +
+          '📋 ' + (state.rapportsSituation || []).length + ' rapport(s) de situation');
+  } catch(e) {
+    console.error('❌ Exception re-sync:', e);
+    alert('❌ Erreur lors de la re-synchronisation :\n\n' + (e.message || e));
+  }
 }
 
 async function ajouterDrapeau() {
