@@ -3109,7 +3109,9 @@
         <button class="dash-nav-btn" data-tab="rapports-finance" data-services="finance" onclick="switchDashTab('rapports-finance', this)" style="color:#86efac">📄 Rapports financiers</button>
         <button class="dash-nav-btn" data-tab="drapeaux" data-services="strategie" onclick="switchDashTab('drapeaux', this)" style="color:#fb7185">🚩 Drapeaux</button>
         <button class="dash-nav-btn" data-tab="historique-drapeaux" data-services="strategie" onclick="switchDashTab('historique-drapeaux', this)" style="color:#fb7185">📜 Historique des captures</button>
-        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="rapports-situation" data-services="strategie" onclick="switchDashTab('rapports-situation', this)" style="color:#fb7185">📋 Rapports de situation</button>
+        <button class="dash-nav-btn" data-tab="bilan-hebdo" data-services="strategie" onclick="switchDashTab('bilan-hebdo', this)" style="color:#fb7185">📅 Bilan hebdomadaire</button>
+        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
         <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
@@ -3246,6 +3248,16 @@
       <div class="dash-tab" id="dash-historique-drapeaux">
         <h2 class="dash-section-title" style="color:#fb7185">📜 Historique des captures</h2>
         <div id="historique-drapeaux-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-rapports-situation">
+        <h2 class="dash-section-title" style="color:#fb7185">📋 Rapports de situation</h2>
+        <div id="rapports-situation-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-bilan-hebdo">
+        <h2 class="dash-section-title" style="color:#fb7185">📅 Bilan hebdomadaire</h2>
+        <div id="bilan-hebdo-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-logs">
@@ -4167,6 +4179,24 @@ const SUPABASE_TABLES = {
       parQui: r.captured_by, agent: r.agent, date: r.date,
       id: r.id, _id: r.id
     })
+  },
+  rapportsSituation: {
+    table: 'strategy_reports',
+    mapTo: r => ({
+      title: r.titre || null,
+      content: r.contenu || null,
+      severity: r.gravite || 'info',
+      author: r.auteur || null,
+      author_grade: r.auteurGrade || null,
+      date: r.date || null,
+      date_iso: r.dateISO || null
+    }),
+    mapFrom: r => ({
+      titre: r.title, contenu: r.content, gravite: r.severity,
+      auteur: r.author, auteurGrade: r.author_grade,
+      date: r.date, dateISO: r.date_iso,
+      id: r.id, _id: r.id
+    })
   }
 };
 
@@ -4864,7 +4894,8 @@ let state = {
   equipementsFinance: [],
   // === STRATÉGIE ===
   drapeaux: [],
-  drapeauxHistorique: []
+  drapeauxHistorique: [],
+  rapportsSituation: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4934,7 +4965,7 @@ function canAccessDiscussions(user) {
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant', 'Agent Senior']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
-  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
+  // ⚔️ Stratégie : pas d'accès aux discussions inter-sections
   return false;
 }
 
@@ -6290,6 +6321,8 @@ function switchDashTab(name, btn) {
   if (name === 'rapports-finance') renderRapportsFinance();
   if (name === 'drapeaux') renderDrapeaux();
   if (name === 'historique-drapeaux') renderHistoriqueDrapeaux();
+  if (name === 'rapports-situation') renderRapportsSituation();
+  if (name === 'bilan-hebdo') renderBilanHebdo();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
 }
@@ -20680,8 +20713,363 @@ function renderHistoriqueDrapeaux() {
   el.innerHTML = html;
 }
 
-// Lancer l'init Supabase (en arrière-plan)
-setTimeout(initSupabase, 800);
+// ============================================================
+// STRATÉGIE — RAPPORTS DE SITUATION (analyses des stratèges)
+// ============================================================
+
+const GRAVITE_META = {
+  info: { label: '📘 Information', color: '#60a5fa', rgb: '96,165,250', bg: 'rgba(96,165,250,0.12)' },
+  attention: { label: '⚠️ Attention', color: '#fbbf24', rgb: '251,191,36', bg: 'rgba(251,191,36,0.12)' },
+  critique: { label: '🚨 Critique', color: '#ef4444', rgb: '239,68,68', bg: 'rgba(239,68,68,0.15)' }
+};
+
+function getGraviteMeta(key) {
+  return GRAVITE_META[key] || GRAVITE_META.info;
+}
+
+function renderRapportsSituation() {
+  const u = state.currentUser;
+  const el = document.getElementById('rapports-situation-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'strategie') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3></div>';
+    return;
+  }
+
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste']);
+  const rapports = (state.rapportsSituation || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
+
+  let html = `
+    <div style="background:rgba(251,113,133,0.06);border:1px solid rgba(251,113,133,0.25);border-radius:8px;padding:14px 18px;margin-bottom:1.5rem;font-size:13px;color:var(--text)">
+      📋 <strong style="color:#fb7185">Rapports de situation</strong> — Notes d'analyse, observations tactiques et alertes du Bureau de la Stratégie. Tous les stratèges peuvent rédiger et consulter.
+    </div>`;
+
+  // === FORMULAIRE ===
+  if (canEdit) {
+    html += `
+    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(251,113,133,0.3)">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#fb7185;margin-bottom:1rem">✍️ Nouveau rapport de situation</h3>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>📝 Titre du rapport</label>
+          <input type="text" id="rs-titre" placeholder="Ex: Mouvements ennemis Pays du Feu · Analyse défense Nord" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>⚠️ Niveau de gravité</label>
+          <select id="rs-gravite" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px">
+            <option value="info">📘 Information</option>
+            <option value="attention">⚠️ Attention</option>
+            <option value="critique">🚨 Critique</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>📋 Contenu du rapport</label>
+        <textarea id="rs-contenu" rows="10" placeholder="Décrivez en détail la situation, vos observations, vos analyses tactiques, les mouvements ennemis observés, les recommandations stratégiques..." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:14px 16px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px;line-height:1.7;resize:vertical;min-height:220px"></textarea>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;font-style:italic">💡 Vous pouvez utiliser les flèches ↑↓ et le scroll. Étirez le coin ↘ pour agrandir.</div>
+      </div>
+
+      <button class="btn-primary btn-full" onclick="genererRapportSituation()" style="background:linear-gradient(135deg,#fb7185,#be123c);color:white;border:none;padding:12px;font-weight:700">📋 Publier le rapport</button>
+    </div>`;
+  }
+
+  // === REGISTRE ===
+  html += `<div class="dash-block" style="padding:0">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:#fb7185">📚 Rapports émis (${rapports.length})</div>`;
+
+  if (rapports.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:2rem;font-style:italic">Aucun rapport de situation pour le moment.</p>';
+  } else {
+    rapports.forEach(r => {
+      const realIdx = state.rapportsSituation.indexOf(r);
+      const meta = getGraviteMeta(r.gravite);
+      html += `
+        <div style="padding:16px 18px;border-bottom:1px solid var(--border);background:${meta.bg};border-left:4px solid ${meta.color}">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+            <div style="flex:1;min-width:240px">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+                <strong style="color:var(--text);font-size:15px;font-family:'Cinzel',serif">${escapeHtml(r.titre || '(sans titre)')}</strong>
+                <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;background:rgba(${meta.rgb},0.2);color:${meta.color};border:1px solid rgba(${meta.rgb},0.45)">${meta.label}</span>
+              </div>
+              <div style="font-size:10px;color:var(--muted)">${escapeHtml(r.date || '—')} · par ${escapeHtml(r.auteur || '—')}${r.auteurGrade ? ' (' + escapeHtml(r.auteurGrade) + ')' : ''}</div>
+            </div>
+            ${canEdit ? `<button class="btn-sm btn-sm-red" onclick="supprimerRapportSituation(${realIdx})" style="font-size:10px;padding:4px 10px">🗑</button>` : ''}
+          </div>
+          ${r.contenu ? `<div style="margin-top:8px;font-size:14px;color:var(--text);background:rgba(0,0,0,0.25);padding:14px 16px;border-radius:6px;line-height:1.75;word-wrap:break-word;white-space:pre-wrap;letter-spacing:0.3px">${escapeHtml(r.contenu)}</div>` : ''}
+        </div>`;
+    });
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+async function genererRapportSituation() {
+  const u = state.currentUser;
+  if (!u) return;
+  const titre = document.getElementById('rs-titre').value.trim();
+  const gravite = document.getElementById('rs-gravite').value;
+  const contenu = document.getElementById('rs-contenu').value.trim();
+
+  if (!titre) { alert('⚠️ Titre obligatoire.'); return; }
+  if (!contenu) { alert('⚠️ Le rapport ne peut pas être vide.'); return; }
+
+  const now = new Date();
+  const newRap = {
+    id: Date.now(),
+    titre, contenu, gravite,
+    auteur: u.fullname, auteurGrade: u.grade,
+    date: now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+    dateISO: now.toISOString()
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.rapportsSituation;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newRap)).select().single();
+      if (error) {
+        alert('❌ Erreur Supabase : ' + error.message + '\n\n(Vérifiez que la table strategy_reports existe — voir le SQL fourni.)');
+        return;
+      }
+      if (inserted) newRap._id = inserted.id;
+    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  }
+
+  state.rapportsSituation = state.rapportsSituation || [];
+  state.rapportsSituation.push(newRap);
+  saveSession();
+  document.getElementById('rs-titre').value = '';
+  document.getElementById('rs-contenu').value = '';
+  alert('✓ Rapport de situation publié !');
+  renderRapportsSituation();
+}
+
+async function supprimerRapportSituation(idx) {
+  const r = state.rapportsSituation[idx];
+  if (!r) return;
+  if (!(await confirmAsync('Supprimer ce rapport ?\n\n"' + (r.titre || '(sans titre)') + '"'))) return;
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (r._id) {
+        const { error } = await sb.from('strategy_reports').delete().eq('id', r._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('strategy_reports').delete()
+          .eq('title', r.titre).eq('author', r.auteur).eq('date', r.date);
+        if (!error) deleted = true;
+      }
+      if (!deleted) { alert('⚠️ Suppression échouée.'); return; }
+    } catch(e) { alert('❌ Erreur réseau'); return; }
+  }
+  state.rapportsSituation.splice(idx, 1);
+  saveSession();
+  renderRapportsSituation();
+}
+
+// ============================================================
+// STRATÉGIE — BILAN HEBDOMADAIRE (lundi → dimanche)
+// ============================================================
+
+// Calcule le lundi 00:00:00 et le dimanche 23:59:59 de la semaine en cours
+function getSemaineEnCours(decalageSemaine = 0) {
+  const now = new Date();
+  const jourSemaine = now.getDay(); // 0 = dimanche, 1 = lundi, ..., 6 = samedi
+  const decalageJoursLundi = jourSemaine === 0 ? -6 : (1 - jourSemaine); // pour aller au lundi
+  const lundi = new Date(now);
+  lundi.setDate(now.getDate() + decalageJoursLundi + (decalageSemaine * 7));
+  lundi.setHours(0, 0, 0, 0);
+  const dimanche = new Date(lundi);
+  dimanche.setDate(lundi.getDate() + 6);
+  dimanche.setHours(23, 59, 59, 999);
+  return { lundi, dimanche };
+}
+
+// Parse les dates de la forme "DD/MM/YYYY à HH:MM"
+function parseDateFR(str) {
+  if (!str) return null;
+  const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+à\s+(\d{1,2}):(\d{2}))?/);
+  if (!m) return null;
+  return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]),
+                  m[4] ? parseInt(m[4]) : 0, m[5] ? parseInt(m[5]) : 0);
+}
+
+let _bilanDecalage = 0; // 0 = semaine en cours, -1 = semaine précédente, etc.
+
+function renderBilanHebdo() {
+  const u = state.currentUser;
+  const el = document.getElementById('bilan-hebdo-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'strategie') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3></div>';
+    return;
+  }
+
+  const { lundi, dimanche } = getSemaineEnCours(_bilanDecalage);
+  const fmtDate = (d) => d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const labelSemaine = _bilanDecalage === 0 ? 'Semaine en cours'
+                     : _bilanDecalage === -1 ? 'Semaine précédente'
+                     : 'Semaine d\'il y a ' + Math.abs(_bilanDecalage) + ' semaines';
+
+  // Filtrer les événements de la semaine
+  const histo = (state.drapeauxHistorique || []).filter(h => {
+    const dt = parseDateFR(h.date);
+    return dt && dt >= lundi && dt <= dimanche;
+  }).sort((a, b) => {
+    const da = parseDateFR(a.date), db = parseDateFR(b.date);
+    return (da?.getTime() || 0) - (db?.getTime() || 0);
+  });
+
+  const rapports = (state.rapportsSituation || []).filter(r => {
+    const dt = r.dateISO ? new Date(r.dateISO) : parseDateFR(r.date);
+    return dt && dt >= lundi && dt <= dimanche;
+  }).sort((a, b) => {
+    const da = a.dateISO ? new Date(a.dateISO) : parseDateFR(a.date);
+    const db = b.dateISO ? new Date(b.dateISO) : parseDateFR(b.date);
+    return (da?.getTime() || 0) - (db?.getTime() || 0);
+  });
+
+  // Stats agrégées
+  const captureKonoha = histo.filter(h => h.nouveauCamp === 'konoha').length;
+  const captureSuna = histo.filter(h => h.nouveauCamp === 'suna').length;
+  const passageNeutre = histo.filter(h => h.nouveauCamp === 'neutre').length;
+  const creations = histo.filter(h => !h.ancienCamp).length;
+  const combats = histo.filter(h => h.ancienCamp && h.ancienCamp !== 'neutre' && h.nouveauCamp !== h.ancienCamp).length;
+
+  // Drapeaux uniques impliqués
+  const drapeauxImpliques = [...new Set(histo.map(h => h.drapeau))];
+
+  // === NAVIGATION SEMAINES ===
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:1.5rem;background:rgba(251,113,133,0.06);border:1px solid rgba(251,113,133,0.25);border-radius:8px;padding:14px 18px">
+      <button class="btn-sm" onclick="_bilanDecalage--;renderBilanHebdo()" style="background:rgba(251,113,133,0.15);color:#fb7185;border:1px solid rgba(251,113,133,0.4);padding:6px 14px;font-weight:700">← Semaine précédente</button>
+      <div style="text-align:center;flex:1">
+        <div style="font-family:'Cinzel',serif;font-size:15px;color:#fb7185;font-weight:700">${labelSemaine}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Du <strong>${fmtDate(lundi)}</strong> au <strong>${fmtDate(dimanche)}</strong></div>
+      </div>
+      <button class="btn-sm" onclick="if(_bilanDecalage<0){_bilanDecalage++;renderBilanHebdo()}" style="background:${_bilanDecalage<0?'rgba(251,113,133,0.15)':'rgba(148,163,184,0.08)'};color:${_bilanDecalage<0?'#fb7185':'var(--muted)'};border:1px solid ${_bilanDecalage<0?'rgba(251,113,133,0.4)':'rgba(148,163,184,0.25)'};padding:6px 14px;font-weight:700;${_bilanDecalage<0?'cursor:pointer':'cursor:not-allowed;opacity:0.5'}">Semaine suivante →</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🍃 Captures Konoha</div>
+        <div style="font-size:24px;font-weight:800;color:#ef4444;font-family:'Cinzel',serif">${captureKonoha}</div>
+      </div>
+      <div style="background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.3);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🏜️ Captures Suna</div>
+        <div style="font-size:24px;font-weight:800;color:#facc15;font-family:'Cinzel',serif">${captureSuna}</div>
+      </div>
+      <div style="background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.25);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚪ Retours neutres</div>
+        <div style="font-size:24px;font-weight:800;color:#94a3b8;font-family:'Cinzel',serif">${passageNeutre}</div>
+      </div>
+      <div style="background:rgba(251,113,133,0.06);border:1px solid rgba(251,113,133,0.3);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔️ Combats</div>
+        <div style="font-size:24px;font-weight:800;color:#fb7185;font-family:'Cinzel',serif">${combats}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;font-style:italic">camps qui s'arrachent</div>
+      </div>
+      <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.25);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📋 Rapports émis</div>
+        <div style="font-size:24px;font-weight:800;color:#60a5fa;font-family:'Cinzel',serif">${rapports.length}</div>
+      </div>
+    </div>`;
+
+  // === RÉSUMÉ NARRATIF ===
+  if (histo.length === 0 && rapports.length === 0) {
+    html += '<div class="dash-block" style="padding:2rem;text-align:center;color:var(--muted);font-style:italic">Aucun événement enregistré cette semaine.</div>';
+  } else {
+    html += `<div class="dash-block" style="padding:0;margin-bottom:1.5rem">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:#fb7185">📜 Récit chronologique de la semaine</div>`;
+
+    if (histo.length === 0) {
+      html += '<p style="color:var(--muted);text-align:center;padding:1.5rem;font-style:italic">Aucun mouvement de drapeau cette semaine.</p>';
+    } else {
+      // Groupement par jour
+      const parJour = {};
+      histo.forEach(h => {
+        const dt = parseDateFR(h.date);
+        if (!dt) return;
+        const cleJour = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+        if (!parJour[cleJour]) parJour[cleJour] = [];
+        parJour[cleJour].push(h);
+      });
+
+      Object.entries(parJour).forEach(([jour, evts]) => {
+        html += `<div style="padding:12px 18px;background:rgba(251,113,133,0.04);border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#fb7185;text-transform:capitalize">📅 ${jour}</div>`;
+        evts.forEach(h => {
+          const ancienMeta = h.ancienCamp ? getCampMeta(h.ancienCamp) : null;
+          const nouveauMeta = getCampMeta(h.nouveauCamp);
+          const heure = parseDateFR(h.date);
+          const heureStr = heure ? heure.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '';
+          let resume = '';
+          if (!ancienMeta) {
+            resume = 'Création du drapeau, attribué directement à ' + nouveauMeta.label;
+          } else if (h.nouveauCamp === 'neutre') {
+            resume = '⚠️ Le drapeau passe en zone neutre, ' + ancienMeta.label + ' perd le contrôle';
+          } else if (h.ancienCamp === 'neutre') {
+            resume = '🚩 Drapeau capturé par ' + nouveauMeta.label;
+          } else {
+            resume = '⚔️ <strong>COMBAT</strong> — ' + ancienMeta.label + ' perd le drapeau au profit de ' + nouveauMeta.label;
+          }
+          html += `
+            <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:start">
+              <div style="font-family:monospace;font-size:11px;color:var(--muted);padding-top:3px;min-width:50px">${heureStr}</div>
+              <div style="flex:1">
+                <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--text);font-weight:700;margin-bottom:3px">🚩 ${escapeHtml(h.drapeau || '—')}</div>
+                <div style="font-size:13px;color:var(--text);line-height:1.6">${resume}</div>
+                ${h.parQui ? `<div style="font-size:11px;color:var(--muted);margin-top:3px">🥷 ${escapeHtml(h.parQui)}</div>` : ''}
+              </div>
+            </div>`;
+        });
+      });
+    }
+    html += '</div>';
+
+    // === RAPPORTS DE SITUATION DE LA SEMAINE ===
+    if (rapports.length > 0) {
+      html += `<div class="dash-block" style="padding:0;margin-bottom:1.5rem">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:#fb7185">📋 Rapports de situation publiés cette semaine</div>`;
+      rapports.forEach(r => {
+        const meta = getGraviteMeta(r.gravite);
+        html += `
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:${meta.bg};border-left:3px solid ${meta.color}">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+              <strong style="font-family:'Cinzel',serif;color:var(--text);font-size:14px">${escapeHtml(r.titre || '(sans titre)')}</strong>
+              <span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;background:rgba(${meta.rgb},0.2);color:${meta.color};border:1px solid rgba(${meta.rgb},0.45)">${meta.label}</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:6px">${escapeHtml(r.date || '—')} · par ${escapeHtml(r.auteur || '—')}</div>
+            ${r.contenu ? `<div style="margin-top:6px;font-size:13px;color:var(--text);background:rgba(0,0,0,0.2);padding:10px 12px;border-radius:6px;line-height:1.7;word-wrap:break-word;white-space:pre-wrap">${escapeHtml(r.contenu)}</div>` : ''}
+          </div>`;
+      });
+      html += '</div>';
+    }
+
+    // === SYNTHÈSE GAGNANT/PERDANT ===
+    if (combats > 0 || captureKonoha + captureSuna + passageNeutre > 0) {
+      const ecartScore = captureKonoha - captureSuna;
+      let synthese = '';
+      if (ecartScore > 0) {
+        synthese = `🍃 <strong style="color:#ef4444">Konoha domine la semaine</strong> avec ${captureKonoha} capture(s) contre ${captureSuna} pour Suna.`;
+      } else if (ecartScore < 0) {
+        synthese = `🏜️ <strong style="color:#facc15">Suna domine la semaine</strong> avec ${captureSuna} capture(s) contre ${captureKonoha} pour Konoha.`;
+      } else if (captureKonoha === 0 && captureSuna === 0) {
+        synthese = `⚪ <strong>Semaine calme</strong> : aucun nouveau drapeau capturé par un camp.`;
+      } else {
+        synthese = `⚖️ <strong>Match nul</strong> : ${captureKonoha} captures de chaque côté. Les deux camps se neutralisent.`;
+      }
+      html += `<div style="background:linear-gradient(135deg,rgba(251,113,133,0.1),rgba(251,113,133,0.04));border:2px solid rgba(251,113,133,0.4);border-radius:10px;padding:16px 20px;font-size:14px;color:var(--text);line-height:1.6">
+        <div style="font-family:'Cinzel',serif;font-size:13px;color:#fb7185;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">📊 Synthèse de la semaine</div>
+        ${synthese}
+        ${combats > 0 ? `<br/><span style="color:var(--muted);font-size:13px">Au total, <strong style="color:var(--text)">${combats} véritable(s) combat(s)</strong> (drapeau arraché d'un camp à l'autre) et ${drapeauxImpliques.length} drapeau(x) différent(s) impliqué(s).</span>` : ''}
+      </div>`;
+    }
+  }
+
+  el.innerHTML = html;
+}
 
 // Auto-refresh des compteurs de protection drapeaux (toutes les 60 secondes)
 // Re-rendu uniquement si l'onglet "drapeaux" est visible
