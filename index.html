@@ -3522,6 +3522,7 @@ let supabaseReady = false;
 try {
   if (window.supabase && window.supabase.createClient) {
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    window.sb = sb; // exposé globalement pour migration mapFrom users
     supabaseReady = true;
     console.log('🔗 Supabase connecté');
   } else {
@@ -3544,13 +3545,36 @@ const SUPABASE_TABLES = {
       ninja_rank: u.ninjaRank || null, hire_date: u.hireDate || null,
       registration_date: u.inscription || null
     }),
-    mapFrom: r => ({
-      fullname: r.fullname, password: r.password, grade: r.grade,
-      service: r.service, isAgent: r.is_agent, matricule: r.matricule,
-      genre: r.gender, section: r.section, casier: r.has_record,
-      ninjaRank: r.ninja_rank, hireDate: r.hire_date, inscription: r.registration_date,
-      _id: r.id
-    })
+    mapFrom: r => {
+      // 🔄 Migration automatique des anciens grades Stratégie
+      let grade = r.grade;
+      if (r.service === 'strategie') {
+        const mapMigration = {
+          'Maître Stratège': 'Gérant',
+          'Tacticien': 'Co-gérant',
+          'Stratège': 'Stratège Vétéran',
+          'Analyste': 'Stratège Expérimenté',
+          'Recrue': 'Stratège Intermédiaire'
+        };
+        if (mapMigration[grade]) {
+          grade = mapMigration[grade];
+          // Push silencieux vers Supabase pour persister la migration
+          // (sans bloquer le chargement)
+          if (window.sb && r.id) {
+            window.sb.from('users').update({ grade: grade }).eq('id', r.id)
+              .then(() => console.log('✅ Migration auto persistée : id=' + r.id + ' → ' + grade))
+              .catch(() => {});
+          }
+        }
+      }
+      return {
+        fullname: r.fullname, password: r.password, grade: grade,
+        service: r.service, isAgent: r.is_agent, matricule: r.matricule,
+        genre: r.gender, section: r.section, casier: r.has_record,
+        ninjaRank: r.ninja_rank, hireDate: r.hire_date, inscription: r.registration_date,
+        _id: r.id
+      };
+    }
   },
   candidatures: {
     table: 'applications',
