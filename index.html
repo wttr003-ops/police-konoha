@@ -20424,6 +20424,42 @@ function renderDrapeaux() {
     return;
   }
 
+  // 🔄 AUTO-SYNC SILENCIEUX : à chaque ouverture de l'onglet, on recharge depuis Supabase
+  // (sans clic, sans message, transparent). C'est la SEULE source de vérité.
+  if (supabaseReady && !window._drapeauxSyncEnCours) {
+    window._drapeauxSyncEnCours = true;
+    (async () => {
+      try {
+        const { data: dataFlags } = await sb.from('strategy_flags').select('*').order('id', { ascending: true });
+        if (dataFlags) {
+          state.drapeaux = dataFlags.map(SUPABASE_TABLES.drapeaux.mapFrom);
+          console.log('🔄 Auto-sync drapeaux : ' + state.drapeaux.length + ' chargés');
+        }
+        const { data: dataHisto } = await sb.from('strategy_flags_history').select('*').order('id', { ascending: true });
+        if (dataHisto) {
+          state.drapeauxHistorique = dataHisto.map(SUPABASE_TABLES.drapeauxHistorique.mapFrom);
+        }
+      } catch(e) {
+        console.warn('⚠️ Auto-sync drapeaux échoué:', e);
+      }
+      window._drapeauxSyncEnCours = false;
+      // Re-render seulement si on est toujours sur l'onglet drapeaux
+      const onglet = document.getElementById('dash-drapeaux');
+      if (onglet && onglet.classList.contains('active')) {
+        renderDrapeauxContenu();
+      }
+    })();
+  }
+
+  // Rendu immédiat du contenu actuel (sera mis à jour quand le sync sera fini)
+  renderDrapeauxContenu();
+}
+
+function renderDrapeauxContenu() {
+  const u = state.currentUser;
+  const el = document.getElementById('drapeaux-content');
+  if (!el || !u) return;
+
   const drapeaux = (state.drapeaux || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
   const canEdit = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste']);
 
@@ -20434,18 +20470,6 @@ function renderDrapeaux() {
 
   // === BANDEAU SCORE EN HAUT ===
   let html = `
-    <!-- 🔧 Panneau de diagnostic / re-synchronisation -->
-    <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1.25rem;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <div style="flex:1;min-width:240px;font-size:12px;color:var(--text)">
-        🔧 <strong style="color:#60a5fa">État de la synchronisation</strong><br>
-        <span style="color:var(--muted);font-size:11px">
-          📊 ${drapeaux.length} drapeau(x) en mémoire ·
-          ${supabaseReady ? '🟢 Supabase connecté' : '🔴 Supabase non connecté'}
-        </span>
-      </div>
-      <button onclick="resyncDrapeauxDepuisSupabase()" style="background:rgba(96,165,250,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.4);padding:8px 16px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">🔄 Re-synchroniser depuis Supabase</button>
-    </div>
-
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:1.5rem">
       <div style="background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:2px solid rgba(239,68,68,0.4);border-radius:12px;padding:18px 20px;text-align:center;box-shadow:0 4px 15px rgba(239,68,68,0.1)">
         <div style="font-size:13px;color:#fca5a5;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700">🍃 Konoha</div>
@@ -20642,12 +20666,15 @@ async function ajouterDrapeau() {
 
   if (!nom) { alert('⚠️ Veuillez entrer un nom pour le drapeau.'); return; }
 
-  // Auto-déduction : si camp = konoha → capturé par Konoha, si suna → capturé par Suna, sinon vide
+  if (!supabaseReady) {
+    alert('🔴 Supabase n\'est pas connecté.\nVérifiez votre connexion internet et refraîchissez la page.');
+    return;
+  }
+
   const captureBy = camp === 'konoha' ? '🍃 Village de Konoha'
                   : camp === 'suna' ? '🏜️ Village de Suna'
                   : null;
 
-  // Si on crée le drapeau directement dans un camp non-neutre, on déclenche la protection 2h
   const declenche = (camp !== 'neutre');
 
   const newDrap = {
@@ -20660,55 +20687,48 @@ async function ajouterDrapeau() {
     date: new Date().toLocaleDateString('fr-FR')
   };
 
-  console.log('🚩 Création drapeau (local):', newDrap);
-
-  // === DIAGNOSTIC : vérifier que Supabase est prêt ===
-  if (!supabaseReady) {
-    alert('⚠️ Supabase n\'est PAS connecté.\n\nLe drapeau ne sera PAS sauvegardé et sera perdu au refresh.\n\nRefraîchissez la page (F5) et réessayez.');
-    return;
-  }
-
+  // === ENREGISTREMENT DANS SUPABASE (obligatoire) ===
   try {
     const cfg = SUPABASE_TABLES.drapeaux;
     const payload = cfg.mapTo(newDrap);
-    console.log('📤 Envoi vers Supabase (strategy_flags):', payload);
+    console.log('📤 Création drapeau dans Supabase:', payload);
 
     const { data: inserted, error } = await sb.from(cfg.table).insert(payload).select().single();
 
     if (error) {
       console.error('❌ Erreur Supabase:', error);
-      alert('❌ Le drapeau n\'a PAS été enregistré.\n\n' +
-            'Code : ' + (error.code || '?') + '\n' +
-            'Message : ' + error.message + '\n\n' +
-            '💡 Vérifiez que vous avez bien exécuté le fichier SQL "supabase-strategie-FINAL.sql".');
+      alert('❌ Le drapeau n\'a PAS été enregistré.\n\nCode : ' + (error.code || '?') + '\nMessage : ' + error.message);
       return;
     }
 
-    if (!inserted) {
-      alert('⚠️ Supabase n\'a rien renvoyé après l\'enregistrement.\nLe drapeau peut ne pas être sauvegardé. Refraîchissez pour vérifier.');
+    if (!inserted || !inserted.id) {
+      alert('⚠️ Erreur : Supabase n\'a pas renvoyé d\'ID.\nLe drapeau peut ne pas être sauvegardé.');
       return;
     }
 
     newDrap._id = inserted.id;
-    console.log('✅ Drapeau enregistré dans Supabase, _id =', inserted.id);
+    console.log('✅ Drapeau créé, _id =', inserted.id);
   } catch(e) {
-    console.error('❌ Exception lors de l\'enregistrement:', e);
-    alert('❌ Erreur réseau : ' + (e.message || e) + '\n\nLe drapeau n\'a PAS été enregistré.');
+    console.error('❌ Exception:', e);
+    alert('❌ Erreur réseau : ' + (e.message || e));
     return;
   }
 
+  // Ajouter au state local uniquement après confirmation Supabase
   state.drapeaux = state.drapeaux || [];
   state.drapeaux.push(newDrap);
 
-  // Log dans l'historique si le drapeau démarre dans un camp
+  // Historique (si camp non neutre)
   if (camp !== 'neutre') {
     await logHistoriqueDrapeau(nom, null, camp, captureBy || u.fullname);
   }
 
-  saveSession();
+  // Nettoyer le formulaire
   document.getElementById('drap-nom').value = '';
   document.getElementById('drap-description').value = '';
-  renderDrapeaux();
+
+  // Re-render
+  renderDrapeauxContenu();
 }
 
 async function modifierCampDrapeau(idx, nouveauCamp) {
