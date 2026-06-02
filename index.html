@@ -4025,8 +4025,20 @@ const SUPABASE_TABLES = {
         section = m[1];
         motif = m[2];
       }
+      // 🔧 NORMALISATION du type : "Entrée", "ENTREE", "entree", "entrée" → "entree"
+      //                          "Sortie", "SORTIE", "sortie", "Sortie" → "sortie"
+      let normalizedType = r.type;
+      if (typeof normalizedType === 'string') {
+        const lower = normalizedType.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // enlève les accents
+        if (lower === 'entree' || lower === 'entrée' || lower.startsWith('entr')) {
+          normalizedType = 'entree';
+        } else if (lower === 'sortie' || lower.startsWith('sort')) {
+          normalizedType = 'sortie';
+        }
+      }
       return {
-        type: r.type, montant: r.amount, motif: motif, section: section,
+        type: normalizedType, montant: r.amount, motif: motif, section: section,
         agent: r.agent, date: r.date,
         id: r.id, _id: r.id
       };
