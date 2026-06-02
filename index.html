@@ -4206,18 +4206,41 @@ const SUPABASE_TABLES = {
 async function loadAllFromSupabase() {
   if (!supabaseReady) return false;
   console.log('📥 Chargement depuis Supabase...');
-  try {
-    for (const [stateKey, cfg] of Object.entries(SUPABASE_TABLES)) {
+  let okCount = 0;
+  let errorCount = 0;
+  const erreurs = [];
+
+  // === BOUCLE ROBUSTE : chaque table est chargée indépendamment ===
+  // Si une table n'existe pas (ex: SQL pas encore exécuté), on continue avec les autres.
+  // Aucune erreur sur une table ne doit faire perdre les données d'une autre.
+  for (const [stateKey, cfg] of Object.entries(SUPABASE_TABLES)) {
+    try {
       const { data, error } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
       if (error) {
-        console.warn('⚠️ Erreur chargement', cfg.table, ':', error.message);
+        console.warn('⚠️ Table "' + cfg.table + '" non chargée :', error.message);
+        erreurs.push(cfg.table);
+        errorCount++;
+        // ⚠️ On ne touche PAS à state[stateKey] : les données déjà chargées sont conservées
         continue;
       }
-      // Charger toutes les données du cloud (qui sont la "vérité" partagée)
       state[stateKey] = (data || []).map(cfg.mapFrom);
       console.log('  ↳', cfg.table, ':', state[stateKey].length, 'éléments chargés');
+      okCount++;
+    } catch(e) {
+      console.warn('⚠️ Exception sur "' + cfg.table + '" :', e.message || e);
+      erreurs.push(cfg.table);
+      errorCount++;
+      // ⚠️ Idem : on garde ce qu'on avait
     }
+  }
 
+  console.log('📥 Chargement terminé :', okCount, 'tables OK,', errorCount, 'tables en erreur');
+  if (errorCount > 0) {
+    console.warn('⚠️ Tables manquantes ou inaccessibles :', erreurs.join(', '));
+    console.warn('💡 Si des tables sont marquées manquantes, vérifiez que vous avez bien exécuté tous les fichiers SQL fournis (voir /mnt/user-data/outputs/).');
+  }
+
+  try {
     // === Auto-nettoyage des grades corrompus (avec icônes en préfixe) ===
     if (state.impots) {
       const iconRegex = /^[👑⚔️🌸🌊🍃🔥💠🌱🌿🍀]\s*/;
@@ -4401,25 +4424,31 @@ async function syncStateToSupabase() {
 function subscribeToSupabaseChanges() {
   if (!supabaseReady) return;
   Object.entries(SUPABASE_TABLES).forEach(([stateKey, cfg]) => {
-    sb.channel('rt-' + cfg.table)
-      .on('postgres_changes', { event: '*', schema: 'public', table: cfg.table }, async (payload) => {
-        console.log('🔄 Realtime', cfg.table, payload.eventType);
-        // Recharger juste cette table
-        const { data } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
-        if (data) {
-          state[stateKey] = data.map(cfg.mapFrom);
-
-          // === SÉCURITÉ : Si la table users a changé, vérifier que MON compte existe toujours ===
-          if (stateKey === 'users' && state.currentUser) {
-            const monCompteExisteEncore = state.users.find(u =>
-              u.fullname === state.currentUser.fullname &&
-              (u.service || 'police') === (state.currentUser.service || 'police')
-            );
-            if (!monCompteExisteEncore) {
-              console.warn('🚨 Mon compte a été supprimé par un administrateur — déconnexion forcée');
-              forcerDeconnexionCompteSupprime();
-              return; // on stoppe ici, pas la peine de refresh l'UI
+    try {
+      sb.channel('rt-' + cfg.table)
+        .on('postgres_changes', { event: '*', schema: 'public', table: cfg.table }, async (payload) => {
+          try {
+            console.log('🔄 Realtime', cfg.table, payload.eventType);
+            // Recharger juste cette table (si elle existe)
+            const { data, error } = await sb.from(cfg.table).select('*').order('id', { ascending: true });
+            if (error) {
+              console.warn('⚠️ Realtime reload échoué', cfg.table, ':', error.message);
+              return;
             }
+            if (data) {
+              state[stateKey] = data.map(cfg.mapFrom);
+
+              // === SÉCURITÉ : Si la table users a changé, vérifier que MON compte existe toujours ===
+              if (stateKey === 'users' && state.currentUser) {
+                const monCompteExisteEncore = state.users.find(u =>
+                  u.fullname === state.currentUser.fullname &&
+                  (u.service || 'police') === (state.currentUser.service || 'police')
+                );
+                if (!monCompteExisteEncore) {
+                  console.warn('🚨 Mon compte a été supprimé par un administrateur — déconnexion forcée');
+                  forcerDeconnexionCompteSupprime();
+                  return;
+                }
             // Vérifier aussi si le grade a été changé (rétrogradation par un supérieur)
             if (monCompteExisteEncore.grade !== state.currentUser.grade) {
               console.log('ℹ️ Mon grade a été modifié par un administrateur : ' + state.currentUser.grade + ' → ' + monCompteExisteEncore.grade);
@@ -4430,9 +4459,15 @@ function subscribeToSupabaseChanges() {
 
           // Mettre à jour TOUTE l'UI
           refreshAllUI();
-        }
-      })
-      .subscribe();
+            }
+          } catch(e) {
+            console.warn('⚠️ Erreur dans handler Realtime', cfg.table, ':', e.message || e);
+          }
+        })
+        .subscribe();
+    } catch(e) {
+      console.warn('⚠️ Impossible de s\'abonner à', cfg.table, ':', e.message || e);
+    }
   });
 
   // Écoute spéciale pour active_shifts (qui n'est pas dans SUPABASE_TABLES)
