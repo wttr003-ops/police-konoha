@@ -20571,19 +20571,41 @@ async function ajouterDrapeau() {
     date: new Date().toLocaleDateString('fr-FR')
   };
 
-  if (supabaseReady) {
-    try {
-      const cfg = SUPABASE_TABLES.drapeaux;
-      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newDrap)).select().single();
-      if (error) {
-        alert('❌ Erreur Supabase : ' + error.message + '\n\n(Vérifiez que la table strategy_flags existe — voir le SQL fourni.)');
-        return;
-      }
-      if (inserted) newDrap._id = inserted.id;
-    } catch(e) {
-      alert('❌ Erreur réseau : ' + (e.message || e));
+  console.log('🚩 Création drapeau (local):', newDrap);
+
+  // === DIAGNOSTIC : vérifier que Supabase est prêt ===
+  if (!supabaseReady) {
+    alert('⚠️ Supabase n\'est PAS connecté.\n\nLe drapeau ne sera PAS sauvegardé et sera perdu au refresh.\n\nRefraîchissez la page (F5) et réessayez.');
+    return;
+  }
+
+  try {
+    const cfg = SUPABASE_TABLES.drapeaux;
+    const payload = cfg.mapTo(newDrap);
+    console.log('📤 Envoi vers Supabase (strategy_flags):', payload);
+
+    const { data: inserted, error } = await sb.from(cfg.table).insert(payload).select().single();
+
+    if (error) {
+      console.error('❌ Erreur Supabase:', error);
+      alert('❌ Le drapeau n\'a PAS été enregistré.\n\n' +
+            'Code : ' + (error.code || '?') + '\n' +
+            'Message : ' + error.message + '\n\n' +
+            '💡 Vérifiez que vous avez bien exécuté le fichier SQL "supabase-strategie-FINAL.sql".');
       return;
     }
+
+    if (!inserted) {
+      alert('⚠️ Supabase n\'a rien renvoyé après l\'enregistrement.\nLe drapeau peut ne pas être sauvegardé. Refraîchissez pour vérifier.');
+      return;
+    }
+
+    newDrap._id = inserted.id;
+    console.log('✅ Drapeau enregistré dans Supabase, _id =', inserted.id);
+  } catch(e) {
+    console.error('❌ Exception lors de l\'enregistrement:', e);
+    alert('❌ Erreur réseau : ' + (e.message || e) + '\n\nLe drapeau n\'a PAS été enregistré.');
+    return;
   }
 
   state.drapeaux = state.drapeaux || [];
