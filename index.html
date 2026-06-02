@@ -18815,9 +18815,10 @@ async function initSupabase() {
       }
     } catch(e) { console.warn('Auto-create finance:', e); }
 
-    // === 🔄 Migration des anciens grades Stratégie vers les nouveaux ===
-    // Maître Stratège → Gérant, Tacticien → Co-gérant, etc.
+    // === 🔄 Migration robuste des grades Stratégie ===
+    // Convertit les anciens grades vers les nouveaux et synchronise state.currentUser
     try {
+      const validGradesStrategie = Object.keys(GRADE_RANK_STRATEGIE);
       const mapMigration = {
         'Maître Stratège': 'Gérant',
         'Tacticien': 'Co-gérant',
@@ -18826,16 +18827,34 @@ async function initSupabase() {
         'Recrue': 'Stratège Intermédiaire'
       };
       for (const user of state.users) {
-        if ((user.service || 'police') === 'strategie' && mapMigration[user.grade]) {
-          const ancien = user.grade;
-          const nouveau = mapMigration[user.grade];
-          console.log('🔄 Migration grade Stratégie : ' + user.fullname + ' (' + ancien + ' → ' + nouveau + ')');
-          user.grade = nouveau;
-          if (supabaseReady && user._id) {
-            try {
-              await sb.from('users').update({ grade: nouveau }).eq('id', user._id);
-            } catch(e) { console.warn('⚠️ Migration échouée pour ' + user.fullname, e); }
-          }
+        if ((user.service || 'police') !== 'strategie') continue;
+        if (validGradesStrategie.includes(user.grade)) continue; // déjà à jour
+
+        // Map vers nouveau grade, ou fallback à Gérant si grade inconnu
+        const ancien = user.grade;
+        const nouveau = mapMigration[user.grade] || 'Gérant';
+        console.log('🔄 Migration grade Stratégie : ' + user.fullname + ' (' + ancien + ' → ' + nouveau + ')');
+        user.grade = nouveau;
+
+        // Push à Supabase pour persister
+        if (supabaseReady && user._id) {
+          try {
+            const { error } = await sb.from('users').update({ grade: nouveau }).eq('id', user._id);
+            if (error) console.warn('⚠️ Migration Supabase échouée pour ' + user.fullname + ':', error);
+          } catch(e) { console.warn('⚠️ Migration échouée pour ' + user.fullname, e); }
+        }
+      }
+
+      // 🔧 Synchroniser state.currentUser si c'est un compte Stratégie
+      if (state.currentUser && (state.currentUser.service || 'police') === 'strategie') {
+        const updated = state.users.find(x =>
+          x.fullname === state.currentUser.fullname &&
+          (x.service||'police') === 'strategie'
+        );
+        if (updated && updated.grade !== state.currentUser.grade) {
+          console.log('🔄 Mon grade Stratégie a été mis à jour : ' + state.currentUser.grade + ' → ' + updated.grade);
+          state.currentUser.grade = updated.grade;
+          try { saveSession(); } catch(e) {}
         }
       }
     } catch(e) { console.warn('⚠️ Migration grades Stratégie:', e); }
