@@ -4487,9 +4487,12 @@ function subscribeToSupabaseChanges() {
                 }
             // Vérifier aussi si le grade a été changé (rétrogradation par un supérieur)
             if (monCompteExisteEncore.grade !== state.currentUser.grade) {
-              console.log('ℹ️ Mon grade a été modifié par un administrateur : ' + state.currentUser.grade + ' → ' + monCompteExisteEncore.grade);
-              state.currentUser = monCompteExisteEncore;
-              alert('⚠️ Votre grade a été modifié.\n\nAncien grade : ' + state.currentUser.grade + '\nNouveau grade : ' + monCompteExisteEncore.grade + '\n\nVos accès ont été mis à jour automatiquement.');
+              const ancienGrade = state.currentUser.grade;
+              const nouveauGrade = monCompteExisteEncore.grade;
+              console.log('ℹ️ Mon grade a été modifié par un administrateur : ' + ancienGrade + ' → ' + nouveauGrade);
+              Object.assign(state.currentUser, monCompteExisteEncore);
+              try { saveSession(); } catch(e) {}
+              alert('⚠️ Votre grade a été modifié.\n\nAncien grade : ' + ancienGrade + '\nNouveau grade : ' + nouveauGrade + '\n\nVos accès ont été mis à jour automatiquement.');
             }
           }
 
@@ -18597,6 +18600,8 @@ async function initSupabase() {
     }
 
     // Si l'utilisateur connecté n'existe plus dans Supabase, le déconnecter
+    // Sinon, on re-synchronise son grade/matricule/etc avec les données serveur
+    // (cas : son grade a été modifié par un supérieur pendant qu'il était déconnecté)
     if (state.currentUser) {
       const stillExists = state.users.find(u =>
         u.fullname === state.currentUser.fullname &&
@@ -18607,6 +18612,14 @@ async function initSupabase() {
         state.currentUser = null;
         try { localStorage.removeItem('konaSession'); } catch(e) {}
         if (typeof showPage === 'function') showPage('home');
+      } else {
+        // 🔄 Re-synchronisation : on prend les données fraîches du serveur
+        // (notamment le grade, qui peut avoir été modifié par un supérieur)
+        if (stillExists.grade !== state.currentUser.grade) {
+          console.log('🔄 Mon grade a été mis à jour côté serveur : ' + state.currentUser.grade + ' → ' + stillExists.grade);
+        }
+        // Conserver les références objets (Object.assign écrase les champs)
+        Object.assign(state.currentUser, stillExists);
       }
     }
 
