@@ -6906,6 +6906,10 @@ function renderMembres() {
     canManage = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   } else if (myService === 'renseignement') {
     canManage = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
+  } else if (myService === 'finance') {
+    canManage = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
+  } else if (myService === 'strategie') {
+    canManage = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
   }
 
   // Récupérer les citoyens depuis 3 sources :
@@ -7025,13 +7029,17 @@ function renderMembres() {
             // Rétrograder : possible si l'agent n'est PAS au dernier rang
             // CAS SPÉCIAL : Le Premier Président (Juge), Bâtonnier (Avocat), Directeur (Police) peuvent
             // gérer même les agents de leur même rang (sauf eux-mêmes)
+            // ⚔️ Stratégie / 💰 Finance : Maître Stratège / Directeur sont aussi considérés top
             if (!canManage || isMe) return '';
             const myRank = gradeRankForService(myService, u.grade);
             const targetRank = gradeRankForService(myService, a.grade);
-            // Le top de chaque hiérarchie (rang 0) peut gérer ses pairs
-            const isTopOfHierarchy = myRank === 0;
+            // Top de hiérarchie : Hokage (rang 0) OU directeur effectif du bureau (rang 1)
+            // (le rang 0 est souvent réservé au Hokage qui n'existe pas pour tous les bureaux)
+            const isTopOfHierarchy = myRank === 0
+              || (myService === 'strategie' && u.grade === 'Maître Stratège')
+              || (myService === 'finance' && u.grade === 'Directeur');
             const canPromote = targetRank > 0;
-            const canDemote = targetRank >= 0; // tous peuvent être rétrogradés sauf le grade le plus bas (vérifié dans changeGrade)
+            const canDemote = targetRank >= 0;
             const showButtons = isTopOfHierarchy || targetRank > myRank;
             if (!showButtons) return '';
             return `
@@ -7042,8 +7050,9 @@ function renderMembres() {
           ${canManage && !isMe ? (() => {
             const myRank = gradeRankForService(myService, u.grade);
             const targetRank = gradeRankForService(myService, a.grade);
-            // Suppression : le top peut supprimer ses pairs ; sinon il faut un grade plus haut
-            const isTopOfHierarchy = myRank === 0;
+            const isTopOfHierarchy = myRank === 0
+              || (myService === 'strategie' && u.grade === 'Maître Stratège')
+              || (myService === 'finance' && u.grade === 'Directeur');
             if (isTopOfHierarchy || targetRank > myRank) {
               return `<button class="btn-sm btn-sm-red" onclick="supprimerCompte('${a.fullname.replace(/'/g,"\\'")}', '${myService}')" title="Supprimer le compte" style="background:rgba(192,57,43,0.3)">🗑</button>`;
             }
@@ -7179,6 +7188,8 @@ async function changeGrade(fullname, dir) {
   else if (myService === 'mission') canDo = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
   else if (myService === 'diplomatie') canDo = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   else if (myService === 'renseignement') canDo = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
+  else if (myService === 'finance') canDo = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
+  else if (myService === 'strategie') canDo = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
   if (!canDo) { alert('Vous n\'avez pas la permission de gérer les grades.'); return; }
 
   // Trouver l'agent dans la même section
@@ -7195,6 +7206,11 @@ async function changeGrade(fullname, dir) {
   let gradeMap;
   if (myService === 'juge') gradeMap = GRADE_RANK_JUGE;
   else if (myService === 'avocat') gradeMap = GRADE_RANK_AVOCAT;
+  else if (myService === 'mission') gradeMap = GRADE_RANK_MISSION;
+  else if (myService === 'diplomatie') gradeMap = GRADE_RANK_DIPLOMATIE;
+  else if (myService === 'renseignement') gradeMap = GRADE_RANK_RENSEIGNEMENT;
+  else if (myService === 'finance') gradeMap = GRADE_RANK_FINANCE;
+  else if (myService === 'strategie') gradeMap = GRADE_RANK_STRATEGIE;
   else gradeMap = GRADE_RANK;
 
   // Calculer nouveau rank et trouver le nom du grade correspondant (en prenant la 1ère version sans accent identique)
@@ -13778,6 +13794,12 @@ async function supprimerCompte(fullname, service) {
   } else if (myService === 'renseignement') {
     hasPermission = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
     labelSection = 'au Maître du Renseignement ou Commandant';
+  } else if (myService === 'finance') {
+    hasPermission = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
+    labelSection = 'au Directeur ou Directeur Adjoint de la Finance';
+  } else if (myService === 'strategie') {
+    hasPermission = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
+    labelSection = 'au Maître Stratège ou Tacticien';
   }
 
   if (!hasPermission) {
@@ -20402,9 +20424,9 @@ const CAMPS_DRAPEAU = {
 // Liste des pays où les drapeaux peuvent se trouver
 const PAYS_DRAPEAU = [
   { key: 'feu',       label: '🔥 Pays du Feu',          color: '#f97316', rgb: '249,115,22',  short: 'Feu' },
-  { key: 'vent',      label: '🌪️ Pays du Vent',         color: '#fbbf24', rgb: '251,191,36',  short: 'Vent' },
-  { key: 'roche',     label: '⛰️ Pays de la Roche',     color: '#a16207', rgb: '161,98,7',    short: 'Roche' },
   { key: 'cerisiers', label: '🌸 Pays des Cerisiers',   color: '#ec4899', rgb: '236,72,153',  short: 'Cerisiers' },
+  { key: 'roche',     label: '⛰️ Pays de la Roche',     color: '#a16207', rgb: '161,98,7',    short: 'Roche' },
+  { key: 'vent',      label: '🌪️ Pays du Vent',         color: '#fbbf24', rgb: '251,191,36',  short: 'Vent' },
   { key: 'autre',     label: '📍 Autre / Non précisé',   color: '#94a3b8', rgb: '148,163,184', short: 'Autre' }
 ];
 
