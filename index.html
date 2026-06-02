@@ -18571,6 +18571,36 @@ async function initSupabase() {
       }
     } catch(e) { console.warn('Auto-create finance:', e); }
 
+    // === Auto-création du compte Arakawa Akihiro pour la Stratégie (Maître Stratège) ===
+    try {
+      const existeStrategie = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'strategie' &&
+        matchFullname(x.fullname, 'Arakawa Akihiro')
+      );
+      if (!existeStrategie) {
+        const newStrategieAccount = {
+          fullname: 'Arakawa Akihiro',
+          password: 'akihiro2026',
+          grade: 'Maître Stratège',
+          service: 'strategie',
+          isAgent: true,
+          matricule: 'KNH-STR-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newStrategieAccount);
+            if (inserted && inserted._id) {
+              newStrategieAccount._id = inserted._id;
+              state.users.push(newStrategieAccount);
+              console.log('⚔️ Compte Stratégie créé pour Arakawa Akihiro (Maître Stratège)');
+            }
+          } catch(e) { console.warn('Erreur auto-création compte stratégie:', e); }
+        }
+      }
+    } catch(e) { console.warn('Auto-create strategie:', e); }
+
     // === Auto-création du compte Arakawa Akihiro pour le Tribunal (Juge) ===
     try {
       const existeJuge = state.users.find(x =>
