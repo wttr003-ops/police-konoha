@@ -4112,19 +4112,45 @@ const SUPABASE_TABLES = {
     mapTo: d => ({
       name: d.nom || null,
       camp: d.camp || 'neutre',           // 'konoha', 'suna', 'neutre'
-      description: d.description || null,
+      // Pays encodé dans description : "§§§pays§§§description"
+      description: d.pays ? ('§§§' + d.pays + '§§§' + (d.description || '')) : (d.description || null),
       captured_by: d.captureBy || null,
-      captured_at: d.captureAt || null,
+      // Protection encodée dans captured_at : "date|||protectionUntil"
+      captured_at: d.protectionUntil
+        ? ((d.captureAt || '') + '|||' + d.protectionUntil)
+        : (d.captureAt || null),
       created_by: d.createdBy || null,
       date: d.date || null
     }),
-    mapFrom: r => ({
-      nom: r.name, camp: r.camp,
-      description: r.description,
-      captureBy: r.captured_by, captureAt: r.captured_at,
-      createdBy: r.created_by, date: r.date,
-      id: r.id, _id: r.id
-    })
+    mapFrom: r => {
+      // Décoder pays depuis description
+      const rawDesc = r.description || '';
+      let pays = null;
+      let description = rawDesc;
+      const m = rawDesc.match(/^§§§([^§]+)§§§(.*)$/s);
+      if (m) {
+        pays = m[1];
+        description = m[2];
+      }
+      // Décoder protectionUntil depuis captured_at
+      const rawCaptured = r.captured_at || '';
+      let captureAt = rawCaptured;
+      let protectionUntil = null;
+      const idx = rawCaptured.indexOf('|||');
+      if (idx !== -1) {
+        captureAt = rawCaptured.substring(0, idx);
+        protectionUntil = parseInt(rawCaptured.substring(idx + 3)) || null;
+      }
+      return {
+        nom: r.name, camp: r.camp, pays: pays,
+        description: description,
+        captureBy: r.captured_by,
+        captureAt: captureAt || null,
+        protectionUntil: protectionUntil,
+        createdBy: r.created_by, date: r.date,
+        id: r.id, _id: r.id
+      };
+    }
   },
   drapeauxHistorique: {
     table: 'strategy_flags_history',
@@ -20259,6 +20285,38 @@ const CAMPS_DRAPEAU = {
   }
 };
 
+// Liste des pays où les drapeaux peuvent se trouver
+const PAYS_DRAPEAU = [
+  { key: 'feu',       label: '🔥 Pays du Feu',          color: '#f97316', rgb: '249,115,22',  short: 'Feu' },
+  { key: 'roche',     label: '⛰️ Pays de la Roche',     color: '#a16207', rgb: '161,98,7',    short: 'Roche' },
+  { key: 'cerisiers', label: '🌸 Pays des Cerisiers',   color: '#ec4899', rgb: '236,72,153',  short: 'Cerisiers' },
+  { key: 'autre',     label: '📍 Autre / Non précisé',   color: '#94a3b8', rgb: '148,163,184', short: 'Autre' }
+];
+
+function getPaysMeta(key) {
+  return PAYS_DRAPEAU.find(p => p.key === key) || PAYS_DRAPEAU[PAYS_DRAPEAU.length - 1];
+}
+
+// Durée de la protection en ms (2 heures)
+const DUREE_PROTECTION_DRAPEAU = 2 * 60 * 60 * 1000;
+
+// Vérifie si un drapeau est en protection
+function drapeauEnProtection(d) {
+  if (!d || !d.protectionUntil) return false;
+  return Date.now() < d.protectionUntil;
+}
+
+// Retourne le temps restant en format lisible "1h23"
+function tempsProtectionRestant(d) {
+  if (!d || !d.protectionUntil) return '';
+  const restant = d.protectionUntil - Date.now();
+  if (restant <= 0) return '';
+  const heures = Math.floor(restant / (60 * 60 * 1000));
+  const minutes = Math.floor((restant % (60 * 60 * 1000)) / (60 * 1000));
+  if (heures > 0) return heures + 'h' + minutes.toString().padStart(2, '0');
+  return minutes + 'min';
+}
+
 function getCampMeta(key) {
   return CAMPS_DRAPEAU[key] || CAMPS_DRAPEAU.neutre;
 }
@@ -20275,7 +20333,7 @@ function renderDrapeaux() {
   const drapeaux = (state.drapeaux || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
   const canEdit = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste']);
 
-  // Comptage par camp
+  // Comptage par camp (score global)
   const konohaCount = drapeaux.filter(d => d.camp === 'konoha').length;
   const sunaCount = drapeaux.filter(d => d.camp === 'suna').length;
   const neutreCount = drapeaux.filter(d => d.camp === 'neutre' || !d.camp).length;
@@ -20300,6 +20358,14 @@ function renderDrapeaux() {
       </div>
     </div>`;
 
+  // Info protection
+  const enProtectionCount = drapeaux.filter(drapeauEnProtection).length;
+  if (enProtectionCount > 0) {
+    html += `<div style="background:rgba(251,113,133,0.06);border:1px solid rgba(251,113,133,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:12px;color:var(--text);text-align:center">
+      🛡️ <strong style="color:#fb7185">${enProtectionCount}</strong> drapeau(x) en <strong>période de protection</strong> (2h après chaque capture/perte)
+    </div>`;
+  }
+
   // === FORMULAIRE D'AJOUT ===
   if (canEdit) {
     html += `
@@ -20322,6 +20388,14 @@ function renderDrapeaux() {
       </div>
 
       <div class="form-group" style="margin-bottom:12px">
+        <label>🌍 Pays où se trouve le drapeau</label>
+        <select id="drap-pays" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px">
+          ${PAYS_DRAPEAU.map(p => `<option value="${p.key}">${p.label}</option>`).join('')}
+        </select>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Les drapeaux seront automatiquement regroupés par Pays dans la liste</div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
         <label>📝 Description courte</label>
         <textarea id="drap-description" rows="3" placeholder="Ex: Position stratégique à l'entrée du village. Permet de contrôler les routes commerciales." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;line-height:1.6;resize:vertical;min-height:80px"></textarea>
       </div>
@@ -20336,49 +20410,69 @@ function renderDrapeaux() {
     </div>`;
   }
 
-  // === LISTE DES DRAPEAUX SÉPARÉS PAR CAMP ===
-  const renderColonne = (camp) => {
-    const meta = getCampMeta(camp);
-    const drapeauxCamp = drapeaux.filter(d => (d.camp || 'neutre') === camp);
-    let h = `<div class="dash-block" style="padding:0;margin-bottom:1.5rem;border:1px solid ${meta.border}">
-      <div style="padding:12px 16px;border-bottom:1px solid ${meta.border};background:${meta.bg};font-family:'Cinzel',serif;font-size:14px;color:${meta.color};display:flex;justify-content:space-between;align-items:center">
-        <span>${meta.label}</span>
-        <span style="font-size:11px;font-family:'Rajdhani',sans-serif;color:var(--muted)">${drapeauxCamp.length} drapeau(x)</span>
-      </div>`;
+  // === HELPER : rendre une carte drapeau ===
+  const renderCarte = (d) => {
+    const realIdx = state.drapeaux.indexOf(d);
+    const camp = d.camp || 'neutre';
+    const campMeta = getCampMeta(camp);
+    const protege = drapeauEnProtection(d);
+    const tempsRestant = tempsProtectionRestant(d);
 
-    if (drapeauxCamp.length === 0) {
-      h += `<p style="color:var(--muted);text-align:center;padding:1.5rem;font-style:italic">Aucun drapeau dans ce camp.</p>`;
-    } else {
-      drapeauxCamp.forEach(d => {
-        const realIdx = state.drapeaux.indexOf(d);
-        h += `
-          <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
-            <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:8px">
-              <div style="flex:1;min-width:200px">
-                <div style="font-family:'Cinzel',serif;font-size:15px;color:var(--text);font-weight:700;margin-bottom:3px">🚩 ${escapeHtml(d.nom || '(sans nom)')}</div>
-                ${d.captureBy ? `<div style="font-size:11px;color:${meta.color};margin-top:2px">🥷 Capturé par <strong>${escapeHtml(d.captureBy)}</strong>${d.captureAt ? ' · ' + escapeHtml(d.captureAt) : ''}</div>` : '<div style="font-size:11px;color:var(--muted);font-style:italic">Non capturé</div>'}
-                <div style="font-size:10px;color:var(--muted);margin-top:3px">Créé le ${escapeHtml(d.date || '—')} par ${escapeHtml(d.createdBy || '—')}</div>
-              </div>
-              ${canEdit ? `
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                  <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'konoha')" style="background:${camp==='konoha'?'rgba(239,68,68,0.3)':'rgba(239,68,68,0.1)'};color:#ef4444;border:1px solid rgba(239,68,68,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='konoha'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='konoha'?'disabled':''}>🍃 Konoha</button>
-                  <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'suna')" style="background:${camp==='suna'?'rgba(250,204,21,0.3)':'rgba(250,204,21,0.1)'};color:#facc15;border:1px solid rgba(250,204,21,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='suna'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='suna'?'disabled':''}>🏜️ Suna</button>
-                  <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'neutre')" style="background:${camp==='neutre'?'rgba(148,163,184,0.25)':'rgba(148,163,184,0.08)'};color:#94a3b8;border:1px solid rgba(148,163,184,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='neutre'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='neutre'?'disabled':''}>⚪ Neutre</button>
-                  <button class="btn-sm btn-sm-red" onclick="supprimerDrapeau(${realIdx})" style="font-size:10px;padding:5px 10px">🗑</button>
-                </div>
-              ` : ''}
+    return `
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);background:${protege ? 'rgba(251,113,133,0.04)' : 'transparent'}">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+          <div style="flex:1;min-width:200px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+              <span style="font-family:'Cinzel',serif;font-size:15px;color:var(--text);font-weight:700">🚩 ${escapeHtml(d.nom || '(sans nom)')}</span>
+              <span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;background:${campMeta.bg};color:${campMeta.color};border:1px solid ${campMeta.border}">${campMeta.label}</span>
+              ${protege ? `<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;background:rgba(251,113,133,0.18);color:#fb7185;border:1px solid rgba(251,113,133,0.5);display:inline-flex;align-items:center;gap:4px">🛡️ Protection : ${tempsRestant}</span>` : ''}
             </div>
-            ${d.description ? `<div style="margin-top:6px;font-size:13px;color:var(--text);background:rgba(0,0,0,0.25);padding:10px 12px;border-radius:6px;line-height:1.6;word-wrap:break-word;white-space:pre-wrap">${escapeHtml(d.description)}</div>` : ''}
-          </div>`;
-      });
-    }
-    h += `</div>`;
-    return h;
+            ${d.captureBy ? `<div style="font-size:11px;color:${campMeta.color};margin-top:2px">🥷 Capturé par <strong>${escapeHtml(d.captureBy)}</strong>${d.captureAt ? ' · ' + escapeHtml(d.captureAt) : ''}</div>` : '<div style="font-size:11px;color:var(--muted);font-style:italic">Non capturé</div>'}
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">Créé le ${escapeHtml(d.date || '—')} par ${escapeHtml(d.createdBy || '—')}</div>
+          </div>
+          ${canEdit ? `
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'konoha')" style="background:${camp==='konoha'?'rgba(239,68,68,0.3)':'rgba(239,68,68,0.1)'};color:#ef4444;border:1px solid rgba(239,68,68,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='konoha'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='konoha'?'disabled':''}>🍃 Konoha</button>
+              <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'suna')" style="background:${camp==='suna'?'rgba(250,204,21,0.3)':'rgba(250,204,21,0.1)'};color:#facc15;border:1px solid rgba(250,204,21,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='suna'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='suna'?'disabled':''}>🏜️ Suna</button>
+              <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'neutre')" style="background:${camp==='neutre'?'rgba(148,163,184,0.25)':'rgba(148,163,184,0.08)'};color:#94a3b8;border:1px solid rgba(148,163,184,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='neutre'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='neutre'?'disabled':''}>⚪ Neutre</button>
+              <button class="btn-sm btn-sm-red" onclick="supprimerDrapeau(${realIdx})" style="font-size:10px;padding:5px 10px">🗑</button>
+            </div>
+          ` : ''}
+        </div>
+        ${d.description ? `<div style="margin-top:6px;font-size:13px;color:var(--text);background:rgba(0,0,0,0.25);padding:10px 12px;border-radius:6px;line-height:1.6;word-wrap:break-word;white-space:pre-wrap">${escapeHtml(d.description)}</div>` : ''}
+      </div>`;
   };
 
-  html += renderColonne('konoha');
-  html += renderColonne('suna');
-  html += renderColonne('neutre');
+  // === LISTE GROUPÉE PAR PAYS ===
+  PAYS_DRAPEAU.forEach(pays => {
+    const drapeauxPays = drapeaux.filter(d => (d.pays || 'autre') === pays.key);
+    if (drapeauxPays.length === 0) return; // ne pas afficher les sections vides
+
+    // Mini score pour le pays
+    const kCount = drapeauxPays.filter(d => d.camp === 'konoha').length;
+    const sCount = drapeauxPays.filter(d => d.camp === 'suna').length;
+    const nCount = drapeauxPays.filter(d => d.camp === 'neutre' || !d.camp).length;
+
+    html += `<div class="dash-block" style="padding:0;margin-bottom:1.5rem;border:2px solid rgba(${pays.rgb},0.35);box-shadow:0 4px 16px rgba(${pays.rgb},0.08)">
+      <div style="padding:14px 18px;border-bottom:1px solid rgba(${pays.rgb},0.35);background:linear-gradient(135deg,rgba(${pays.rgb},0.15),rgba(${pays.rgb},0.05));display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:16px;color:${pays.color};font-weight:700">${pays.label}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${drapeauxPays.length} drapeau(x) au total</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${kCount > 0 ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.4)">🍃 ${kCount}</span>` : ''}
+          ${sCount > 0 ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:rgba(250,204,21,0.15);color:#facc15;border:1px solid rgba(250,204,21,0.4)">🏜️ ${sCount}</span>` : ''}
+          ${nCount > 0 ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:rgba(148,163,184,0.15);color:#94a3b8;border:1px solid rgba(148,163,184,0.4)">⚪ ${nCount}</span>` : ''}
+        </div>
+      </div>`;
+    drapeauxPays.forEach(d => { html += renderCarte(d); });
+    html += `</div>`;
+  });
+
+  // Si aucun drapeau du tout
+  if (drapeaux.length === 0) {
+    html += '<div class="dash-block" style="padding:2rem;text-align:center;color:var(--muted);font-style:italic">Aucun drapeau créé pour le moment. Utilisez le formulaire ci-dessus pour commencer.</div>';
+  }
 
   el.innerHTML = html;
 }
@@ -20388,16 +20482,21 @@ async function ajouterDrapeau() {
   if (!u) return;
   const nom = document.getElementById('drap-nom').value.trim();
   const camp = document.getElementById('drap-camp').value;
+  const pays = document.getElementById('drap-pays').value || 'autre';
   const description = document.getElementById('drap-description').value.trim();
   const captureBy = document.getElementById('drap-capturepar').value.trim();
 
   if (!nom) { alert('⚠️ Veuillez entrer un nom pour le drapeau.'); return; }
 
+  // Si on crée le drapeau directement dans un camp non-neutre, on déclenche la protection 2h
+  const declenche = (camp !== 'neutre');
+
   const newDrap = {
     id: Date.now(),
-    nom, camp, description,
+    nom, camp, pays, description,
     captureBy: captureBy || null,
     captureAt: captureBy ? (new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})) : null,
+    protectionUntil: declenche ? (Date.now() + DUREE_PROTECTION_DRAPEAU) : null,
     createdBy: u.fullname,
     date: new Date().toLocaleDateString('fr-FR')
   };
@@ -20439,6 +20538,19 @@ async function modifierCampDrapeau(idx, nouveauCamp) {
   const ancienCamp = d.camp || 'neutre';
   if (ancienCamp === nouveauCamp) return;
 
+  // Avertissement si protection encore active (mais on laisse passer)
+  if (drapeauEnProtection(d)) {
+    const tempsRestant = tempsProtectionRestant(d);
+    const confirmer = await confirmAsync(
+      '🛡️ Protection active : ' + tempsRestant + ' restantes\n\n' +
+      'Ce drapeau "' + d.nom + '" est en période de protection.\n' +
+      'Normalement, il ne devrait pas être re-capturé avant la fin du délai.\n\n' +
+      'Êtes-vous SÛR(E) de vouloir le faire passer à ' +
+      (nouveauCamp === 'konoha' ? '🍃 Konoha' : nouveauCamp === 'suna' ? '🏜️ Suna' : '⚪ Neutre') + ' ?'
+    );
+    if (!confirmer) return;
+  }
+
   // Demander qui a capturé (sauf si passe à neutre)
   let captureBy = null;
   if (nouveauCamp !== 'neutre') {
@@ -20451,13 +20563,18 @@ async function modifierCampDrapeau(idx, nouveauCamp) {
   d.camp = nouveauCamp;
   d.captureBy = captureBy;
   d.captureAt = nouveauCamp !== 'neutre' ? (new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})) : null;
+  // ⚔️ Relancer la protection 2h pour tout changement de camp (capture OU perte)
+  d.protectionUntil = Date.now() + DUREE_PROTECTION_DRAPEAU;
 
   if (supabaseReady && d._id) {
     try {
+      // Re-encoder pour Supabase (captured_at = "date|||protectionUntil")
+      const cfg = SUPABASE_TABLES.drapeaux;
+      const update = cfg.mapTo(d);
       await sb.from('strategy_flags').update({
-        camp: nouveauCamp,
-        captured_by: d.captureBy,
-        captured_at: d.captureAt
+        camp: update.camp,
+        captured_by: update.captured_by,
+        captured_at: update.captured_at
       }).eq('id', d._id);
     } catch(e) {
       alert('❌ Erreur Supabase : ' + (e.message || e));
@@ -20567,6 +20684,17 @@ function renderHistoriqueDrapeaux() {
 
 // Lancer l'init Supabase (en arrière-plan)
 setTimeout(initSupabase, 800);
+
+// Auto-refresh des compteurs de protection drapeaux (toutes les 60 secondes)
+// Re-rendu uniquement si l'onglet "drapeaux" est visible
+setInterval(() => {
+  try {
+    const onglet = document.getElementById('dash-drapeaux');
+    if (onglet && onglet.classList.contains('active')) {
+      if (typeof renderDrapeaux === 'function') renderDrapeaux();
+    }
+  } catch(e) {}
+}, 60000);
 
 // ============================================================
 // PERSISTANCE TOTALE — Sauvegardes de sécurité multiples
