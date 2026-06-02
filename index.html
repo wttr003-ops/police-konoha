@@ -1721,6 +1721,7 @@
     <li><a onclick="showSection('diplomatie-section')" style="color:#d8b4fe">🤝 Diplomatie</a></li>
     <li><a onclick="showSection('renseignement-section')" style="color:#cbd5e1">🕵️ Renseignement</a></li>
     <li><a onclick="showSection('finance-section')" style="color:#86efac">💰 Finance</a></li>
+    <li><a onclick="showSection('strategie-section')" style="color:#fb7185">⚔️ Stratégie</a></li>
     <li><a onclick="showSection('volonte')">Volonté du Feu</a></li>
     <li><a onclick="showSection('missions')">Missions</a></li>
     <li><a onclick="showSection('grades')">Grades</a></li>
@@ -1768,6 +1769,7 @@
         <button class="btn-diplomatie btn-lg" onclick="showPage('login')">🤝 Diplomatie</button>
         <button class="btn-renseignement btn-lg" onclick="showPage('login')">🕵️ Renseignement</button>
         <button class="btn-lg" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none" onclick="showPage('login')">💰 Finance</button>
+        <button class="btn-lg" style="background:linear-gradient(135deg,#fb7185,#be123c);color:white;border:none" onclick="showPage('login')">⚔️ Stratégie</button>
         <button class="btn-civil btn-lg" onclick="showPage('civil')">🍃 Créer un compte citoyen</button>
         <button class="btn-outline btn-lg" onclick="showPage('login')">Espace agent</button>
       </div>
@@ -1783,6 +1785,7 @@
     <div class="stat"><span class="stat-num" id="stat-diplomatie">0</span><span class="stat-label">Diplomates</span></div>
     <div class="stat"><span class="stat-num" id="stat-renseignement">0</span><span class="stat-label">Renseignement</span></div>
     <div class="stat"><span class="stat-num" id="stat-finance">0</span><span class="stat-label">Finance</span></div>
+    <div class="stat"><span class="stat-num" id="stat-strategie">0</span><span class="stat-label">Stratégie</span></div>
     <div class="stat"><span class="stat-num">24/7</span><span class="stat-label">Patrouilles</span></div>
   </div>
 
@@ -2253,6 +2256,76 @@
           <div class="history-quote">
             <p>"Chaque Ryo compte, chaque écriture engage, chaque silence protège le village."</p>
             <span>— Serment des comptables de Konoha</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- STRATÉGIE -->
+  <section class="section section-dark" id="strategie-section" style="background:linear-gradient(180deg,#0f0a0c 0%, #14080c 100%)">
+    <div class="section-inner">
+      <p class="section-tag" style="color:#fb7185">⚔️ Bureau de la Stratégie</p>
+      <h2 class="section-title">Le Bureau de la <span style="color:#fb7185">Stratégie</span></h2>
+      <div class="history-layout">
+        <div class="history-main">
+          <div class="history-block" style="border-color:rgba(251,113,133,0.3)">
+            <div class="history-year" style="color:#fb7185">Origine</div>
+            <h3 class="history-block-title">Les maîtres tacticiens de Konoha</h3>
+            <p>Né d'une volonté du <strong>2ème Hokage</strong> de doter le village d'un service dédié à la planification militaire, le Bureau de la Stratégie réunit les esprits les plus aiguisés du village. Tandis que la Police protège, que les Missions opèrent, que le Renseignement écoute — la Stratégie, elle, <strong>pense l'avenir</strong>.</p>
+            <p>Le génie tactique du clan Nara y a longtemps régné, transmettant ses techniques d'analyse et de placement à des générations de stratèges. Aujourd'hui, le bureau veille sur la sécurité long-terme de Konoha en anticipant les mouvements ennemis et en planifiant les défenses.</p>
+          </div>
+          <div class="history-block" style="border-color:rgba(251,113,133,0.3)">
+            <div class="history-year" style="color:#fb7185">Cœur de mission</div>
+            <h3 class="history-block-title">La capture de drapeaux</h3>
+            <p>Symbole et exercice central du bureau : le système des <strong>drapeaux</strong>. Chaque drapeau représente une position stratégique, une cible diplomatique, un point d'intérêt critique. Les stratèges suivent en temps réel <strong>quel camp contrôle quelle position</strong> — Konoha en rouge, Suna en jaune — afin d'orienter les opérations sur le terrain.</p>
+            <p>Cet outil est aussi utilisé pour les <strong>exercices d'entraînement</strong> où les jeunes shinobis apprennent l'art du positionnement et du déploiement tactique. Chaque capture, chaque perte, chaque retournement de situation est consigné dans les <strong>archives historiques</strong> du bureau.</p>
+          </div>
+
+          <div class="history-block" style="border-color:rgba(251,113,133,0.4);background:rgba(251,113,133,0.04)">
+            <div class="history-year" style="color:#fb7185">Missions & Responsabilités</div>
+            <h3 class="history-block-title">Les attributions du Bureau</h3>
+            <ul style="list-style:none;padding:0;margin:0">
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">🚩 <strong>Gestion des drapeaux</strong> — Suivi en temps réel des positions stratégiques contrôlées par chaque camp.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">🗺️ <strong>Planification tactique</strong> — Élaboration des plans de bataille et des stratégies de défense.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">📊 <strong>Analyse des conflits</strong> — Étude des affrontements passés pour anticiper les futurs.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">🎯 <strong>Coordination opérationnelle</strong> — Liaison avec le Bureau des Missions et le Renseignement.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">📜 <strong>Archives stratégiques</strong> — Conservation de l'historique des positions et des retournements.</li>
+              <li style="padding:6px 0">🧠 <strong>Formation tactique</strong> — Entraînement des jeunes ninjas à la pensée stratégique.</li>
+            </ul>
+          </div>
+
+          <div class="history-block" style="border-color:rgba(251,113,133,0.3)">
+            <div class="history-year" style="color:#fb7185">Code d'honneur</div>
+            <h3 class="history-block-title">"Penser avant d'agir"</h3>
+            <p>Les stratèges jurent un serment de <strong>discrétion absolue</strong>. Leurs plans sont des secrets de guerre — un mot de travers peut coûter une bataille, voire un village entier. Ils ne discutent jamais de leurs analyses en dehors du bureau, et ne révèlent leurs conclusions qu'au Hokage et aux Directeurs autorisés.</p>
+            <p>Leur devise : <strong>"Un coup d'avance vaut mille coups d'épée"</strong>.</p>
+          </div>
+        </div>
+        <aside class="history-sidebar">
+          <div class="history-fact-card">
+            <div class="history-fact-label">Fondateur</div>
+            <div class="history-fact-val">2ème Hokage</div>
+            <div class="history-fact-sub">L'architecte du village</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Hiérarchie</div>
+            <div class="history-fact-val">Maître Stratège</div>
+            <div class="history-fact-sub">Plus haute autorité du Bureau</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Clan célèbre</div>
+            <div class="history-fact-val">Nara</div>
+            <div class="history-fact-sub">QI 200 garanti</div>
+          </div>
+          <div class="history-fact-card">
+            <div class="history-fact-label">Symbole</div>
+            <div class="history-fact-val">Pion sur l'échiquier</div>
+            <div class="history-fact-sub">Patience et anticipation</div>
+          </div>
+          <div class="history-quote">
+            <p>"Un coup d'avance vaut mille coups d'épée."</p>
+            <span>— Devise des stratèges de Konoha</span>
           </div>
         </aside>
       </div>
@@ -2736,6 +2809,10 @@
             <div style="font-size:24px;margin-bottom:4px">💰</div>
             Finance
           </button>
+          <button type="button" class="section-btn" data-section="strategie" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
+            <div style="font-size:24px;margin-bottom:4px">⚔️</div>
+            Stratégie
+          </button>
         </div>
       </div>
 
@@ -3012,10 +3089,10 @@
   <div class="dash-layout">
     <aside class="dash-sidebar">
       <nav class="dash-nav">
-        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
+        <button class="dash-nav-btn active" data-tab="overview" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('overview', this)">📊 Vue d'ensemble</button>
         <button class="dash-nav-btn" data-tab="plaintes" data-services="police,juge" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
-        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('membres', this)">👥 Membres</button>
+        <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
         <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
         <button class="dash-nav-btn" data-tab="recensement" data-services="police" onclick="switchDashTab('recensement', this)" style="color:#5eead4">🔍 Recensement</button>
@@ -3030,12 +3107,14 @@
         <button class="dash-nav-btn" data-tab="marchands" data-services="finance" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
         <button class="dash-nav-btn" data-tab="equipements" data-services="finance" onclick="switchDashTab('equipements', this)" style="color:#86efac">🛡️ Équipements</button>
         <button class="dash-nav-btn" data-tab="rapports-finance" data-services="finance" onclick="switchDashTab('rapports-finance', this)" style="color:#86efac">📄 Rapports financiers</button>
-        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
-        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('documents', this)">📚 Documents</button>
+        <button class="dash-nav-btn" data-tab="drapeaux" data-services="strategie" onclick="switchDashTab('drapeaux', this)" style="color:#fb7185">🚩 Drapeaux</button>
+        <button class="dash-nav-btn" data-tab="historique-drapeaux" data-services="strategie" onclick="switchDashTab('historique-drapeaux', this)" style="color:#fb7185">📜 Historique des captures</button>
+        <button class="dash-nav-btn" data-tab="discussions" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('discussions', this)">💬 Discussions inter-sections</button>
+        <button class="dash-nav-btn" data-tab="documents" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('documents', this)">📚 Documents</button>
         <button class="dash-nav-btn" data-tab="wanted" data-services="police" onclick="switchDashTab('wanted', this)" style="color:#fca5a5">📕 Bingo Book</button>
         <button class="dash-nav-btn" data-tab="dossiers" data-services="avocat" onclick="switchDashTab('dossiers', this)">📁 Mes dossiers clients</button>
-        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
-        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
+        <button class="dash-nav-btn" data-tab="ajout" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('ajout', this)">➕ Ajouter membre</button>
+        <button class="dash-nav-btn" data-tab="logs" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('logs', this)">🔑 Logs comptes</button>
       </nav>
     </aside>
 
@@ -3157,6 +3236,16 @@
       <div class="dash-tab" id="dash-rapports-finance">
         <h2 class="dash-section-title" style="color:#86efac">📄 Rapports financiers</h2>
         <div id="rapports-finance-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-drapeaux">
+        <h2 class="dash-section-title" style="color:#fb7185">🚩 Capture de drapeaux</h2>
+        <div id="drapeaux-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-historique-drapeaux">
+        <h2 class="dash-section-title" style="color:#fb7185">📜 Historique des captures</h2>
+        <div id="historique-drapeaux-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-logs">
@@ -4016,6 +4105,42 @@ const SUPABASE_TABLES = {
       ajoutePar: r.added_by, date: r.date,
       id: r.id, _id: r.id
     })
+  },
+  // === STRATÉGIE — Drapeaux ===
+  drapeaux: {
+    table: 'strategy_flags',
+    mapTo: d => ({
+      name: d.nom || null,
+      camp: d.camp || 'neutre',           // 'konoha', 'suna', 'neutre'
+      description: d.description || null,
+      captured_by: d.captureBy || null,
+      captured_at: d.captureAt || null,
+      created_by: d.createdBy || null,
+      date: d.date || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, camp: r.camp,
+      description: r.description,
+      captureBy: r.captured_by, captureAt: r.captured_at,
+      createdBy: r.created_by, date: r.date,
+      id: r.id, _id: r.id
+    })
+  },
+  drapeauxHistorique: {
+    table: 'strategy_flags_history',
+    mapTo: h => ({
+      flag_name: h.drapeau || null,
+      old_camp: h.ancienCamp || null,
+      new_camp: h.nouveauCamp || null,
+      captured_by: h.parQui || null,
+      agent: h.agent || null,            // qui a fait la modif dans le système
+      date: h.date || null
+    }),
+    mapFrom: r => ({
+      drapeau: r.flag_name, ancienCamp: r.old_camp, nouveauCamp: r.new_camp,
+      parQui: r.captured_by, agent: r.agent, date: r.date,
+      id: r.id, _id: r.id
+    })
   }
 };
 
@@ -4584,6 +4709,15 @@ const GRADE_RANK_FINANCE = {
   'Stagiaire': 4
 };
 
+const GRADE_RANK_STRATEGIE = {
+  'Hokage': 0,
+  'Maître Stratège': 1,
+  'Tacticien': 2,
+  'Stratège': 3,
+  'Analyste': 4,
+  'Recrue': 5
+};
+
 // Helper pour obtenir le rank selon le service
 function gradeRankForService(service, grade) {
   if (service === 'juge') return GRADE_RANK_JUGE[grade] !== undefined ? GRADE_RANK_JUGE[grade] : 99;
@@ -4592,6 +4726,7 @@ function gradeRankForService(service, grade) {
   if (service === 'diplomatie') return GRADE_RANK_DIPLOMATIE[grade] !== undefined ? GRADE_RANK_DIPLOMATIE[grade] : 99;
   if (service === 'renseignement') return GRADE_RANK_RENSEIGNEMENT[grade] !== undefined ? GRADE_RANK_RENSEIGNEMENT[grade] : 99;
   if (service === 'finance') return GRADE_RANK_FINANCE[grade] !== undefined ? GRADE_RANK_FINANCE[grade] : 99;
+  if (service === 'strategie') return GRADE_RANK_STRATEGIE[grade] !== undefined ? GRADE_RANK_STRATEGIE[grade] : 99;
   return gradeRank(grade); // police par défaut
 }
 
@@ -4700,7 +4835,10 @@ let state = {
   marchands: [],
   notificationsMarchands: [],
   rapportsFinance: [],
-  equipementsFinance: []
+  equipementsFinance: [],
+  // === STRATÉGIE ===
+  drapeaux: [],
+  drapeauxHistorique: []
 };
 
 // Grades autorisés à demander une sortie de village
@@ -4717,6 +4855,7 @@ const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affect
 const ALL_GRADES_DIPLOMATIE = ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior', 'Diplomate', 'Émissaire', 'Apprenti Diplomate'];
 const ALL_GRADES_RENSEIGNEMENT = ['Maître du Renseignement', 'Commandant', 'Agent Senior', 'Agent', 'Informateur', 'Recrue'];
 const ALL_GRADES_FINANCE = ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable', 'Stagiaire'];
+const ALL_GRADES_STRATEGIE = ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste', 'Recrue'];
 
 // Helper : compare 2 grades en ignorant accents/casse
 function _gradeMatch(a, b) {
@@ -4739,6 +4878,7 @@ function canAddMemberInSection(user) {
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
+  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
   return false;
 }
 
@@ -4753,6 +4893,7 @@ function canSeeSectionLogs(user) {
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
+  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
   return false;
 }
 
@@ -4767,6 +4908,7 @@ function canAccessDiscussions(user) {
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant', 'Agent Senior']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
+  if (service === 'strategie') return _gradeIn(user.grade, ['Hokage', 'Maître Stratège', 'Tacticien']);
   return false;
 }
 
@@ -5198,6 +5340,7 @@ function updateStats() {
   const diplomatieEl = document.getElementById('stat-diplomatie');
   const renseignementEl = document.getElementById('stat-renseignement');
   const financeEl = document.getElementById('stat-finance');
+  const strategieEl = document.getElementById('stat-strategie');
   // Exclure les comptes Hokage/Staff des compteurs publics (discrétion)
   if (agentsEl) agentsEl.textContent = state.users.filter(u => u.isAgent && (u.service||'police') === 'police' && !isSpecialRole(u.grade)).length;
   if (jugesEl) jugesEl.textContent = state.users.filter(u => u.isAgent && u.service === 'juge' && !isSpecialRole(u.grade)).length;
@@ -5206,6 +5349,7 @@ function updateStats() {
   if (diplomatieEl) diplomatieEl.textContent = state.users.filter(u => u.isAgent && u.service === 'diplomatie' && !isSpecialRole(u.grade)).length;
   if (renseignementEl) renseignementEl.textContent = state.users.filter(u => u.isAgent && u.service === 'renseignement' && !isSpecialRole(u.grade)).length;
   if (financeEl) financeEl.textContent = state.users.filter(u => u.isAgent && u.service === 'finance' && !isSpecialRole(u.grade)).length;
+  if (strategieEl) strategieEl.textContent = state.users.filter(u => u.isAgent && u.service === 'strategie' && !isSpecialRole(u.grade)).length;
   // Mettre à jour la section Recherchés sur la page d'accueil
   if (typeof renderWantedPublic === 'function') {
     try { renderWantedPublic(); } catch(e) {}
@@ -5278,7 +5422,8 @@ function renderSavedAccounts() {
     civil:         { icon: '🍃', label: 'Citoyen',           color: '#22c55e', rgb: '34,197,94' },
     diplomatie:    { icon: '🤝', label: 'Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
     renseignement: { icon: '🕵️', label: 'Renseignement',    color: '#94a3b8', rgb: '148,163,184' },
-    finance:       { icon: '💰', label: 'Finance',           color: '#16a34a', rgb: '22,163,74' }
+    finance:       { icon: '💰', label: 'Finance',           color: '#16a34a', rgb: '22,163,74' },
+    strategie:     { icon: '⚔️', label: 'Stratégie',          color: '#fb7185', rgb: '251,113,133' }
   };
 
   list.innerHTML = accounts.map((a) => {
@@ -6002,6 +6147,12 @@ function renderDashboard(tab) {
       avatarEl.style.color = '#fff';
       avatarEl.style.border = '2px solid rgba(34,197,94,0.5)';
       avatarEl.style.boxShadow = '0 0 12px rgba(34,197,94,0.3)';
+    } else if (myService === 'strategie') {
+      // Rouge/rose pour Stratégie
+      avatarEl.style.background = 'linear-gradient(135deg,#fb7185,#be123c)';
+      avatarEl.style.color = '#fff';
+      avatarEl.style.border = '2px solid rgba(251,113,133,0.5)';
+      avatarEl.style.boxShadow = '0 0 12px rgba(251,113,133,0.3)';
     } else {
       // Police = couleur dorée par défaut (laissé tel quel par CSS)
       avatarEl.style.boxShadow = '';
@@ -6025,6 +6176,10 @@ function renderDashboard(tab) {
     pill.style.background = 'rgba(34,197,94,0.15)';
     pill.style.color = '#86efac';
     pill.style.border = '1px solid rgba(34,197,94,0.4)';
+  } else if (myService === 'strategie') {
+    pill.style.background = 'rgba(251,113,133,0.15)';
+    pill.style.color = '#fb7185';
+    pill.style.border = '1px solid rgba(251,113,133,0.4)';
   } else {
     // Reset pour permettre au CSS de prendre la main
     pill.style.background = '';
@@ -6056,6 +6211,9 @@ function renderDashboard(tab) {
   } else if (myService === 'finance') {
     if (titleEl) titleEl.textContent = 'Bureau de la Finance — Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Trésor & Ressources';
+  } else if (myService === 'strategie') {
+    if (titleEl) titleEl.textContent = 'Bureau de la Stratégie — Konoha';
+    if (subEl) subEl.textContent = 'Tableau de bord — Drapeaux & Tactiques';
   }
 
   document.querySelectorAll('.dash-nav-btn').forEach(btn => {
@@ -6104,6 +6262,8 @@ function switchDashTab(name, btn) {
   if (name === 'marchands') renderMarchands();
   if (name === 'equipements') renderEquipements();
   if (name === 'rapports-finance') renderRapportsFinance();
+  if (name === 'drapeaux') renderDrapeaux();
+  if (name === 'historique-drapeaux') renderHistoriqueDrapeaux();
   if (name === 'ajout') renderAjout();
   if (name === 'logs') renderLogs();
 }
@@ -6174,6 +6334,7 @@ function renderOverview() {
     else if (myService === 'diplomatie') elAgentsLabel.textContent = 'Diplomates enregistrés';
     else if (myService === 'renseignement') elAgentsLabel.textContent = 'Agents du Renseignement';
     else if (myService === 'finance') elAgentsLabel.textContent = 'Trésoriers enregistrés';
+    else if (myService === 'strategie') elAgentsLabel.textContent = 'Stratèges enregistrés';
     else elAgentsLabel.textContent = 'Agents enregistrés';
   }
 
@@ -8894,6 +9055,7 @@ function renderAjout() {
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
     if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
     if (myService === 'finance') msg = 'Réservé au Directeur et au Directeur Adjoint.';
+    if (myService === 'strategie') msg = 'Réservé au Maître Stratège et au Tacticien.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
     return;
   }
@@ -8928,6 +9090,10 @@ function renderAjout() {
     gradesDispo = ALL_GRADES_FINANCE.filter(g => g !== 'Hokage');
     titreSection = 'Bureau de la Finance';
     labelBouton = 'Ajouter le comptable';
+  } else if (myService === 'strategie') {
+    gradesDispo = ALL_GRADES_STRATEGIE.filter(g => g !== 'Hokage');
+    titreSection = 'Bureau de la Stratégie';
+    labelBouton = 'Ajouter le stratège';
   } else if (myService === 'police') {
     // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
     if (canManageSpecialRoles(u)) {
@@ -11881,6 +12047,7 @@ function renderLogs() {
   const avocats = hideSpecial(state.users.filter(x => x.isAgent && x.service === 'avocat'));
   const missionAgents = state.users.filter(x => x.isAgent && x.service === 'mission');
   const financeAgents = state.users.filter(x => x.isAgent && x.service === 'finance');
+  const strategieAgents = state.users.filter(x => x.isAgent && x.service === 'strategie');
 
   // Détermine quels onglets afficher selon la section
   const showPolice = (myService === 'police');
@@ -11888,12 +12055,14 @@ function renderLogs() {
   const showAvocats = (myService === 'police' || myService === 'avocat');
   const showMission = (myService === 'police' || myService === 'mission');
   const showFinance = (myService === 'police' || myService === 'finance');
-  // ⚠️ Sécurité : la Finance ne voit PAS les mots de passe des civils
-  const showCivils = (myService !== 'finance');
+  const showStrategie = (myService === 'police' || myService === 'strategie');
+  // ⚠️ Sécurité : Finance et Stratégie ne voient PAS les comptes des civils
+  const showCivils = (myService !== 'finance' && myService !== 'strategie');
   const defaultTab = myService === 'police' ? 'agents'
                    : myService === 'juge' ? 'juges'
                    : myService === 'mission' ? 'mission'
                    : myService === 'finance' ? 'finance'
+                   : myService === 'strategie' ? 'strategie'
                    : 'avocats';
 
   let bandeauColor = 'rgba(231,76,60,0.06)';
@@ -11912,6 +12081,9 @@ function renderLogs() {
   } else if (myService === 'finance') {
     bandeauColor = 'rgba(34,197,94,0.06)'; bandeauBorder = 'rgba(34,197,94,0.3)'; bandeauTextColor = '#86efac';
     bandeauMsg = '💰 <strong>Bureau de la Finance — Direction</strong> — Comptes des trésoriers uniquement. Les comptes citoyens ne sont pas accessibles depuis cette section.';
+  } else if (myService === 'strategie') {
+    bandeauColor = 'rgba(251,113,133,0.06)'; bandeauBorder = 'rgba(251,113,133,0.3)'; bandeauTextColor = '#fb7185';
+    bandeauMsg = '⚔️ <strong>Bureau de la Stratégie — Direction</strong> — Comptes des stratèges uniquement. Les comptes citoyens ne sont pas accessibles depuis cette section.';
   }
 
   let html = `
@@ -11941,6 +12113,10 @@ function renderLogs() {
   if (showFinance) {
     const isDefault = defaultTab === 'finance';
     html += `<button id="logs-tab-finance" onclick="switchLogsTab('finance')" style="background:${isDefault?'rgba(34,197,94,0.15)':'transparent'};color:${isDefault?'#86efac':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#86efac':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">💰 Finance (${financeAgents.length})</button>`;
+  }
+  if (showStrategie) {
+    const isDefault = defaultTab === 'strategie';
+    html += `<button id="logs-tab-strategie" onclick="switchLogsTab('strategie')" style="background:${isDefault?'rgba(251,113,133,0.15)':'transparent'};color:${isDefault?'#fb7185':'var(--muted)'};border:none;border-bottom:2px solid ${isDefault?'#fb7185':'transparent'};padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">⚔️ Stratégie (${strategieAgents.length})</button>`;
   }
   if (showCivils) {
     html += `<button id="logs-tab-civils" onclick="switchLogsTab('civils')" style="background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;padding:10px 18px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:6px 6px 0 0">🍃 Civils (${civils.length})</button>`;
@@ -12119,6 +12295,38 @@ function renderLogs() {
   }
   html += `</div></div>`; // Ferme section-finance
 
+  // Section Stratégie (Bureau de la Stratégie)
+  const sectionStrategieDisplay = (showStrategie && defaultTab==='strategie') ? 'block' : 'none';
+  html += `<div id="logs-section-strategie" style="display:${sectionStrategieDisplay}">
+      <div style="background:rgba(251,113,133,0.06);border:1px solid rgba(251,113,133,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
+        ⚔️ <strong style="color:#fb7185">Bureau de la Stratégie</strong> — Comptes des stratèges et leurs mots de passe.
+      </div>
+      <div class="dash-block">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#fb7185;text-transform:uppercase;letter-spacing:1px">⚔️ Membres du Bureau de la Stratégie (${strategieAgents.length})</div>`;
+  if (strategieAgents.length === 0) {
+    html += '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-style:italic">Aucun stratège enregistré.</div>';
+  } else {
+    strategieAgents.sort((a,b) => gradeRankForService('strategie', a.grade) - gradeRankForService('strategie', b.grade)).forEach(a => {
+      html += `
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <strong style="color:var(--text);font-size:14px">${escapeHtml(a.fullname)}</strong>
+              <span style="margin-left:6px;font-size:10px;color:#fb7185;background:rgba(251,113,133,0.15);border:1px solid rgba(251,113,133,0.3);padding:2px 8px;border-radius:10px">${escapeHtml(a.grade||'—')}</span>
+              ${a.matricule ? `<span style="margin-left:6px;font-size:10px;color:var(--muted)">📋 ${escapeHtml(a.matricule)}</span>` : ''}
+            </div>
+            ${a.inscription ? `<span style="font-size:10px;color:var(--muted)">Inscrit le ${escapeHtml(a.inscription)}</span>` : ''}
+          </div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:8px 12px">
+            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🔑 Mot de passe :</span>
+            <code style="color:#fb7185;font-family:monospace;font-size:13px;font-weight:700;flex:1">${escapeHtml(a.password || '(non défini)')}</code>
+            <button class="btn-sm" style="background:rgba(251,113,133,0.15);color:#fb7185;border:1px solid rgba(251,113,133,0.3);font-size:10px;padding:4px 8px" onclick="navigator.clipboard.writeText('${(a.password||'').replace(/'/g, "\\'")}').then(()=>alert('✓ Mot de passe copié'))">📋 Copier</button>
+          </div>
+        </div>`;
+    });
+  }
+  html += `</div></div>`; // Ferme section-strategie
+
   // Section Civils (masquée pour la Finance)
   if (showCivils) {
   html += `<div id="logs-section-civils" style="display:none">
@@ -12169,16 +12377,17 @@ function renderLogs() {
 
 // Switch entre les onglets de Logs
 function switchLogsTab(tab) {
-  ['agents','juges','avocats','mission','finance','civils'].forEach(t => {
+  ['agents','juges','avocats','mission','finance','strategie','civils'].forEach(t => {
     const btn = document.getElementById('logs-tab-' + t);
     const sec = document.getElementById('logs-section-' + t);
     const isMission = (t === 'mission');
     const isFinance = (t === 'finance');
+    const isStrategie = (t === 'strategie');
     if (btn) {
       if (t === tab) {
-        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : isFinance ? 'rgba(34,197,94,0.15)' : 'rgba(196,154,26,0.15)';
-        btn.style.color = isMission ? '#5eead4' : isFinance ? '#86efac' : 'var(--accent)';
-        btn.style.borderBottomColor = isMission ? '#5eead4' : isFinance ? '#86efac' : 'var(--accent)';
+        btn.style.background = isMission ? 'rgba(20,184,166,0.15)' : isFinance ? 'rgba(34,197,94,0.15)' : isStrategie ? 'rgba(251,113,133,0.15)' : 'rgba(196,154,26,0.15)';
+        btn.style.color = isMission ? '#5eead4' : isFinance ? '#86efac' : isStrategie ? '#fb7185' : 'var(--accent)';
+        btn.style.borderBottomColor = isMission ? '#5eead4' : isFinance ? '#86efac' : isStrategie ? '#fb7185' : 'var(--accent)';
       } else {
         btn.style.background = 'transparent';
         btn.style.color = 'var(--muted)';
@@ -19987,6 +20196,343 @@ async function supprimerRapportFinance(idx) {
   state.rapportsFinance.splice(idx, 1);
   saveSession();
   renderRapportsFinance();
+}
+
+// ============================================================
+// STRATÉGIE — DRAPEAUX (Capture de drapeaux Konoha/Suna)
+// ============================================================
+
+const CAMPS_DRAPEAU = {
+  konoha: {
+    key: 'konoha',
+    label: '🍃 Konoha',
+    color: '#ef4444',
+    rgb: '239,68,68',
+    bg: 'rgba(239,68,68,0.12)',
+    border: 'rgba(239,68,68,0.4)'
+  },
+  suna: {
+    key: 'suna',
+    label: '🏜️ Suna',
+    color: '#facc15',
+    rgb: '250,204,21',
+    bg: 'rgba(250,204,21,0.12)',
+    border: 'rgba(250,204,21,0.4)'
+  },
+  neutre: {
+    key: 'neutre',
+    label: '⚪ Neutre',
+    color: '#94a3b8',
+    rgb: '148,163,184',
+    bg: 'rgba(148,163,184,0.1)',
+    border: 'rgba(148,163,184,0.3)'
+  }
+};
+
+function getCampMeta(key) {
+  return CAMPS_DRAPEAU[key] || CAMPS_DRAPEAU.neutre;
+}
+
+function renderDrapeaux() {
+  const u = state.currentUser;
+  const el = document.getElementById('drapeaux-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'strategie') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Stratégie.</p></div>';
+    return;
+  }
+
+  const drapeaux = (state.drapeaux || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Maître Stratège', 'Tacticien', 'Stratège', 'Analyste']);
+
+  // Comptage par camp
+  const konohaCount = drapeaux.filter(d => d.camp === 'konoha').length;
+  const sunaCount = drapeaux.filter(d => d.camp === 'suna').length;
+  const neutreCount = drapeaux.filter(d => d.camp === 'neutre' || !d.camp).length;
+
+  // === BANDEAU SCORE EN HAUT ===
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:1.5rem">
+      <div style="background:linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08));border:2px solid rgba(239,68,68,0.4);border-radius:12px;padding:18px 20px;text-align:center;box-shadow:0 4px 15px rgba(239,68,68,0.1)">
+        <div style="font-size:13px;color:#fca5a5;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700">🍃 Konoha</div>
+        <div style="font-size:38px;font-weight:800;color:#ef4444;font-family:'Cinzel',serif;text-shadow:0 0 15px rgba(239,68,68,0.4)">${konohaCount}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">drapeau(x) contrôlé(s)</div>
+      </div>
+      <div style="background:linear-gradient(135deg,rgba(250,204,21,0.15),rgba(202,138,4,0.08));border:2px solid rgba(250,204,21,0.4);border-radius:12px;padding:18px 20px;text-align:center;box-shadow:0 4px 15px rgba(250,204,21,0.1)">
+        <div style="font-size:13px;color:#fde047;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700">🏜️ Suna</div>
+        <div style="font-size:38px;font-weight:800;color:#facc15;font-family:'Cinzel',serif;text-shadow:0 0 15px rgba(250,204,21,0.4)">${sunaCount}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">drapeau(x) contrôlé(s)</div>
+      </div>
+      <div style="background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.25);border-radius:12px;padding:18px 20px;text-align:center">
+        <div style="font-size:13px;color:#cbd5e1;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700">⚪ Neutre</div>
+        <div style="font-size:38px;font-weight:800;color:#94a3b8;font-family:'Cinzel',serif">${neutreCount}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">drapeau(x) non capturé(s)</div>
+      </div>
+    </div>`;
+
+  // === FORMULAIRE D'AJOUT ===
+  if (canEdit) {
+    html += `
+    <div class="dash-block" style="padding:1.25rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(251,113,133,0.3)">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:#fb7185;margin-bottom:1rem">➕ Créer un nouveau drapeau</h3>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>🚩 Nom du drapeau</label>
+          <input type="text" id="drap-nom" placeholder="Ex: Pont du Pays des Vagues · Forêt de la Mort · Position Nord-Est" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>🏴 Camp initial</label>
+          <select id="drap-camp" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px">
+            <option value="neutre">⚪ Neutre (non capturé)</option>
+            <option value="konoha">🍃 Konoha</option>
+            <option value="suna">🏜️ Suna</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>📝 Description courte</label>
+        <textarea id="drap-description" rows="3" placeholder="Ex: Position stratégique à l'entrée du village. Permet de contrôler les routes commerciales." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:13px;line-height:1.6;resize:vertical;min-height:80px"></textarea>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label>🥷 Capturé par (facultatif)</label>
+        <input type="text" id="drap-capturepar" placeholder="Ex: Équipe 7 · Naruto Uzumaki · Anonyme..." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:6px;width:100%;font-family:'Rajdhani',sans-serif;font-size:14px"/>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic">💡 Laissez vide si le drapeau n'a pas encore été capturé</div>
+      </div>
+
+      <button class="btn-primary btn-full" onclick="ajouterDrapeau()" style="background:linear-gradient(135deg,#fb7185,#be123c);color:white;border:none;padding:12px;font-weight:700">🚩 Créer le drapeau</button>
+    </div>`;
+  }
+
+  // === LISTE DES DRAPEAUX SÉPARÉS PAR CAMP ===
+  const renderColonne = (camp) => {
+    const meta = getCampMeta(camp);
+    const drapeauxCamp = drapeaux.filter(d => (d.camp || 'neutre') === camp);
+    let h = `<div class="dash-block" style="padding:0;margin-bottom:1.5rem;border:1px solid ${meta.border}">
+      <div style="padding:12px 16px;border-bottom:1px solid ${meta.border};background:${meta.bg};font-family:'Cinzel',serif;font-size:14px;color:${meta.color};display:flex;justify-content:space-between;align-items:center">
+        <span>${meta.label}</span>
+        <span style="font-size:11px;font-family:'Rajdhani',sans-serif;color:var(--muted)">${drapeauxCamp.length} drapeau(x)</span>
+      </div>`;
+
+    if (drapeauxCamp.length === 0) {
+      h += `<p style="color:var(--muted);text-align:center;padding:1.5rem;font-style:italic">Aucun drapeau dans ce camp.</p>`;
+    } else {
+      drapeauxCamp.forEach(d => {
+        const realIdx = state.drapeaux.indexOf(d);
+        h += `
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+              <div style="flex:1;min-width:200px">
+                <div style="font-family:'Cinzel',serif;font-size:15px;color:var(--text);font-weight:700;margin-bottom:3px">🚩 ${escapeHtml(d.nom || '(sans nom)')}</div>
+                ${d.captureBy ? `<div style="font-size:11px;color:${meta.color};margin-top:2px">🥷 Capturé par <strong>${escapeHtml(d.captureBy)}</strong>${d.captureAt ? ' · ' + escapeHtml(d.captureAt) : ''}</div>` : '<div style="font-size:11px;color:var(--muted);font-style:italic">Non capturé</div>'}
+                <div style="font-size:10px;color:var(--muted);margin-top:3px">Créé le ${escapeHtml(d.date || '—')} par ${escapeHtml(d.createdBy || '—')}</div>
+              </div>
+              ${canEdit ? `
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'konoha')" style="background:${camp==='konoha'?'rgba(239,68,68,0.3)':'rgba(239,68,68,0.1)'};color:#ef4444;border:1px solid rgba(239,68,68,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='konoha'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='konoha'?'disabled':''}>🍃 Konoha</button>
+                  <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'suna')" style="background:${camp==='suna'?'rgba(250,204,21,0.3)':'rgba(250,204,21,0.1)'};color:#facc15;border:1px solid rgba(250,204,21,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='suna'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='suna'?'disabled':''}>🏜️ Suna</button>
+                  <button class="btn-sm" onclick="modifierCampDrapeau(${realIdx}, 'neutre')" style="background:${camp==='neutre'?'rgba(148,163,184,0.25)':'rgba(148,163,184,0.08)'};color:#94a3b8;border:1px solid rgba(148,163,184,0.4);font-size:10px;padding:5px 10px;font-weight:700;${camp==='neutre'?'opacity:0.5;cursor:default':'cursor:pointer'}" ${camp==='neutre'?'disabled':''}>⚪ Neutre</button>
+                  <button class="btn-sm btn-sm-red" onclick="supprimerDrapeau(${realIdx})" style="font-size:10px;padding:5px 10px">🗑</button>
+                </div>
+              ` : ''}
+            </div>
+            ${d.description ? `<div style="margin-top:6px;font-size:13px;color:var(--text);background:rgba(0,0,0,0.25);padding:10px 12px;border-radius:6px;line-height:1.6;word-wrap:break-word;white-space:pre-wrap">${escapeHtml(d.description)}</div>` : ''}
+          </div>`;
+      });
+    }
+    h += `</div>`;
+    return h;
+  };
+
+  html += renderColonne('konoha');
+  html += renderColonne('suna');
+  html += renderColonne('neutre');
+
+  el.innerHTML = html;
+}
+
+async function ajouterDrapeau() {
+  const u = state.currentUser;
+  if (!u) return;
+  const nom = document.getElementById('drap-nom').value.trim();
+  const camp = document.getElementById('drap-camp').value;
+  const description = document.getElementById('drap-description').value.trim();
+  const captureBy = document.getElementById('drap-capturepar').value.trim();
+
+  if (!nom) { alert('⚠️ Veuillez entrer un nom pour le drapeau.'); return; }
+
+  const newDrap = {
+    id: Date.now(),
+    nom, camp, description,
+    captureBy: captureBy || null,
+    captureAt: captureBy ? (new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})) : null,
+    createdBy: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR')
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.drapeaux;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newDrap)).select().single();
+      if (error) {
+        alert('❌ Erreur Supabase : ' + error.message + '\n\n(Vérifiez que la table strategy_flags existe — voir le SQL fourni.)');
+        return;
+      }
+      if (inserted) newDrap._id = inserted.id;
+    } catch(e) {
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+
+  state.drapeaux = state.drapeaux || [];
+  state.drapeaux.push(newDrap);
+
+  // Si le drapeau est créé directement dans un camp (pas neutre), on log dans l'historique
+  if (camp !== 'neutre' || captureBy) {
+    await logHistoriqueDrapeau(nom, null, camp, captureBy || u.fullname);
+  }
+
+  saveSession();
+  document.getElementById('drap-nom').value = '';
+  document.getElementById('drap-description').value = '';
+  document.getElementById('drap-capturepar').value = '';
+  renderDrapeaux();
+}
+
+async function modifierCampDrapeau(idx, nouveauCamp) {
+  const u = state.currentUser;
+  const d = state.drapeaux[idx];
+  if (!d || !u) return;
+  const ancienCamp = d.camp || 'neutre';
+  if (ancienCamp === nouveauCamp) return;
+
+  // Demander qui a capturé (sauf si passe à neutre)
+  let captureBy = null;
+  if (nouveauCamp !== 'neutre') {
+    captureBy = prompt('🥷 Qui a capturé le drapeau "' + d.nom + '" pour ' + (nouveauCamp === 'konoha' ? 'Konoha' : 'Suna') + ' ?\n\n(Laissez vide pour passer ce drapeau au camp sans préciser de capteur)');
+    if (captureBy === null) return; // annulé
+    captureBy = captureBy.trim() || u.fullname;
+  }
+
+  // Mettre à jour
+  d.camp = nouveauCamp;
+  d.captureBy = captureBy;
+  d.captureAt = nouveauCamp !== 'neutre' ? (new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})) : null;
+
+  if (supabaseReady && d._id) {
+    try {
+      await sb.from('strategy_flags').update({
+        camp: nouveauCamp,
+        captured_by: d.captureBy,
+        captured_at: d.captureAt
+      }).eq('id', d._id);
+    } catch(e) {
+      alert('❌ Erreur Supabase : ' + (e.message || e));
+      return;
+    }
+  }
+
+  // Log dans l'historique
+  await logHistoriqueDrapeau(d.nom, ancienCamp, nouveauCamp, captureBy);
+
+  saveSession();
+  renderDrapeaux();
+}
+
+async function supprimerDrapeau(idx) {
+  const d = state.drapeaux[idx];
+  if (!d) return;
+  if (!(await confirmAsync('Supprimer définitivement le drapeau "' + (d.nom || '') + '" du registre ?'))) return;
+
+  if (supabaseReady) {
+    try {
+      let deleted = false;
+      if (d._id) {
+        const { error } = await sb.from('strategy_flags').delete().eq('id', d._id);
+        if (!error) deleted = true;
+      }
+      if (!deleted) {
+        const { error } = await sb.from('strategy_flags').delete()
+          .eq('name', d.nom).eq('date', d.date);
+        if (!error) deleted = true;
+      }
+      if (!deleted) { alert('⚠️ Suppression serveur échouée.'); return; }
+    } catch(e) { alert('❌ Erreur réseau'); return; }
+  }
+
+  state.drapeaux.splice(idx, 1);
+  saveSession();
+  renderDrapeaux();
+}
+
+// Enregistrer dans l'historique des captures
+async function logHistoriqueDrapeau(flagName, ancienCamp, nouveauCamp, parQui) {
+  const u = state.currentUser;
+  if (!u) return;
+  const newLog = {
+    id: Date.now() + Math.floor(Math.random() * 100),
+    drapeau: flagName,
+    ancienCamp: ancienCamp,
+    nouveauCamp: nouveauCamp,
+    parQui: parQui || u.fullname,
+    agent: u.fullname,
+    date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.drapeauxHistorique;
+      const { data: inserted } = await sb.from(cfg.table).insert(cfg.mapTo(newLog)).select().single();
+      if (inserted) newLog._id = inserted.id;
+    } catch(e) { console.warn('Log historique drapeau:', e); }
+  }
+  state.drapeauxHistorique = state.drapeauxHistorique || [];
+  state.drapeauxHistorique.push(newLog);
+}
+
+function renderHistoriqueDrapeaux() {
+  const u = state.currentUser;
+  const el = document.getElementById('historique-drapeaux-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'strategie') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3></div>';
+    return;
+  }
+
+  const historique = (state.drapeauxHistorique || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
+
+  let html = `
+    <div style="background:rgba(251,113,133,0.06);border:1px solid rgba(251,113,133,0.25);border-radius:8px;padding:14px 18px;margin-bottom:1.5rem;font-size:13px;color:var(--text)">
+      📜 <strong style="color:#fb7185">Historique des captures</strong> — Toutes les modifications de camp des drapeaux sont consignées ici, du plus récent au plus ancien.
+    </div>`;
+
+  if (historique.length === 0) {
+    html += '<div class="dash-block" style="padding:2rem;text-align:center;color:var(--muted);font-style:italic">Aucune capture enregistrée pour le moment.</div>';
+  } else {
+    html += '<div class="dash-block" style="padding:0">';
+    historique.forEach(h => {
+      const ancienMeta = h.ancienCamp ? getCampMeta(h.ancienCamp) : null;
+      const nouveauMeta = getCampMeta(h.nouveauCamp);
+      html += `
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <div style="font-family:'Cinzel',serif;font-size:14px;color:var(--text);font-weight:700;margin-bottom:6px">🚩 ${escapeHtml(h.drapeau || '—')}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+              ${ancienMeta ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${ancienMeta.bg};color:${ancienMeta.color};border:1px solid ${ancienMeta.border}">${ancienMeta.label}</span><span style="color:var(--muted);font-size:14px">→</span>` : '<span style="font-size:11px;color:var(--muted);font-style:italic">création →</span>'}
+              <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${nouveauMeta.bg};color:${nouveauMeta.color};border:1px solid ${nouveauMeta.border}">${nouveauMeta.label}</span>
+            </div>
+            ${h.parQui ? `<div style="font-size:11px;color:var(--text);margin-bottom:3px">🥷 Capturé par <strong>${escapeHtml(h.parQui)}</strong></div>` : ''}
+            <div style="font-size:10px;color:var(--muted)">${escapeHtml(h.date || '—')} · enregistré par ${escapeHtml(h.agent || '—')}</div>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
 }
 
 // Lancer l'init Supabase (en arrière-plan)
