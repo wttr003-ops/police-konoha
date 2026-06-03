@@ -3549,10 +3549,10 @@ const SUPABASE_TABLES = {
       // 🔄 Migration automatique des anciens grades Stratégie
       let grade = r.grade;
       if (r.service === 'strategie') {
+        // Note : "Stratège" est désormais un grade valide, on ne le migre plus
         const mapMigration = {
           'Maître Stratège': 'Gérant',
           'Tacticien': 'Co-gérant',
-          'Stratège': 'Stratège Vétéran',
           'Analyste': 'Stratège Expérimenté',
           'Recrue': 'Stratège Intermédiaire'
         };
@@ -4881,7 +4881,9 @@ const GRADE_RANK_STRATEGIE = {
   'Co-gérant': 2,
   'Stratège Vétéran': 3,
   'Stratège Expérimenté': 4,
-  'Stratège Intermédiaire': 5
+  'Stratège Intermédiaire': 5,
+  'Stratège': 6,
+  'Stratège Stagiaire': 7
 };
 
 // Helper pour obtenir le rank selon le service
@@ -5023,7 +5025,7 @@ const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affect
 const ALL_GRADES_DIPLOMATIE = ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior', 'Diplomate', 'Émissaire', 'Apprenti Diplomate'];
 const ALL_GRADES_RENSEIGNEMENT = ['Maître du Renseignement', 'Commandant', 'Agent Senior', 'Agent', 'Informateur', 'Recrue'];
 const ALL_GRADES_FINANCE = ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable', 'Stagiaire'];
-const ALL_GRADES_STRATEGIE = ['Hokage', 'Gérant', 'Co-gérant', 'Stratège Vétéran', 'Stratège Expérimenté', 'Stratège Intermédiaire'];
+const ALL_GRADES_STRATEGIE = ['Hokage', 'Gérant', 'Co-gérant', 'Stratège Vétéran', 'Stratège Expérimenté', 'Stratège Intermédiaire', 'Stratège', 'Stratège Stagiaire'];
 
 // Helper : compare 2 grades en ignorant accents/casse
 function _gradeMatch(a, b) {
@@ -18871,7 +18873,6 @@ async function initSupabase() {
       const mapMigration = {
         'Maître Stratège': 'Gérant',
         'Tacticien': 'Co-gérant',
-        'Stratège': 'Stratège Vétéran',
         'Analyste': 'Stratège Expérimenté',
         'Recrue': 'Stratège Intermédiaire'
       };
@@ -20724,7 +20725,7 @@ function renderDrapeauxContenu() {
   if (!el || !u) return;
 
   const drapeaux = (state.drapeaux || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
-  const canEdit = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant', 'Stratège', 'Analyste']);
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant', 'Stratège Vétéran', 'Stratège Expérimenté', 'Stratège Intermédiaire', 'Stratège']);
 
   // Comptage par camp (score global)
   const konohaCount = drapeaux.filter(d => d.camp === 'konoha').length;
@@ -21465,7 +21466,7 @@ function renderRapportsSituation() {
     return;
   }
 
-  const canEdit = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant', 'Stratège', 'Analyste']);
+  const canEdit = _gradeIn(u.grade, ['Hokage', 'Gérant', 'Co-gérant', 'Stratège Vétéran', 'Stratège Expérimenté', 'Stratège Intermédiaire', 'Stratège']);
   const rapports = (state.rapportsSituation || []).slice().sort((a, b) => (b.id || 0) - (a.id || 0));
 
   let html = `
