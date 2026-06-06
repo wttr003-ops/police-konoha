@@ -1789,6 +1789,247 @@
     <div class="stat"><span class="stat-num">24/7</span><span class="stat-label">Patrouilles</span></div>
   </div>
 
+  <!-- 🏴 TERRITOIRES — État de la guerre des drapeaux (public, en lecture seule) -->
+  <section class="section" id="territoires-public" style="padding-top:2rem">
+    <div class="section-inner">
+      <p class="section-tag">⚔️ Bureau de la Stratégie</p>
+      <h2 class="section-title">État des <span>Territoires</span></h2>
+      <p style="text-align:center;color:var(--muted);max-width:680px;margin:0 auto 2rem;font-size:14px">
+        Suivi en temps réel des positions de Konoha et Suna sur le théâtre des opérations.
+        Données gérées exclusivement par le <strong>Bureau de la Stratégie</strong>.
+      </p>
+
+      <style>
+        /* === Animations des cartes territoire (page publique) === */
+        @keyframes pubKonohaPulse {
+          0%, 100% { box-shadow: 0 0 25px rgba(239,68,68,0.3), 0 0 50px rgba(239,68,68,0.12); }
+          50%      { box-shadow: 0 0 40px rgba(239,68,68,0.6), 0 0 80px rgba(239,68,68,0.3); }
+        }
+        @keyframes pubSunaPulse {
+          0%, 100% { box-shadow: 0 0 25px rgba(250,204,21,0.3), 0 0 50px rgba(202,138,4,0.12); }
+          50%      { box-shadow: 0 0 40px rgba(250,204,21,0.6), 0 0 80px rgba(202,138,4,0.3); }
+        }
+        @keyframes pubFlicker1 {
+          0%, 100% { transform: scaleY(1)    scaleX(1)    skewX(0deg);  opacity: 0.95; }
+          25%      { transform: scaleY(1.2)  scaleX(0.9)  skewX(3deg);  opacity: 1; }
+          50%      { transform: scaleY(0.9)  scaleX(1.1)  skewX(-2deg); opacity: 0.85; }
+          75%      { transform: scaleY(1.15) scaleX(0.95) skewX(2deg);  opacity: 1; }
+        }
+        @keyframes pubFlicker2 {
+          0%, 100% { transform: scaleY(1.05) scaleX(0.95) skewX(-1deg); opacity: 0.9; }
+          30%      { transform: scaleY(0.85) scaleX(1.1)  skewX(2deg);  opacity: 0.8; }
+          60%      { transform: scaleY(1.2)  scaleX(0.9)  skewX(-3deg); opacity: 1; }
+        }
+        @keyframes pubFlicker3 {
+          0%, 100% { transform: scaleY(0.95) scaleX(1.05) skewX(2deg);  opacity: 0.85; }
+          50%      { transform: scaleY(1.15) scaleX(0.95) skewX(-2deg); opacity: 1; }
+        }
+        @keyframes pubEmbers {
+          0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+          15%  { opacity: 1; }
+          85%  { opacity: 0.6; }
+          100% { transform: translate(var(--ex, 0px), -60px) scale(0.3); opacity: 0; }
+        }
+        @keyframes pubSandFly1 {
+          0%   { transform: translate(120%, 0%) scale(1);  opacity: 0; }
+          10%  { opacity: 1; }
+          90%  { opacity: 1; }
+          100% { transform: translate(-20%, 40%) scale(0.7); opacity: 0; }
+        }
+        @keyframes pubSandFly2 {
+          0%   { transform: translate(120%, -20%) scale(0.8); opacity: 0; }
+          15%  { opacity: 0.9; }
+          85%  { opacity: 0.9; }
+          100% { transform: translate(-30%, 60%) scale(0.5); opacity: 0; }
+        }
+        @keyframes pubSandFly3 {
+          0%   { transform: translate(125%, 10%) scale(1.1); opacity: 0; }
+          12%  { opacity: 1; }
+          88%  { opacity: 0.7; }
+          100% { transform: translate(-25%, 30%) scale(0.6); opacity: 0; }
+        }
+        @keyframes pubShimmer {
+          0%, 100% { opacity: 0.85; }
+          50%      { opacity: 1; }
+        }
+
+        .pub-konoha-card {
+          position: relative;
+          overflow: hidden;
+          background: radial-gradient(ellipse at 50% 100%, rgba(220,38,38,0.4) 0%, rgba(127,29,29,0.2) 50%, rgba(20,5,5,0.5) 100%);
+          border: 2px solid rgba(239,68,68,0.6);
+          border-radius: 14px;
+          padding: 28px 24px 40px 24px;
+          text-align: center;
+          animation: pubKonohaPulse 2.8s ease-in-out infinite;
+          min-height: 180px;
+        }
+        .pub-konoha-card > .pub-card-content { position: relative; z-index: 3; }
+
+        .pub-flames-row {
+          position: absolute;
+          bottom: 8px; left: 0; right: 0; height: 36px;
+          display: flex; justify-content: space-around; align-items: flex-end;
+          z-index: 1; pointer-events: none;
+        }
+        .pub-flame {
+          width: 16px; height: 32px;
+          background: linear-gradient(to top, #fde047 0%, #fb923c 35%, #dc2626 70%, rgba(220,38,38,0) 100%);
+          border-radius: 50% 50% 30% 30% / 65% 65% 35% 35%;
+          filter: blur(0.5px) drop-shadow(0 0 8px rgba(251,146,60,0.8));
+          transform-origin: bottom center;
+        }
+        .pub-flame.f1 { animation: pubFlicker1 0.7s ease-in-out infinite; }
+        .pub-flame.f2 { animation: pubFlicker2 0.9s ease-in-out infinite; height: 36px; }
+        .pub-flame.f3 { animation: pubFlicker3 0.6s ease-in-out infinite; height: 30px; }
+        .pub-flame.f4 { animation: pubFlicker1 0.8s ease-in-out infinite; height: 34px; }
+        .pub-flame.f5 { animation: pubFlicker2 0.7s ease-in-out infinite; height: 28px; }
+        .pub-flame.f6 { animation: pubFlicker3 0.9s ease-in-out infinite; height: 34px; }
+        .pub-flame.f7 { animation: pubFlicker1 0.65s ease-in-out infinite; height: 30px; }
+        .pub-flame.f8 { animation: pubFlicker2 0.75s ease-in-out infinite; height: 32px; }
+
+        .pub-ember {
+          position: absolute; width: 4px; height: 4px;
+          background: #fbbf24; border-radius: 50%;
+          box-shadow: 0 0 5px rgba(251,191,36,0.9); z-index: 2;
+        }
+        .pub-ember.e1 { left: 15%; bottom: 35%; --ex: -10px; animation: pubEmbers 2.2s linear infinite; }
+        .pub-ember.e2 { left: 38%; bottom: 30%; --ex: 8px;   animation: pubEmbers 2.5s linear infinite 0.5s; }
+        .pub-ember.e3 { left: 60%; bottom: 33%; --ex: -6px;  animation: pubEmbers 2s   linear infinite 1s; }
+        .pub-ember.e4 { left: 80%; bottom: 37%; --ex: 12px;  animation: pubEmbers 2.7s linear infinite 0.3s; }
+        .pub-ember.e5 { left: 25%; bottom: 25%; --ex: 5px;   animation: pubEmbers 2.3s linear infinite 1.5s; }
+        .pub-ember.e6 { left: 70%; bottom: 27%; --ex: -8px;  animation: pubEmbers 2.6s linear infinite 0.8s; }
+
+        .pub-suna-card {
+          position: relative;
+          overflow: hidden;
+          background: radial-gradient(ellipse at 50% 50%, rgba(202,138,4,0.35) 0%, rgba(120,53,15,0.18) 60%, rgba(20,15,5,0.5) 100%);
+          border: 2px solid rgba(250,204,21,0.55);
+          border-radius: 14px;
+          padding: 28px 24px;
+          text-align: center;
+          animation: pubSunaPulse 2.8s ease-in-out infinite;
+          min-height: 180px;
+        }
+        .pub-suna-card > .pub-card-content { position: relative; z-index: 3; }
+
+        .pub-sand {
+          position: absolute; border-radius: 50%; filter: blur(0.5px);
+          z-index: 1; pointer-events: none;
+          background: rgba(250,204,21,0.9);
+          box-shadow: 0 0 6px rgba(250,204,21,0.7);
+          width: 4px; height: 4px;
+        }
+        .pub-sand.small { width: 2px; height: 2px; background: rgba(253,224,71,0.8); box-shadow: 0 0 3px rgba(253,224,71,0.6); }
+        .pub-sand.big   { width: 5px; height: 5px; background: rgba(217,119,6,0.95); box-shadow: 0 0 8px rgba(202,138,4,0.7); }
+        .pub-sand.p1  { top: 10%; right: 0; animation: pubSandFly1 3.5s linear infinite; }
+        .pub-sand.p2  { top: 25%; right: 0; animation: pubSandFly2 4s   linear infinite 0.3s; }
+        .pub-sand.p3  { top: 40%; right: 0; animation: pubSandFly3 3.2s linear infinite 0.6s; }
+        .pub-sand.p4  { top: 55%; right: 0; animation: pubSandFly1 4.2s linear infinite 0.2s; }
+        .pub-sand.p5  { top: 70%; right: 0; animation: pubSandFly2 3.6s linear infinite 0.9s; }
+        .pub-sand.p6  { top: 18%; right: 0; animation: pubSandFly3 4.5s linear infinite 1.2s; }
+        .pub-sand.p7  { top: 35%; right: 0; animation: pubSandFly1 3.8s linear infinite 1.5s; }
+        .pub-sand.p8  { top: 50%; right: 0; animation: pubSandFly2 3.3s linear infinite 0.8s; }
+        .pub-sand.p9  { top: 65%; right: 0; animation: pubSandFly3 4.1s linear infinite 0.4s; }
+        .pub-sand.p10 { top: 80%; right: 0; animation: pubSandFly1 3.7s linear infinite 1.1s; }
+        .pub-sand.p11 { top: 15%; right: 0; animation: pubSandFly2 4.4s linear infinite 1.7s; }
+        .pub-sand.p12 { top: 45%; right: 0; animation: pubSandFly3 3.5s linear infinite 2s; }
+        .pub-sand.p13 { top: 60%; right: 0; animation: pubSandFly1 4s   linear infinite 1.4s; }
+        .pub-sand.p14 { top: 75%; right: 0; animation: pubSandFly2 3.9s linear infinite 2.3s; }
+        .pub-sand.p15 { top: 30%; right: 0; animation: pubSandFly3 4.3s linear infinite 1.8s; }
+
+        .pub-shimmer { animation: pubShimmer 2s ease-in-out infinite; }
+
+        .pub-territoires-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 18px;
+          max-width: 1100px;
+          margin: 0 auto;
+        }
+        @media (max-width: 768px) {
+          .pub-territoires-grid { grid-template-columns: 1fr; }
+        }
+
+        .pub-neutre-card {
+          background: rgba(148,163,184,0.08);
+          border: 1.5px solid rgba(148,163,184,0.3);
+          border-radius: 14px;
+          padding: 28px 24px;
+          text-align: center;
+          min-height: 180px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+      </style>
+
+      <div class="pub-territoires-grid">
+
+        <!-- 🔥 KONOHA -->
+        <div class="pub-konoha-card">
+          <div class="pub-ember e1"></div>
+          <div class="pub-ember e2"></div>
+          <div class="pub-ember e3"></div>
+          <div class="pub-ember e4"></div>
+          <div class="pub-ember e5"></div>
+          <div class="pub-ember e6"></div>
+          <div class="pub-flames-row">
+            <div class="pub-flame f1"></div>
+            <div class="pub-flame f2"></div>
+            <div class="pub-flame f3"></div>
+            <div class="pub-flame f4"></div>
+            <div class="pub-flame f5"></div>
+            <div class="pub-flame f6"></div>
+            <div class="pub-flame f7"></div>
+            <div class="pub-flame f8"></div>
+          </div>
+          <div class="pub-card-content">
+            <div style="font-size:14px;color:#fecaca;text-transform:uppercase;letter-spacing:3px;margin-bottom:8px;font-weight:700;text-shadow:0 0 10px rgba(239,68,68,0.7)">🔥 Konoha</div>
+            <div class="pub-shimmer" style="font-size:56px;font-weight:800;color:#fff;font-family:'Cinzel',serif;text-shadow:0 0 22px rgba(239,68,68,0.95), 0 0 38px rgba(251,146,60,0.6), 0 2px 4px rgba(0,0,0,0.5);line-height:1" id="pub-konoha-count">0</div>
+            <div style="font-size:11px;color:rgba(254,202,202,0.85);margin-top:6px;text-shadow:0 1px 2px rgba(0,0,0,0.5);text-transform:uppercase;letter-spacing:1.5px">Territoires contrôlés</div>
+          </div>
+        </div>
+
+        <!-- 🌪️ SUNA -->
+        <div class="pub-suna-card">
+          <div class="pub-sand p1"></div>
+          <div class="pub-sand small p2"></div>
+          <div class="pub-sand p3"></div>
+          <div class="pub-sand big p4"></div>
+          <div class="pub-sand small p5"></div>
+          <div class="pub-sand p6"></div>
+          <div class="pub-sand p7"></div>
+          <div class="pub-sand small p8"></div>
+          <div class="pub-sand big p9"></div>
+          <div class="pub-sand p10"></div>
+          <div class="pub-sand small p11"></div>
+          <div class="pub-sand p12"></div>
+          <div class="pub-sand big p13"></div>
+          <div class="pub-sand small p14"></div>
+          <div class="pub-sand p15"></div>
+          <div class="pub-card-content">
+            <div style="font-size:14px;color:#fef08a;text-transform:uppercase;letter-spacing:3px;margin-bottom:8px;font-weight:700;text-shadow:0 0 10px rgba(250,204,21,0.7)">🌪️ Suna</div>
+            <div class="pub-shimmer" style="font-size:56px;font-weight:800;color:#fff;font-family:'Cinzel',serif;text-shadow:0 0 22px rgba(250,204,21,0.95), 0 0 38px rgba(202,138,4,0.6), 0 2px 4px rgba(0,0,0,0.5);line-height:1" id="pub-suna-count">0</div>
+            <div style="font-size:11px;color:rgba(253,224,71,0.85);margin-top:6px;text-shadow:0 1px 2px rgba(0,0,0,0.5);text-transform:uppercase;letter-spacing:1.5px">Territoires contrôlés</div>
+          </div>
+        </div>
+
+        <!-- ⚪ NEUTRE -->
+        <div class="pub-neutre-card">
+          <div style="font-size:14px;color:#cbd5e1;text-transform:uppercase;letter-spacing:3px;margin-bottom:8px;font-weight:700">⚪ Neutre</div>
+          <div style="font-size:48px;font-weight:800;color:#94a3b8;font-family:'Cinzel',serif;line-height:1" id="pub-neutre-count">0</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:1.5px">Territoires non capturés</div>
+        </div>
+
+      </div>
+
+      <p style="text-align:center;color:var(--muted);font-size:11px;margin-top:1.5rem;font-style:italic">
+        🔄 Mise à jour automatique en direct
+      </p>
+    </div>
+  </section>
+
   <!-- HISTOIRE -->
   <section class="section" id="histoire">
     <div class="section-inner">
@@ -5520,6 +5761,21 @@ function updateStats() {
   if (renseignementEl) renseignementEl.textContent = state.users.filter(u => u.isAgent && u.service === 'renseignement' && !isSpecialRole(u.grade)).length;
   if (financeEl) financeEl.textContent = state.users.filter(u => u.isAgent && u.service === 'finance' && !isSpecialRole(u.grade)).length;
   if (strategieEl) strategieEl.textContent = state.users.filter(u => u.isAgent && u.service === 'strategie' && !isSpecialRole(u.grade)).length;
+
+  // === 🏴 Compteurs publics des territoires (Konoha / Suna / Neutre) ===
+  try {
+    const drapeaux = state.drapeaux || [];
+    const konohaCount = drapeaux.filter(d => d.camp === 'konoha').length;
+    const sunaCount = drapeaux.filter(d => d.camp === 'suna').length;
+    const neutreCount = drapeaux.filter(d => !d.camp || d.camp === 'neutre').length;
+    const elK = document.getElementById('pub-konoha-count');
+    const elS = document.getElementById('pub-suna-count');
+    const elN = document.getElementById('pub-neutre-count');
+    if (elK) elK.textContent = konohaCount;
+    if (elS) elS.textContent = sunaCount;
+    if (elN) elN.textContent = neutreCount;
+  } catch(e) {}
+
   // Mettre à jour la section Recherchés sur la page d'accueil
   if (typeof renderWantedPublic === 'function') {
     try { renderWantedPublic(); } catch(e) {}
