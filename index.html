@@ -4762,19 +4762,25 @@ function subscribeToSupabaseChanges() {
                   forcerDeconnexionCompteSupprime();
                   return;
                 }
-            // Vérifier aussi si le grade a été changé (rétrogradation par un supérieur)
-            if (monCompteExisteEncore.grade !== state.currentUser.grade) {
-              const ancienGrade = state.currentUser.grade;
-              const nouveauGrade = monCompteExisteEncore.grade;
-              console.log('ℹ️ Mon grade a été modifié par un administrateur : ' + ancienGrade + ' → ' + nouveauGrade);
-              Object.assign(state.currentUser, monCompteExisteEncore);
-              try { saveSession(); } catch(e) {}
-              alert('⚠️ Votre grade a été modifié.\n\nAncien grade : ' + ancienGrade + '\nNouveau grade : ' + nouveauGrade + '\n\nVos accès ont été mis à jour automatiquement.');
-            }
-          }
+                // Vérifier aussi si le grade a été changé (rétrogradation par un supérieur)
+                if (monCompteExisteEncore.grade !== state.currentUser.grade) {
+                  const ancienGrade = state.currentUser.grade;
+                  const nouveauGrade = monCompteExisteEncore.grade;
+                  console.log('ℹ️ Mon grade a été modifié par un administrateur : ' + ancienGrade + ' → ' + nouveauGrade);
+                  Object.assign(state.currentUser, monCompteExisteEncore);
+                  try { saveSession(); } catch(e) {}
+                  alert('⚠️ Votre grade a été modifié.\n\nAncien grade : ' + ancienGrade + '\nNouveau grade : ' + nouveauGrade + '\n\nVos accès ont été mis à jour automatiquement.');
+                }
+              }
 
-          // Mettre à jour TOUTE l'UI
-          refreshAllUI();
+              // 🔥 CRITICAL FIX : Mettre à jour TOUTE l'UI APRÈS CHAQUE changement Realtime
+              // (avant, refreshAllUI était à l'intérieur du if 'users', donc les amendes/impots/etc
+              // étaient bien chargées en mémoire mais l'écran ne se mettait jamais à jour)
+              try {
+                refreshAllUI();
+              } catch(e) {
+                console.warn('⚠️ refreshAllUI échoué après Realtime', stateKey, ':', e.message || e);
+              }
             }
           } catch(e) {
             console.warn('⚠️ Erreur dans handler Realtime', cfg.table, ':', e.message || e);
