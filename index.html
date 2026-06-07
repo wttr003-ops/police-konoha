@@ -3871,30 +3871,46 @@ const SUPABASE_TABLES = {
   },
   amendes: {
     table: 'fines',
-    mapTo: a => ({
-      fullname: a.fullname, offense: a.infraction || null,
-      offenses: a.infractions || null, tier: a.palier || null,
-      amount: a.montant || 0, recidivism: a.recidive || 'x1',
-      agent: a.agent || null, date: a.date || null,
-      status: a.statut || 'impaye', payment_date: a.datePaiement || null,
-      collecting_agent: a.agentEncaisseur || null,
-      is_collected: !!a.recupere, collected_at: a.recupereLe || null,
-      collected_by_direction: a.recupereParDirection || null,
-      recovery_id: a.recupId || null,
-      payments: a.paiements || [],
-      amount_paid: a.montantPaye || 0
-    }),
-    mapFrom: r => ({
-      fullname: r.fullname, infraction: r.offense, infractions: r.offenses,
-      palier: r.tier, montant: r.amount, recidive: r.recidivism,
-      agent: r.agent, date: r.date, statut: r.status,
-      datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
-      recupere: r.is_collected, recupereLe: r.collected_at,
-      recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
-      paiements: r.payments || [],
-      montantPaye: r.amount_paid || 0,
-      id: r.id, _id: r.id
-    })
+    mapTo: a => {
+      // Encoder la description dans le champ offense (séparée par §§§DESC§§§)
+      const infractionPart = a.infraction || '';
+      const descPart = a.description ? '§§§DESC§§§' + a.description : '';
+      return {
+        fullname: a.fullname, offense: (infractionPart + descPart) || null,
+        offenses: a.infractions || null, tier: a.palier || null,
+        amount: a.montant || 0, recidivism: a.recidive || 'x1',
+        agent: a.agent || null, date: a.date || null,
+        status: a.statut || 'impaye', payment_date: a.datePaiement || null,
+        collecting_agent: a.agentEncaisseur || null,
+        is_collected: !!a.recupere, collected_at: a.recupereLe || null,
+        collected_by_direction: a.recupereParDirection || null,
+        recovery_id: a.recupId || null,
+        payments: a.paiements || [],
+        amount_paid: a.montantPaye || 0
+      };
+    },
+    mapFrom: r => {
+      // Décoder la description depuis offense
+      let infraction = r.offense || '';
+      let description = '';
+      const m = infraction.match(/^([\s\S]*?)§§§DESC§§§([\s\S]*)$/);
+      if (m) {
+        infraction = m[1];
+        description = m[2];
+      }
+      return {
+        fullname: r.fullname, infraction: infraction, infractions: r.offenses,
+        description: description,
+        palier: r.tier, montant: r.amount, recidive: r.recidivism,
+        agent: r.agent, date: r.date, statut: r.status,
+        datePaiement: r.payment_date, agentEncaisseur: r.collecting_agent,
+        recupere: r.is_collected, recupereLe: r.collected_at,
+        recupereParDirection: r.collected_by_direction, recupId: r.recovery_id,
+        paiements: r.payments || [],
+        montantPaye: r.amount_paid || 0,
+        id: r.id, _id: r.id
+      };
+    }
   },
   cellules: {
     table: 'cells',
@@ -7705,12 +7721,25 @@ function renderAmendes() {
         <div style="font-size:26px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif" id="am-montant-display">0 Ryos</div>
       </div>
 
+      <!-- Champ description -->
+      <div class="form-group">
+        <label>📝 Description / Contexte <span style="color:var(--muted);font-size:11px;font-weight:400">(optionnel — expliquez pourquoi l'amende est émise)</span></label>
+        <textarea id="am-description" placeholder="Ex: Conduite dangereuse aux abords du restaurant Ichiraku. Le contrevenant a refusé d'obtempérer." style="min-height:80px;resize:vertical"></textarea>
+      </div>
+
       <button class="btn-primary btn-full" onclick="emettreAmende()">💰 Émettre l'amende</button>
     </div>
     ` : ''}
 
     <div class="dash-block" style="padding:1.5rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">📋 Liste des amendes (${actives.length})</h3>
+
+      <!-- Barre de recherche -->
+      <div style="position:relative;margin-bottom:1rem">
+        <input type="text" id="am-search" placeholder="🔍 Rechercher un nom (ex: Naruto Uzumaki)..." oninput="filtrerAmendes()" style="width:100%;padding:10px 14px 10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+        <button onclick="document.getElementById('am-search').value='';filtrerAmendes()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px" title="Effacer">✕</button>
+      </div>
+
       <div id="amendes-list"></div>
     </div>
 
@@ -7880,6 +7909,7 @@ async function emettreAmende() {
     fullname: fullname,
     infraction: infractionStr,
     infractions: amInfractionsSelectionnees.slice(),
+    description: (document.getElementById('am-description')?.value || '').trim(),
     palier: palierMax,
     montant: total,
     recidive: mult,
@@ -7904,6 +7934,8 @@ async function emettreAmende() {
   const nbInfractionsEmises = amInfractionsSelectionnees.length;
   amInfractionsSelectionnees = [];
   document.getElementById('am-fullname').value = '';
+  const descEl = document.getElementById('am-description');
+  if (descEl) descEl.value = '';
   document.getElementById('am-montant-preview').style.display = 'none';
   alert('✓ Amende de ' + total.toLocaleString() + ' Ryos émise pour ' + fullname + '\n(' + nbInfractionsEmises + ' infraction(s) cumulée(s))');
   renderAmendes();
@@ -7916,10 +7948,21 @@ function refreshAmendesList() {
   if (!el) return;
   const canDelete = canAddAgent(u.grade);
 
+  // Récupérer le filtre de recherche
+  const searchInput = document.getElementById('am-search');
+  const searchTerm = searchInput ? normalize(searchInput.value.trim()) : '';
+
   // Toutes les amendes (payées ET impayées, on garde l'historique)
-  const toutes = state.amendes;
+  let toutes = state.amendes;
+  // Appliquer le filtre par nom si présent
+  if (searchTerm) {
+    toutes = toutes.filter(a => normalize(a.fullname || '').includes(searchTerm));
+  }
   if (toutes.length === 0) {
-    el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:1rem">Aucune amende.</p>';
+    const msg = searchTerm
+      ? '<p style="color:var(--muted);text-align:center;padding:1rem">Aucun résultat pour "' + searchInput.value + '"</p>'
+      : '<p style="color:var(--muted);text-align:center;padding:1rem">Aucune amende.</p>';
+    el.innerHTML = msg;
     return;
   }
 
@@ -8028,6 +8071,10 @@ function refreshAmendesList() {
                           return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;background:${pc.bg};color:${pc.color};border:1px solid ${pc.border};font-size:10px;font-weight:600">${pc.icon} ${inf.label}</span>`;
                         }).join('')}
                       </div>` : ''}
+                    ${a.description ? `
+                      <div style="margin-top:6px;padding:6px 10px;background:rgba(59,130,246,0.08);border-left:3px solid rgba(59,130,246,0.5);border-radius:4px;font-size:11px;color:#bfdbfe;font-style:italic;line-height:1.5">
+                        📝 ${escapeHtml(a.description)}
+                      </div>` : ''}
                     <div style="font-size:10px;color:var(--muted);margin-top:4px">
                       ${a.date} · émis par ${a.agent} · ${a.recidive==='x1'?'1ère fois':a.recidive==='x2'?'récidive':'récidive multiple'}
                       ${a.agentEncaisseur && isPaye ? ' · <span style="color:var(--green)">💰 Finalisée par '+a.agentEncaisseur+'</span>' : ''}
@@ -8107,6 +8154,12 @@ async function toggleAmendeStatut(idx, statut) {
   saveSession();
   renderAmendes();
   if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+// === Filtrage de la liste des amendes par nom ===
+function filtrerAmendes() {
+  // Appelée à chaque caractère tapé dans la barre de recherche
+  refreshAmendesList();
 }
 
 // === Paiement partiel d'une amende ===
@@ -22824,6 +22877,52 @@ setInterval(async () => {
     }
   } catch(e) {
     window._impotsSyncEnCours = false;
+  }
+}, 4000);
+
+// ⚡ POLLING TEMPS RÉEL AMENDES : même principe, toutes les 4 secondes,
+// si l'onglet amendes est ouvert, on recharge depuis Supabase.
+setInterval(async () => {
+  try {
+    if (!supabaseReady) return;
+    const onglet = document.getElementById('dash-amendes');
+    if (!onglet || !onglet.classList.contains('active')) return;
+    if (window._amendesSyncEnCours) return;
+
+    window._amendesSyncEnCours = true;
+    try {
+      const { data, error } = await sb.from('fines').select('*').order('id', { ascending: true });
+      if (!error && data) {
+        const newAmendes = data.map(SUPABASE_TABLES.amendes.mapFrom);
+        // Signature comparant les champs importants
+        const sigOld = JSON.stringify((state.amendes || []).map(a => ({
+          fn: a.fullname, st: a.statut, mp: a.montantPaye, ag: a.agentEncaisseur,
+          rec: a.recupere, infs: (a.infractions||[]).length, desc: a.description||''
+        })));
+        const sigNew = JSON.stringify(newAmendes.map(a => ({
+          fn: a.fullname, st: a.statut, mp: a.montantPaye, ag: a.agentEncaisseur,
+          rec: a.recupere, infs: (a.infractions||[]).length, desc: a.description||''
+        })));
+        if (sigOld !== sigNew || newAmendes.length !== (state.amendes||[]).length) {
+          console.log('⚡ Polling amendes: changement détecté (' + (state.amendes||[]).length + ' → ' + newAmendes.length + ')');
+          state.amendes = newAmendes;
+          const activeEl = document.activeElement;
+          const isTyping = activeEl && (
+            (activeEl.tagName === 'INPUT' && activeEl.value && activeEl.value.length > 0) ||
+            activeEl.tagName === 'TEXTAREA'
+          );
+          if (!isTyping && typeof refreshAmendesList === 'function') {
+            refreshAmendesList();
+            if (typeof refreshHistoriqueParAgent === 'function') refreshHistoriqueParAgent();
+            if (typeof refreshHistoriqueDirectionAmendes === 'function') refreshHistoriqueDirectionAmendes();
+          }
+        }
+      }
+    } finally {
+      window._amendesSyncEnCours = false;
+    }
+  } catch(e) {
+    window._amendesSyncEnCours = false;
   }
 }, 4000);
 
