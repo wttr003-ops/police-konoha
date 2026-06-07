@@ -3180,7 +3180,7 @@
     <div class="form-container">
       <p class="section-tag">Démarche citoyenne</p>
       <h2 class="section-title">Déposer une <span>plainte</span></h2>
-      <p style="color:var(--muted);font-size:14px;margin-bottom:1.5rem;line-height:1.7">Toute plainte est étudiée par la Police de Konoha. Les officiers et gradés supérieurs sont chargés de leur traitement.</p>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:1.5rem;line-height:1.7">Toute plainte est étudiée par la Police de Konoha. Vous n'avez <strong>pas besoin de compte</strong> pour porter plainte. Remplissez simplement le formulaire ci-dessous.</p>
 
       <div class="form-msg success" id="pl-ok" style="display:none">✓ Plainte enregistrée. Un officier ou un juge vous contactera.</div>
       <div class="form-msg error" id="pl-err" style="display:none"></div>
@@ -3200,10 +3200,19 @@
         </div>
       </div>
 
-      <!-- Bandeau d'identification -->
-      <div id="pl-identite-bandeau" style="margin-bottom:1.25rem"></div>
+      <!-- Vous (plaignant) -->
+      <div class="form-group">
+        <label>👤 Vos nom et prénom (plaignant) *</label>
+        <input type="text" id="pl-plaignant" placeholder="Ex: Naruto Uzumaki" autocomplete="off"/>
+      </div>
 
-      <div class="form-group"><label>Nom et prénom du mis en cause *</label><input type="text" id="pl-suspect" placeholder="Ex: Orochimaru Senju"/></div>
+      <!-- Personne mise en cause -->
+      <div class="form-group">
+        <label>⚠️ Nom et prénom de la personne mise en cause *</label>
+        <input type="text" id="pl-suspect" placeholder="Ex: Orochimaru Senju" autocomplete="off"/>
+      </div>
+
+      <!-- Type d'infraction -->
       <div class="form-group">
         <label>Type d'infraction *</label>
         <select id="pl-type">
@@ -3219,10 +3228,20 @@
           <option>Autre</option>
         </select>
       </div>
-      <div class="form-group"><label>Description détaillée des faits *</label><textarea id="pl-desc" rows="5" placeholder="Décrivez précisément et chronologiquement les faits..."></textarea></div>
-      <div class="form-group"><label>Date et heure approximatives</label><input type="text" id="pl-date" placeholder="Ex: 15/04/2026 à 21h30"/></div>
 
-      <button class="btn-primary btn-lg" onclick="submitPlainte()">Soumettre la plainte</button>
+      <!-- Description -->
+      <div class="form-group">
+        <label>📝 Description détaillée des faits *</label>
+        <textarea id="pl-desc" rows="6" placeholder="Décrivez précisément ce qui s'est passé : où, quand, comment..."></textarea>
+      </div>
+
+      <!-- Date du dépôt (auto, mais visible et modifiable si besoin) -->
+      <div class="form-group">
+        <label>📅 Date du dépôt</label>
+        <input type="text" id="pl-date" readonly style="background:rgba(0,0,0,0.4);color:var(--muted);cursor:not-allowed" title="Date automatique du jour"/>
+      </div>
+
+      <button class="btn-primary btn-lg" onclick="submitPlainte()">📨 Soumettre la plainte</button>
     </div>
   </div>
 </div>
@@ -5592,6 +5611,17 @@ function showPage(id) {
     renderDashboard('overview');
   }
 
+  // 📅 À l'ouverture de la page plainte, remplir automatiquement la date du jour
+  if (id === 'plainte') {
+    setTimeout(() => {
+      const dateEl = document.getElementById('pl-date');
+      if (dateEl) {
+        const now = new Date();
+        dateEl.value = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+      }
+    }, 50);
+  }
+
   if (id === 'civil-dash') {
     if (!civilUser) {
       // Si une restauration est en cours (Supabase pas encore chargé), on attend
@@ -6505,31 +6535,43 @@ function submitPlainte() {
   errEl.style.display = 'none';
   okEl.style.display = 'none';
 
-  // === VÉRIFICATION : connexion civile obligatoire ===
-  if (!civilUser) {
-    errEl.innerHTML = '⚠️ Vous devez être connecté à votre <strong>Espace Civil</strong> pour porter plainte.<br><br>' +
-      '<button onclick="showPage(\'civil\')" style="margin-top:8px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:8px 16px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:700">🍃 Aller à l\'Espace Civil</button>';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  const pseudo = civilUser.fullname; // ⚠️ Nom forcé depuis le compte civil connecté
+  // ✅ Plus besoin d'un compte civil — la plainte est ouverte à tous
+  const plaignant = document.getElementById('pl-plaignant').value.trim();
   const suspect = document.getElementById('pl-suspect').value.trim();
   const type = document.getElementById('pl-type').value;
   const desc = document.getElementById('pl-desc').value.trim();
-  const date = document.getElementById('pl-date').value.trim();
 
-  if (!suspect || !type || !desc) {
+  if (!plaignant || !suspect || !type || !desc) {
     errEl.textContent = 'Tous les champs marqués * sont obligatoires.';
     errEl.style.display = 'block';
     return;
   }
 
+  // Vérifier qu'il y a au moins un prénom + un nom
+  if (plaignant.split(/\s+/).length < 2) {
+    errEl.textContent = 'Merci d\'indiquer vos prénom ET nom (ex: Naruto Uzumaki).';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (suspect.split(/\s+/).length < 2) {
+    errEl.textContent = 'Merci d\'indiquer le prénom ET le nom de la personne mise en cause.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Date automatique au format français
+  const now = new Date();
+  const dateAuto = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+
   const newPlainte = {
-    pseudo, suspect, type, desc, date: date || 'Non précisée',
+    pseudo: plaignant,
+    suspect,
+    type,
+    desc,
+    date: dateAuto,
     status: 'wait',
     target: selectedPlainteTarget,
-    submittedAt: new Date().toLocaleDateString('fr-FR'),
+    submittedAt: now.toLocaleDateString('fr-FR'),
     id: Date.now()
   };
   state.plaintes.push(newPlainte);
@@ -6542,10 +6584,13 @@ function submitPlainte() {
 
   okEl.innerHTML = '✓ Votre plainte a bien été enregistrée. ' + (selectedPlainteTarget === 'agent' ? 'Le Tribunal vous contactera.' : 'La Police vous contactera.');
   okEl.style.display = 'block';
-  ['pl-suspect','pl-type','pl-desc','pl-date'].forEach(id => {
+  ['pl-plaignant','pl-suspect','pl-type','pl-desc'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  // Réinitialiser le champ date avec la date actuelle pour la prochaine plainte
+  const dateEl = document.getElementById('pl-date');
+  if (dateEl) dateEl.value = dateAuto;
   setTimeout(() => okEl.style.display = 'none', 6000);
 }
 
