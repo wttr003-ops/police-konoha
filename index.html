@@ -3855,18 +3855,45 @@ const SUPABASE_TABLES = {
   },
   plaintes: {
     table: 'complaints',
-    mapTo: p => ({
-      pseudo: p.pseudo, suspect: p.suspect || null, type: p.type || null,
-      description: p.desc || null, date: p.date || null,
-      target: p.target || 'citoyen', status: p.status || 'wait',
-      submitted_at: p.submittedAt || null
-    }),
-    mapFrom: r => ({
-      pseudo: r.pseudo, suspect: r.suspect, type: r.type,
-      desc: r.description, date: r.date, target: r.target,
-      status: r.status, submittedAt: r.submitted_at,
-      id: r.id, _id: r.id
-    })
+    mapTo: p => {
+      // Encoder messages + assignedAgent dans description avec séparateurs uniques
+      const descPart = p.desc || '';
+      const assignPart = p.assignedAgent ? '§§§ASSIGN§§§' + p.assignedAgent : '';
+      const msgPart = (p.messages && p.messages.length > 0) ? '§§§MSG§§§' + JSON.stringify(p.messages) : '';
+      return {
+        pseudo: p.pseudo, suspect: p.suspect || null, type: p.type || null,
+        description: descPart + assignPart + msgPart,
+        date: p.date || null,
+        target: p.target || 'citoyen', status: p.status || 'wait',
+        submitted_at: p.submittedAt || null
+      };
+    },
+    mapFrom: r => {
+      // Décoder messages + assignedAgent depuis description
+      let desc = r.description || '';
+      let assignedAgent = '';
+      let messages = [];
+      // Extraire les messages d'abord (peut contenir des caractères spéciaux)
+      const msgMatch = desc.match(/^([\s\S]*?)§§§MSG§§§([\s\S]+)$/);
+      if (msgMatch) {
+        desc = msgMatch[1];
+        try { messages = JSON.parse(msgMatch[2]); } catch(e) { messages = []; }
+      }
+      // Puis l'assignation
+      const assignMatch = desc.match(/^([\s\S]*?)§§§ASSIGN§§§([\s\S]+)$/);
+      if (assignMatch) {
+        desc = assignMatch[1];
+        assignedAgent = assignMatch[2];
+      }
+      return {
+        pseudo: r.pseudo, suspect: r.suspect, type: r.type,
+        desc: desc, date: r.date, target: r.target,
+        status: r.status, submittedAt: r.submitted_at,
+        assignedAgent: assignedAgent,
+        messages: messages,
+        id: r.id, _id: r.id
+      };
+    }
   },
   casiers: {
     table: 'criminal_records',
@@ -5491,7 +5518,7 @@ function canManageSpecialRoles(user) {
   return (user.service || 'police') === 'police' && user.grade === 'Directeur';
 }
 function canResetImpots(g) { return gradeRank(g) <= 1; } // Dir + Adjoint
-function canTreatPlaintes(g) { return gradeRank(g) <= 5; } // Officier et plus
+function canTreatPlaintes(g) { return gradeRank(g) <= 6; } // Tous les agents de police (Recrue à Directeur)
 // Permissions casier — par section + grade
 function canCreateCasier(user) {
   if (!user) return false;
@@ -10429,7 +10456,7 @@ function renderPlaintes() {
   }
 
   if (myService === 'police' && !canTreatPlaintes(u.grade)) {
-    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Le traitement des plaintes est réservé aux Officiers et grades supérieurs.</p></div>';
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée aux agents de la Police.</p></div>';
     return;
   }
 
@@ -10478,6 +10505,32 @@ function renderPlaintes() {
             <div class="detail-section-label">Description</div>
             <div class="detail-section-text">${p.desc}</div>
           </div>
+
+          <!-- 💬 Section messages -->
+          <div class="detail-section" style="margin-top:16px">
+            <div class="detail-section-label">💬 Messages <span style="color:var(--muted);font-weight:400;font-size:11px">(${(p.messages||[]).length})</span></div>
+            <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;padding:12px;max-height:300px;overflow-y:auto;margin-bottom:10px">
+              ${(p.messages||[]).length === 0
+                ? '<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:8px">Aucun message pour le moment.</p>'
+                : (p.messages||[]).map(m => {
+                    const isMe = state.currentUser && m.fullname === state.currentUser.fullname;
+                    const bgColor = isMe ? 'rgba(34,197,94,0.08)' : 'rgba(59,130,246,0.06)';
+                    const borderColor = isMe ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.25)';
+                    const nameColor = isMe ? '#86efac' : '#93c5fd';
+                    return `
+                      <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:6px;padding:8px 12px;margin-bottom:6px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+                          <span style="font-size:12px;font-weight:700;color:${nameColor}">${escapeHtml(m.fullname || 'Anonyme')} ${m.grade ? '<span style="font-size:10px;color:var(--muted);font-weight:400">· '+escapeHtml(m.grade)+'</span>' : ''}</span>
+                          <span style="font-size:10px;color:var(--muted)">${escapeHtml(m.heure || '')}</span>
+                        </div>
+                        <div style="font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${escapeHtml(m.texte || '')}</div>
+                      </div>`;
+                  }).join('')}
+            </div>
+            <textarea id="pl-msg-input-${idx}" placeholder="Écrivez votre message..." style="min-height:60px;resize:vertical;width:100%;margin-bottom:8px"></textarea>
+            <button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="ajouterMessagePlainte(${idx})">💬 Envoyer le message</button>
+          </div>
+
           ${p.status === 'wait' ? `
             <div class="detail-actions">
               <button class="btn-sm btn-sm-green" onclick="treatPlainte(${idx},'ok')">✓ Traitée</button>
@@ -10501,6 +10554,64 @@ async function treatPlainte(idx, status) {
   saveSession();
   renderPlaintes();
   if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+// 💬 Ajouter un message à une plainte (visible par tous les agents)
+async function ajouterMessagePlainte(idx) {
+  const u = state.currentUser;
+  if (!u) { alert('Vous devez être connecté'); return; }
+  const ta = document.getElementById('pl-msg-input-' + idx);
+  if (!ta) return;
+  const texte = ta.value.trim();
+  if (!texte) { alert('Veuillez écrire un message.'); return; }
+
+  const p = state.plaintes[idx];
+  if (!p) return;
+
+  // Initialiser le tableau messages si absent
+  if (!p.messages) p.messages = [];
+
+  const newMsg = {
+    fullname: u.fullname,
+    grade: u.grade || '',
+    service: u.service || 'police',
+    texte: texte,
+    heure: new Date().toLocaleString('fr-FR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})
+  };
+  p.messages.push(newMsg);
+
+  // 💾 Push robuste vers Supabase
+  if (supabaseReady) {
+    let pushOk = false;
+    if (p._id) {
+      try {
+        const row = SUPABASE_TABLES.plaintes.mapTo(p);
+        const { error } = await sb.from('complaints').update(row).eq('id', p._id);
+        if (!error) {
+          pushOk = true;
+          console.log('✅ Message plainte sauvegardé sur Supabase');
+        } else {
+          console.warn('⚠️ ajouterMessagePlainte échec:', error.message);
+        }
+      } catch(e) { console.warn('⚠️ Exception:', e); }
+    }
+    if (!pushOk) {
+      // rollback local pour ne pas créer d'incohérence
+      p.messages.pop();
+      alert('⚠️ Le message n\'a pas pu être sauvegardé sur le serveur. Les autres officiers ne le verront pas. Réessayez dans quelques secondes.');
+      return;
+    }
+  }
+
+  saveSession();
+  ta.value = '';
+  renderPlaintes();
+
+  // Ré-ouvrir le détail de cette plainte
+  setTimeout(() => {
+    const body = document.getElementById('pl-body-' + idx);
+    if (body) body.style.display = 'block';
+  }, 50);
 }
 
 // ============================================================
@@ -23058,6 +23169,51 @@ setInterval(async () => {
     }
   } catch(e) {
     window._candidaturesSyncEnCours = false;
+  }
+}, 4000);
+
+// ⚡ POLLING TEMPS RÉEL PLAINTES : toutes les 4 secondes si l'onglet plaintes est ouvert,
+// on recharge depuis Supabase. Comme ça les nouvelles plaintes et les nouveaux messages
+// dans une plainte apparaissent automatiquement pour tous les officiers/juges.
+setInterval(async () => {
+  try {
+    if (!supabaseReady) return;
+    const onglet = document.getElementById('dash-plaintes');
+    if (!onglet || !onglet.classList.contains('active')) return;
+    if (window._plaintesSyncEnCours) return;
+
+    window._plaintesSyncEnCours = true;
+    try {
+      const { data, error } = await sb.from('complaints').select('*').order('id', { ascending: true });
+      if (!error && data) {
+        const newPlaintes = data.map(SUPABASE_TABLES.plaintes.mapFrom);
+        // Signature comparant tout ce qui peut changer (statut, messages, etc.)
+        const sigOld = JSON.stringify((state.plaintes || []).map(p => ({
+          ps: p.pseudo, su: p.suspect, st: p.status,
+          nbMsg: (p.messages||[]).length, ag: p.assignedAgent
+        })));
+        const sigNew = JSON.stringify(newPlaintes.map(p => ({
+          ps: p.pseudo, su: p.suspect, st: p.status,
+          nbMsg: (p.messages||[]).length, ag: p.assignedAgent
+        })));
+        if (sigOld !== sigNew || newPlaintes.length !== (state.plaintes||[]).length) {
+          console.log('⚡ Polling plaintes: changement détecté (' + (state.plaintes||[]).length + ' → ' + newPlaintes.length + ')');
+          state.plaintes = newPlaintes;
+          const activeEl = document.activeElement;
+          const isTyping = activeEl && (
+            (activeEl.tagName === 'INPUT' && activeEl.value && activeEl.value.length > 0) ||
+            activeEl.tagName === 'TEXTAREA'
+          );
+          if (!isTyping && typeof renderPlaintes === 'function') {
+            renderPlaintes();
+          }
+        }
+      }
+    } finally {
+      window._plaintesSyncEnCours = false;
+    }
+  } catch(e) {
+    window._plaintesSyncEnCours = false;
   }
 }, 4000);
 
