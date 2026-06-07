@@ -10533,9 +10533,14 @@ function renderPlaintes() {
 
           ${p.status === 'wait' ? `
             <div class="detail-actions">
-              <button class="btn-sm btn-sm-green" onclick="treatPlainte(${idx},'ok')">✓ Traitée</button>
+              <button class="btn-sm btn-sm-green" onclick="treatPlainte(${idx},'ok')">✓ Traitée / Terminée</button>
               <button class="btn-sm btn-sm-red" onclick="treatPlainte(${idx},'no')">✗ Rejeter</button>
-            </div>` : ''}
+              <button class="btn-sm" style="background:rgba(192,57,43,0.25);color:#fca5a5;border:1px solid rgba(192,57,43,0.5)" onclick="supprimerPlainte(${idx})">🗑 Supprimer</button>
+            </div>` : `
+            <div class="detail-actions">
+              <button class="btn-sm" style="background:rgba(196,154,26,0.15);color:var(--lgold);border:1px solid rgba(196,154,26,0.4)" onclick="treatPlainte(${idx},'wait')">↩ Rouvrir</button>
+              <button class="btn-sm" style="background:rgba(192,57,43,0.25);color:#fca5a5;border:1px solid rgba(192,57,43,0.5)" onclick="supprimerPlainte(${idx})">🗑 Supprimer définitivement</button>
+            </div>`}
         </div>
       </div>`;
   });
@@ -10551,6 +10556,47 @@ async function treatPlainte(idx, status) {
   if (supabaseReady && p._id) {
     try { await pushToSupabase('plaintes', p); } catch(e) {}
   }
+  saveSession();
+  renderPlaintes();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+// 🗑 Supprimer définitivement une plainte
+async function supprimerPlainte(idx) {
+  const p = state.plaintes[idx];
+  if (!p) return;
+
+  // Confirmation forte avec les détails pour éviter les suppressions accidentelles
+  const confirmText = `🗑 SUPPRESSION DÉFINITIVE\n\n` +
+    `Êtes-vous sûr de vouloir supprimer cette plainte ?\n\n` +
+    `Plaignant : ${p.pseudo}\n` +
+    `Mis en cause : ${p.suspect}\n` +
+    `Type : ${p.type}\n` +
+    `Date : ${p.submittedAt || p.date}\n\n` +
+    `⚠️ Cette action est IRRÉVERSIBLE.\n` +
+    `La plainte sera supprimée pour TOUS les officiers et du serveur partagé.`;
+
+  if (!(await confirmAsync(confirmText))) return;
+
+  // 💾 Supprimer côté Supabase d'abord
+  if (supabaseReady && p._id) {
+    try {
+      const { error } = await sb.from('complaints').delete().eq('id', p._id);
+      if (error) {
+        console.warn('⚠️ supprimerPlainte échec Supabase:', error.message);
+        alert('⚠️ La suppression a échoué côté serveur : ' + error.message + '\n\nLa plainte n\'a pas été supprimée. Réessayez.');
+        return;
+      }
+      console.log('✅ Plainte supprimée de Supabase (id=' + p._id + ')');
+    } catch(e) {
+      console.warn('⚠️ Exception supprimerPlainte:', e);
+      alert('⚠️ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+
+  // Puis du state local
+  state.plaintes.splice(idx, 1);
   saveSession();
   renderPlaintes();
   if (typeof refreshAllUI === 'function') refreshAllUI();
