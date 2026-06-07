@@ -18707,19 +18707,68 @@ async function registerCivil() {
   setTimeout(() => switchCivilTab('login'), 1500);
 }
 
-function loginCivil() {
+async function loginCivil() {
   const fullname = document.getElementById('civ-login-fullname').value.trim();
-  const password = document.getElementById('civ-login-password').value;
+  // ⚠️ Trim le password pour éviter les espaces invisibles (copier-coller)
+  const password = (document.getElementById('civ-login-password').value || '').trim();
   const errEl = document.getElementById('civ-login-err');
   errEl.style.display = 'none';
 
   if (!fullname || !password) { errEl.textContent = 'Champs obligatoires.'; errEl.style.display = 'block'; return; }
 
-  const user = trouverInscriptionCivil(fullname);
-  if (!user || user.password !== password) {
-    errEl.textContent = 'Identifiants incorrects.'; errEl.style.display = 'block'; return;
+  // 1. Tentative en local d'abord (rapide)
+  let user = trouverInscriptionCivil(fullname);
+
+  // 2. Si trouvé en local mais mot de passe différent : on essaie aussi le trim sur le password stocké
+  if (user) {
+    const storedPass = (user.password || '').trim();
+    if (storedPass === password) {
+      // Match parfait, on continue
+    } else {
+      console.warn('🔐 loginCivil: nom trouvé localement mais mot de passe ≠ (stored=' + storedPass.length + ' chars vs entered=' + password.length + ' chars)');
+      user = null; // on force le fetch Supabase au cas où l'ancien compte est obsolète
+    }
   }
 
+  // 3. Si pas trouvé en local OU mot de passe non concordant : fetch direct Supabase
+  if (!user && supabaseReady) {
+    console.log('🔐 loginCivil: tentative de fetch direct depuis Supabase pour "' + fullname + '"');
+    try {
+      const { data, error } = await sb.from('users').select('*').eq('service', 'civil');
+      if (error) {
+        console.warn('🔐 loginCivil: erreur Supabase:', error.message);
+      } else if (data && data.length > 0) {
+        // Recharger l'état local avec les civils frais
+        const civilsRaw = data.map(SUPABASE_TABLES.users.mapFrom);
+        // Mettre à jour state.users : retirer les anciens civils, ajouter les frais
+        const nonCivils = (state.users || []).filter(u => (u.service||'') !== 'civil');
+        state.users = nonCivils.concat(civilsRaw);
+        console.log('🔐 loginCivil: ' + civilsRaw.length + ' civils rechargés depuis Supabase');
+        // Re-tenter la recherche
+        user = trouverInscriptionCivil(fullname);
+      }
+    } catch(e) {
+      console.warn('🔐 loginCivil: exception fetch:', e);
+    }
+  }
+
+  if (!user) {
+    console.warn('🔐 loginCivil: aucun compte civil ne correspond à "' + fullname + '"');
+    errEl.textContent = 'Aucun compte trouvé avec ce nom. Vérifiez l\'orthographe.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Vérification du mot de passe avec trim des deux côtés
+  const storedPass = (user.password || '').trim();
+  if (storedPass !== password) {
+    console.warn('🔐 loginCivil: mot de passe incorrect pour "' + user.fullname + '" (stored ' + storedPass.length + ' chars vs entered ' + password.length + ' chars)');
+    errEl.textContent = 'Mot de passe incorrect.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  console.log('✅ loginCivil: connexion réussie pour "' + user.fullname + '"');
   civilUser = user;
   try { localStorage.setItem('konaCivilSession', JSON.stringify({ fullname: user.fullname })); } catch(e) {}
   ['civ-login-fullname','civ-login-password'].forEach(id => document.getElementById(id).value = '');
@@ -22923,6 +22972,47 @@ setInterval(async () => {
     }
   } catch(e) {
     window._amendesSyncEnCours = false;
+  }
+}, 4000);
+
+// ⚡ POLLING TEMPS RÉEL CANDIDATURES : toutes les 4 secondes si l'onglet candidatures est ouvert,
+// on recharge depuis Supabase. Comme ça les nouvelles inscriptions apparaissent automatiquement.
+setInterval(async () => {
+  try {
+    if (!supabaseReady) return;
+    const onglet = document.getElementById('dash-candidatures');
+    if (!onglet || !onglet.classList.contains('active')) return;
+    if (window._candidaturesSyncEnCours) return;
+
+    window._candidaturesSyncEnCours = true;
+    try {
+      const { data, error } = await sb.from('applications').select('*').order('id', { ascending: true });
+      if (!error && data) {
+        const newCand = data.map(SUPABASE_TABLES.candidatures.mapFrom);
+        const sigOld = JSON.stringify((state.candidatures || []).map(c => ({
+          fn: c.fullname, st: c.status, tg: c.target
+        })));
+        const sigNew = JSON.stringify(newCand.map(c => ({
+          fn: c.fullname, st: c.status, tg: c.target
+        })));
+        if (sigOld !== sigNew || newCand.length !== (state.candidatures||[]).length) {
+          console.log('⚡ Polling candidatures: changement détecté (' + (state.candidatures||[]).length + ' → ' + newCand.length + ')');
+          state.candidatures = newCand;
+          const activeEl = document.activeElement;
+          const isTyping = activeEl && (
+            (activeEl.tagName === 'INPUT' && activeEl.value && activeEl.value.length > 0) ||
+            activeEl.tagName === 'TEXTAREA'
+          );
+          if (!isTyping && typeof renderCandidatures === 'function') {
+            renderCandidatures();
+          }
+        }
+      }
+    } finally {
+      window._candidaturesSyncEnCours = false;
+    }
+  } catch(e) {
+    window._candidaturesSyncEnCours = false;
   }
 }, 4000);
 
