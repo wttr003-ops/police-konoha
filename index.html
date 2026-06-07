@@ -8276,6 +8276,54 @@ function renderImpots() {
   const el = document.getElementById('impots-content');
   const u = state.currentUser;
 
+  // 🔄 AUTO-SYNC SILENCIEUX : à chaque ouverture, recharge les impôts depuis Supabase
+  // pour s'assurer que tout le monde voit toujours la version la plus à jour
+  if (supabaseReady && !window._impotsSyncEnCours) {
+    window._impotsSyncEnCours = true;
+    (async () => {
+      try {
+        // Charger en parallèle : impots + impotsHistorique
+        const [imp, hist] = await Promise.all([
+          sb.from('taxes').select('*').order('id', { ascending: true }),
+          sb.from('tax_history').select('*').order('id', { ascending: true })
+        ]);
+        let changed = false;
+        if (!imp.error && imp.data) {
+          const ancienN = (state.impots || []).length;
+          state.impots = imp.data.map(SUPABASE_TABLES.impots.mapFrom);
+          if (state.impots.length !== ancienN || true) {
+            console.log('🔄 Impôts: ' + ancienN + ' → ' + state.impots.length + ' lignes chargées');
+            changed = true;
+          }
+        } else if (imp.error) {
+          console.warn('⚠️ Erreur chargement taxes:', imp.error.message);
+        }
+        if (!hist.error && hist.data) {
+          state.impotsHistorique = hist.data.map(SUPABASE_TABLES.impotsHistorique.mapFrom);
+          console.log('🔄 Historique impôts: ' + state.impotsHistorique.length + ' entrées');
+          changed = true;
+        }
+        if (changed) {
+          // Re-render si on est toujours sur l'onglet
+          const onglet = document.getElementById('dash-impots');
+          if (onglet && onglet.classList.contains('active')) {
+            try { renderImpotsContenu(); } catch(e) { console.warn(e); }
+          }
+        }
+      } catch(e) {
+        console.warn('⚠️ Auto-sync impôts échoué:', e);
+      }
+      window._impotsSyncEnCours = false;
+    })();
+  }
+
+  renderImpotsContenu();
+}
+
+function renderImpotsContenu() {
+  const el = document.getElementById('impots-content');
+  const u = state.currentUser;
+
   // Liste des agents de police actifs (collecteurs possibles)
   const agentsList = state.users
     .filter(x => x.isAgent && (x.service||'police') === 'police')
@@ -9444,9 +9492,46 @@ async function setCollecteur(idx, agent) {
     }
   }
 
-  // Push le changement de l'impôt vers Supabase
+  // === PUSH DIRECT VERS SUPABASE — méthode robuste comme toggleImpot ===
   if (supabaseReady) {
-    try { await pushToSupabase('impots', i); } catch(e) {}
+    const newRow = {
+      collector: i.collecteur || null,
+      status: i.statut === 'paye' ? 'paid' : 'unpaid',
+      grade: i.grade || null
+    };
+
+    let pushOk = false;
+
+    // Méthode 1 : update par _id
+    if (i._id) {
+      try {
+        const { error } = await sb.from('taxes').update(newRow).eq('id', i._id);
+        if (!error) {
+          pushOk = true;
+          console.log('✅ setCollecteur push OK (id=' + i._id + ', collecteur=' + (i.collecteur||'aucun') + ')');
+        } else {
+          console.warn('⚠️ setCollecteur update _id échoué:', error.message);
+        }
+      } catch(e) { console.warn('⚠️ setCollecteur exception:', e); }
+    }
+
+    // Méthode 2 : update par fullname si pas d'_id ou échec
+    if (!pushOk && i.fullname) {
+      try {
+        const { data, error } = await sb.from('taxes').update(newRow).eq('fullname', i.fullname).select();
+        if (!error) {
+          pushOk = true;
+          if (data && data[0] && data[0].id) i._id = data[0].id;
+          console.log('✅ setCollecteur push OK (fullname=' + i.fullname + ', collecteur=' + (i.collecteur||'aucun') + ')');
+        } else {
+          console.warn('⚠️ setCollecteur update fullname échoué:', error.message);
+        }
+      } catch(e) { console.warn('⚠️ setCollecteur fallback exception:', e); }
+    }
+
+    if (!pushOk) {
+      alert('⚠️ Le changement de collecteur n\'a pas pu être sauvegardé.\n\nLes autres agents ne verront pas le changement. Réessayez dans quelques secondes.');
+    }
   }
 
   saveSession();
@@ -14384,9 +14469,36 @@ async function changerGradeImpot(idx, nouveauGrade) {
     i.statut = 'non';
     i.collecteur = '';
   }
-  // Push vers Supabase
-  if (supabaseReady && i._id) {
-    try { await pushToSupabase('impots', i); } catch(e) {}
+  // === PUSH ROBUSTE VERS SUPABASE ===
+  if (supabaseReady) {
+    const newRow = {
+      grade: i.grade || null,
+      status: i.statut === 'paye' ? 'paid' : 'unpaid',
+      collector: i.collecteur || null
+    };
+    let pushOk = false;
+    if (i._id) {
+      try {
+        const { error } = await sb.from('taxes').update(newRow).eq('id', i._id);
+        if (!error) { pushOk = true; console.log('✅ changerGradeImpot push OK (id=' + i._id + ', grade=' + nouveauGrade + ')'); }
+        else console.warn('⚠️ changerGradeImpot update _id échoué:', error.message);
+      } catch(e) { console.warn('⚠️ changerGradeImpot exception:', e); }
+    }
+    if (!pushOk && i.fullname) {
+      try {
+        const { data, error } = await sb.from('taxes').update(newRow).eq('fullname', i.fullname).select();
+        if (!error) {
+          pushOk = true;
+          if (data && data[0] && data[0].id) i._id = data[0].id;
+          console.log('✅ changerGradeImpot push OK (fullname=' + i.fullname + ', grade=' + nouveauGrade + ')');
+        } else {
+          console.warn('⚠️ changerGradeImpot update fullname échoué:', error.message);
+        }
+      } catch(e) { console.warn('⚠️ changerGradeImpot fallback exception:', e); }
+    }
+    if (!pushOk) {
+      alert('⚠️ Le changement de grade n\'a pas pu être sauvegardé sur le serveur. Les autres agents ne verront pas le changement.');
+    }
   }
 
   // === SYNCHRONISATION : mettre à jour le grade dans le compte civil correspondant ===
