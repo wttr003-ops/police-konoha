@@ -22759,6 +22759,74 @@ setInterval(() => {
   } catch(e) {}
 }, 60000);
 
+// ⚡ POLLING TEMPS RÉEL IMPÔTS : toutes les 4 secondes, si l'onglet impôts est ouvert,
+// on recharge silencieusement depuis Supabase et on re-render si les données ont changé.
+// Comme ça, quand un autre officier marque quelqu'un payé, on le voit dans 4 secondes max
+// sans avoir à actualiser. Filet de sécurité si Realtime ne marche pas correctement.
+setInterval(async () => {
+  try {
+    if (!supabaseReady) return;
+    const onglet = document.getElementById('dash-impots');
+    if (!onglet || !onglet.classList.contains('active')) return;
+    if (window._impotsSyncEnCours) return;
+
+    window._impotsSyncEnCours = true;
+    try {
+      const [imp, hist] = await Promise.all([
+        sb.from('taxes').select('*').order('id', { ascending: true }),
+        sb.from('tax_history').select('*').order('id', { ascending: true })
+      ]);
+
+      let changed = false;
+
+      if (!imp.error && imp.data) {
+        const newImpots = imp.data.map(SUPABASE_TABLES.impots.mapFrom);
+        const sigOld = JSON.stringify((state.impots || []).map(i => ({
+          fn: i.fullname, s: i.statut, c: i.collecteur, g: i.grade
+        })));
+        const sigNew = JSON.stringify(newImpots.map(i => ({
+          fn: i.fullname, s: i.statut, c: i.collecteur, g: i.grade
+        })));
+        if (sigOld !== sigNew) {
+          console.log('⚡ Polling impôts: changement détecté');
+          state.impots = newImpots;
+          changed = true;
+        }
+      }
+
+      if (!hist.error && hist.data) {
+        const newHist = hist.data.map(SUPABASE_TABLES.impotsHistorique.mapFrom);
+        const sigOldH = JSON.stringify((state.impotsHistorique || []).map(h => ({
+          p: h.payeur, a: h.agent, m: h.montant
+        })));
+        const sigNewH = JSON.stringify(newHist.map(h => ({
+          p: h.payeur, a: h.agent, m: h.montant
+        })));
+        if (sigOldH !== sigNewH) {
+          console.log('⚡ Polling historique impôts: changement détecté');
+          state.impotsHistorique = newHist;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        const activeEl = document.activeElement;
+        const isTyping = activeEl && (
+          (activeEl.tagName === 'INPUT' && activeEl.value && activeEl.value.length > 0) ||
+          activeEl.tagName === 'TEXTAREA'
+        );
+        if (!isTyping && typeof renderImpotsContenu === 'function') {
+          renderImpotsContenu();
+        }
+      }
+    } finally {
+      window._impotsSyncEnCours = false;
+    }
+  } catch(e) {
+    window._impotsSyncEnCours = false;
+  }
+}, 4000);
+
 // 🔄 WATCHDOG GRADE : toutes les 20 secondes, on vérifie si notre grade en mémoire
 // correspond à celui sur le serveur. Si différent, on resync + alerte.
 // → utile si pour une raison X le Realtime n'a pas marché.
