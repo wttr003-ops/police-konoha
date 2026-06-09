@@ -23392,6 +23392,95 @@ setInterval(async () => {
   }
 }, 4000);
 
+// ⚡ POLLING TEMPS RÉEL FINANCE (Ressources / Marchands / Équipements / Rapports) :
+// toutes les 4 secondes, si un de ces onglets Finance est ouvert, on recharge depuis Supabase.
+setInterval(async () => {
+  try {
+    if (!supabaseReady) return;
+    const ongRessources = document.getElementById('dash-ressources');
+    const ongMarchands  = document.getElementById('dash-marchands');
+    const ongEquipements = document.getElementById('dash-equipements');
+    const ongRapports   = document.getElementById('dash-rapports-finance');
+    const showRessources = ongRessources && ongRessources.classList.contains('active');
+    const showMarchands  = ongMarchands && ongMarchands.classList.contains('active');
+    const showEquipements = ongEquipements && ongEquipements.classList.contains('active');
+    const showRapports   = ongRapports && ongRapports.classList.contains('active');
+    if (!showRessources && !showMarchands && !showEquipements && !showRapports) return;
+    if (window._financeSyncEnCours) return;
+
+    window._financeSyncEnCours = true;
+    try {
+      const promises = [];
+      if (showRessources) promises.push(sb.from('resources').select('*').order('id', { ascending: true }).then(r => ({type: 'ressources', ...r})));
+      if (showMarchands)  promises.push(sb.from('merchants').select('*').order('id', { ascending: true }).then(r => ({type: 'marchands', ...r})));
+      if (showMarchands)  promises.push(sb.from('merchant_notifications').select('*').order('id', { ascending: true }).then(r => ({type: 'notifs', ...r})));
+      if (showEquipements) promises.push(sb.from('finance_equipment').select('*').order('id', { ascending: true }).then(r => ({type: 'equipements', ...r})));
+      if (showRapports)   promises.push(sb.from('finance_reports').select('*').order('id', { ascending: true }).then(r => ({type: 'rapports', ...r})));
+
+      const results = await Promise.all(promises);
+      let changed = { ressources: false, marchands: false, equipements: false, rapports: false };
+
+      results.forEach(res => {
+        if (res.error || !res.data) {
+          if (res.error) console.warn('⚠️ Polling Finance erreur (' + res.type + '):', res.error.message);
+          return;
+        }
+        if (res.type === 'ressources') {
+          const newData = res.data.map(SUPABASE_TABLES.ressources.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.ressources || [])) {
+            console.log('⚡ Polling ressources: changement détecté (' + (state.ressources||[]).length + ' → ' + newData.length + ')');
+            state.ressources = newData;
+            changed.ressources = true;
+          }
+        } else if (res.type === 'marchands') {
+          const newData = res.data.map(SUPABASE_TABLES.marchands.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.marchands || [])) {
+            console.log('⚡ Polling marchands: changement détecté (' + (state.marchands||[]).length + ' → ' + newData.length + ')');
+            state.marchands = newData;
+            changed.marchands = true;
+          }
+        } else if (res.type === 'notifs') {
+          const newData = res.data.map(SUPABASE_TABLES.notificationsMarchands.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.notificationsMarchands || [])) {
+            state.notificationsMarchands = newData;
+            changed.marchands = true;
+          }
+        } else if (res.type === 'equipements') {
+          const newData = res.data.map(SUPABASE_TABLES.equipementsFinance.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.equipementsFinance || [])) {
+            console.log('⚡ Polling équipements: changement détecté (' + (state.equipementsFinance||[]).length + ' → ' + newData.length + ')');
+            state.equipementsFinance = newData;
+            changed.equipements = true;
+          }
+        } else if (res.type === 'rapports') {
+          const newData = res.data.map(SUPABASE_TABLES.rapportsFinance.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.rapportsFinance || [])) {
+            console.log('⚡ Polling rapports finance: changement détecté (' + (state.rapportsFinance||[]).length + ' → ' + newData.length + ')');
+            state.rapportsFinance = newData;
+            changed.rapports = true;
+          }
+        }
+      });
+
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        (activeEl.tagName === 'INPUT' && activeEl.value && activeEl.value.length > 0) ||
+        activeEl.tagName === 'TEXTAREA'
+      );
+      if (!isTyping) {
+        if (changed.ressources && typeof renderRessources === 'function') renderRessources();
+        if (changed.marchands && typeof renderMarchands === 'function') renderMarchands();
+        if (changed.equipements && typeof renderEquipements === 'function') renderEquipements();
+        if (changed.rapports && typeof renderRapportsFinance === 'function') renderRapportsFinance();
+      }
+    } finally {
+      window._financeSyncEnCours = false;
+    }
+  } catch(e) {
+    window._financeSyncEnCours = false;
+  }
+}, 4000);
+
 // 🔄 WATCHDOG GRADE : toutes les 20 secondes, on vérifie si notre grade en mémoire
 // correspond à celui sur le serveur. Si différent, on resync + alerte.
 // → utile si pour une raison X le Realtime n'a pas marché.
