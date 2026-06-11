@@ -368,14 +368,12 @@
   .gp-d { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid rgba(100,116,139,0.4); }
   .gp-view { background: rgba(56,189,248,0.15); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.4); }
 
-  /* 🆕 Mode consultation impôts pour Académie / Commandement */
-  .impots-viewonly button[onclick],
-  .impots-viewonly select[onchange] {
-    display: none !important;
-  }
-  .impots-viewonly form,
+  /* 🆕 Mode consultation impôts pour Académie / Commandement
+     On masque uniquement le formulaire d'ajout d'impôt et les boutons d'action de masse.
+     Les badges de statut/grade/collecteur restent visibles (rendus en <span> en mode read-only). */
   .impots-viewonly .impots-add-form,
-  .impots-viewonly #impots-add-form {
+  .impots-viewonly #impots-add-form,
+  .impots-viewonly form[onsubmit*="ajouterImpot"] {
     display: none !important;
   }
   /* Hokage (doré flamboyant — au-dessus de tout) */
@@ -8732,7 +8730,7 @@ function renderImpotsContenu() {
         </div>
       </div>
     </div>
-    ` : `
+    ` : (viewOnly ? '' : `
     <!-- Ajouter un ninja -->
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">➕ Ajouter un ninja au registre</h3>
@@ -8746,7 +8744,7 @@ function renderImpotsContenu() {
         <button class="btn-primary" onclick="ajouterImpot()">➕ Ajouter</button>
       </div>
     </div>
-    `}
+    `)}
 
     <!-- Barre de recherche + filtres -->
     <div class="dash-block" style="padding:1rem 1.25rem;margin-bottom:1rem">
@@ -8786,21 +8784,25 @@ function renderImpotsContenu() {
       const isExo = i.grade === 'Genin';
       const collecteur = i.collecteur || '';
       const gradeColor = ninjaGradeColor(i.grade);
+      // 🆕 readOnly = vrai pour Finance ET pour les grades view-only police (Académie/Commandement)
+      const readOnly = ((u.service || 'police') === 'finance') || viewOnly;
       html += `<tr class="imp-row" data-name="${normalize(i.fullname)}" data-statut="${isPaye?'paye':'non'}" data-exo="${isExo}">
         <td><strong>${i.fullname}</strong></td>
         <td>
-          <select onchange="changerGradeImpot(${idx}, this.value)" style="background:${gradeColor.bg};border:1px solid ${gradeColor.border};color:${gradeColor.color};padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">
+          ${readOnly
+            ? `<span style="display:inline-block;background:${gradeColor.bg};border:1px solid ${gradeColor.border};color:${gradeColor.color};padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700">${gradeColor.icon} ${i.grade}</span>`
+            : `<select onchange="changerGradeImpot(${idx}, this.value)" style="background:${gradeColor.bg};border:1px solid ${gradeColor.border};color:${gradeColor.color};padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">
             ${NINJA_GRADE_ORDER.filter(g => IMPOTS_MONTANTS[g] !== undefined).map(g => {
               const gc = ninjaGradeColor(g);
               return '<option value="' + g + '" ' + (i.grade===g?'selected':'') + ' style="background:#1a1a1a;color:'+gc.color+'">'+gc.icon+' '+g+'</option>';
             }).join('')}
-          </select>
+          </select>`}
           ${isExo?'<span style="font-size:10px;color:var(--muted);margin-left:4px">(exonéré)</span>':''}
         </td>
         <td class="amount">${isExo?'—':m.toLocaleString()+' Ryos'}</td>
         <td>
           ${isExo ? '<span style="font-size:11px;color:var(--muted)">Exonéré</span>' : (
-            (u.service || 'police') === 'finance'
+            readOnly
               ? `<span style="display:inline-block;padding:5px 10px;border-radius:5px;font-weight:700;font-size:11px;background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${isPaye?'var(--green)':'var(--red2)'};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'}">${isPaye ? '✓ Payé' : '✗ Non payé'}</span>`
               : `<select onchange="toggleImpot(${idx}, this.value)" style="background:${isPaye?'rgba(39,174,96,0.15)':'rgba(231,76,60,0.15)'};color:${isPaye?'var(--green)':'var(--red2)'};border:1px solid ${isPaye?'rgba(39,174,96,0.4)':'rgba(231,76,60,0.4)'};padding:5px 10px;border-radius:5px;font-weight:700;font-size:11px;cursor:pointer">
             <option value="non" ${!isPaye?'selected':''}>✗ Non payé</option>
@@ -8810,7 +8812,7 @@ function renderImpotsContenu() {
         </td>
         <td>
           ${isPaye && !isExo ? (
-            (u.service || 'police') === 'finance'
+            readOnly
               ? `<span style="font-size:11px;color:var(--muted)">${collecteur ? '🤝 ' + escapeHtml(collecteur) : '—'}</span>`
               : `<select onchange="setCollecteur(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer">
               <option value="">— Agent collecteur —</option>
@@ -8818,7 +8820,7 @@ function renderImpotsContenu() {
             </select>`
           ) : '<span style="font-size:11px;color:var(--muted)">—</span>'}
         </td>
-        ${canAddAgent(u.grade) ? `<td><button class="btn-sm btn-sm-red" onclick="supprimerImpot(${idx})" title="Supprimer du registre" style="padding:4px 8px;font-size:11px">🗑</button></td>` : ''}
+        ${(!viewOnly && canAddAgent(u.grade)) ? `<td><button class="btn-sm btn-sm-red" onclick="supprimerImpot(${idx})" title="Supprimer du registre" style="padding:4px 8px;font-size:11px">🗑</button></td>` : ''}
       </tr>`;
     });
   }
