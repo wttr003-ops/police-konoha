@@ -5619,11 +5619,13 @@ function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint + Hokage 
 function canRecupererImpots(g) { return gradeRank(g) <= 3; }
 function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT (le Capitaine NE VOIT PAS les logs)
 
-// === RÔLES SPÉCIAUX HOKAGE & STAFF ===
+// === RÔLES SPÉCIAUX HOKAGE, STAFF & GRADES EN LECTURE SEULE ===
+// Ces grades ne peuvent être attribués que par le Directeur de la Police
 function isSpecialRole(grade) {
-  return grade === 'Hokage' || grade === 'Staff';
+  return grade === 'Hokage' || grade === 'Staff'
+      || grade === 'Académie' || grade === 'Academie' || grade === 'Commandement';
 }
-// Seul le Directeur Police peut créer/supprimer/voir les Hokage et Staff
+// Seul le Directeur Police peut créer/promouvoir/rétrograder vers ces grades
 function canManageSpecialRoles(user) {
   if (!user) return false;
   return (user.service || 'police') === 'police' && user.grade === 'Directeur';
@@ -9967,9 +9969,9 @@ function renderAjout() {
     titreSection = 'Bureau de la Stratégie';
     labelBouton = 'Ajouter le stratège';
   } else if (myService === 'police') {
-    // Si c'est le Directeur Police, on ajoute Hokage et Staff en haut de la liste
+    // Si c'est le Directeur Police, on ajoute Hokage, Staff, Académie et Commandement en haut de la liste
     if (canManageSpecialRoles(u)) {
-      gradesDispo = ['Hokage', 'Staff', ...gradesDispo];
+      gradesDispo = ['Hokage', 'Staff', 'Académie', 'Commandement', ...gradesDispo];
     }
   }
 
@@ -9979,8 +9981,10 @@ function renderAjout() {
       <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Le compte sera créé immédiatement et automatiquement sauvegardé.</p>
 
       ${myService === 'police' && canManageSpecialRoles(u) ? `
-        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(168,85,247,0.08));border:1px solid rgba(232,197,71,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
-          👑 <strong style="color:#fff7c0">Hokage</strong> &nbsp;·&nbsp; ⭐ <strong style="color:#f3e8ff">Staff</strong> — Ces 2 grades spéciaux créent automatiquement <strong>3 comptes</strong> (Police + Tribunal + Cabinet) avec les mêmes identifiants. Réservés au Directeur.
+        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(168,85,247,0.08));border:1px solid rgba(232,197,71,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text);line-height:1.6">
+          👑 <strong style="color:#fff7c0">Hokage</strong> &nbsp;·&nbsp; ⭐ <strong style="color:#f3e8ff">Staff</strong> — Créent <strong>3 comptes</strong> (Police + Tribunal + Cabinet).<br>
+          🎓 <strong style="color:#7dd3fc">Académie</strong> &nbsp;·&nbsp; 🛡️ <strong style="color:#7dd3fc">Commandement</strong> — Compte Police en <strong>mode consultation impôts</strong> uniquement.<br>
+          <span style="font-size:11px;color:var(--muted)">Ces 4 grades sont réservés au Directeur de la Police.</span>
         </div>` : ''}
 
       <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="aj-fullname" placeholder="Ex: Sasuke Uchiha"/></div>
@@ -10078,14 +10082,47 @@ async function addAgent() {
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom'); return; }
   if (p.length < 6) { alert('Mot de passe trop court (min 6 caractères)'); return; }
 
-  // === CAS SPÉCIAL : HOKAGE / STAFF ===
+  // === CAS SPÉCIAL : HOKAGE / STAFF / ACADÉMIE / COMMANDEMENT ===
   if (isSpecialRole(g)) {
     // Vérifier que c'est bien le Directeur Police
     if (!canManageSpecialRoles(u)) {
-      alert('Seul le Directeur (Police) peut créer un compte Hokage ou Staff.');
+      alert('Seul le Directeur (Police) peut créer un compte ' + g + '.');
       return;
     }
 
+    // 🆕 Académie / Commandement : compte police simple (lecture seule des impôts)
+    if (g === 'Académie' || g === 'Academie' || g === 'Commandement') {
+      // Vérifier qu'aucun compte du même nom n'existe en police
+      if (state.users.some(uu => matchFullnameStrict(uu.fullname, fullname) && (uu.service||'police') === 'police')) {
+        alert('Un compte Police existe déjà pour cette personne. Supprimez-le ou changez son grade.');
+        return;
+      }
+      if (!(await confirmAsync('Créer un compte ' + g + ' pour ' + fullname + ' ?\n\n⚠️ Ce grade donne uniquement accès EN LECTURE aux impôts.\nAucune autre permission (pas de plaintes, casier, amendes, etc.).'))) return;
+
+      const matricule = generateMatriculeFromGrade(g);
+      const newUser = {
+        fullname, password: p, grade: g,
+        isAgent: true, casier: 'non', service: 'police',
+        hireDate: new Date().toLocaleDateString('fr-FR'),
+        matricule
+      };
+      if (supabaseReady) {
+        try {
+          const inserted = await pushToSupabase('users', newUser);
+          if (inserted && inserted._id) Object.assign(newUser, { _id: inserted._id });
+          else { alert('⚠️ Erreur serveur : compte non créé.'); return; }
+        } catch(e) { alert('⚠️ Erreur : ' + (e.message || e)); return; }
+      }
+      state.users.push(newUser);
+      saveSession();
+      ['aj-fullname','aj-password'].forEach(id => document.getElementById(id).value = '');
+      alert('✓ Compte ' + g + ' créé pour ' + fullname + '\n\nMatricule : ' + matricule + '\n\n👀 Accès : Mode consultation des impôts uniquement.');
+      updateStats();
+      if (typeof refreshAllUI === 'function') refreshAllUI();
+      return;
+    }
+
+    // Hokage / Staff : 3 comptes (Police + Juge + Avocat)
     // Vérifier qu'aucun compte de ce nom n'existe dans aucune des 3 sections
     const services = ['police', 'juge', 'avocat'];
     for (const svc of services) {
@@ -13473,7 +13510,11 @@ function togglePwdView(id, btn) {
 }
 
 function generateMatriculeFromGrade(grade) {
-  const prefixes = { 'Directeur':'DIR', 'Directeur Adjoint':'ADJ', 'Capitaine':'CAP', 'Lieutenant':'LT', 'Sergent':'SGT', 'Officier':'OFF', 'Recrue':'REC' };
+  const prefixes = {
+    'Directeur':'DIR', 'Directeur Adjoint':'ADJ',
+    'Capitaine':'CAP', 'Lieutenant':'LT', 'Sergent':'SGT', 'Officier':'OFF', 'Recrue':'REC',
+    'Académie':'ACA', 'Academie':'ACA', 'Commandement':'CMD'
+  };
   const p = prefixes[grade] || 'AGT';
   const n = Math.floor(1000 + Math.random() * 9000);
   return 'KNH-' + p + '-' + n;
