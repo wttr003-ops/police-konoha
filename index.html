@@ -366,6 +366,18 @@
   .gp-b { background: rgba(196,154,26,0.2); color: var(--accent); border: 1px solid rgba(196,154,26,0.4); }
   .gp-c { background: rgba(16,185,129,0.2); color: var(--green); border: 1px solid rgba(16,185,129,0.4); }
   .gp-d { background: rgba(100,116,139,0.2); color: #94a3b8; border: 1px solid rgba(100,116,139,0.4); }
+  .gp-view { background: rgba(56,189,248,0.15); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.4); }
+
+  /* 🆕 Mode consultation impôts pour Académie / Commandement */
+  .impots-viewonly button[onclick],
+  .impots-viewonly select[onchange] {
+    display: none !important;
+  }
+  .impots-viewonly form,
+  .impots-viewonly .impots-add-form,
+  .impots-viewonly #impots-add-form {
+    display: none !important;
+  }
   /* Hokage (doré flamboyant — au-dessus de tout) */
   .gp-hokage {
     background: linear-gradient(135deg, rgba(255,180,0,0.4), rgba(232,197,71,0.5));
@@ -3640,6 +3652,86 @@ function confirmAsync(message) {
   });
 }
 
+// === PROMPT CUSTOM stylé ===
+// Remplace le prompt() natif moche de Chrome par une modal au style du site
+function promptAsync(opts) {
+  return new Promise((resolve) => {
+    const o = (typeof opts === 'string') ? { message: opts } : (opts || {});
+    showPromptModal(o, resolve);
+  });
+}
+
+function showPromptModal(opts, callback) {
+  const existing = document.getElementById('custom-prompt-overlay');
+  if (existing) existing.remove();
+
+  const title = opts.title || 'Saisie';
+  const message = opts.message || '';
+  const placeholder = opts.placeholder || '';
+  const defaultValue = opts.defaultValue !== undefined ? String(opts.defaultValue) : '';
+  const inputType = opts.type || 'text';
+  const icon = opts.icon || '✏️';
+  const okText = opts.okText || 'Valider';
+  const cancelText = opts.cancelText || 'Annuler';
+  const hint = opts.hint || '';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'custom-prompt-overlay';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="alert-box" role="dialog" aria-modal="true" style="max-width:440px">
+      <div class="confirm-icon">${icon}</div>
+      <div class="confirm-title">${escapeHtml(title)}</div>
+      <div class="confirm-message" style="white-space:pre-wrap;text-align:left;line-height:1.5">${escapeHtml(message)}</div>
+      <div style="margin:14px 0 6px 0">
+        <input type="${inputType}" id="prompt-input-field" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(defaultValue)}" style="width:100%;padding:12px 14px;background:rgba(0,0,0,0.35);border:1.5px solid rgba(196,154,26,0.4);border-radius:8px;color:var(--text);font-size:15px;font-family:'Cinzel',serif;text-align:center;letter-spacing:1px"/>
+      </div>
+      ${hint ? `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-style:italic;text-align:center">${escapeHtml(hint)}</div>` : ''}
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn-cancel" onclick="closePromptModal(null)">${escapeHtml(cancelText)}</button>
+        <button class="confirm-btn confirm-btn-ok" onclick="closePromptModal(document.getElementById('prompt-input-field').value)">${escapeHtml(okText)}</button>
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closePromptModal(null);
+  });
+
+  document.body.appendChild(overlay);
+  window._promptCallback = callback;
+
+  // Focus + sélection automatique du texte pour pouvoir remplacer rapidement
+  setTimeout(() => {
+    const input = overlay.querySelector('#prompt-input-field');
+    if (input) {
+      input.focus();
+      try { input.select(); } catch(e) {}
+    }
+  }, 100);
+
+  // Gérer Entrée (valider) et Échap (annuler)
+  const keyHandler = (e) => {
+    if (e.key === 'Enter') {
+      const input = overlay.querySelector('#prompt-input-field');
+      closePromptModal(input ? input.value : null);
+      document.removeEventListener('keydown', keyHandler);
+    } else if (e.key === 'Escape') {
+      closePromptModal(null);
+      document.removeEventListener('keydown', keyHandler);
+    }
+  };
+  document.addEventListener('keydown', keyHandler);
+}
+
+function closePromptModal(result) {
+  const overlay = document.getElementById('custom-prompt-overlay');
+  if (overlay) overlay.remove();
+  const cb = window._promptCallback;
+  window._promptCallback = null;
+  if (cb) cb(result);
+}
+
 // === ALERT CUSTOM ===
 function showAlertModal(message, callback) {
   const existing = document.getElementById('custom-alert-overlay');
@@ -5119,12 +5211,15 @@ const GRADES = ['Hokage', 'Staff', 'Directeur', 'Directeur Adjoint', 'Capitaine'
 const GRADE_RANK = {
   'Hokage': -2, 'Staff': -1,
   'Directeur': 0, 'Directeur Adjoint': 1, 'Capitaine': 2, 'Lieutenant': 3,
-  'Sergent': 4, 'Officier': 5, 'Recrue': 6, 'Citoyen': 9
+  'Sergent': 4, 'Officier': 5, 'Recrue': 6,
+  'Académie': 7, 'Academie': 7, 'Commandement': 8,
+  'Citoyen': 9
 };
 const GRADE_CLASS = {
   'Hokage': 'gp-hokage', 'Staff': 'gp-staff',
   'Directeur': 'gp-s', 'Directeur Adjoint': 'gp-s',
   'Capitaine': 'gp-a', 'Lieutenant': 'gp-a', 'Sergent': 'gp-b', 'Officier': 'gp-c', 'Recrue': 'gp-d',
+  'Académie': 'gp-view', 'Academie': 'gp-view', 'Commandement': 'gp-view',
   'Citoyen': 'gp-d',
   // Juges (bleu, du plus haut au plus bas)
   'Premier Président': 'gp-j1', 'Premier President': 'gp-j1',
@@ -5533,8 +5628,17 @@ function canManageSpecialRoles(user) {
   if (!user) return false;
   return (user.service || 'police') === 'police' && user.grade === 'Directeur';
 }
-function canResetImpots(g) { return gradeRank(g) <= 1; } // Dir + Adjoint
-function canTreatPlaintes(g) { return gradeRank(g) <= 6; } // Tous les agents de police (Recrue à Directeur)
+// 🆕 Grades en lecture seule des impôts uniquement (Académie / Commandement)
+// Ces grades n'ont AUCUNE autre permission : ils voient juste l'état des impôts
+const VIEW_TAX_ONLY_GRADES = new Set(['Académie', 'Academie', 'Commandement']);
+function isViewTaxOnly(user) {
+  if (!user) return false;
+  if ((user.service || 'police') !== 'police') return false;
+  return VIEW_TAX_ONLY_GRADES.has(user.grade);
+}
+function canResetImpots(g) { return gradeRank(g) <= 1 && !VIEW_TAX_ONLY_GRADES.has(g); }
+function canTreatPlaintes(g) { return gradeRank(g) <= 6 && !VIEW_TAX_ONLY_GRADES.has(g); }
+
 // Permissions casier — par section + grade
 function canCreateCasier(user) {
   if (!user) return false;
@@ -6775,13 +6879,25 @@ function renderDashboard(tab) {
     if (subEl) subEl.textContent = 'Tableau de bord — Drapeaux & Tactiques';
   }
 
+  // 🆕 Restriction spéciale pour les grades view-only (Académie / Commandement) :
+  // ils ne voient que Vue d'ensemble + Impôts
+  const userViewOnly = isViewTaxOnly(u);
+  const VIEW_ONLY_ALLOWED_TABS = new Set(['overview', 'impots']);
+
   document.querySelectorAll('.dash-nav-btn').forEach(btn => {
     const services = (btn.dataset.services || 'police').split(',');
-    btn.style.display = services.includes(myService) ? '' : 'none';
+    let visible = services.includes(myService);
+    if (userViewOnly && visible) {
+      visible = VIEW_ONLY_ALLOWED_TABS.has(btn.dataset.tab);
+    }
+    btn.style.display = visible ? '' : 'none';
   });
 
   // Choisir un onglet par défaut visible pour cette section
   let defaultTab = tab || 'overview';
+  if (userViewOnly && !VIEW_ONLY_ALLOWED_TABS.has(defaultTab)) {
+    defaultTab = 'impots'; // par défaut, les view-only arrivent sur Impôts
+  }
   const defaultBtn = document.querySelector('.dash-nav-btn[data-tab="' + defaultTab + '"]');
   if (defaultBtn && defaultBtn.style.display === 'none') {
     // Cet onglet n'est pas visible pour cette section, prendre le premier visible
@@ -8465,6 +8581,10 @@ function renderImpotsContenu() {
   const el = document.getElementById('impots-content');
   const u = state.currentUser;
 
+  // 🆕 Mode consultation pour Académie / Commandement
+  const viewOnly = isViewTaxOnly(u);
+  if (el) el.classList.toggle('impots-viewonly', viewOnly);
+
   // Liste des agents de police actifs (collecteurs possibles)
   const agentsList = state.users
     .filter(x => x.isAgent && (x.service||'police') === 'police')
@@ -8486,7 +8606,17 @@ function renderImpotsContenu() {
     totauxParAgent[h.agent].count++;
   });
 
-  let html = `
+  // 🆕 Bandeau informatif pour Académie / Commandement
+  const bandeauViewOnly = viewOnly ? `
+    <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),rgba(56,189,248,0.04));border:1.5px solid rgba(56,189,248,0.4);border-radius:10px;padding:14px 18px;margin-bottom:1.25rem;display:flex;align-items:center;gap:14px">
+      <div style="font-size:32px;line-height:1">👀</div>
+      <div style="flex:1">
+        <div style="font-size:14px;color:#7dd3fc;font-weight:700;text-transform:uppercase;letter-spacing:1px">Mode consultation</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5">Votre grade <strong style="color:#7dd3fc">${u.grade}</strong> vous donne accès <strong>uniquement en lecture</strong> à l'état des impôts du village. Vous ne pouvez pas modifier les statuts, ni ajouter ou supprimer des entrées.</div>
+      </div>
+    </div>` : '';
+
+  let html = bandeauViewOnly + `
     <!-- BARRE DE TAUX DE PAIEMENT -->
     ${(() => {
       const totalImpos = ninjasImposables.length;
@@ -20649,14 +20779,20 @@ async function modifierPrixRessource(idx) {
   if (!r) return;
 
   const ancien = r.prix || 0;
-  const saisi = prompt(
-    '✏️ Modifier le prix unitaire de "' + r.nom + '"\n\n' +
-    'Prix actuel : ' + ancien.toLocaleString() + ' Ryos\n' +
-    'Stock : ' + (r.quantite || 0).toLocaleString() + ' unité(s)\n\n' +
-    'Entrez le nouveau prix unitaire en Ryos :',
-    ancien
-  );
-  if (saisi === null) return; // annulé
+  const saisi = await promptAsync({
+    title: 'Modifier le prix unitaire',
+    icon: '✏️',
+    message: 'Ressource : ' + r.nom + '\n' +
+             'Prix actuel : ' + ancien.toLocaleString() + ' Ryos\n' +
+             'Stock : ' + (r.quantite || 0).toLocaleString() + ' unité(s)',
+    placeholder: 'Nouveau prix en Ryos',
+    defaultValue: ancien,
+    type: 'number',
+    hint: '💡 Entrez un nombre entier positif',
+    okText: '💰 Valider le nouveau prix',
+    cancelText: 'Annuler'
+  });
+  if (saisi === null || saisi === '') return; // annulé
 
   const nouveau = parseInt(saisi);
   if (isNaN(nouveau) || nouveau < 0) {
