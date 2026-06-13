@@ -376,6 +376,12 @@
   .impots-viewonly form[onsubmit*="ajouterImpot"] {
     display: none !important;
   }
+
+  /* 🏘️ Animation pulse rouge pour appartements non payés */
+  @keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 8px rgba(231,76,60,0.6); opacity: 1; }
+    50% { box-shadow: 0 0 16px rgba(231,76,60,1), 0 0 24px rgba(231,76,60,0.6); opacity: 0.85; }
+  }
   /* Hokage (doré flamboyant — au-dessus de tout) */
   .gp-hokage {
     background: linear-gradient(135deg, rgba(255,180,0,0.4), rgba(232,197,71,0.5));
@@ -3376,6 +3382,7 @@
         <button class="dash-nav-btn" data-tab="ressources" data-services="finance" onclick="switchDashTab('ressources', this)" style="color:#86efac">📦 Ressources</button>
         <button class="dash-nav-btn" data-tab="marchands" data-services="finance" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
         <button class="dash-nav-btn" data-tab="equipements" data-services="finance" onclick="switchDashTab('equipements', this)" style="color:#86efac">🛡️ Équipements</button>
+        <button class="dash-nav-btn" data-tab="appartements" data-services="finance" onclick="switchDashTab('appartements', this)" style="color:#86efac">🏘️ Appartements</button>
         <button class="dash-nav-btn" data-tab="rapports-finance" data-services="finance" onclick="switchDashTab('rapports-finance', this)" style="color:#86efac">📄 Rapports financiers</button>
         <button class="dash-nav-btn" data-tab="drapeaux" data-services="strategie" onclick="switchDashTab('drapeaux', this)" style="color:#fb7185">🚩 Drapeaux</button>
         <button class="dash-nav-btn" data-tab="historique-drapeaux" data-services="strategie" onclick="switchDashTab('historique-drapeaux', this)" style="color:#fb7185">📜 Historique des captures</button>
@@ -3503,6 +3510,11 @@
       <div class="dash-tab" id="dash-equipements">
         <h2 class="dash-section-title" style="color:#86efac">🛡️ Équipements du village</h2>
         <div id="equipements-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-appartements">
+        <h2 class="dash-section-title" style="color:#86efac">🏘️ Appartements du village</h2>
+        <div id="appartements-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-rapports-finance">
@@ -4489,6 +4501,29 @@ const SUPABASE_TABLES = {
       id: r.id, _id: r.id
     })
   },
+  appartements: {
+    table: 'apartments',
+    mapTo: a => ({
+      name: a.nom, address: a.adresse || null,
+      buyer: a.acheteur || null, price: a.prix || 0,
+      occupants: a.occupants || [],
+      status: a.statut || 'paye',  // 'paye' / 'non_paye'
+      last_payment_date: a.dernierPaiement || null,
+      sold_at: a.dateVente || null,
+      sold_by: a.vendePar || null,
+      notes: a.notes || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, adresse: r.address,
+      acheteur: r.buyer, prix: r.price,
+      occupants: r.occupants || [],
+      statut: r.status || 'paye',
+      dernierPaiement: r.last_payment_date,
+      dateVente: r.sold_at, vendePar: r.sold_by,
+      notes: r.notes,
+      id: r.id, _id: r.id
+    })
+  },
   marchands: {
     table: 'merchants',
     mapTo: m => ({
@@ -5418,6 +5453,7 @@ let state = {
   tresorTransactions: [],
   ressources: [],
   ressourcesHistorique: [],
+  appartements: [],
   marchands: [],
   notificationsMarchands: [],
   rapportsFinance: [],
@@ -6936,6 +6972,7 @@ function switchDashTab(name, btn) {
   if (name === 'ressources') renderRessources();
   if (name === 'marchands') renderMarchands();
   if (name === 'equipements') renderEquipements();
+  if (name === 'appartements') renderAppartements();
   if (name === 'rapports-finance') renderRapportsFinance();
   if (name === 'drapeaux') renderDrapeaux();
   if (name === 'historique-drapeaux') renderHistoriqueDrapeaux();
@@ -20540,14 +20577,10 @@ function renderRessources() {
         <label>Nom personnalisé</label>
         <input type="text" id="res-nom-libre" placeholder="Ex: Parchemins · Charbon" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div class="form-group" style="margin:0">
           <label>Quantité</label>
           <input type="number" id="res-quantite" placeholder="Ex: 50" min="1" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>Prix unitaire (Ryos)</label>
-          <input type="number" id="res-prix" placeholder="Ex: 25" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
         </div>
         <div class="form-group" style="margin:0">
           <label>Catégorie</label>
@@ -20733,14 +20766,15 @@ async function ajouterRessource() {
   // 🔧 Sécurité : toujours trimer le nom pour éviter les doublons (ex: "Fer" vs "Fer ")
   nom = (nom || '').trim();
   const quantite = parseInt(document.getElementById('res-quantite').value);
-  const prix = parseInt(document.getElementById('res-prix').value);
+  // Prix devient OPTIONNEL : 0 par défaut, peut être édité plus tard via ✏️
+  const prixEl = document.getElementById('res-prix');
+  const prix = prixEl && prixEl.value ? parseInt(prixEl.value) : 0;
   const categorie = document.getElementById('res-categorie').value;
   const ninja = (document.getElementById('res-ninja')?.value || '').trim();
   const equipe = (document.getElementById('res-equipe')?.value || '').trim();
 
   if (!nom) { alert('Sélectionnez une ressource.'); return; }
   if (!quantite || quantite <= 0) { alert('Quantité invalide.'); return; }
-  if (isNaN(prix) || prix < 0) { alert('Prix invalide.'); return; }
 
   state.ressources = state.ressources || [];
   const existante = state.ressources.find(r => normalize(r.nom) === normalize(nom));
@@ -20808,7 +20842,7 @@ async function ajouterRessource() {
   document.getElementById('res-nom-libre').value = '';
   document.getElementById('res-nom-libre-group').style.display = 'none';
   document.getElementById('res-quantite').value = '';
-  document.getElementById('res-prix').value = '';
+  if (document.getElementById('res-prix')) document.getElementById('res-prix').value = '';
   if (document.getElementById('res-ninja')) document.getElementById('res-ninja').value = '';
   if (document.getElementById('res-equipe')) document.getElementById('res-equipe').value = '';
   renderRessources();
@@ -21187,7 +21221,8 @@ const EQUIPEMENT_SOUS_TYPES_ARMURE = [
 const TIER_META = {
   T1: { label: 'T1', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.4)', nom: 'Standard' },
   T2: { label: 'T2', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.4)', nom: 'Avancé' },
-  T3: { label: 'T3', color: '#fca5a5', bg: 'rgba(252,165,165,0.12)', border: 'rgba(252,165,165,0.45)', nom: 'Élite' }
+  T3: { label: 'T3', color: '#fca5a5', bg: 'rgba(252,165,165,0.12)', border: 'rgba(252,165,165,0.45)', nom: 'Élite' },
+  T4: { label: 'T4', color: '#c4b5fd', bg: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.5)', nom: 'Légendaire' }
 };
 
 function getSousTypeArmureLabel(key) {
@@ -21253,6 +21288,7 @@ function renderEquipements() {
             <option value="T1">T1 — Standard</option>
             <option value="T2">T2 — Avancé</option>
             <option value="T3">T3 — Élite</option>
+            <option value="T4">T4 — Légendaire</option>
           </select>
         </div>
         <div class="form-group" style="margin:0">
@@ -21300,7 +21336,7 @@ function renderEquipements() {
       </div>`;
 
     // Grouper par tier
-    ['T3', 'T2', 'T1'].forEach(tier => {
+    ['T4', 'T3', 'T2', 'T1'].forEach(tier => {
       const itemsTier = items.filter(e => (e.tier || 'T1') === tier);
       if (itemsTier.length === 0) return;
 
@@ -21460,6 +21496,291 @@ const DESTINATAIRES_RAPPORT = [
 
 function getDestinataireMeta(key) {
   return DESTINATAIRES_RAPPORT.find(d => d.key === key) || DESTINATAIRES_RAPPORT[0];
+}
+
+// ============================================================
+// 🏘️ APPARTEMENTS DU VILLAGE
+// ============================================================
+
+function renderAppartements() {
+  const u = state.currentUser;
+  const el = document.getElementById('appartements-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const apparts = state.appartements || [];
+  const canEdit = true; // tous les agents Finance peuvent éditer
+
+  // Filtre de recherche
+  const searchTerm = normalize((window._appartSearch || '').trim());
+  let filtres = apparts.slice();
+  if (searchTerm) {
+    filtres = filtres.filter(a =>
+      normalize(a.nom || '').includes(searchTerm) ||
+      normalize(a.acheteur || '').includes(searchTerm) ||
+      (a.occupants || []).some(o => normalize(o).includes(searchTerm))
+    );
+  }
+
+  // Tri : non payés d'abord, puis ordre alpha
+  filtres.sort((a, b) => {
+    const ap = (a.statut === 'non_paye') ? 0 : 1;
+    const bp = (b.statut === 'non_paye') ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    return (a.nom || '').localeCompare(b.nom || '');
+  });
+
+  const totalValeur = apparts.reduce((s, a) => s + (a.prix || 0), 0);
+  const nbNonPayes = apparts.filter(a => a.statut === 'non_paye').length;
+  const nbPayes = apparts.filter(a => a.statut !== 'non_paye').length;
+
+  let html = `
+    <!-- En-tête : statistiques -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1.5rem">
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total appartements</div>
+        <div style="font-size:28px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;margin-top:4px">${apparts.length}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center;border-color:rgba(34,197,94,0.3)">
+        <div style="font-size:11px;color:#86efac;text-transform:uppercase;letter-spacing:1px">🟢 À jour</div>
+        <div style="font-size:28px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;margin-top:4px">${nbPayes}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center;border-color:rgba(231,76,60,0.3)">
+        <div style="font-size:11px;color:#fca5a5;text-transform:uppercase;letter-spacing:1px">🔴 Non payés</div>
+        <div style="font-size:28px;font-weight:800;color:#fca5a5;font-family:'Cinzel',serif;margin-top:4px">${nbNonPayes}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center;border-color:rgba(232,197,71,0.3)">
+        <div style="font-size:11px;color:var(--lgold);text-transform:uppercase;letter-spacing:1px">Valeur totale</div>
+        <div style="font-size:22px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif;margin-top:4px">${totalValeur.toLocaleString()} R</div>
+      </div>
+    </div>
+
+    <!-- Formulaire d'ajout -->
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.5rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:#86efac;margin-bottom:1rem">➕ Mettre en vente un appartement</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>🏠 Nom / numéro de l'appartement *</label>
+          <input type="text" id="app-nom" placeholder="Ex: Appartement A12 / Résidence Hokage" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>📍 Adresse <span style="color:var(--muted);font-size:11px;font-weight:400">(optionnel)</span></label>
+          <input type="text" id="app-adresse" placeholder="Ex: Quartier nord, rue 5" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>👤 Acheteur (nom + prénom) *</label>
+          <input type="text" id="app-acheteur" placeholder="Ex: Naruto Uzumaki" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>💰 Prix de vente (Ryos) *</label>
+          <input type="number" id="app-prix" placeholder="Ex: 25000" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+      </div>
+      <div class="form-group" style="margin:0 0 10px 0">
+        <label>👥 Occupants <span style="color:var(--muted);font-size:11px;font-weight:400">(optionnel — séparés par une virgule)</span></label>
+        <input type="text" id="app-occupants" placeholder="Ex: Naruto Uzumaki, Hinata Hyuga" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+      </div>
+      <button class="btn-primary btn-full" onclick="ajouterAppartement()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;padding:12px;font-weight:700">🏘️ Enregistrer l'appartement</button>
+    </div>
+
+    <!-- Barre de recherche -->
+    <div class="dash-block" style="padding:1rem 1.25rem;margin-bottom:1rem">
+      <div style="position:relative">
+        <input type="text" id="app-search" placeholder="🔍 Rechercher par nom d'appartement, acheteur ou occupant..." oninput="filtrerAppartements()" value="${(window._appartSearch||'').replace(/"/g,'&quot;')}" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"/>
+        <button onclick="document.getElementById('app-search').value='';filtrerAppartements()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px" title="Effacer">✕</button>
+      </div>
+    </div>
+
+    <!-- Grille des appartements -->
+    <div class="dash-block" style="padding:0">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:#86efac">
+        🏘️ Liste des appartements <span style="font-size:11px;font-weight:400;color:var(--muted)">(${filtres.length}${searchTerm?' sur '+apparts.length:''})</span>
+      </div>`;
+
+  if (filtres.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:2rem;font-size:13px;font-style:italic">' + (searchTerm ? 'Aucun résultat pour "' + escapeHtml(window._appartSearch) + '"' : 'Aucun appartement enregistré pour le moment.') + '</p>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;padding:16px">';
+    filtres.forEach(a => {
+      const realIdx = state.appartements.indexOf(a);
+      const isPaye = a.statut !== 'non_paye';
+      const statusColor = isPaye ? '#86efac' : '#fca5a5';
+      const statusBg = isPaye ? 'rgba(34,197,94,0.12)' : 'rgba(231,76,60,0.12)';
+      const statusGlow = isPaye ? 'rgba(34,197,94,0.6)' : 'rgba(231,76,60,0.6)';
+      const statusLabel = isPaye ? '🟢 À jour' : '🔴 Non payé';
+      const occupants = a.occupants || [];
+
+      html += `
+        <div style="position:relative;background:linear-gradient(135deg,rgba(0,0,0,0.4),${statusBg.replace('0.12','0.04')});border:1.5px solid ${isPaye?'var(--border)':'rgba(231,76,60,0.45)'};border-radius:14px;padding:16px;overflow:hidden;transition:transform 0.2s,border-color 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+
+          <!-- Badge statut avec point coloré pulsant si non payé -->
+          <div style="position:absolute;top:10px;right:10px;background:${statusBg};color:${statusColor};border:1px solid ${statusColor}40;font-size:10px;padding:4px 10px;border-radius:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};box-shadow:0 0 8px ${statusGlow};${isPaye?'':'animation:pulse-red 1.5s infinite'}"></span>
+            ${isPaye ? 'Payé' : 'Non payé'}
+          </div>
+
+          <!-- Header : icône + nom appart -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-right:90px">
+            <div style="font-size:30px;line-height:1;filter:drop-shadow(0 0 8px ${statusGlow})">🏠</div>
+            <div>
+              <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:var(--text);line-height:1.2">${escapeHtml(a.nom || '—')}</div>
+              ${a.adresse ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 ${escapeHtml(a.adresse)}</div>` : ''}
+            </div>
+          </div>
+
+          <!-- Acheteur + Prix -->
+          <div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">👤 Acheteur</div>
+            <div style="font-size:14px;color:var(--text);font-weight:600;margin-top:2px">${escapeHtml(a.acheteur || '—')}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">💰 Prix</span>
+              <span style="font-size:14px;color:var(--lgold);font-weight:700;font-family:'Cinzel',serif">${(a.prix || 0).toLocaleString()} Ryos</span>
+            </div>
+          </div>
+
+          <!-- Occupants -->
+          ${occupants.length > 0 ? `
+            <div style="margin-bottom:10px">
+              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">👥 Occupant${occupants.length>1?'s':''} (${occupants.length})</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                ${occupants.map(o => `<span style="background:rgba(59,130,246,0.12);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);font-size:11px;padding:3px 8px;border-radius:10px">${escapeHtml(o)}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Dernier paiement -->
+          ${a.dernierPaiement ? `<div style="font-size:10px;color:var(--muted);margin-bottom:10px;font-style:italic">Dernier paiement : ${escapeHtml(a.dernierPaiement)}</div>` : ''}
+
+          <!-- Boutons d'action -->
+          ${canEdit ? `
+            <div style="display:grid;grid-template-columns:1fr 36px 36px;gap:6px">
+              <button onclick="togglePaiementAppartement(${realIdx})" style="background:${isPaye?'rgba(251,146,60,0.18)':'rgba(34,197,94,0.18)'};color:${isPaye?'#fb923c':'#86efac'};border:1px solid ${isPaye?'rgba(251,146,60,0.4)':'rgba(34,197,94,0.4)'};font-size:11px;padding:7px;font-weight:700;border-radius:6px;cursor:pointer">${isPaye?'⚠️ Marquer non payé':'✓ Marquer payé'}</button>
+              <button onclick="modifierAppartement(${realIdx})" title="Modifier" style="background:rgba(59,130,246,0.18);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:14px;padding:7px 0;border-radius:6px;cursor:pointer">✏️</button>
+              <button onclick="supprimerAppartement(${realIdx})" title="Supprimer" style="background:rgba(192,57,43,0.25);color:#fca5a5;border:1px solid rgba(192,57,43,0.5);font-size:14px;padding:7px 0;border-radius:6px;cursor:pointer">🗑</button>
+            </div>
+          ` : ''}
+        </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function filtrerAppartements() {
+  const input = document.getElementById('app-search');
+  if (!input) return;
+  window._appartSearch = input.value;
+  const pos = input.selectionStart;
+  renderAppartements();
+  const newInput = document.getElementById('app-search');
+  if (newInput) {
+    newInput.focus();
+    try { newInput.setSelectionRange(pos, pos); } catch(e) {}
+  }
+}
+
+async function ajouterAppartement() {
+  const u = state.currentUser;
+  if (!u) return;
+  const nom = (document.getElementById('app-nom').value || '').trim();
+  const adresse = (document.getElementById('app-adresse').value || '').trim();
+  const acheteur = (document.getElementById('app-acheteur').value || '').trim();
+  const prix = parseInt(document.getElementById('app-prix').value);
+  const occupantsRaw = (document.getElementById('app-occupants').value || '').trim();
+  const occupants = occupantsRaw ? occupantsRaw.split(',').map(s => s.trim()).filter(s => s) : [];
+
+  if (!nom) { alert('⚠️ Indiquez le nom ou numéro de l\'appartement.'); return; }
+  if (!acheteur) { alert('⚠️ Indiquez le nom et prénom de l\'acheteur.'); return; }
+  if (isNaN(prix) || prix < 0) { alert('⚠️ Prix invalide.'); return; }
+
+  const newAppart = {
+    id: Date.now(),
+    nom, adresse, acheteur, prix, occupants,
+    statut: 'paye',
+    dernierPaiement: new Date().toLocaleDateString('fr-FR'),
+    dateVente: new Date().toLocaleDateString('fr-FR'),
+    vendePar: u.fullname
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.appartements;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newAppart)).select().single();
+      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
+      if (inserted) newAppart._id = inserted.id;
+    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  }
+
+  state.appartements = state.appartements || [];
+  state.appartements.push(newAppart);
+  saveSession();
+
+  ['app-nom','app-adresse','app-acheteur','app-prix','app-occupants'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderAppartements();
+}
+
+async function togglePaiementAppartement(idx) {
+  const a = state.appartements[idx]; if (!a) return;
+  const wasPaye = a.statut !== 'non_paye';
+  a.statut = wasPaye ? 'non_paye' : 'paye';
+  if (!wasPaye) a.dernierPaiement = new Date().toLocaleDateString('fr-FR');
+
+  if (supabaseReady && a._id) {
+    try {
+      await sb.from('apartments').update({
+        status: a.statut,
+        last_payment_date: a.dernierPaiement || null
+      }).eq('id', a._id);
+    } catch(e) { console.warn('⚠️ togglePaiementAppartement:', e); }
+  }
+  saveSession();
+  renderAppartements();
+}
+
+async function modifierAppartement(idx) {
+  const a = state.appartements[idx]; if (!a) return;
+  const nouveauPrix = await promptAsync({
+    title: 'Modifier le prix',
+    icon: '✏️',
+    message: 'Appartement : ' + a.nom + '\nAcheteur : ' + a.acheteur,
+    placeholder: 'Nouveau prix en Ryos',
+    defaultValue: a.prix || 0,
+    type: 'number',
+    okText: '💰 Valider',
+    cancelText: 'Annuler'
+  });
+  if (nouveauPrix === null || nouveauPrix === '') return;
+  const np = parseInt(nouveauPrix);
+  if (isNaN(np) || np < 0) { alert('⚠️ Prix invalide.'); return; }
+  a.prix = np;
+  if (supabaseReady && a._id) {
+    try { await sb.from('apartments').update({ price: np }).eq('id', a._id); } catch(e) {}
+  }
+  saveSession();
+  renderAppartements();
+}
+
+async function supprimerAppartement(idx) {
+  const a = state.appartements[idx]; if (!a) return;
+  if (!(await confirmAsync('Supprimer définitivement l\'appartement "' + a.nom + '" ?\n\nAcheteur : ' + a.acheteur + '\nPrix : ' + (a.prix||0).toLocaleString() + ' Ryos\n\n⚠️ Action irréversible.'))) return;
+  if (supabaseReady && a._id) {
+    try {
+      const { error } = await sb.from('apartments').delete().eq('id', a._id);
+      if (error) { alert('❌ Suppression échouée : ' + error.message); return; }
+    } catch(e) { alert('❌ Erreur : ' + (e.message || e)); return; }
+  }
+  state.appartements.splice(idx, 1);
+  saveSession();
+  renderAppartements();
 }
 
 function renderRapportsFinance() {
@@ -23785,12 +24106,14 @@ setInterval(async () => {
     const ongRessources = document.getElementById('dash-ressources');
     const ongMarchands  = document.getElementById('dash-marchands');
     const ongEquipements = document.getElementById('dash-equipements');
+    const ongAppartements = document.getElementById('dash-appartements');
     const ongRapports   = document.getElementById('dash-rapports-finance');
     const showRessources = ongRessources && ongRessources.classList.contains('active');
     const showMarchands  = ongMarchands && ongMarchands.classList.contains('active');
     const showEquipements = ongEquipements && ongEquipements.classList.contains('active');
+    const showAppartements = ongAppartements && ongAppartements.classList.contains('active');
     const showRapports   = ongRapports && ongRapports.classList.contains('active');
-    if (!showRessources && !showMarchands && !showEquipements && !showRapports) return;
+    if (!showRessources && !showMarchands && !showEquipements && !showAppartements && !showRapports) return;
     if (window._financeSyncEnCours) return;
 
     window._financeSyncEnCours = true;
@@ -23800,10 +24123,11 @@ setInterval(async () => {
       if (showMarchands)  promises.push(sb.from('merchants').select('*').order('id', { ascending: true }).then(r => ({type: 'marchands', ...r})));
       if (showMarchands)  promises.push(sb.from('merchant_notifications').select('*').order('id', { ascending: true }).then(r => ({type: 'notifs', ...r})));
       if (showEquipements) promises.push(sb.from('finance_equipment').select('*').order('id', { ascending: true }).then(r => ({type: 'equipements', ...r})));
+      if (showAppartements) promises.push(sb.from('apartments').select('*').order('id', { ascending: true }).then(r => ({type: 'appartements', ...r})));
       if (showRapports)   promises.push(sb.from('finance_reports').select('*').order('id', { ascending: true }).then(r => ({type: 'rapports', ...r})));
 
       const results = await Promise.all(promises);
-      let changed = { ressources: false, marchands: false, equipements: false, rapports: false };
+      let changed = { ressources: false, marchands: false, equipements: false, appartements: false, rapports: false };
 
       results.forEach(res => {
         if (res.error || !res.data) {
@@ -23844,6 +24168,13 @@ setInterval(async () => {
             state.rapportsFinance = newData;
             changed.rapports = true;
           }
+        } else if (res.type === 'appartements') {
+          const newData = res.data.map(SUPABASE_TABLES.appartements.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.appartements || [])) {
+            console.log('⚡ Polling appartements: changement détecté (' + (state.appartements||[]).length + ' → ' + newData.length + ')');
+            state.appartements = newData;
+            changed.appartements = true;
+          }
         }
       });
 
@@ -23856,6 +24187,7 @@ setInterval(async () => {
         if (changed.ressources && typeof renderRessources === 'function') renderRessources();
         if (changed.marchands && typeof renderMarchands === 'function') renderMarchands();
         if (changed.equipements && typeof renderEquipements === 'function') renderEquipements();
+        if (changed.appartements && typeof renderAppartements === 'function') renderAppartements();
         if (changed.rapports && typeof renderRapportsFinance === 'function') renderRapportsFinance();
       }
     } finally {
