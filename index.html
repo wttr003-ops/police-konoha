@@ -3383,6 +3383,7 @@
         <button class="dash-nav-btn" data-tab="marchands" data-services="finance" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
         <button class="dash-nav-btn" data-tab="equipements" data-services="finance" onclick="switchDashTab('equipements', this)" style="color:#86efac">🛡️ Équipements</button>
         <button class="dash-nav-btn" data-tab="appartements" data-services="finance" onclick="switchDashTab('appartements', this)" style="color:#86efac">🏘️ Appartements</button>
+        <button class="dash-nav-btn" data-tab="rachat" data-services="finance" onclick="switchDashTab('rachat', this)" style="color:#86efac">🤝 Rachat</button>
         <button class="dash-nav-btn" data-tab="rapports-finance" data-services="finance" onclick="switchDashTab('rapports-finance', this)" style="color:#86efac">📄 Rapports financiers</button>
         <button class="dash-nav-btn" data-tab="drapeaux" data-services="strategie" onclick="switchDashTab('drapeaux', this)" style="color:#fb7185">🚩 Drapeaux</button>
         <button class="dash-nav-btn" data-tab="historique-drapeaux" data-services="strategie" onclick="switchDashTab('historique-drapeaux', this)" style="color:#fb7185">📜 Historique des captures</button>
@@ -3515,6 +3516,11 @@
       <div class="dash-tab" id="dash-appartements">
         <h2 class="dash-section-title" style="color:#86efac">🏘️ Appartements du village</h2>
         <div id="appartements-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-rachat">
+        <h2 class="dash-section-title" style="color:#86efac">🤝 Rachat d'unités</h2>
+        <div id="rachat-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-rapports-finance">
@@ -4524,6 +4530,37 @@ const SUPABASE_TABLES = {
       id: r.id, _id: r.id
     })
   },
+  rachatPrix: {
+    table: 'buyback_prices',
+    mapTo: b => ({
+      item_name: b.nom, unit_price: b.prixUnitaire || 0,
+      category: b.categorie || 'autre',
+      configured_by: b.configurePar || null,
+      configured_at: b.configureLe || null
+    }),
+    mapFrom: r => ({
+      nom: r.item_name, prixUnitaire: r.unit_price || 0,
+      categorie: r.category || 'autre',
+      configurePar: r.configured_by, configureLe: r.configured_at,
+      id: r.id, _id: r.id
+    })
+  },
+  rachatTransactions: {
+    table: 'buyback_transactions',
+    mapTo: t => ({
+      item_name: t.objet, quantity: t.quantite || 0,
+      unit_price: t.prixUnitaire || 0, total: t.total || 0,
+      ninja: t.ninja || null, equipe: t.equipe || null,
+      agent: t.agent || null, date: t.date || null,
+      notes: t.notes || null
+    }),
+    mapFrom: r => ({
+      objet: r.item_name, quantite: r.quantity, prixUnitaire: r.unit_price,
+      total: r.total, ninja: r.ninja, equipe: r.equipe, agent: r.agent,
+      date: r.date, notes: r.notes,
+      id: r.id, _id: r.id
+    })
+  },
   marchands: {
     table: 'merchants',
     mapTo: m => ({
@@ -5454,6 +5491,8 @@ let state = {
   ressources: [],
   ressourcesHistorique: [],
   appartements: [],
+  rachatPrix: [],
+  rachatTransactions: [],
   marchands: [],
   notificationsMarchands: [],
   rapportsFinance: [],
@@ -6973,6 +7012,7 @@ function switchDashTab(name, btn) {
   if (name === 'marchands') renderMarchands();
   if (name === 'equipements') renderEquipements();
   if (name === 'appartements') renderAppartements();
+  if (name === 'rachat') renderRachat();
   if (name === 'rapports-finance') renderRapportsFinance();
   if (name === 'drapeaux') renderDrapeaux();
   if (name === 'historique-drapeaux') renderHistoriqueDrapeaux();
@@ -20555,6 +20595,7 @@ function renderRessources() {
       { nom: 'Fer', categorie: 'armurerie', icon: '⚙️' },
       { nom: 'Cuivre', categorie: 'armurerie', icon: '⚙️' },
       { nom: 'Chakra métal', categorie: 'armurerie', icon: '💠' },
+      { nom: 'Écaille', categorie: 'armurerie', icon: '🐉' },
       { nom: 'Bois', categorie: 'autre', icon: '🌳' },
       { nom: 'Coton', categorie: 'autre', icon: '🧵' },
       { nom: 'Lin', categorie: 'autre', icon: '🧵' },
@@ -21781,6 +21822,360 @@ async function supprimerAppartement(idx) {
   state.appartements.splice(idx, 1);
   saveSession();
   renderAppartements();
+}
+
+// ============================================================
+// 🤝 RACHAT D'UNITÉS (Finance)
+// ============================================================
+// Le Directeur et Directeur Adjoint Finance configurent les prix de rachat
+// Tous les agents Finance peuvent enregistrer un rachat
+
+function canManageRachatPrix(user) {
+  if (!user) return false;
+  if ((user.service || '') !== 'finance') return false;
+  // Hokage / Staff / Directeur / Directeur Adjoint Finance
+  return ['Hokage', 'Staff', 'Directeur', 'Directeur Adjoint'].includes(user.grade);
+}
+
+function renderRachat() {
+  const u = state.currentUser;
+  const el = document.getElementById('rachat-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const canManagePrix = canManageRachatPrix(u);
+  const prix = state.rachatPrix || [];
+  const transactions = (state.rachatTransactions || []).slice().sort((a, b) => (b.id||0) - (a.id||0));
+
+  // Stats
+  const totalTransactions = transactions.length;
+  const totalDepense = transactions.reduce((s, t) => s + (t.total||0), 0);
+  const objetsConfigures = prix.length;
+
+  let html = `
+    <!-- Stats en tête -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1.5rem">
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Objets configurés</div>
+        <div style="font-size:28px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;margin-top:4px">${objetsConfigures}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Rachats effectués</div>
+        <div style="font-size:28px;font-weight:800;color:#93c5fd;font-family:'Cinzel',serif;margin-top:4px">${totalTransactions}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center;border-color:rgba(232,197,71,0.3)">
+        <div style="font-size:11px;color:var(--lgold);text-transform:uppercase;letter-spacing:1px">Total dépensé</div>
+        <div style="font-size:22px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif;margin-top:4px">${totalDepense.toLocaleString()} R</div>
+      </div>
+    </div>
+
+    <!-- Section : Prix de rachat configurés -->
+    <div class="dash-block" style="padding:0;margin-bottom:1.5rem">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="font-family:'Cinzel',serif;font-size:14px;color:#86efac">💰 Prix de rachat configurés</div>
+        ${!canManagePrix ? '<div style="font-size:11px;color:var(--muted);font-style:italic">Configuration réservée au Directeur Finance</div>' : ''}
+      </div>`;
+
+  if (canManagePrix) {
+    html += `
+      <div style="padding:1.25rem;border-bottom:1px solid var(--border);background:rgba(232,197,71,0.04)">
+        <div style="font-size:11px;color:var(--lgold);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">👑 Configuration (Directeur Finance)</div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr auto;gap:8px;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label>🔖 Nom de l'objet</label>
+            <input type="text" id="rachat-objet-nom" placeholder="Ex: Écaille de dragon" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>💰 Prix unitaire (Ryos)</label>
+            <input type="number" id="rachat-objet-prix" placeholder="Ex: 500" min="0" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>📂 Catégorie</label>
+            <select id="rachat-objet-cat" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%">
+              <option value="armurerie">⚔️ Armurerie</option>
+              <option value="cuisine">🍱 Cuisine</option>
+              <option value="medical">⚕️ Médical</option>
+              <option value="autre" selected>📦 Autre</option>
+            </select>
+          </div>
+          <button class="btn-primary" onclick="ajouterPrixRachat()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;padding:10px 16px;font-weight:700;height:44px">➕ Ajouter</button>
+        </div>
+      </div>`;
+  }
+
+  // Tableau des prix configurés
+  if (prix.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem;font-size:13px;font-style:italic">Aucun prix de rachat configuré pour le moment.</p>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px">';
+    prix.forEach(p => {
+      const realIdx = state.rachatPrix.indexOf(p);
+      const catColor = p.categorie === 'armurerie' ? '#fca5a5' : p.categorie === 'cuisine' ? '#fbbf24' : p.categorie === 'medical' ? '#86efac' : '#cbd5e1';
+      const catIcon = p.categorie === 'armurerie' ? '⚔️' : p.categorie === 'cuisine' ? '🍱' : p.categorie === 'medical' ? '⚕️' : '📦';
+      html += `
+        <div style="background:linear-gradient(135deg,rgba(0,0,0,0.35),rgba(34,197,94,0.04));border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;position:relative">
+          <div style="position:absolute;top:8px;right:8px;font-size:9px;padding:2px 6px;border-radius:8px;background:rgba(${catColor==='#fca5a5'?'231,76,60':catColor==='#fbbf24'?'251,191,36':catColor==='#86efac'?'34,197,94':'148,163,184'},0.12);color:${catColor};border:1px solid ${catColor}40;font-weight:700">${catIcon}</div>
+          <div style="font-family:'Cinzel',serif;font-size:14px;color:var(--text);font-weight:700;margin-bottom:6px;margin-right:30px">${escapeHtml(p.nom)}</div>
+          <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:8px">
+            <span style="font-family:'Cinzel',serif;font-size:22px;font-weight:800;color:var(--lgold)">${(p.prixUnitaire||0).toLocaleString()}</span>
+            <span style="font-size:11px;color:var(--muted);text-transform:uppercase">Ryos / unité</span>
+          </div>
+          ${canManagePrix ? `
+            <div style="display:grid;grid-template-columns:1fr 36px;gap:4px">
+              <button onclick="modifierPrixRachat(${realIdx})" style="background:rgba(59,130,246,0.18);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:11px;padding:5px;border-radius:5px;cursor:pointer;font-weight:600">✏️ Modifier</button>
+              <button onclick="supprimerPrixRachat(${realIdx})" title="Supprimer" style="background:rgba(192,57,43,0.25);color:#fca5a5;border:1px solid rgba(192,57,43,0.5);font-size:12px;padding:5px 0;border-radius:5px;cursor:pointer">🗑</button>
+            </div>` : ''}
+        </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Section : Enregistrer un rachat
+  html += `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.5rem">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:#86efac;margin-bottom:0.5rem">🤝 Enregistrer un rachat</h3>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:1rem">Un ninja apporte des objets : sélectionnez l'objet, la quantité, et le système calcule le total à lui verser.</p>`;
+
+  if (prix.length === 0) {
+    html += '<p style="color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:1rem;background:rgba(0,0,0,0.2);border-radius:8px">⚠️ Aucun prix de rachat configuré. Le Directeur Finance doit d\'abord configurer au moins un objet avec son prix.</p>';
+  } else {
+    html += `
+      <div style="display:grid;grid-template-columns:1.3fr 1fr 1.3fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>🔖 Objet</label>
+          <select id="rachat-tx-objet" onchange="updateRachatTotal()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%">
+            <option value="">-- Sélectionner --</option>
+            ${prix.map(p => `<option value="${escapeHtml(p.nom)}" data-prix="${p.prixUnitaire||0}">${escapeHtml(p.nom)} — ${(p.prixUnitaire||0).toLocaleString()} R/u</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>🔢 Quantité reçue</label>
+          <input type="number" id="rachat-tx-quantite" placeholder="Ex: 200" min="1" oninput="updateRachatTotal()" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>🥷 Ninja qui apporte</label>
+          <input type="text" id="rachat-tx-ninja" placeholder="Ex: Naruto Uzumaki" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>👥 Équipe (optionnel)</label>
+          <input type="text" id="rachat-tx-equipe" placeholder="Ex: Équipe 7" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+      </div>
+
+      <!-- Affichage du total à payer -->
+      <div id="rachat-total-preview" style="background:linear-gradient(135deg,rgba(232,197,71,0.12),rgba(232,197,71,0.04));border:1.5px solid rgba(232,197,71,0.4);border-radius:10px;padding:14px 18px;margin-bottom:10px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">💰 Total à verser au ninja</div>
+            <div style="font-size:13px;color:var(--text);margin-top:4px"><span id="rachat-detail-calcul">—</span></div>
+          </div>
+          <div style="font-family:'Cinzel',serif;font-size:32px;font-weight:800;color:var(--lgold);text-shadow:0 0 18px rgba(232,197,71,0.5)" id="rachat-total-display">0 Ryos</div>
+        </div>
+      </div>
+
+      <button class="btn-primary btn-full" onclick="enregistrerRachat()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;padding:12px;font-weight:700">🤝 Valider et enregistrer le rachat</button>`;
+  }
+  html += '</div>';
+
+  // Section : Historique
+  html += `
+    <div class="dash-block" style="padding:0">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:#86efac">📜 Historique des rachats <span style="font-size:11px;font-weight:400;color:var(--muted)">(${transactions.length})</span></div>`;
+  if (transactions.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem;font-size:13px;font-style:italic">Aucun rachat enregistré pour le moment.</p>';
+  } else {
+    transactions.slice(0, 50).forEach(t => {
+      const realIdx = state.rachatTransactions.indexOf(t);
+      html += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <div style="color:var(--text);font-size:14px"><strong style="color:#86efac">${escapeHtml(t.objet)}</strong> · <strong>${(t.quantite||0).toLocaleString()}</strong> unité(s) × ${(t.prixUnitaire||0).toLocaleString()} R</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">
+              ${t.ninja ? '🥷 ' + escapeHtml(t.ninja) : '<em>Ninja non précisé</em>'}
+              ${t.equipe ? ' · 👥 ' + escapeHtml(t.equipe) : ''}
+              · Enregistré par ${escapeHtml(t.agent || '—')}
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--lgold)">${(t.total||0).toLocaleString()} Ryos</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">${escapeHtml(t.date || '—')}</div>
+          </div>
+          ${canManagePrix ? `<button onclick="supprimerTransactionRachat(${realIdx})" title="Supprimer" style="background:rgba(192,57,43,0.2);color:#fca5a5;border:1px solid rgba(192,57,43,0.4);font-size:12px;padding:5px 8px;border-radius:5px;cursor:pointer">🗑</button>` : ''}
+        </div>`;
+    });
+    if (transactions.length > 50) {
+      html += `<p style="color:var(--muted);text-align:center;padding:0.75rem;font-size:11px;font-style:italic">… et ${transactions.length - 50} transaction(s) plus anciennes</p>`;
+    }
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+// Mise à jour du total en temps réel
+function updateRachatTotal() {
+  const sel = document.getElementById('rachat-tx-objet');
+  const qtInput = document.getElementById('rachat-tx-quantite');
+  const preview = document.getElementById('rachat-total-preview');
+  const display = document.getElementById('rachat-total-display');
+  const detail = document.getElementById('rachat-detail-calcul');
+  if (!sel || !qtInput || !preview) return;
+
+  const opt = sel.options[sel.selectedIndex];
+  const prixU = opt ? parseInt(opt.dataset.prix || '0') : 0;
+  const qt = parseInt(qtInput.value) || 0;
+
+  if (sel.value && qt > 0) {
+    const total = prixU * qt;
+    display.textContent = total.toLocaleString() + ' Ryos';
+    detail.textContent = qt.toLocaleString() + ' × ' + prixU.toLocaleString() + ' R = ' + total.toLocaleString() + ' Ryos';
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+async function ajouterPrixRachat() {
+  const u = state.currentUser;
+  if (!u || !canManageRachatPrix(u)) { alert('⚠️ Réservé au Directeur Finance.'); return; }
+  const nom = (document.getElementById('rachat-objet-nom').value || '').trim();
+  const prixU = parseInt(document.getElementById('rachat-objet-prix').value);
+  const categorie = document.getElementById('rachat-objet-cat').value;
+  if (!nom) { alert('Indiquez le nom de l\'objet.'); return; }
+  if (isNaN(prixU) || prixU < 0) { alert('Prix invalide.'); return; }
+
+  // Empêcher les doublons
+  state.rachatPrix = state.rachatPrix || [];
+  const existant = state.rachatPrix.find(p => normalize(p.nom) === normalize(nom));
+  if (existant) { alert('Un objet "' + nom + '" est déjà configuré. Modifiez son prix directement.'); return; }
+
+  const newPrix = {
+    id: Date.now(), nom, prixUnitaire: prixU, categorie,
+    configurePar: u.fullname,
+    configureLe: new Date().toLocaleDateString('fr-FR')
+  };
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.rachatPrix;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newPrix)).select().single();
+      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
+      if (inserted) newPrix._id = inserted.id;
+    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  }
+  state.rachatPrix.push(newPrix);
+  saveSession();
+  document.getElementById('rachat-objet-nom').value = '';
+  document.getElementById('rachat-objet-prix').value = '';
+  renderRachat();
+}
+
+async function modifierPrixRachat(idx) {
+  const u = state.currentUser;
+  if (!u || !canManageRachatPrix(u)) { alert('⚠️ Réservé au Directeur Finance.'); return; }
+  const p = state.rachatPrix[idx];
+  if (!p) return;
+  const nouveau = await promptAsync({
+    title: 'Modifier le prix de rachat',
+    icon: '✏️',
+    message: 'Objet : ' + p.nom + '\nPrix actuel : ' + (p.prixUnitaire||0).toLocaleString() + ' Ryos / unité',
+    placeholder: 'Nouveau prix en Ryos',
+    defaultValue: p.prixUnitaire || 0,
+    type: 'number',
+    okText: '💰 Valider', cancelText: 'Annuler'
+  });
+  if (nouveau === null || nouveau === '') return;
+  const np = parseInt(nouveau);
+  if (isNaN(np) || np < 0) { alert('Prix invalide.'); return; }
+  p.prixUnitaire = np;
+  if (supabaseReady && p._id) {
+    try { await sb.from('buyback_prices').update({ unit_price: np }).eq('id', p._id); } catch(e) {}
+  }
+  saveSession();
+  renderRachat();
+}
+
+async function supprimerPrixRachat(idx) {
+  const u = state.currentUser;
+  if (!u || !canManageRachatPrix(u)) { alert('⚠️ Réservé au Directeur Finance.'); return; }
+  const p = state.rachatPrix[idx];
+  if (!p) return;
+  if (!(await confirmAsync('Supprimer le prix de rachat pour "' + p.nom + '" ?'))) return;
+  if (supabaseReady && p._id) {
+    try {
+      const { error } = await sb.from('buyback_prices').delete().eq('id', p._id);
+      if (error) { alert('❌ Suppression échouée : ' + error.message); return; }
+    } catch(e) { alert('❌ Erreur : ' + (e.message || e)); return; }
+  }
+  state.rachatPrix.splice(idx, 1);
+  saveSession();
+  renderRachat();
+}
+
+async function enregistrerRachat() {
+  const u = state.currentUser;
+  if (!u) return;
+  const sel = document.getElementById('rachat-tx-objet');
+  const qt = parseInt(document.getElementById('rachat-tx-quantite').value);
+  const ninja = (document.getElementById('rachat-tx-ninja').value || '').trim();
+  const equipe = (document.getElementById('rachat-tx-equipe').value || '').trim();
+  if (!sel.value) { alert('Sélectionnez un objet.'); return; }
+  if (!qt || qt <= 0) { alert('Quantité invalide.'); return; }
+  if (!ninja) { alert('Indiquez le nom du ninja qui apporte les objets.'); return; }
+
+  const opt = sel.options[sel.selectedIndex];
+  const prixU = parseInt(opt.dataset.prix || '0');
+  const total = prixU * qt;
+
+  if (!(await confirmAsync('🤝 Confirmer le rachat ?\n\nObjet : ' + sel.value + '\nQuantité : ' + qt.toLocaleString() + ' × ' + prixU.toLocaleString() + ' R\n👉 TOTAL à verser : ' + total.toLocaleString() + ' Ryos\n\nNinja : ' + ninja + (equipe ? '\nÉquipe : ' + equipe : '')))) return;
+
+  const newTx = {
+    id: Date.now(),
+    objet: sel.value, quantite: qt, prixUnitaire: prixU, total,
+    ninja, equipe: equipe || null,
+    agent: u.fullname,
+    date: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.rachatTransactions;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newTx)).select().single();
+      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
+      if (inserted) newTx._id = inserted.id;
+    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  }
+
+  state.rachatTransactions = state.rachatTransactions || [];
+  state.rachatTransactions.push(newTx);
+  saveSession();
+
+  ['rachat-tx-objet','rachat-tx-quantite','rachat-tx-ninja','rachat-tx-equipe'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'rachat-tx-objet' ? '' : '';
+  });
+  alert('✅ Rachat enregistré.\n' + qt.toLocaleString() + ' × ' + sel.value + ' = ' + total.toLocaleString() + ' Ryos versés à ' + ninja);
+  renderRachat();
+}
+
+async function supprimerTransactionRachat(idx) {
+  const u = state.currentUser;
+  if (!u || !canManageRachatPrix(u)) { alert('⚠️ Réservé au Directeur Finance.'); return; }
+  const t = state.rachatTransactions[idx];
+  if (!t) return;
+  if (!(await confirmAsync('Supprimer cette transaction ?\n\n' + t.quantite + ' × ' + t.objet + ' = ' + (t.total||0).toLocaleString() + ' R\nNinja : ' + (t.ninja||'—')))) return;
+  if (supabaseReady && t._id) {
+    try {
+      const { error } = await sb.from('buyback_transactions').delete().eq('id', t._id);
+      if (error) { alert('❌ Échec : ' + error.message); return; }
+    } catch(e) { alert('❌ Erreur : ' + (e.message || e)); return; }
+  }
+  state.rachatTransactions.splice(idx, 1);
+  saveSession();
+  renderRachat();
 }
 
 function renderRapportsFinance() {
@@ -24107,13 +24502,15 @@ setInterval(async () => {
     const ongMarchands  = document.getElementById('dash-marchands');
     const ongEquipements = document.getElementById('dash-equipements');
     const ongAppartements = document.getElementById('dash-appartements');
+    const ongRachat = document.getElementById('dash-rachat');
     const ongRapports   = document.getElementById('dash-rapports-finance');
     const showRessources = ongRessources && ongRessources.classList.contains('active');
     const showMarchands  = ongMarchands && ongMarchands.classList.contains('active');
     const showEquipements = ongEquipements && ongEquipements.classList.contains('active');
     const showAppartements = ongAppartements && ongAppartements.classList.contains('active');
+    const showRachat = ongRachat && ongRachat.classList.contains('active');
     const showRapports   = ongRapports && ongRapports.classList.contains('active');
-    if (!showRessources && !showMarchands && !showEquipements && !showAppartements && !showRapports) return;
+    if (!showRessources && !showMarchands && !showEquipements && !showAppartements && !showRachat && !showRapports) return;
     if (window._financeSyncEnCours) return;
 
     window._financeSyncEnCours = true;
@@ -24124,10 +24521,14 @@ setInterval(async () => {
       if (showMarchands)  promises.push(sb.from('merchant_notifications').select('*').order('id', { ascending: true }).then(r => ({type: 'notifs', ...r})));
       if (showEquipements) promises.push(sb.from('finance_equipment').select('*').order('id', { ascending: true }).then(r => ({type: 'equipements', ...r})));
       if (showAppartements) promises.push(sb.from('apartments').select('*').order('id', { ascending: true }).then(r => ({type: 'appartements', ...r})));
+      if (showRachat) {
+        promises.push(sb.from('buyback_prices').select('*').order('id', { ascending: true }).then(r => ({type: 'rachatPrix', ...r})));
+        promises.push(sb.from('buyback_transactions').select('*').order('id', { ascending: true }).then(r => ({type: 'rachatTx', ...r})));
+      }
       if (showRapports)   promises.push(sb.from('finance_reports').select('*').order('id', { ascending: true }).then(r => ({type: 'rapports', ...r})));
 
       const results = await Promise.all(promises);
-      let changed = { ressources: false, marchands: false, equipements: false, appartements: false, rapports: false };
+      let changed = { ressources: false, marchands: false, equipements: false, appartements: false, rachat: false, rapports: false };
 
       results.forEach(res => {
         if (res.error || !res.data) {
@@ -24175,6 +24576,20 @@ setInterval(async () => {
             state.appartements = newData;
             changed.appartements = true;
           }
+        } else if (res.type === 'rachatPrix') {
+          const newData = res.data.map(SUPABASE_TABLES.rachatPrix.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.rachatPrix || [])) {
+            console.log('⚡ Polling rachat prix: changement détecté (' + (state.rachatPrix||[]).length + ' → ' + newData.length + ')');
+            state.rachatPrix = newData;
+            changed.rachat = true;
+          }
+        } else if (res.type === 'rachatTx') {
+          const newData = res.data.map(SUPABASE_TABLES.rachatTransactions.mapFrom);
+          if (JSON.stringify(newData) !== JSON.stringify(state.rachatTransactions || [])) {
+            console.log('⚡ Polling rachat tx: changement détecté (' + (state.rachatTransactions||[]).length + ' → ' + newData.length + ')');
+            state.rachatTransactions = newData;
+            changed.rachat = true;
+          }
         }
       });
 
@@ -24188,6 +24603,7 @@ setInterval(async () => {
         if (changed.marchands && typeof renderMarchands === 'function') renderMarchands();
         if (changed.equipements && typeof renderEquipements === 'function') renderEquipements();
         if (changed.appartements && typeof renderAppartements === 'function') renderAppartements();
+        if (changed.rachat && typeof renderRachat === 'function') renderRachat();
         if (changed.rapports && typeof renderRapportsFinance === 'function') renderRapportsFinance();
       }
     } finally {
