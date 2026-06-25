@@ -4815,18 +4815,63 @@ async function loadAllFromSupabase() {
     }
 
     // === Charger les paramètres du Trésor (reset_dates + archives) ===
+    // ⚠️ Fusion intelligente : on garde le timestamp de reset le plus récent entre
+    //    local et serveur, pour éviter qu'un Supabase à 0 n'écrase un reset local frais.
     try {
+      // Récupérer les valeurs locales actuelles (chargées depuis localStorage)
+      const localReset = state.tresorResetDates || { entrees: 0, sorties: 0, mouvements: 0 };
+      const localArchives = state.tresorArchives || [];
+
       const { data: ts, error: tsErr } = await sb.from('treasury_settings').select('*').eq('id', 1).maybeSingle();
       if (tsErr) {
         console.warn('⚠️ Table "treasury_settings" non chargée :', tsErr.message);
+        console.warn('💡 Exécutez le fichier "diagnostic-treasury-fix.sql" sur Supabase pour activer la persistance du Trésor.');
       } else if (ts) {
+        // Fusion : on garde le timestamp MAX (le reset le plus récent gagne)
         state.tresorResetDates = {
-          entrees: ts.reset_entrees || 0,
-          sorties: ts.reset_sorties || 0,
-          mouvements: ts.reset_mouvements || 0
+          entrees: Math.max(ts.reset_entrees || 0, localReset.entrees || 0),
+          sorties: Math.max(ts.reset_sorties || 0, localReset.sorties || 0),
+          mouvements: Math.max(ts.reset_mouvements || 0, localReset.mouvements || 0)
         };
-        state.tresorArchives = Array.isArray(ts.archives) ? ts.archives : [];
-        console.log('✅ Paramètres trésor chargés : reset_entrees=' + state.tresorResetDates.entrees + ', archives=' + state.tresorArchives.length);
+        // Archives : on prend la plus longue (la plus à jour) entre serveur et local
+        const serverArchives = Array.isArray(ts.archives) ? ts.archives : [];
+        state.tresorArchives = serverArchives.length >= localArchives.length ? serverArchives : localArchives;
+
+        console.log('✅ Paramètres trésor chargés et fusionnés :', state.tresorResetDates, 'archives=' + state.tresorArchives.length);
+
+        // Si le local est plus récent que le serveur → on resynchronise vers Supabase
+        const localIsNewer = (localReset.entrees > (ts.reset_entrees || 0)) ||
+                              (localReset.sorties > (ts.reset_sorties || 0)) ||
+                              (localReset.mouvements > (ts.reset_mouvements || 0)) ||
+                              (localArchives.length > serverArchives.length);
+        if (localIsNewer) {
+          console.log('🔄 Local plus récent → resync vers Supabase...');
+          try {
+            await sb.from('treasury_settings').upsert({
+              id: 1,
+              reset_entrees: state.tresorResetDates.entrees,
+              reset_sorties: state.tresorResetDates.sorties,
+              reset_mouvements: state.tresorResetDates.mouvements,
+              archives: state.tresorArchives,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+            console.log('✅ Resync OK');
+          } catch(e) { console.warn('⚠️ Resync échouée :', e); }
+        }
+      } else {
+        // ts est null → la table existe mais aucune ligne id=1. On en crée une.
+        console.log('🔧 Pas de ligne id=1 dans treasury_settings, création...');
+        try {
+          await sb.from('treasury_settings').upsert({
+            id: 1,
+            reset_entrees: localReset.entrees,
+            reset_sorties: localReset.sorties,
+            reset_mouvements: localReset.mouvements,
+            archives: localArchives,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+          console.log('✅ Ligne id=1 créée avec valeurs locales');
+        } catch(e) { console.warn('⚠️ Création ligne id=1 échouée :', e); }
       }
     } catch(e) {
       console.warn('⚠️ Exception chargement treasury_settings :', e);
@@ -6392,7 +6437,10 @@ function saveSession() {
       operations: state.operations || [],
       ninjaRecords: state.ninjaRecords || [],
       presences: state.presences || [],
-      serviceActif: state.serviceActif || {}
+      serviceActif: state.serviceActif || {},
+      // 🔧 Paramètres du Trésor (reset + archives) — important pour persistance
+      tresorResetDates: state.tresorResetDates || { entrees: 0, sorties: 0, mouvements: 0 },
+      tresorArchives: state.tresorArchives || []
     };
     localStorage.setItem('konaSession', JSON.stringify(data));
   } catch(e) { console.warn('saveSession failed:', e); }
@@ -6478,6 +6526,9 @@ function restoreSession() {
     if (data.ninjaRecords) state.ninjaRecords = data.ninjaRecords;
     if (data.presences) state.presences = data.presences;
     if (data.serviceActif) state.serviceActif = data.serviceActif;
+    // 🔧 Paramètres du Trésor (reset + archives)
+    if (data.tresorResetDates) state.tresorResetDates = data.tresorResetDates;
+    if (data.tresorArchives) state.tresorArchives = data.tresorArchives;
 
     ensureOwnerAccounts();
 
