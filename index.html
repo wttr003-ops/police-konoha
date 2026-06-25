@@ -5712,8 +5712,21 @@ function canTreatCandid(g) { return gradeRank(g) <= 5; } // Officier et plus
 function canDeleteCandid(g) { return gradeRank(g) <= 4; } // Sergent et plus (Sgt + Lt + Cap + Adj + Dir)
 function canManageMembers(g) { return gradeRank(g) <= 3; } // Lieutenant et plus (Lt + Cap + Adj + Dir)
 function canAddAgent(g) { return gradeRank(g) <= 1; } // Dir + Adjoint + Hokage + Staff
-// Récupération des impôts/amendes : Lieutenant + Capitaine + Adjoint + Directeur + Hokage + Staff
-function canRecupererImpots(g) { return gradeRank(g) <= 3; }
+// Récupération des impôts/amendes : Lieutenant + sup (Police) OU Comptable + sup (Finance)
+function canRecupererImpots(gradeOrUser, service) {
+  // Si on reçoit un objet user, on extrait grade + service
+  if (typeof gradeOrUser === 'object' && gradeOrUser !== null) {
+    service = gradeOrUser.service || 'police';
+    gradeOrUser = gradeOrUser.grade;
+  }
+  const g = gradeOrUser;
+  service = service || 'police';
+  if (service === 'finance') {
+    // Hokage / Directeur / Directeur Adjoint / Comptable
+    return GRADE_RANK_FINANCE[g] !== undefined && GRADE_RANK_FINANCE[g] <= 3;
+  }
+  return gradeRank(g) <= 3; // Police
+}
 function canSeeLogs(g) { return gradeRank(g) <= 1; } // Dir + Adjoint UNIQUEMENT (le Capitaine NE VOIT PAS les logs)
 
 // === RÔLES SPÉCIAUX HOKAGE, STAFF & GRADES EN LECTURE SEULE ===
@@ -8679,6 +8692,25 @@ function renderImpots() {
   renderImpotsContenu();
 }
 
+// 🆕 Helpers pour distinguer le service d'un collecteur (Police vs Finance) dans l'historique
+function getServiceCollecteur(nomAgent) {
+  if (!nomAgent) return 'police';
+  const u = (state.users || []).find(x => x.fullname === nomAgent);
+  return u ? (u.service || 'police') : 'police';
+}
+function getServiceCollecteurColor(nomAgent) {
+  const s = getServiceCollecteur(nomAgent);
+  return s === 'finance' ? '#86efac' : '#fbbf24';
+}
+function getServiceCollecteurBg(nomAgent) {
+  const s = getServiceCollecteur(nomAgent);
+  return s === 'finance' ? 'rgba(34,197,94,0.12)' : 'rgba(232,197,71,0.08)';
+}
+function getServiceCollecteurBorder(nomAgent) {
+  const s = getServiceCollecteur(nomAgent);
+  return s === 'finance' ? 'rgba(34,197,94,0.35)' : 'rgba(232,197,71,0.3)';
+}
+
 function renderImpotsContenu() {
   const el = document.getElementById('impots-content');
   const u = state.currentUser;
@@ -8687,10 +8719,14 @@ function renderImpotsContenu() {
   const viewOnly = isViewTaxOnly(u);
   if (el) el.classList.toggle('impots-viewonly', viewOnly);
 
-  // Liste des agents de police actifs (collecteurs possibles)
-  const agentsList = state.users
-    .filter(x => x.isAgent && (x.service||'police') === 'police')
+  // Liste des collecteurs possibles : Police + Finance (groupés par service pour le select)
+  const agentsPolice = state.users
+    .filter(x => x.isAgent && (x.service||'police') === 'police' && !isViewTaxOnly(x))
     .sort((a,b) => gradeRank(a.grade) - gradeRank(b.grade));
+  const agentsFinance = state.users
+    .filter(x => x.isAgent && (x.service||'') === 'finance')
+    .sort((a,b) => gradeRank(a.grade, 'finance') - gradeRank(b.grade, 'finance'));
+  const agentsList = [...agentsPolice, ...agentsFinance];
 
   // STATS : Genin = exonéré → exclus du total dû
   const ninjasImposables = state.impots.filter(i => i.grade !== 'Genin');
@@ -8821,18 +8857,7 @@ function renderImpotsContenu() {
     </div>
     ` : ''}
 
-    ${(u.service || 'police') === 'finance' ? `
-    <!-- Bandeau Finance : lecture seule -->
-    <div class="dash-block" style="padding:14px 18px;margin-bottom:1rem;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.25)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="font-size:20px">💰</div>
-        <div>
-          <div style="font-size:13px;color:#86efac;font-weight:700">Bureau de la Finance — Consultation</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Vous pouvez consulter les impôts du village et suivre les rentrées. La gestion (modification, paiements) est réservée à la Police.</div>
-        </div>
-      </div>
-    </div>
-    ` : (viewOnly ? '' : `
+    ${viewOnly ? '' : `
     <!-- Ajouter un ninja -->
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1rem">
       <h3 style="font-family:'Cinzel',serif;font-size:15px;color:white;margin-bottom:1rem">➕ Ajouter un ninja au registre</h3>
@@ -8846,7 +8871,7 @@ function renderImpotsContenu() {
         <button class="btn-primary" onclick="ajouterImpot()">➕ Ajouter</button>
       </div>
     </div>
-    `)}
+    `}
 
     <!-- Barre de recherche + filtres -->
     <div class="dash-block" style="padding:1rem 1.25rem;margin-bottom:1rem">
@@ -8887,7 +8912,9 @@ function renderImpotsContenu() {
       const collecteur = i.collecteur || '';
       const gradeColor = ninjaGradeColor(i.grade);
       // 🆕 readOnly = vrai pour Finance ET pour les grades view-only police (Académie/Commandement)
-      const readOnly = ((u.service || 'police') === 'finance') || viewOnly;
+      // 🆕 Finance peut maintenant gérer les impôts comme la Police.
+      // Seuls les grades view-only police (Académie/Commandement) restent en lecture seule.
+      const readOnly = viewOnly;
       html += `<tr class="imp-row" data-name="${normalize(i.fullname)}" data-statut="${isPaye?'paye':'non'}" data-exo="${isExo}">
         <td><strong>${i.fullname}</strong></td>
         <td>
@@ -8915,10 +8942,11 @@ function renderImpotsContenu() {
         <td>
           ${isPaye && !isExo ? (
             readOnly
-              ? `<span style="font-size:11px;color:var(--muted)">${collecteur ? '🤝 ' + escapeHtml(collecteur) : '—'}</span>`
+              ? `<span style="font-size:11px;color:${getServiceCollecteurColor(collecteur)};font-weight:600">${collecteur ? (getServiceCollecteur(collecteur)==='finance'?'💰':'🤝') + ' ' + escapeHtml(collecteur) : '—'}</span>`
               : `<select onchange="setCollecteur(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer">
               <option value="">— Agent collecteur —</option>
-              ${agentsList.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''}>${a.fullname}</option>`).join('')}
+              ${agentsPolice.length > 0 ? `<optgroup label="🛡️ Police">${agentsPolice.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''}>${a.fullname}</option>`).join('')}</optgroup>` : ''}
+              ${agentsFinance.length > 0 ? `<optgroup label="💰 Finance">${agentsFinance.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''}>${a.fullname}</option>`).join('')}</optgroup>` : ''}
             </select>`
           ) : '<span style="font-size:11px;color:var(--muted)">—</span>'}
         </td>
@@ -8938,6 +8966,15 @@ function renderImpotsContenu() {
         const nbAgents = Object.values(totauxParAgent).filter(d => d.total > 0).length;
         const totalCollectes = Object.values(totauxParAgent).reduce((s, d) => s + d.count, 0);
 
+        // 🆕 Totaux séparés Police vs Finance
+        let totalPolice = 0, totalFinance = 0;
+        let nbPolice = 0, nbFinance = 0;
+        Object.entries(totauxParAgent).forEach(([agent, d]) => {
+          const service = getServiceCollecteur(agent);
+          if (service === 'finance') { totalFinance += d.total; nbFinance += d.count; }
+          else { totalPolice += d.total; nbPolice += d.count; }
+        });
+
         if (totalGroupe === 0) {
           return `
           <div style="background:linear-gradient(135deg,rgba(100,116,139,0.08),rgba(100,116,139,0.02));border:1px solid rgba(100,116,139,0.3);border-radius:10px;padding:18px 22px;margin-bottom:1rem;text-align:center">
@@ -8948,9 +8985,23 @@ function renderImpotsContenu() {
         }
 
         return `
-        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(232,197,71,0.02));border:1px solid rgba(232,197,71,0.4);border-radius:10px;padding:18px 22px;margin-bottom:1rem;text-align:center;box-shadow:0 0 24px rgba(232,197,71,0.1)">
+        <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),rgba(232,197,71,0.02));border:1px solid rgba(232,197,71,0.4);border-radius:10px;padding:18px 22px;margin-bottom:0.75rem;text-align:center;box-shadow:0 0 24px rgba(232,197,71,0.1)">
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">💰 Total du groupe à récupérer</div>
           <div style="font-size:32px;color:var(--lgold);font-family:'Cinzel',serif;font-weight:700;line-height:1">${totalGroupe.toLocaleString()} <span style="font-size:18px;color:var(--accent)">Ryos</span></div>
+        </div>
+
+        <!-- 🆕 Totaux séparés par service -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
+          <div style="background:linear-gradient(135deg,rgba(232,197,71,0.06),transparent);border:1px solid rgba(232,197,71,0.25);border-radius:8px;padding:12px 16px;text-align:center">
+            <div style="font-size:10px;color:var(--lgold);text-transform:uppercase;letter-spacing:1px;font-weight:700">🛡️ Récolté par la Police</div>
+            <div style="font-size:20px;color:#fbbf24;font-family:'Cinzel',serif;font-weight:800;margin-top:4px">${totalPolice.toLocaleString()} Ryos</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">${nbPolice} collecte${nbPolice>1?'s':''}</div>
+          </div>
+          <div style="background:linear-gradient(135deg,rgba(34,197,94,0.06),transparent);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px 16px;text-align:center">
+            <div style="font-size:10px;color:#86efac;text-transform:uppercase;letter-spacing:1px;font-weight:700">💰 Récolté par la Finance</div>
+            <div style="font-size:20px;color:#86efac;font-family:'Cinzel',serif;font-weight:800;margin-top:4px">${totalFinance.toLocaleString()} Ryos</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">${nbFinance} collecte${nbFinance>1?'s':''}</div>
+          </div>
         </div>`;
       })()}
 
@@ -8959,24 +9010,34 @@ function renderImpotsContenu() {
   if (Object.keys(totauxParAgent).length === 0) {
     html += '<p style="color:var(--muted);padding:1rem;text-align:center">Aucun agent n\'a encore collecté d\'impôts.</p>';
   } else {
-    const isDirection = canRecupererImpots(u.grade); // Lieutenant + Adjoint + Directeur
+    const isDirection = canRecupererImpots(u); // Lieutenant + Adjoint + Directeur
     html += '<div style="display:grid;gap:8px">';
     Object.entries(totauxParAgent).sort((a,b) => b[1].total - a[1].total).forEach(([agent, d]) => {
       const init = getInitialsFromFullname(agent);
-      // Détail complet : TOUTES les collectes de cet agent (depuis tax_history partagé)
       const collectes = state.impotsHistorique.filter(h => h.agent === agent);
       const safeId = agent.replace(/[^a-zA-Z0-9]/g, '_');
+      // 🆕 Style selon le service du collecteur
+      const service = getServiceCollecteur(agent);
+      const isFinance = service === 'finance';
+      const serviceColor = isFinance ? '#86efac' : '#fbbf24';
+      const serviceBg = isFinance ? 'rgba(34,197,94,0.06)' : 'rgba(232,197,71,0.04)';
+      const serviceBorder = isFinance ? 'rgba(34,197,94,0.4)' : 'rgba(232,197,71,0.25)';
+      const serviceIcon = isFinance ? '💰' : '🛡️';
+      const serviceLabel = isFinance ? 'Finance' : 'Police';
       html += `
-        <div style="background:var(--mid);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <div style="background:${serviceBg};border:1.5px solid ${serviceBorder};border-radius:8px;overflow:hidden">
           <div onclick="toggleCollecteur('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">
-            <div class="avatar">${init}</div>
+            <div class="avatar" style="background:${isFinance?'linear-gradient(135deg,#15803d,#16a34a)':'linear-gradient(135deg,#c49a1a,#e8c547)'}">${init}</div>
             <div style="flex:1">
-              <div style="font-weight:700;color:var(--text);font-size:14px">${agent}</div>
-              <div style="font-size:11px;color:var(--muted)">${collectes.length} collecte(s)</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-weight:700;color:var(--text);font-size:14px">${agent}</span>
+                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:${isFinance?'rgba(34,197,94,0.18)':'rgba(232,197,71,0.15)'};color:${serviceColor};border:1px solid ${serviceBorder};text-transform:uppercase;letter-spacing:0.5px">${serviceIcon} ${serviceLabel}</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${collectes.length} collecte(s)</div>
             </div>
             <div style="text-align:right">
               <div style="font-size:11px;color:var(--muted)">Total à récupérer</div>
-              <div style="font-weight:800;color:${d.total>0?'var(--green)':'var(--muted)'};font-family:'Cinzel',serif">${d.total.toLocaleString()} Ryos</div>
+              <div style="font-weight:800;color:${d.total>0?serviceColor:'var(--muted)'};font-family:'Cinzel',serif">${d.total.toLocaleString()} Ryos</div>
             </div>
             <span style="color:var(--muted);font-size:11px;margin-left:6px" id="arr-${safeId}">▼</span>
           </div>
@@ -9918,7 +9979,7 @@ async function setCollecteur(idx, agent) {
 
 async function recupererCollectes(agent) {
   const u = state.currentUser;
-  if (!u || !canRecupererImpots(u.grade)) { alert('Réservé au Lieutenant, Directeur Adjoint et Directeur'); return; }
+  if (!u || !canRecupererImpots(u)) { alert('Réservé au Lieutenant, Directeur Adjoint et Directeur'); return; }
   // Utiliser impotsHistorique (partagé via Supabase) comme source de vérité
   const collectes = state.impotsHistorique.filter(h => h.agent === agent);
   const total = collectes.reduce((s, c) => s + (c.montant||0), 0);
@@ -14912,7 +14973,7 @@ function getAmendesParAgent() {
 
 async function recupererAmendesAgent(agentName) {
   const u = state.currentUser;
-  if (!u || !canRecupererImpots(u.grade)) { alert('Réservé au Lieutenant, Directeur Adjoint et Directeur'); return; }
+  if (!u || !canRecupererImpots(u)) { alert('Réservé au Lieutenant, Directeur Adjoint et Directeur'); return; }
   const par = getAmendesParAgent();
   const data = par[agentName];
   if (!data || data.total === 0) { alert('Rien à récupérer (aucune amende payée par cet agent).'); return; }
