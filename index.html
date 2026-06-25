@@ -3384,6 +3384,7 @@
         <button class="dash-nav-btn" data-tab="equipements" data-services="finance" onclick="switchDashTab('equipements', this)" style="color:#86efac">🛡️ Équipements</button>
         <button class="dash-nav-btn" data-tab="appartements" data-services="finance" onclick="switchDashTab('appartements', this)" style="color:#86efac">🏘️ Appartements</button>
         <button class="dash-nav-btn" data-tab="rachat" data-services="finance" onclick="switchDashTab('rachat', this)" style="color:#86efac">🤝 Rachat</button>
+        <button class="dash-nav-btn" data-tab="registre-ninjas" data-services="finance" onclick="switchDashTab('registre-ninjas', this)" style="color:#86efac">🥷 Registre Ninjas</button>
         <button class="dash-nav-btn" data-tab="rapports-finance" data-services="finance" onclick="switchDashTab('rapports-finance', this)" style="color:#86efac">📄 Rapports financiers</button>
         <button class="dash-nav-btn" data-tab="drapeaux" data-services="strategie" onclick="switchDashTab('drapeaux', this)" style="color:#fb7185">🚩 Drapeaux</button>
         <button class="dash-nav-btn" data-tab="historique-drapeaux" data-services="strategie" onclick="switchDashTab('historique-drapeaux', this)" style="color:#fb7185">📜 Historique des captures</button>
@@ -3521,6 +3522,11 @@
       <div class="dash-tab" id="dash-rachat">
         <h2 class="dash-section-title" style="color:#86efac">🤝 Rachat d'unités</h2>
         <div id="rachat-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-registre-ninjas">
+        <h2 class="dash-section-title" style="color:#86efac">🥷 Registre des Ninjas</h2>
+        <div id="registre-ninjas-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-rapports-finance">
@@ -4806,6 +4812,24 @@ async function loadAllFromSupabase() {
           }
         }
       }
+    }
+
+    // === Charger les paramètres du Trésor (reset_dates + archives) ===
+    try {
+      const { data: ts, error: tsErr } = await sb.from('treasury_settings').select('*').eq('id', 1).maybeSingle();
+      if (tsErr) {
+        console.warn('⚠️ Table "treasury_settings" non chargée :', tsErr.message);
+      } else if (ts) {
+        state.tresorResetDates = {
+          entrees: ts.reset_entrees || 0,
+          sorties: ts.reset_sorties || 0,
+          mouvements: ts.reset_mouvements || 0
+        };
+        state.tresorArchives = Array.isArray(ts.archives) ? ts.archives : [];
+        console.log('✅ Paramètres trésor chargés : reset_entrees=' + state.tresorResetDates.entrees + ', archives=' + state.tresorArchives.length);
+      }
+    } catch(e) {
+      console.warn('⚠️ Exception chargement treasury_settings :', e);
     }
 
     console.log('✅ Données chargées depuis Supabase');
@@ -7013,6 +7037,7 @@ function switchDashTab(name, btn) {
   if (name === 'equipements') renderEquipements();
   if (name === 'appartements') renderAppartements();
   if (name === 'rachat') renderRachat();
+  if (name === 'registre-ninjas') renderRegistreNinjas();
   if (name === 'rapports-finance') renderRapportsFinance();
   if (name === 'drapeaux') renderDrapeaux();
   if (name === 'historique-drapeaux') renderHistoriqueDrapeaux();
@@ -20460,6 +20485,42 @@ function renderTresorContenu() {
   }
 
   html += '</div>';
+
+  // 📦 SECTION ARCHIVES (snapshots de chaque reset)
+  const archives = state.tresorArchives || [];
+  if (archives.length > 0) {
+    html += `
+      <div class="dash-block" style="padding:0;margin-top:1.5rem;border-color:rgba(148,163,184,0.3)">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:13px;color:#cbd5e1;display:flex;align-items:center;gap:8px">
+          📦 Archives des resets
+          <span style="font-size:11px;font-weight:400;color:var(--muted)">(${archives.length} snapshot${archives.length>1?'s':''})</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:auto;font-style:italic">État des compteurs au moment de chaque reset</span>
+        </div>`;
+    archives.slice(0, 20).forEach(a => {
+      const couleur = a.type === 'entrees' ? '#86efac' : a.type === 'sorties' ? '#fca5a5' : '#fbbf24';
+      const bg = a.type === 'entrees' ? 'rgba(34,197,94,0.05)' : a.type === 'sorties' ? 'rgba(239,68,68,0.05)' : 'rgba(232,197,71,0.05)';
+      html += `
+        <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:${bg};display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-size:20px;line-height:1">${a.emoji}</div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:13px;color:var(--text);font-weight:600">${escapeHtml(a.typeLabel)} <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:uppercase;letter-spacing:1px;margin-left:6px">remis à zéro</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">📅 ${escapeHtml(a.date || '—')} · 👤 par ${escapeHtml(a.agent || '—')}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Valeur archivée</div>
+            <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:${couleur};margin-top:2px">
+              ${a.type === 'mouvements' ? (a.nbAvant||0) + ' mouv.' : (a.totalAvant||0).toLocaleString() + ' Ryos'}
+            </div>
+            ${a.type !== 'mouvements' && (a.nbAvant||0) > 0 ? `<div style="font-size:10px;color:var(--muted);margin-top:1px">${a.nbAvant} transaction(s)</div>` : ''}
+          </div>
+        </div>`;
+    });
+    if (archives.length > 20) {
+      html += `<p style="color:var(--muted);text-align:center;padding:0.75rem;font-size:11px;font-style:italic">… et ${archives.length - 20} archive(s) plus anciennes</p>`;
+    }
+    html += '</div>';
+  }
+
   el.innerHTML = html;
 }
 
@@ -20473,18 +20534,84 @@ async function resetCompteurTresor(type) {
   const info = labels[type];
   if (!info) return;
 
+  // Calculer l'état actuel avant reset (pour l'archive)
+  const u = state.currentUser;
+  const txs = (state.tresorTransactions || []);
+  const resetActuel = (state.tresorResetDates && state.tresorResetDates[type]) || 0;
+  const txsConcernees = txs.filter(t => (t.id||0) > resetActuel);
+
+  let totalAvant = 0;
+  let nbAvant = 0;
+  if (type === 'entrees') {
+    const entrees = txsConcernees.filter(t => t.type === 'entree');
+    totalAvant = entrees.reduce((s,t) => s + (t.montant||0), 0);
+    nbAvant = entrees.length;
+  } else if (type === 'sorties') {
+    const sorties = txsConcernees.filter(t => t.type === 'sortie');
+    totalAvant = sorties.reduce((s,t) => s + (t.montant||0), 0);
+    nbAvant = sorties.length;
+  } else if (type === 'mouvements') {
+    nbAvant = txsConcernees.length;
+    totalAvant = txsConcernees.reduce((s,t) => s + (t.montant||0), 0);
+  }
+
   const ok = await confirmAsync(
     info.emoji + ' Remettre à zéro le compteur "' + info.nom + '" ?\n\n' +
-    '✅ Ça ne touche PAS :\n' +
-    '   • L\'historique des transactions\n' +
-    '   • Le solde total du trésor\n' +
-    '   • Les données enregistrées\n\n' +
-    '🔄 Ça remet juste le compteur visuel à zéro à partir de maintenant.'
+    '✅ Ce qui se passe :\n' +
+    '   • Le compteur affiché en haut repart à zéro\n' +
+    '   • Le solde total du trésor n\'est PAS modifié\n' +
+    '   • L\'historique des transactions est CONSERVÉ\n' +
+    '   • Un snapshot est ajouté dans la section Archives en bas\n\n' +
+    'Valeur actuelle : ' + (type==='mouvements' ? nbAvant + ' mouvement(s)' : totalAvant.toLocaleString() + ' Ryos') + '\n' +
+    (type==='mouvements' ? '' : '(' + nbAvant + ' transaction(s) concernée(s))')
   );
   if (!ok) return;
 
   state.tresorResetDates = state.tresorResetDates || { entrees: 0, sorties: 0, mouvements: 0 };
-  state.tresorResetDates[type] = Date.now();
+  state.tresorArchives = state.tresorArchives || [];
+
+  const now = Date.now();
+  state.tresorResetDates[type] = now;
+
+  // Ajouter un snapshot dans les archives
+  state.tresorArchives.unshift({
+    id: now,
+    type: type,
+    typeLabel: info.nom,
+    emoji: info.emoji,
+    totalAvant: totalAvant,
+    nbAvant: nbAvant,
+    agent: u ? u.fullname : '—',
+    date: new Date().toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})
+  });
+
+  // 💾 PERSISTER DANS SUPABASE (sinon l'actualisation casse tout)
+  if (supabaseReady) {
+    try {
+      const { error } = await sb.from('treasury_settings').update({
+        ['reset_' + type]: now,
+        archives: state.tresorArchives,
+        updated_at: new Date().toISOString()
+      }).eq('id', 1);
+      if (error) {
+        console.warn('⚠️ Sauvegarde du reset échouée :', error.message);
+        alert('⚠️ Le reset n\'a pas pu être sauvegardé sur le serveur :\n' + error.message + '\n\n💡 Avez-vous bien créé la table "treasury_settings" via le SQL fourni ?');
+        // Rollback
+        state.tresorResetDates[type] = resetActuel;
+        state.tresorArchives.shift();
+        return;
+      }
+      console.log('✅ Reset trésor sauvegardé sur Supabase :', type, '@', new Date(now).toLocaleString());
+    } catch(e) {
+      console.warn('⚠️ Exception lors du reset :', e);
+      alert('⚠️ Erreur réseau : ' + (e.message || e));
+      // Rollback
+      state.tresorResetDates[type] = resetActuel;
+      state.tresorArchives.shift();
+      return;
+    }
+  }
+
   saveSession();
   renderTresor();
 }
@@ -22176,6 +22303,272 @@ async function supprimerTransactionRachat(idx) {
   state.rachatTransactions.splice(idx, 1);
   saveSession();
   renderRachat();
+}
+
+// ============================================================
+// 🥷 REGISTRE DES NINJAS (Finance)
+// ============================================================
+// Agrège toutes les contributions de chaque ninja depuis :
+//   - state.ressourcesHistorique (dépôts de ressources)
+//   - state.rachatTransactions   (rachats d'unités)
+// Affiche un classement et permet de voir le détail par ninja.
+
+function agregerContributionsNinjas() {
+  // Retourne un Map ninja -> { totalQuantite, totalValeur, nbApports, parObjet: {nom: {quantite, valeur, dates: []}} }
+  const result = {};
+
+  const ensureNinja = (nom) => {
+    const key = nom.trim();
+    if (!result[key]) {
+      result[key] = {
+        nom: key,
+        equipe: null,
+        totalQuantite: 0,
+        totalValeur: 0,
+        nbApports: 0,
+        parObjet: {}
+      };
+    }
+    return result[key];
+  };
+
+  // 1. Depuis ressourcesHistorique (dépôts)
+  (state.ressourcesHistorique || []).forEach(h => {
+    if (!h.ninja && !h.equipe) return; // ignorer si source non précisée
+    if (h.action && h.action !== 'ajout') return; // ne compter que les apports (pas retraits/ventes)
+    const nom = h.ninja || ('Équipe ' + h.equipe);
+    const n = ensureNinja(nom);
+    if (h.equipe && !n.equipe) n.equipe = h.equipe;
+    n.totalQuantite += (h.quantite || 0);
+    n.nbApports++;
+    const objet = h.ressource || 'Inconnu';
+    if (!n.parObjet[objet]) n.parObjet[objet] = { quantite: 0, valeur: 0, nbApports: 0, source: 'ressource', dates: [] };
+    n.parObjet[objet].quantite += (h.quantite || 0);
+    n.parObjet[objet].nbApports++;
+    n.parObjet[objet].dates.push({ date: h.date, quantite: h.quantite, agent: h.agent });
+  });
+
+  // 2. Depuis rachatTransactions (rachats)
+  (state.rachatTransactions || []).forEach(t => {
+    if (!t.ninja) return;
+    const n = ensureNinja(t.ninja);
+    if (t.equipe && !n.equipe) n.equipe = t.equipe;
+    n.totalQuantite += (t.quantite || 0);
+    n.totalValeur += (t.total || 0);
+    n.nbApports++;
+    const objet = t.objet || 'Inconnu';
+    if (!n.parObjet[objet]) n.parObjet[objet] = { quantite: 0, valeur: 0, nbApports: 0, source: 'rachat', dates: [] };
+    n.parObjet[objet].quantite += (t.quantite || 0);
+    n.parObjet[objet].valeur += (t.total || 0);
+    n.parObjet[objet].nbApports++;
+    n.parObjet[objet].dates.push({ date: t.date, quantite: t.quantite, valeur: t.total, agent: t.agent });
+  });
+
+  return Object.values(result);
+}
+
+function renderRegistreNinjas() {
+  const u = state.currentUser;
+  const el = document.getElementById('registre-ninjas-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'finance') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée au Bureau de la Finance.</p></div>';
+    return;
+  }
+
+  const ninjas = agregerContributionsNinjas();
+
+  // Filtre de recherche
+  const searchTerm = normalize((window._registreSearch || '').trim());
+  let filtres = ninjas.slice();
+  if (searchTerm) {
+    filtres = filtres.filter(n => normalize(n.nom).includes(searchTerm) || (n.equipe && normalize(n.equipe).includes(searchTerm)));
+  }
+
+  // Tri : par valeur totale décroissante, puis nbApports
+  filtres.sort((a, b) => {
+    if (b.totalValeur !== a.totalValeur) return b.totalValeur - a.totalValeur;
+    return b.nbApports - a.nbApports;
+  });
+
+  const totalValeurGlobal = ninjas.reduce((s, n) => s + n.totalValeur, 0);
+  const totalApports = ninjas.reduce((s, n) => s + n.nbApports, 0);
+
+  let html = `
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1.5rem">
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Ninjas enregistrés</div>
+        <div style="font-size:28px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;margin-top:4px">${ninjas.length}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Apports total</div>
+        <div style="font-size:28px;font-weight:800;color:#93c5fd;font-family:'Cinzel',serif;margin-top:4px">${totalApports}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center;border-color:rgba(232,197,71,0.3)">
+        <div style="font-size:11px;color:var(--lgold);text-transform:uppercase;letter-spacing:1px">Valeur totale</div>
+        <div style="font-size:22px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif;margin-top:4px">${totalValeurGlobal.toLocaleString()} R</div>
+      </div>
+    </div>
+
+    <!-- Barre de recherche -->
+    <div class="dash-block" style="padding:1rem 1.25rem;margin-bottom:1rem">
+      <div style="position:relative">
+        <input type="text" id="registre-search" placeholder="🔍 Rechercher un ninja ou une équipe..." oninput="filtrerRegistreNinjas()" value="${(window._registreSearch||'').replace(/"/g,'&quot;')}" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"/>
+        <button onclick="document.getElementById('registre-search').value='';filtrerRegistreNinjas()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px">✕</button>
+      </div>
+    </div>
+
+    <!-- Classement -->
+    <div class="dash-block" style="padding:0">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:14px;color:#86efac">
+        🏆 Classement des contributeurs <span style="font-size:11px;font-weight:400;color:var(--muted)">(${filtres.length}${searchTerm?' sur '+ninjas.length:''})</span>
+      </div>`;
+
+  if (filtres.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:2rem;font-size:13px;font-style:italic">' + (searchTerm ? 'Aucun résultat pour "' + escapeHtml(window._registreSearch) + '"' : 'Aucun ninja n\'a encore apporté de ressources. Les apports depuis 📦 Ressources et 🤝 Rachat apparaissent ici automatiquement.') + '</p>';
+  } else {
+    html += '<div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
+    filtres.forEach((n, idx) => {
+      const rang = idx + 1;
+      const isPodium = rang <= 3;
+      const medaille = rang === 1 ? '🥇' : rang === 2 ? '🥈' : rang === 3 ? '🥉' : '#' + rang;
+      const accent = rang === 1 ? '#fbbf24' : rang === 2 ? '#cbd5e1' : rang === 3 ? '#fb923c' : '#86efac';
+      const accentBg = rang === 1 ? 'rgba(251,191,36,0.12)' : rang === 2 ? 'rgba(203,213,225,0.1)' : rang === 3 ? 'rgba(251,146,60,0.1)' : 'rgba(34,197,94,0.06)';
+      const nbObjetsUniques = Object.keys(n.parObjet).length;
+
+      html += `
+        <div onclick="ouvrirDetailNinja('${escapeHtml(n.nom).replace(/'/g,"\\'")}')"
+          style="cursor:pointer;background:linear-gradient(135deg,rgba(0,0,0,0.4),${accentBg});border:1.5px solid ${isPodium?accent+'66':'var(--border)'};border-radius:14px;padding:16px;transition:transform 0.2s,border-color 0.2s;position:relative;overflow:hidden"
+          onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='${accent}'"
+          onmouseout="this.style.transform='translateY(0)';this.style.borderColor='${isPodium?accent+'66':'var(--border)'}'">
+
+          <!-- Rang en haut à droite -->
+          <div style="position:absolute;top:10px;right:10px;font-size:${isPodium?'28':'16'}px;line-height:1;font-weight:800;color:${accent};font-family:'Cinzel',serif">${medaille}</div>
+
+          <!-- Nom du ninja -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-right:50px">
+            <div style="font-size:30px;line-height:1;filter:drop-shadow(0 0 8px ${accent}55)">🥷</div>
+            <div>
+              <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:var(--text);line-height:1.2">${escapeHtml(n.nom)}</div>
+              ${n.equipe ? `<div style="font-size:11px;color:#93c5fd;margin-top:2px">👥 Équipe ${escapeHtml(n.equipe)}</div>` : ''}
+            </div>
+          </div>
+
+          <!-- Total cumulé -->
+          <div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">💰 Valeur cumulée</span>
+              <span style="font-family:'Cinzel',serif;font-size:20px;font-weight:800;color:${accent}">${n.totalValeur.toLocaleString()} R</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06)">
+              <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Quantité totale</span>
+              <span style="font-size:13px;color:var(--text);font-weight:700">${n.totalQuantite.toLocaleString()} u.</span>
+            </div>
+          </div>
+
+          <!-- Stats secondaires -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+            <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;padding:6px 8px;text-align:center">
+              <div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:0.5px">Apports</div>
+              <div style="color:#93c5fd;font-weight:700;margin-top:2px">${n.nbApports}</div>
+            </div>
+            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;padding:6px 8px;text-align:center">
+              <div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:0.5px">Objets uniques</div>
+              <div style="color:#86efac;font-weight:700;margin-top:2px">${nbObjetsUniques}</div>
+            </div>
+          </div>
+
+          <div style="text-align:center;margin-top:10px;font-size:10px;color:var(--muted);font-style:italic">👆 Cliquer pour voir le détail</div>
+        </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function filtrerRegistreNinjas() {
+  const input = document.getElementById('registre-search');
+  if (!input) return;
+  window._registreSearch = input.value;
+  const pos = input.selectionStart;
+  renderRegistreNinjas();
+  const newInput = document.getElementById('registre-search');
+  if (newInput) {
+    newInput.focus();
+    try { newInput.setSelectionRange(pos, pos); } catch(e) {}
+  }
+}
+
+// Ouvrir le détail d'un ninja dans une modale
+function ouvrirDetailNinja(nomNinja) {
+  const ninjas = agregerContributionsNinjas();
+  const n = ninjas.find(x => x.nom === nomNinja);
+  if (!n) return;
+
+  const existing = document.getElementById('ninja-detail-overlay');
+  if (existing) existing.remove();
+
+  const objets = Object.entries(n.parObjet).sort((a, b) => b[1].quantite - a[1].quantite);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'ninja-detail-overlay';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="alert-box" style="max-width:640px;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+        <div style="font-size:48px;line-height:1;filter:drop-shadow(0 0 10px rgba(34,197,94,0.5))">🥷</div>
+        <div style="flex:1;text-align:left">
+          <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:var(--text);line-height:1.2">${escapeHtml(n.nom)}</div>
+          ${n.equipe ? `<div style="font-size:12px;color:#93c5fd;margin-top:2px">👥 Équipe ${escapeHtml(n.equipe)}</div>` : ''}
+        </div>
+        <button onclick="document.getElementById('ninja-detail-overlay').remove()" style="background:transparent;border:0;color:var(--muted);font-size:24px;cursor:pointer;padding:4px 12px">✕</button>
+      </div>
+
+      <!-- Stats globales du ninja -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0">
+        <div style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Valeur totale</div>
+          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:800;color:var(--lgold);margin-top:2px">${n.totalValeur.toLocaleString()} R</div>
+        </div>
+        <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Quantité totale</div>
+          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:800;color:#86efac;margin-top:2px">${n.totalQuantite.toLocaleString()}</div>
+        </div>
+        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Apports</div>
+          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:800;color:#93c5fd;margin-top:2px">${n.nbApports}</div>
+        </div>
+      </div>
+
+      <!-- Détail par objet -->
+      <div style="margin-top:14px;text-align:left">
+        <div style="font-size:12px;color:#86efac;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">📦 Détail par matériau</div>
+        ${objets.map(([nom, info]) => `
+          <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+              <div style="flex:1;min-width:140px">
+                <div style="font-size:13px;color:var(--text);font-weight:700">${escapeHtml(nom)}</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:2px">${info.nbApports} apport${info.nbApports>1?'s':''} · ${info.source === 'rachat' ? '🤝 Rachat' : '📦 Ressource'}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#86efac">${info.quantite.toLocaleString()} u.</div>
+                ${info.valeur > 0 ? `<div style="font-size:11px;color:var(--lgold);font-weight:600;margin-top:2px">${info.valeur.toLocaleString()} R</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="confirm-buttons" style="margin-top:14px">
+        <button class="confirm-btn confirm-btn-ok" onclick="document.getElementById('ninja-detail-overlay').remove()">Fermer</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 function renderRapportsFinance() {
