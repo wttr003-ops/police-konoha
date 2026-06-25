@@ -20711,20 +20711,34 @@ async function resetCompteurTresor(type) {
   // 💾 PERSISTER DANS SUPABASE (sinon l'actualisation casse tout)
   if (supabaseReady) {
     try {
-      const { error } = await sb.from('treasury_settings').update({
-        ['reset_' + type]: now,
+      // UPSERT pour gérer le cas où la ligne id=1 n'existe pas encore.
+      // On envoie TOUS les champs pour garder un état cohérent.
+      const payload = {
+        id: 1,
+        reset_entrees: state.tresorResetDates.entrees || 0,
+        reset_sorties: state.tresorResetDates.sorties || 0,
+        reset_mouvements: state.tresorResetDates.mouvements || 0,
         archives: state.tresorArchives,
         updated_at: new Date().toISOString()
-      }).eq('id', 1);
+      };
+      console.log('💾 Trésor : envoi upsert vers Supabase...', payload);
+      const { data, error } = await sb.from('treasury_settings').upsert(payload, { onConflict: 'id' }).select();
       if (error) {
-        console.warn('⚠️ Sauvegarde du reset échouée :', error.message);
-        alert('⚠️ Le reset n\'a pas pu être sauvegardé sur le serveur :\n' + error.message + '\n\n💡 Avez-vous bien créé la table "treasury_settings" via le SQL fourni ?');
+        console.warn('⚠️ Sauvegarde du reset échouée :', error);
+        alert('⚠️ Le reset n\'a PAS été sauvegardé sur le serveur.\n\nCode : ' + (error.code||'?') + '\nMessage : ' + (error.message||error) + '\n\n💡 Avez-vous bien créé la table "treasury_settings" via le SQL fourni (fichier supabase-treasury-settings.sql) ?');
         // Rollback
         state.tresorResetDates[type] = resetActuel;
         state.tresorArchives.shift();
         return;
       }
-      console.log('✅ Reset trésor sauvegardé sur Supabase :', type, '@', new Date(now).toLocaleString());
+      if (!data || data.length === 0) {
+        console.warn('⚠️ Upsert sans erreur mais 0 lignes affectées :', data);
+        alert('⚠️ Le serveur n\'a renvoyé aucune ligne après le reset.\nC\'est probablement un souci de droits (RLS activé) ou la table n\'existe pas.\n\n💡 Vérifiez que vous avez bien exécuté le SQL `supabase-treasury-settings.sql`.');
+        state.tresorResetDates[type] = resetActuel;
+        state.tresorArchives.shift();
+        return;
+      }
+      console.log('✅ Reset trésor sauvegardé sur Supabase :', type, '@', new Date(now).toLocaleString(), '→ ligne retournée :', data[0]);
     } catch(e) {
       console.warn('⚠️ Exception lors du reset :', e);
       alert('⚠️ Erreur réseau : ' + (e.message || e));
@@ -20733,6 +20747,8 @@ async function resetCompteurTresor(type) {
       state.tresorArchives.shift();
       return;
     }
+  } else {
+    console.warn('⚠️ Supabase non prêt — reset uniquement local (sera perdu au refresh)');
   }
 
   saveSession();
