@@ -8695,8 +8695,18 @@ function renderImpots() {
 // 🆕 Helpers pour distinguer le service d'un collecteur (Police vs Finance) dans l'historique
 function getServiceCollecteur(nomAgent) {
   if (!nomAgent) return 'police';
-  const u = (state.users || []).find(x => x.fullname === nomAgent);
-  return u ? (u.service || 'police') : 'police';
+  // 1. Si le current user a le même nom, c'est forcément lui → on connaît son service
+  if (state.currentUser && state.currentUser.fullname === nomAgent && state.currentUser.isAgent) {
+    return state.currentUser.service || 'police';
+  }
+  // 2. Chercher tous les comptes avec ce nom (cas Hokage / Staff = 3 comptes)
+  const matches = (state.users || []).filter(x => x.fullname === nomAgent && x.isAgent);
+  if (matches.length === 0) return 'police';
+  // 3. Si l'un de ces comptes est Finance, c'est forcément lui qui a récolté (la Police a son propre compte ailleurs)
+  const finance = matches.find(x => (x.service || '') === 'finance');
+  if (finance) return 'finance';
+  // 4. Sinon premier service trouvé
+  return matches[0].service || 'police';
 }
 function getServiceCollecteurColor(nomAgent) {
   const s = getServiceCollecteur(nomAgent);
@@ -8735,6 +8745,20 @@ function renderImpotsContenu() {
   const totalDu = nonPayes.reduce((s, i) => s + (IMPOTS_MONTANTS[i.grade]||0), 0);
   const totalCollecte = payes.reduce((s, i) => s + (IMPOTS_MONTANTS[i.grade]||0), 0);
   const totalGlobal = state.impotsHistorique.reduce((s, h) => s + (h.montant||0), 0);
+
+  // 🆕 Totaux récoltés par service (sur tout l'historique)
+  let totalRecoltePolice = 0, totalRecolteFinance = 0;
+  let nbRecolteesPolice = 0, nbRecolteesFinance = 0;
+  state.impotsHistorique.forEach(h => {
+    const s = getServiceCollecteur(h.agent);
+    if (s === 'finance') {
+      totalRecolteFinance += (h.montant || 0);
+      nbRecolteesFinance++;
+    } else {
+      totalRecoltePolice += (h.montant || 0);
+      nbRecolteesPolice++;
+    }
+  });
 
   // Stats par agent collecteur
   const totauxParAgent = {};
@@ -8830,14 +8854,34 @@ function renderImpotsContenu() {
         <div style="font-size:18px;font-weight:800;color:var(--green);font-family:'Cinzel',serif">${totalCollecte.toLocaleString()} Ryos</div>
       </div>
       <div style="background:rgba(196,154,26,0.06);border:1px solid rgba(196,154,26,0.2);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Total historique</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💎 Total récolté</div>
         <div style="font-size:18px;font-weight:800;color:var(--accent);font-family:'Cinzel',serif">${totalGlobal.toLocaleString()} Ryos</div>
       </div>
     </div>
 
+    <!-- 🆕 Récoltes séparées Police vs Finance -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
+      <div style="background:linear-gradient(135deg,rgba(232,197,71,0.08),transparent);border:1.5px solid rgba(232,197,71,0.3);border-radius:10px;padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:#fbbf24;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px">🛡️ Récolté par le Bureau de Police</div>
+        <div style="font-size:22px;font-weight:800;color:#fbbf24;font-family:'Cinzel',serif">${totalRecoltePolice.toLocaleString()} Ryos</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${nbRecolteesPolice} collecte${nbRecolteesPolice>1?'s':''}</div>
+      </div>
+      <div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),transparent);border:1.5px solid rgba(34,197,94,0.3);border-radius:10px;padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:#86efac;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px">💰 Récolté par les Bureaux des Finances</div>
+        <div style="font-size:22px;font-weight:800;color:#86efac;font-family:'Cinzel',serif">${totalRecolteFinance.toLocaleString()} Ryos</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${nbRecolteesFinance} collecte${nbRecolteesFinance>1?'s':''}</div>
+      </div>
+    </div>
+
     <!-- Note Genin -->
-    <div style="background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.2);border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:12px;color:var(--muted)">
+    <div style="background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.2);border-radius:8px;padding:10px 14px;margin-bottom:0.75rem;font-size:12px;color:var(--muted)">
       ℹ️ <strong style="color:var(--text)">Les Genin sont exonérés d'impôts</strong> et ne sont pas comptabilisés dans le total dû.
+    </div>
+
+    <!-- 🆕 Note "esprit village" -->
+    <div style="background:linear-gradient(135deg,rgba(34,197,94,0.06),rgba(196,154,26,0.05));border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px;flex-shrink:0">🍃</span>
+      <div><strong style="color:#86efac">Esprit Konoha</strong> — La récolte des impôts n'est <strong>pas un concours</strong> entre la Police et les Bureaux des Finances. Faites simplement votre travail consciencieusement, et tout se passera bien pour la gestion du village.</div>
     </div>
 
     <!-- Actions Direction -->
@@ -8940,15 +8984,33 @@ function renderImpotsContenu() {
           )}
         </td>
         <td>
-          ${isPaye && !isExo ? (
-            readOnly
-              ? `<span style="font-size:11px;color:${getServiceCollecteurColor(collecteur)};font-weight:600">${collecteur ? (getServiceCollecteur(collecteur)==='finance'?'💰':'🤝') + ' ' + escapeHtml(collecteur) : '—'}</span>`
-              : `<select onchange="setCollecteur(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer">
-              <option value="">— Agent collecteur —</option>
-              ${agentsPolice.length > 0 ? `<optgroup label="🛡️ Police">${agentsPolice.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''}>${a.fullname}</option>`).join('')}</optgroup>` : ''}
-              ${agentsFinance.length > 0 ? `<optgroup label="💰 Finance">${agentsFinance.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''}>${a.fullname}</option>`).join('')}</optgroup>` : ''}
-            </select>`
-          ) : '<span style="font-size:11px;color:var(--muted)">—</span>'}
+          ${isPaye && !isExo ? (() => {
+            if (!collecteur) {
+              if (readOnly) return '<span style="font-size:11px;color:var(--muted)">—</span>';
+              return `<select onchange="setCollecteur(${idx}, this.value)" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer">
+                <option value="">— Agent collecteur —</option>
+                ${agentsPolice.length > 0 ? `<optgroup label="🛡️ Police">${agentsPolice.map(a => `<option value="${a.fullname}">${a.fullname}</option>`).join('')}</optgroup>` : ''}
+                ${agentsFinance.length > 0 ? `<optgroup label="💰 Finance">${agentsFinance.map(a => `<option value="${a.fullname}">${a.fullname}</option>`).join('')}</optgroup>` : ''}
+              </select>`;
+            }
+            // Collecteur défini : afficher un badge coloré + selon le service
+            const svc = getServiceCollecteur(collecteur);
+            const isFin = svc === 'finance';
+            const col = isFin ? '#86efac' : '#fbbf24';
+            const bg = isFin ? 'rgba(34,197,94,0.12)' : 'rgba(232,197,71,0.12)';
+            const brd = isFin ? 'rgba(34,197,94,0.4)' : 'rgba(232,197,71,0.4)';
+            const ico = isFin ? '💰' : '🛡️';
+
+            if (readOnly) {
+              return `<span style="display:inline-block;padding:4px 9px;border-radius:10px;background:${bg};color:${col};border:1px solid ${brd};font-size:11px;font-weight:700">${ico} ${escapeHtml(collecteur)}</span>`;
+            }
+            // Mode éditable : select stylé selon le service du collecteur courant
+            return `<select onchange="setCollecteur(${idx}, this.value)" style="background:${bg};color:${col};border:1px solid ${brd};padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">
+              <option value="" style="background:#1a1a1a;color:#888">— Retirer —</option>
+              ${agentsPolice.length > 0 ? `<optgroup label="🛡️ Bureau de Police">${agentsPolice.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''} style="background:#1a1a1a;color:#fbbf24">🛡️ ${a.fullname}</option>`).join('')}</optgroup>` : ''}
+              ${agentsFinance.length > 0 ? `<optgroup label="💰 Bureaux des Finances">${agentsFinance.map(a => `<option value="${a.fullname}" ${collecteur===a.fullname?'selected':''} style="background:#1a1a1a;color:#86efac">💰 ${a.fullname}</option>`).join('')}</optgroup>` : ''}
+            </select>`;
+          })() : '<span style="font-size:11px;color:var(--muted)">—</span>'}
         </td>
         ${(!viewOnly && canAddAgent(u.grade)) ? `<td><button class="btn-sm btn-sm-red" onclick="supprimerImpot(${idx})" title="Supprimer du registre" style="padding:4px 8px;font-size:11px">🗑</button></td>` : ''}
       </tr>`;
@@ -9023,7 +9085,7 @@ function renderImpotsContenu() {
       const serviceBg = isFinance ? 'rgba(34,197,94,0.06)' : 'rgba(232,197,71,0.04)';
       const serviceBorder = isFinance ? 'rgba(34,197,94,0.4)' : 'rgba(232,197,71,0.25)';
       const serviceIcon = isFinance ? '💰' : '🛡️';
-      const serviceLabel = isFinance ? 'Finance' : 'Police';
+      const serviceLabel = isFinance ? 'Bureaux des Finances' : 'Bureau de Police';
       html += `
         <div style="background:${serviceBg};border:1.5px solid ${serviceBorder};border-radius:8px;overflow:hidden">
           <div onclick="toggleCollecteur('${safeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer">
