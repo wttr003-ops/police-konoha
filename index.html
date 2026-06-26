@@ -4481,7 +4481,10 @@ const SUPABASE_TABLES = {
       return {
         type: normalizedType, montant: r.amount, motif: motif, section: section,
         agent: r.agent, date: r.date,
-        id: r.id, _id: r.id
+        id: r.id, _id: r.id,
+        // 🔧 Timestamp pour la comparaison avec les resets
+        // Utilise created_at de Supabase (en ms) si présent, sinon fallback sur l'id
+        _ts: r.created_at ? new Date(r.created_at).getTime() : (typeof r.id === 'number' && r.id > 1e12 ? r.id : Date.now())
       };
     }
   },
@@ -20267,9 +20270,9 @@ function renderTresorContenu() {
   const resetMouvements = state.tresorResetDates.mouvements || 0;
 
   // ID = Date.now() au moment de la création → on compare avec le timestamp de reset
-  const totalEntrees = transactions.filter(t => t.type === 'entree' && (t.id || 0) > resetEntrees).reduce((s, t) => s + (t.montant || 0), 0);
-  const totalSorties = transactions.filter(t => t.type === 'sortie' && (t.id || 0) > resetSorties).reduce((s, t) => s + (t.montant || 0), 0);
-  const nbMouvements = transactions.filter(t => (t.id || 0) > resetMouvements).length;
+  const totalEntrees = transactions.filter(t => t.type === 'entree' && (t._ts || t.id || 0) > resetEntrees).reduce((s, t) => s + (t.montant || 0), 0);
+  const totalSorties = transactions.filter(t => t.type === 'sortie' && (t._ts || t.id || 0) > resetSorties).reduce((s, t) => s + (t.montant || 0), 0);
+  const nbMouvements = transactions.filter(t => (t._ts || t.id || 0) > resetMouvements).length;
 
   // Helper pour afficher "depuis le ..."
   const formatDepuis = (ts) => {
@@ -20712,7 +20715,7 @@ async function resetCompteurTresor(type) {
   const u = state.currentUser;
   const txs = (state.tresorTransactions || []);
   const resetActuel = (state.tresorResetDates && state.tresorResetDates[type]) || 0;
-  const txsConcernees = txs.filter(t => (t.id||0) > resetActuel);
+  const txsConcernees = txs.filter(t => (t._ts || t.id || 0) > resetActuel);
 
   let totalAvant = 0;
   let nbAvant = 0;
@@ -20817,8 +20820,10 @@ async function ajouterTransactionTresor() {
   if (!montant || montant <= 0) { alert('Veuillez entrer un montant valide.'); return; }
   if (!motif) { alert('Veuillez entrer un motif.'); return; }
 
+  const now = Date.now();
   const newTx = {
-    id: Date.now(), type, montant, motif, section,
+    id: now, _ts: now,
+    type, montant, motif, section,
     agent: u.fullname,
     date: new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})
   };
