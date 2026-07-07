@@ -9072,6 +9072,47 @@ function renderImpotsContenu() {
   }
   html += `</tbody></table></div>
 
+    <!-- 📜 REGISTRE DES PAIEMENTS (persistant - tous les ninjas qui ont payé) -->
+    ${(() => {
+      const paiements = (state.impotsHistorique || []).slice().sort((a, b) => (b._id || 0) - (a._id || 0));
+      if (paiements.length === 0) return '';
+      const totalPayeurs = new Set(paiements.map(p => normalize(p.payeur))).size;
+      const totalMontant = paiements.reduce((s, p) => s + (p.montant || 0), 0);
+      return `
+      <div class="dash-block" style="padding:0;margin-bottom:1rem;border-color:rgba(34,197,94,0.3)">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:rgba(34,197,94,0.04)">
+          <div style="font-family:'Cinzel',serif;font-size:14px;color:#86efac;display:flex;align-items:center;gap:8px">
+            📜 Registre des paiements
+            <span style="font-size:11px;font-weight:400;color:var(--muted)">(${paiements.length} paiement${paiements.length>1?'s':''} · ${totalPayeurs} ninja${totalPayeurs>1?'s':''})</span>
+          </div>
+          <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--lgold)">${totalMontant.toLocaleString()} Ryos encaissés</div>
+        </div>
+        <div style="max-height:400px;overflow-y:auto">
+          ${paiements.slice(0, 100).map(p => {
+            const svc = getServiceCollecteur(p.agent);
+            const isFin = svc === 'finance';
+            const svcColor = isFin ? '#86efac' : '#fbbf24';
+            const svcBg = isFin ? 'rgba(34,197,94,0.06)' : 'rgba(232,197,71,0.04)';
+            const svcIcon = isFin ? '💰' : '🛡️';
+            const svcLabel = isFin ? 'Bureaux des Finances' : 'Bureau de Police';
+            return `
+              <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:${svcBg};display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                <div style="font-size:18px">✓</div>
+                <div style="flex:1;min-width:200px">
+                  <div style="color:var(--text);font-size:13px;font-weight:600">${escapeHtml(p.payeur || '—')} <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:6px">${escapeHtml(p.grade || '')}</span></div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">Récolté par <span style="color:${svcColor};font-weight:700">${svcIcon} ${escapeHtml(p.agent || '—')}</span> <span style="color:var(--muted);font-size:10px">(${svcLabel})</span></div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${svcColor}">${(p.montant||0).toLocaleString()} Ryos</div>
+                  <div style="font-size:10px;color:var(--muted);margin-top:2px">${escapeHtml(p.date || '—')}</div>
+                </div>
+              </div>`;
+          }).join('')}
+          ${paiements.length > 100 ? `<p style="color:var(--muted);text-align:center;padding:0.75rem;font-size:11px;font-style:italic">… et ${paiements.length - 100} paiement(s) plus anciens</p>` : ''}
+        </div>
+      </div>`;
+    })()}
+
     <!-- Historique des collecteurs -->
     <div class="dash-block" style="padding:1.5rem">
       <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:1rem">📊 Historique des collecteurs</h3>
@@ -9869,9 +9910,7 @@ async function ajouterImpot() {
   if (!fullname) { alert('Nom requis'); return; }
   if (fullname.split(/\s+/).length < 2) { alert('Veuillez entrer le prénom ET le nom (ex: Naruto Uzumaki)'); return; }
 
-  // Comparaison STRICTE pour éviter les faux positifs :
-  // on compare uniquement après normalisation (casse + accents) et tri des mots,
-  // SANS tolérance Levenshtein (qui causait des "déjà enregistré" abusifs)
+  // Comparaison STRICTE pour éviter les faux positifs
   const cibleNorm = normalize(fullname).split(' ').filter(x => x).sort().join(' ');
   const deja = state.impots.find(i => {
     const iNorm = normalize(i.fullname || '').split(' ').filter(x => x).sort().join(' ');
@@ -9884,14 +9923,28 @@ async function ajouterImpot() {
 
   const newImpot = { fullname: fullname, grade: g, statut: 'non', collecteur: '' };
 
-  // Push immédiat vers Supabase pour que tout le monde le voie
+  // 🔧 STRICT : le push Supabase DOIT réussir sinon on n'ajoute PAS localement
+  // (sinon Realtime écrase la ligne locale au prochain event → "suppression fantôme")
   if (supabaseReady) {
     try {
-      const inserted = await pushToSupabase('impots', newImpot);
-      if (inserted && inserted._id) {
-        Object.assign(newImpot, { _id: inserted._id });
+      const cfg = SUPABASE_TABLES.impots;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newImpot)).select().single();
+      if (error) {
+        console.warn('❌ ajouterImpot Supabase échoué:', error);
+        alert('❌ Le ninja n\'a PAS pu être ajouté sur le serveur partagé.\n\nCode : ' + (error.code||'?') + '\nMessage : ' + (error.message||error) + '\n\nRéessayez dans quelques secondes.');
+        return;
       }
-    } catch(e) {}
+      if (!inserted) {
+        alert('⚠️ Le serveur n\'a rien retourné. Le ninja n\'a peut-être pas été ajouté. Vérifiez la liste et réessayez si besoin.');
+        return;
+      }
+      newImpot._id = inserted.id;
+      console.log('✅ Ninja ajouté aux impôts :', fullname, '_id=' + inserted.id);
+    } catch(e) {
+      console.warn('❌ ajouterImpot exception:', e);
+      alert('❌ Erreur réseau : ' + (e.message || e) + '\n\nLe ninja n\'a pas été ajouté. Réessayez.');
+      return;
+    }
   }
 
   state.impots.push(newImpot);
@@ -9905,14 +9958,15 @@ async function toggleImpot(idx, newStatut) {
   const i = state.impots[idx];
   if (!i) return;
   const u = state.currentUser;
-  // Conserver l'_id avant toute modif (peut être perdu si Realtime se déclenche)
   const itemId = i._id;
+
+  // 🔧 Sauvegarder l'état AVANT pour rollback si push Supabase échoue
+  const oldStatut = i.statut;
+  const oldCollecteur = i.collecteur;
 
   i.statut = newStatut;
 
   if (newStatut === 'non') {
-    // Si on passe en non payé, retirer l'historique de l'ancien collecteur
-    const oldCollecteur = i.collecteur;
     if (oldCollecteur) {
       const oldEntries = state.impotsHistorique.filter(h => matchFullname(h.payeur, i.fullname) && h.agent === oldCollecteur);
       for (const old of oldEntries) {
@@ -9962,7 +10016,6 @@ async function toggleImpot(idx, newStatut) {
 
     let pushOk = false;
 
-    // Méthode 1 : update par _id si on l'a
     if (itemId) {
       try {
         const { error } = await sb.from('taxes').update(newRow).eq('id', itemId);
@@ -9971,13 +10024,11 @@ async function toggleImpot(idx, newStatut) {
       } catch(e) { console.warn('⚠️ toggleImpot exception:', e); }
     }
 
-    // Méthode 2 : update par fullname si pas d'_id ou échec
     if (!pushOk && i.fullname) {
       try {
         const { data, error } = await sb.from('taxes').update(newRow).eq('fullname', i.fullname).select();
         if (!error) {
           pushOk = true;
-          // Capturer l'_id pour les fois suivantes
           if (data && data[0] && data[0].id) i._id = data[0].id;
         } else {
           console.warn('⚠️ toggleImpot update fullname échoué:', error.message);
@@ -9985,10 +10036,16 @@ async function toggleImpot(idx, newStatut) {
       } catch(e) { console.warn('⚠️ toggleImpot fallback exception:', e); }
     }
 
-    // Si rien n'a marché, alerter l'utilisateur
+    // 🔧 ROLLBACK si push échoué : le Realtime va écraser la modif locale sinon
     if (!pushOk) {
-      alert('⚠️ La mise à jour n\'a pas pu être sauvegardée sur le serveur partagé.\n\nLes autres agents ne verront peut-être pas le changement. Réessayez dans quelques secondes.');
+      i.statut = oldStatut;
+      i.collecteur = oldCollecteur;
+      alert('❌ La modification n\'a PAS été sauvegardée sur le serveur.\n\nLe statut affiché a été annulé pour éviter une désynchronisation.\nRéessayez dans quelques secondes.');
+      saveSession();
+      renderImpots();
+      return;
     }
+    console.log('✅ toggleImpot : ' + i.fullname + ' → ' + newStatut);
   }
 
   saveSession();
