@@ -2290,8 +2290,8 @@
           </div>
           <div class="history-fact-card">
             <div class="history-fact-label">Hiérarchie</div>
-            <div class="history-fact-val">Chef du Bureau</div>
-            <div class="history-fact-sub">Direction des missions</div>
+            <div class="history-fact-val">Directeur Académie</div>
+            <div class="history-fact-sub">Direction de l'Académie</div>
           </div>
           <div class="history-fact-card">
             <div class="history-fact-label">Rangs</div>
@@ -5653,7 +5653,7 @@ function canAddMemberInSection(user) {
   if (service === 'police') return canAddAgent(user.grade);
   if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
   if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
-  if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  if (service === 'mission') return _gradeIn(user.grade, ['Directeur Académie', 'Co-directeur']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
@@ -5668,7 +5668,7 @@ function canSeeSectionLogs(user) {
   if (service === 'police') return canSeeLogs(user.grade);
   if (service === 'juge') return _gradeIn(user.grade, ['Premier Président', 'Président de Chambre']);
   if (service === 'avocat') return _gradeIn(user.grade, ['Bâtonnier', 'Maître']);
-  if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  if (service === 'mission') return _gradeIn(user.grade, ['Directeur Académie', 'Co-directeur']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
@@ -5683,7 +5683,7 @@ function canAccessDiscussions(user) {
   if (service === 'police') return gradeRank(user.grade) <= 2;
   if (service === 'juge') return _gradeIn(user.grade, GRADES_JUGE_HC);
   if (service === 'avocat') return _gradeIn(user.grade, GRADES_AVOCAT_HC);
-  if (service === 'mission') return _gradeIn(user.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  if (service === 'mission') return _gradeIn(user.grade, ['Directeur Académie', 'Co-directeur']);
   if (service === 'diplomatie') return _gradeIn(user.grade, ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior']);
   if (service === 'renseignement') return _gradeIn(user.grade, ['Maître du Renseignement', 'Commandant', 'Agent Senior']);
   if (service === 'finance') return _gradeIn(user.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
@@ -7417,7 +7417,7 @@ function renderCandidatures() {
   const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
                     (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
                     (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior'])) ||
-                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur'])) ||
+                    (myService === 'mission' && _gradeIn(u.grade, ['Directeur Académie','Co-directeur','Professeur'])) ||
                     (myService === 'diplomatie' && _gradeIn(u.grade, ['Ambassadeur en Chef','Premier Diplomate','Diplomate Senior'])) ||
                     (myService === 'renseignement' && _gradeIn(u.grade, ['Maître du Renseignement','Commandant','Agent Senior']));
 
@@ -7561,7 +7561,7 @@ async function supprimerCandidature(idx) {
   const canDelete = (myService === 'police' && canDeleteCandid(u.grade)) ||
                     (myService === 'juge' && _gradeIn(u.grade, ['Premier Président','Président de Chambre','Juge Senior'])) ||
                     (myService === 'avocat' && _gradeIn(u.grade, ['Bâtonnier','Maître','Avocat Senior'])) ||
-                    (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau','Coordinateur de Mission','Affecteur'])) ||
+                    (myService === 'mission' && _gradeIn(u.grade, ['Directeur Académie','Co-directeur','Professeur'])) ||
                     (myService === 'diplomatie' && _gradeIn(u.grade, ['Ambassadeur en Chef','Premier Diplomate','Diplomate Senior'])) ||
                     (myService === 'renseignement' && _gradeIn(u.grade, ['Maître du Renseignement','Commandant','Agent Senior']));
   if (!canDelete) {
@@ -7653,7 +7653,7 @@ function renderMembres() {
   } else if (myService === 'avocat') {
     canManage = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
   } else if (myService === 'mission') {
-    canManage = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+    canManage = _gradeIn(u.grade, ['Directeur Académie', 'Co-directeur']);
   } else if (myService === 'diplomatie') {
     canManage = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   } else if (myService === 'renseignement') {
@@ -7937,7 +7937,7 @@ async function changeGrade(fullname, dir) {
   if (myService === 'police') canDo = canManageMembers(u.grade);
   else if (myService === 'juge') canDo = _gradeIn(u.grade, ['Premier Président', 'Président de Chambre']);
   else if (myService === 'avocat') canDo = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
-  else if (myService === 'mission') canDo = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
+  else if (myService === 'mission') canDo = _gradeIn(u.grade, ['Directeur Académie', 'Co-directeur']);
   else if (myService === 'diplomatie') canDo = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
   else if (myService === 'renseignement') canDo = _gradeIn(u.grade, ['Maître du Renseignement', 'Commandant']);
   else if (myService === 'finance') canDo = _gradeIn(u.grade, ['Hokage', 'Directeur', 'Directeur Adjoint']);
@@ -10311,7 +10311,7 @@ function renderAjout() {
     if (myService === 'police') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
-    if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
+    if (myService === 'mission') msg = 'Réservé au Directeur Académie et au Co-directeur.';
     if (myService === 'finance') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     if (myService === 'strategie') msg = 'Réservé au Gérant et au Co-gérant.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>' + msg + '</p></div>';
@@ -13488,7 +13488,7 @@ function renderLogs() {
     if (myService === 'police') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     if (myService === 'juge') msg = 'Réservé au Premier Président et au Président de Chambre.';
     if (myService === 'avocat') msg = 'Réservé au Bâtonnier et au Maître.';
-    if (myService === 'mission') msg = 'Réservé au Chef du Bureau et au Coordinateur de Mission.';
+    if (myService === 'mission') msg = 'Réservé au Directeur Académie et au Co-directeur.';
     if (myService === 'finance') msg = 'Réservé au Directeur et au Directeur Adjoint.';
     el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès strictement restreint</h3><p>' + msg + '</p></div>';
     return;
@@ -15091,8 +15091,8 @@ async function supprimerCompte(fullname, service) {
     hasPermission = _gradeIn(u.grade, ['Bâtonnier', 'Maître']);
     labelSection = 'au Bâtonnier ou Maître';
   } else if (myService === 'mission') {
-    hasPermission = _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']);
-    labelSection = 'au Chef du Bureau ou Coordinateur de Mission';
+    hasPermission = _gradeIn(u.grade, ['Directeur Académie', 'Co-directeur']);
+    labelSection = 'au Directeur Académie ou Co-directeur';
   } else if (myService === 'diplomatie') {
     hasPermission = _gradeIn(u.grade, ['Ambassadeur en Chef', 'Premier Diplomate']);
     labelSection = 'à l\'Ambassadeur en Chef ou Premier Diplomate';
@@ -17491,7 +17491,7 @@ function renderOperations() {
               ${Object.keys(OPERATION_STATUS).map(s => `<option value="${s}" ${op.status===s?'selected':''}>${OPERATION_STATUS[s].icon} ${OPERATION_STATUS[s].label}</option>`).join('')}
             </select>
             <button class="btn-sm" onclick="centrerSurOperation(${realIdx})" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:11px;padding:4px 10px">📍 Voir</button>
-            ${(op.createdBy === u.fullname || canAddAgent(u.grade) || (myService === 'mission' && _gradeIn(u.grade, ['Chef du Bureau', 'Coordinateur de Mission']))) ? `<button class="btn-sm btn-sm-red" onclick="supprimerOperation(${realIdx})" style="font-size:11px;padding:4px 8px">🗑</button>` : ''}
+            ${(op.createdBy === u.fullname || canAddAgent(u.grade) || (myService === 'mission' && _gradeIn(u.grade, ['Directeur Académie', 'Co-directeur']))) ? `<button class="btn-sm btn-sm-red" onclick="supprimerOperation(${realIdx})" style="font-size:11px;padding:4px 8px">🗑</button>` : ''}
           </div>
         </div>`;
     });
