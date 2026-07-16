@@ -3083,7 +3083,7 @@
         <input type="password" id="login-password" placeholder="••••••••">
       </div>
       <div id="login-mission-info" style="display:none;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#5eead4">
-        🎓 <strong>Cours d'Académie</strong> — Connexion sans mot de passe. Saisissez juste votre nom et prénom.
+        🎓 <strong>Cours d'Académie</strong> — Saisissez votre nom, prénom et mot de passe.
       </div>
       <button class="btn-primary btn-full" onclick="doLogin()">Se connecter</button>
       <p class="auth-link"><a onclick="showPage('home')">← Retour au site</a></p>
@@ -20382,7 +20382,7 @@ async function initSupabase() {
       if (!existeHarukiAca) {
         const newHarukiAca = {
           fullname: 'Haruki Senju',
-          password: 'haruki-academie-2026',
+          password: 'Haruki-Academie-2026',
           grade: 'Directeur Académie',
           service: 'mission',
           isAgent: true,
@@ -20395,7 +20395,7 @@ async function initSupabase() {
             if (inserted && inserted._id) {
               newHarukiAca._id = inserted._id;
               state.users.push(newHarukiAca);
-              console.log('🎓 Compte Directeur Académie créé pour Haruki Senju (mdp : haruki-academie-2026)');
+              console.log('🎓 Compte Directeur Académie créé pour Haruki Senju (mdp : Haruki-Academie-2026)');
             }
           } catch(e) { console.warn('Erreur auto-création Haruki Académie:', e); }
         }
@@ -20403,7 +20403,7 @@ async function initSupabase() {
         // Si le compte existe déjà mais avec un autre grade → le fixer en Directeur
         const ancien = existeHarukiAca.grade;
         existeHarukiAca.grade = 'Directeur Académie';
-        if (!existeHarukiAca.password) existeHarukiAca.password = 'haruki-academie-2026';
+        if (!existeHarukiAca.password) existeHarukiAca.password = 'Haruki-Academie-2026';
         if (supabaseReady && existeHarukiAca._id) {
           try {
             await sb.from('users').update({ grade: 'Directeur Académie', password: existeHarukiAca.password }).eq('id', existeHarukiAca._id);
