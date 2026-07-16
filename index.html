@@ -3047,8 +3047,8 @@
             Avocat
           </button>
           <button type="button" class="section-btn" data-section="mission" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
-            <div style="font-size:24px;margin-bottom:4px">🎯</div>
-            Mission
+            <div style="font-size:24px;margin-bottom:4px">🎓</div>
+            Académie
           </button>
           <button type="button" class="section-btn" data-section="civil" onclick="selectSection(this)" style="flex:1;min-width:90px;padding:12px 8px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s">
             <div style="font-size:24px;margin-bottom:4px">🍃</div>
@@ -5434,10 +5434,11 @@ const GRADE_RANK_AVOCAT = {
 };
 
 const GRADE_RANK_MISSION = {
-  'Chef du Bureau': 0,
-  'Coordinateur de Mission': 1,
-  'Affecteur': 2,
-  'Agent de Mission': 3
+  'Directeur Académie': 0,
+  'Co-directeur': 1,
+  'Professeur': 2,
+  'Examinateur': 3,
+  'Professeur Stagiaire': 4
 };
 
 const GRADE_RANK_DIPLOMATIE = {
@@ -5618,7 +5619,7 @@ const GRADES_AVOCAT_HC = ['Bâtonnier', 'Maître', 'Avocat Senior'];
 // Tous les grades disponibles pour Juges et Avocats
 const ALL_GRADES_JUGE = ['Premier Président', 'Président de Chambre', 'Juge Senior', 'Juge Confirmé', 'Juge', 'Juge Auditeur', 'Juge Stagiaire'];
 const ALL_GRADES_AVOCAT = ['Bâtonnier', 'Maître', 'Avocat Senior', 'Avocat Confirmé', 'Avocat', 'Avocat Junior', 'Avocat Stagiaire'];
-const ALL_GRADES_MISSION = ['Chef du Bureau', 'Coordinateur de Mission', 'Affecteur', 'Agent de Mission'];
+const ALL_GRADES_MISSION = ['Directeur Académie', 'Co-directeur', 'Professeur', 'Examinateur', 'Professeur Stagiaire'];
 const ALL_GRADES_DIPLOMATIE = ['Ambassadeur en Chef', 'Premier Diplomate', 'Diplomate Senior', 'Diplomate', 'Émissaire', 'Apprenti Diplomate'];
 const ALL_GRADES_RENSEIGNEMENT = ['Maître du Renseignement', 'Commandant', 'Agent Senior', 'Agent', 'Informateur', 'Recrue'];
 const ALL_GRADES_FINANCE = ['Hokage', 'Directeur', 'Directeur Adjoint', 'Comptable', 'Stagiaire'];
@@ -20331,10 +20332,10 @@ async function initSupabase() {
         const newMissionAccount = {
           fullname: 'Arakawa Akihiro',
           password: 'akihiro2026',
-          grade: 'Chef du Bureau',
+          grade: 'Directeur Académie',
           service: 'mission',
           isAgent: true,
-          matricule: 'KNH-MIS-' + Math.floor(1000 + Math.random() * 9000),
+          matricule: 'ACD-DIR-' + Math.floor(1000 + Math.random() * 9000),
           inscription: new Date().toLocaleDateString('fr-FR')
         };
         if (supabaseReady) {
@@ -20343,21 +20344,75 @@ async function initSupabase() {
             if (inserted && inserted._id) {
               newMissionAccount._id = inserted._id;
               state.users.push(newMissionAccount);
-              console.log('🎯 Compte Cours d\'Académie créé pour Arakawa Akihiro avec mot de passe');
+              console.log('🎓 Compte Directeur Académie créé pour Arakawa Akihiro');
             }
-          } catch(e) { console.warn('Erreur auto-création compte mission:', e); }
+          } catch(e) { console.warn('Erreur auto-création compte Académie:', e); }
         }
-      } else if (!existeMission.password || existeMission.password === '') {
-        // Le compte existe mais sans mot de passe → on en met un par défaut
-        existeMission.password = 'akihiro2026';
-        if (supabaseReady && existeMission._id) {
-          try {
-            await sb.from('users').update({ password: 'akihiro2026' }).eq('id', existeMission._id);
-            console.log('🔐 Mot de passe akihiro2026 ajouté au compte Bureau Mission existant');
-          } catch(e) { console.warn('Erreur fix mot de passe mission:', e); }
+      } else {
+        // Le compte existe — s'assurer que grade et mot de passe sont bons
+        let needsUpdate = false;
+        const updates = {};
+        // Migrer les anciens grades vers les nouveaux
+        if (!ACADEMY_GRADE_ORDER.includes(existeMission.grade) &&
+            !['Directeur Académie', 'Co-directeur', 'Professeur', 'Examinateur', 'Professeur Stagiaire'].includes(existeMission.grade)) {
+          existeMission.grade = 'Directeur Académie';
+          updates.grade = 'Directeur Académie';
+          needsUpdate = true;
+          console.log('🔧 Grade Arakawa Académie migré → Directeur Académie');
+        }
+        if (!existeMission.password || existeMission.password === '') {
+          existeMission.password = 'akihiro2026';
+          updates.password = 'akihiro2026';
+          needsUpdate = true;
+          console.log('🔐 Mot de passe akihiro2026 restauré');
+        }
+        if (needsUpdate && supabaseReady && existeMission._id) {
+          try { await sb.from('users').update(updates).eq('id', existeMission._id); } catch(e) {}
         }
       }
-    } catch(e) { console.warn('Auto-create/fix mission account:', e); }
+    } catch(e) { console.warn('Auto-create/fix Académie account:', e); }
+
+    // === Auto-création du compte Haruki Senju côté Cours d'Académie (Directeur) ===
+    try {
+      const existeHarukiAca = state.users.find(x =>
+        x.isAgent &&
+        (x.service||'police') === 'mission' &&
+        matchFullname(x.fullname, 'Haruki Senju')
+      );
+      if (!existeHarukiAca) {
+        const newHarukiAca = {
+          fullname: 'Haruki Senju',
+          password: 'haruki-academie-2026',
+          grade: 'Directeur Académie',
+          service: 'mission',
+          isAgent: true,
+          matricule: 'ACD-DIR-' + Math.floor(1000 + Math.random() * 9000),
+          inscription: new Date().toLocaleDateString('fr-FR')
+        };
+        if (supabaseReady) {
+          try {
+            const inserted = await pushToSupabase('users', newHarukiAca);
+            if (inserted && inserted._id) {
+              newHarukiAca._id = inserted._id;
+              state.users.push(newHarukiAca);
+              console.log('🎓 Compte Directeur Académie créé pour Haruki Senju (mdp : haruki-academie-2026)');
+            }
+          } catch(e) { console.warn('Erreur auto-création Haruki Académie:', e); }
+        }
+      } else if (existeHarukiAca.grade !== 'Directeur Académie') {
+        // Si le compte existe déjà mais avec un autre grade → le fixer en Directeur
+        const ancien = existeHarukiAca.grade;
+        existeHarukiAca.grade = 'Directeur Académie';
+        if (!existeHarukiAca.password) existeHarukiAca.password = 'haruki-academie-2026';
+        if (supabaseReady && existeHarukiAca._id) {
+          try {
+            await sb.from('users').update({ grade: 'Directeur Académie', password: existeHarukiAca.password }).eq('id', existeHarukiAca._id);
+            console.log('🎓 Compte Haruki Académie fixé : ' + ancien + ' → Directeur Académie');
+          } catch(e) {}
+        }
+      }
+    } catch(e) { console.warn('Auto-create Haruki Académie:', e); }
+
 
     // === Auto-création du compte Arakawa Akihiro pour la Diplomatie ===
     try {
