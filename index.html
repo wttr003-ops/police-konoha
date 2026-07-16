@@ -16811,13 +16811,32 @@ async function creerExamen() {
     dateCreation: new Date().toLocaleDateString('fr-FR')
   };
 
-  if (supabaseReady) {
-    try {
-      const cfg = SUPABASE_TABLES.academyExamens;
-      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newExam)).select().single();
-      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
-      if (inserted) newExam._id = inserted.id;
-    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  // ⚠️ On EXIGE Supabase pour la création (sinon l'examen ne sera pas partagé et disparaîtra au refresh)
+  if (!supabaseReady) {
+    alert('❌ Connexion à la base indisponible.\n\nImpossible de créer l\'examen pour le moment. Vérifiez votre connexion internet et rechargez la page.');
+    return;
+  }
+
+  try {
+    const cfg = SUPABASE_TABLES.academyExamens;
+    const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newExam)).select().single();
+    if (error) {
+      // Erreur commune : table n'existe pas encore
+      if ((error.message||'').toLowerCase().includes('does not exist') || (error.message||'').includes('relation') || error.code === '42P01') {
+        alert('❌ La table "academy_exams" n\'existe pas encore côté serveur.\n\n👉 Exécutez le fichier SQL "supabase-academy-exams.sql" dans Supabase (SQL Editor) et rechargez la page.\n\nDétail : ' + error.message);
+      } else {
+        alert('❌ Erreur lors de la création : ' + error.message);
+      }
+      return;
+    }
+    if (!inserted || !inserted.id) {
+      alert('❌ La base n\'a pas confirmé la création. Rechargez la page et réessayez.');
+      return;
+    }
+    newExam._id = inserted.id;
+  } catch(e) {
+    alert('❌ Erreur réseau : ' + (e.message || e));
+    return;
   }
 
   state.academyExamens = state.academyExamens || [];
@@ -16825,6 +16844,7 @@ async function creerExamen() {
   saveSession();
   ['exam-nom','exam-doc-link','exam-desc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderAcademyExamens();
+  console.log('🎓 Examen créé : ' + newExam.nom + ' (id=' + newExam._id + ')');
 }
 
 async function toggleStatutExamen(idx) {
@@ -17030,14 +17050,28 @@ async function inscrireCivilExamen(examIdx) {
     statut: 'inscrit'
   };
 
-  if (supabaseReady) {
-    try {
-      const cfg = SUPABASE_TABLES.academyInscriptions;
-      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newInsc)).select().single();
-      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
-      if (inserted) newInsc._id = inserted.id;
-    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  // On EXIGE Supabase pour l'inscription (pour être partagée avec les profs)
+  if (!supabaseReady) {
+    alert('❌ Connexion à la base indisponible.\n\nImpossible de s\'inscrire pour le moment. Vérifiez votre connexion et réessayez.');
+    return;
   }
+  try {
+    const cfg = SUPABASE_TABLES.academyInscriptions;
+    const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newInsc)).select().single();
+    if (error) {
+      if ((error.message||'').toLowerCase().includes('does not exist') || (error.message||'').includes('relation') || error.code === '42P01') {
+        alert('❌ La table "academy_exam_registrations" n\'existe pas encore.\n\n👉 Le Directeur de l\'Académie doit exécuter le SQL "supabase-academy-exams.sql".\n\nDétail : ' + error.message);
+      } else {
+        alert('❌ Erreur inscription : ' + error.message);
+      }
+      return;
+    }
+    if (!inserted || !inserted.id) {
+      alert('❌ La base n\'a pas confirmé l\'inscription. Réessayez.');
+      return;
+    }
+    newInsc._id = inserted.id;
+  } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
 
   state.academyInscriptions = state.academyInscriptions || [];
   state.academyInscriptions.push(newInsc);
