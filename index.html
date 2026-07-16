@@ -16740,7 +16740,10 @@ function renderAcademyExamens() {
         <label>📝 Description <span style="color:var(--muted);font-size:11px;font-weight:400">(optionnel)</span></label>
         <textarea id="exam-desc" rows="3" placeholder="Ex: Épreuve écrite + combat individuel. Rendez-vous samedi à 14h à l'Académie." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;resize:vertical"></textarea>
       </div>
-      <button class="btn-primary btn-full" onclick="creerExamen()" style="background:linear-gradient(135deg,#0d9488,#0891b2);color:white;padding:12px;font-weight:700">🎓 Créer l'examen</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-primary btn-full" onclick="creerExamen()" style="background:linear-gradient(135deg,#0d9488,#0891b2);color:white;padding:12px;font-weight:700;flex:1;min-width:200px">🎓 Créer l'examen</button>
+        <button onclick="diagnostiquerExamens()" title="Tester la connexion à la base et identifier ce qui bloque" style="background:rgba(148,163,184,0.15);color:#94a3b8;border:1px solid rgba(148,163,184,0.4);padding:12px 18px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px">🔧 Diagnostic</button>
+      </div>
     </div>`;
   }
 
@@ -16787,17 +16790,145 @@ function renderAcademyExamens() {
   el.innerHTML = html;
 }
 
-async function creerExamen() {
+// 🔧 Fonction de diagnostic — teste TOUT et affiche ce qui bloque
+async function diagnostiquerExamens() {
   const u = state.currentUser;
-  if (!u || !canManageExamens(u)) { alert('Réservé aux Cours de l\'Académie.'); return; }
-  const nom = (document.getElementById('exam-nom').value || '').trim();
-  const gradeRequis = document.getElementById('exam-required-grade').value;
-  const gradeCible = document.getElementById('exam-target-grade').value;
-  const lienDocument = (document.getElementById('exam-doc-link').value || '').trim();
-  const description = (document.getElementById('exam-desc').value || '').trim();
+  const lignes = [];
+  lignes.push('═══ DIAGNOSTIC EXAMENS ACADÉMIE ═══\n');
 
-  if (!nom) { alert('Nom de l\'examen requis.'); return; }
-  if (!gradeRequis || !gradeCible) { alert('Grades requis et cible obligatoires.'); return; }
+  // 1) Utilisateur connecté
+  lignes.push('👤 Utilisateur connecté :');
+  if (!u) {
+    lignes.push('  ❌ Aucun utilisateur connecté !');
+    alert(lignes.join('\n'));
+    return;
+  }
+  lignes.push('  • Nom : ' + u.fullname);
+  lignes.push('  • Service : ' + (u.service || 'AUCUN'));
+  lignes.push('  • Grade : ' + (u.grade || 'AUCUN'));
+  lignes.push('  • Peut gérer les examens ? ' + (canManageExamens(u) ? '✅ Oui' : '❌ NON — problème de service (attendu: mission)'));
+  lignes.push('');
+
+  // 2) Supabase
+  lignes.push('🗄️ Supabase :');
+  lignes.push('  • supabaseReady = ' + supabaseReady);
+  lignes.push('  • Objet sb existe ? ' + (typeof sb !== 'undefined' && sb ? '✅' : '❌'));
+  lignes.push('');
+
+  if (!supabaseReady || typeof sb === 'undefined' || !sb) {
+    lignes.push('❌ SUPABASE NON PRÊT — impossible de tester les tables.');
+    alert(lignes.join('\n'));
+    return;
+  }
+
+  // 3) Test lecture academy_exams
+  lignes.push('📖 Test lecture table academy_exams :');
+  try {
+    const { data, error } = await sb.from('academy_exams').select('*').limit(5);
+    if (error) {
+      lignes.push('  ❌ ÉCHEC : ' + error.message);
+      lignes.push('  Code : ' + (error.code || 'inconnu'));
+      if ((error.message||'').toLowerCase().includes('does not exist') || error.code === '42P01') {
+        lignes.push('  💡 → TABLE INEXISTANTE. Exécute supabase-academy-exams.sql dans Supabase SQL Editor.');
+      }
+    } else {
+      lignes.push('  ✅ Lecture OK. ' + (data||[]).length + ' examen(s) trouvé(s) en base.');
+    }
+  } catch(e) {
+    lignes.push('  ❌ Exception : ' + (e.message || e));
+  }
+  lignes.push('');
+
+  // 4) Test lecture academy_exam_registrations
+  lignes.push('📖 Test lecture table academy_exam_registrations :');
+  try {
+    const { data, error } = await sb.from('academy_exam_registrations').select('*').limit(5);
+    if (error) {
+      lignes.push('  ❌ ÉCHEC : ' + error.message);
+    } else {
+      lignes.push('  ✅ Lecture OK. ' + (data||[]).length + ' inscription(s).');
+    }
+  } catch(e) {
+    lignes.push('  ❌ Exception : ' + (e.message || e));
+  }
+  lignes.push('');
+
+  // 5) Test écriture (insert puis delete)
+  lignes.push('✍️ Test écriture (insert + delete d\'un examen test) :');
+  try {
+    const testRow = {
+      name: '__TEST_DIAG__',
+      target_grade: 'Chunin',
+      required_grade: 'Tokubetsu Chunin',
+      status: 'ferme',
+      created_by: u.fullname,
+      created_at_txt: new Date().toLocaleDateString('fr-FR')
+    };
+    const { data: inserted, error: errIns } = await sb.from('academy_exams').insert(testRow).select().single();
+    if (errIns) {
+      lignes.push('  ❌ ÉCHEC INSERT : ' + errIns.message);
+      lignes.push('  Code : ' + (errIns.code || 'inconnu'));
+      if ((errIns.message||'').toLowerCase().includes('policy') || (errIns.message||'').toLowerCase().includes('rls')) {
+        lignes.push('  💡 → RLS ACTIVÉ. Exécute : ALTER TABLE academy_exams DISABLE ROW LEVEL SECURITY;');
+      }
+    } else if (!inserted || !inserted.id) {
+      lignes.push('  ⚠️ Insert semble OK mais pas de retour ID.');
+    } else {
+      lignes.push('  ✅ Insert OK (id retour = ' + inserted.id + ')');
+      // Cleanup
+      const { error: errDel } = await sb.from('academy_exams').delete().eq('id', inserted.id);
+      if (errDel) {
+        lignes.push('  ⚠️ Cleanup delete échec : ' + errDel.message);
+      } else {
+        lignes.push('  ✅ Cleanup delete OK');
+      }
+    }
+  } catch(e) {
+    lignes.push('  ❌ Exception : ' + (e.message || e));
+  }
+  lignes.push('');
+
+  // 6) Résumé
+  lignes.push('═══ FIN DIAGNOSTIC ═══');
+  lignes.push('');
+  lignes.push('👉 Envoie une capture d\'écran de ce message au support pour aide.');
+
+  alert(lignes.join('\n'));
+  console.log(lignes.join('\n'));
+}
+
+async function creerExamen() {
+  console.log('🎓 [creerExamen] début');
+
+  const u = state.currentUser;
+  console.log('  utilisateur connecté :', u ? u.fullname + ' / service=' + u.service + ' / grade=' + u.grade : 'AUCUN');
+  if (!u) { alert('❌ Aucun utilisateur connecté.'); return; }
+  if (!canManageExamens(u)) {
+    alert('❌ Accès refusé.\n\nVotre service : ' + (u.service || 'AUCUN') + '\nService attendu : mission (Académie)\n\n👉 Reconnectez-vous via la section 🎓 Académie.');
+    return;
+  }
+
+  // Lire le formulaire
+  const nomEl = document.getElementById('exam-nom');
+  const reqEl = document.getElementById('exam-required-grade');
+  const cibEl = document.getElementById('exam-target-grade');
+  const docEl = document.getElementById('exam-doc-link');
+  const descEl = document.getElementById('exam-desc');
+  console.log('  formulaire trouvé :', !!nomEl, !!reqEl, !!cibEl);
+  if (!nomEl || !reqEl || !cibEl) {
+    alert('❌ Formulaire introuvable. Rechargez la page (Ctrl+Shift+R).');
+    return;
+  }
+
+  const nom = (nomEl.value || '').trim();
+  const gradeRequis = reqEl.value;
+  const gradeCible = cibEl.value;
+  const lienDocument = (docEl ? docEl.value : '').trim();
+  const description = (descEl ? descEl.value : '').trim();
+  console.log('  valeurs :', { nom, gradeRequis, gradeCible, lienDocument, description });
+
+  if (!nom) { alert('❌ Nom de l\'examen requis.'); nomEl.focus(); return; }
+  if (!gradeRequis || !gradeCible) { alert('❌ Grades requis et cible obligatoires.'); return; }
   if (academyGradeRank(gradeCible) <= academyGradeRank(gradeRequis)) {
     alert('⚠️ Le grade obtenu (' + gradeCible + ') doit être supérieur au grade requis (' + gradeRequis + ').');
     return;
@@ -16810,41 +16941,65 @@ async function creerExamen() {
     createPar: u.fullname,
     dateCreation: new Date().toLocaleDateString('fr-FR')
   };
+  console.log('  newExam prêt :', newExam);
 
-  // ⚠️ On EXIGE Supabase pour la création (sinon l'examen ne sera pas partagé et disparaîtra au refresh)
+  // On EXIGE Supabase pour la création
+  console.log('  supabaseReady =', supabaseReady);
   if (!supabaseReady) {
-    alert('❌ Connexion à la base indisponible.\n\nImpossible de créer l\'examen pour le moment. Vérifiez votre connexion internet et rechargez la page.');
+    alert('❌ Connexion à la base indisponible.\n\n👉 Cliquez sur le bouton "🔧 Diagnostic" pour identifier le problème.\n👉 Puis rechargez la page (Ctrl+Shift+R).');
+    return;
+  }
+  if (typeof sb === 'undefined' || !sb) {
+    alert('❌ Client Supabase absent.\n\n👉 Rechargez la page (Ctrl+Shift+R).');
     return;
   }
 
   try {
     const cfg = SUPABASE_TABLES.academyExamens;
-    const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newExam)).select().single();
+    console.log('  cfg =', cfg);
+    const payload = cfg.mapTo(newExam);
+    console.log('  payload Supabase :', payload);
+
+    const { data: inserted, error } = await sb.from(cfg.table).insert(payload).select().single();
+    console.log('  réponse Supabase — data:', inserted, 'error:', error);
+
     if (error) {
-      // Erreur commune : table n'existe pas encore
-      if ((error.message||'').toLowerCase().includes('does not exist') || (error.message||'').includes('relation') || error.code === '42P01') {
-        alert('❌ La table "academy_exams" n\'existe pas encore côté serveur.\n\n👉 Exécutez le fichier SQL "supabase-academy-exams.sql" dans Supabase (SQL Editor) et rechargez la page.\n\nDétail : ' + error.message);
+      const msg = error.message || 'Erreur inconnue';
+      const code = error.code || '';
+      console.error('❌ Erreur INSERT academy_exams:', error);
+      if (msg.toLowerCase().includes('does not exist') || msg.includes('relation') || code === '42P01') {
+        alert('❌ La table "academy_exams" n\'existe pas.\n\n👉 Ouvrez Supabase → SQL Editor → collez le contenu de supabase-academy-exams.sql → Run.\n\nDétail : ' + msg);
+      } else if (msg.toLowerCase().includes('policy') || msg.toLowerCase().includes('rls') || msg.toLowerCase().includes('row-level')) {
+        alert('❌ Blocage RLS (Row Level Security).\n\n👉 Exécutez dans Supabase SQL Editor :\nALTER TABLE academy_exams DISABLE ROW LEVEL SECURITY;\nALTER TABLE academy_exam_registrations DISABLE ROW LEVEL SECURITY;\n\nDétail : ' + msg);
+      } else if (msg.toLowerCase().includes('column') || msg.toLowerCase().includes('schema')) {
+        alert('❌ Structure de table incompatible.\n\n👉 Ré-exécutez supabase-academy-exams.sql dans Supabase.\n\nDétail : ' + msg);
       } else {
-        alert('❌ Erreur lors de la création : ' + error.message);
+        alert('❌ Erreur Supabase (code ' + code + ') : ' + msg);
       }
       return;
     }
     if (!inserted || !inserted.id) {
-      alert('❌ La base n\'a pas confirmé la création. Rechargez la page et réessayez.');
+      alert('❌ La base n\'a pas retourné l\'ID de l\'examen.\n\nRechargez la page et vérifiez si l\'examen apparaît quand même dans la liste.');
       return;
     }
     newExam._id = inserted.id;
+    console.log('  ✅ Examen inséré avec id=' + inserted.id);
   } catch(e) {
-    alert('❌ Erreur réseau : ' + (e.message || e));
+    console.error('❌ Exception réseau creerExamen:', e);
+    alert('❌ Erreur réseau : ' + (e.message || e) + '\n\n👉 Vérifiez votre connexion internet.');
     return;
   }
 
   state.academyExamens = state.academyExamens || [];
   state.academyExamens.push(newExam);
   saveSession();
-  ['exam-nom','exam-doc-link','exam-desc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+
+  // Vider les champs
+  [nomEl, docEl, descEl].forEach(el => { if (el) el.value = ''; });
+
   renderAcademyExamens();
-  console.log('🎓 Examen créé : ' + newExam.nom + ' (id=' + newExam._id + ')');
+  alert('✅ Examen "' + newExam.nom + '" créé avec succès !');
+  console.log('🎓 [creerExamen] terminé avec succès');
 }
 
 async function toggleStatutExamen(idx) {
