@@ -382,6 +382,11 @@
     0%, 100% { box-shadow: 0 0 8px rgba(231,76,60,0.6); opacity: 1; }
     50% { box-shadow: 0 0 16px rgba(231,76,60,1), 0 0 24px rgba(231,76,60,0.6); opacity: 0.85; }
   }
+  /* 🟢 Animation pulse vert pour professeurs présents */
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 8px rgba(34,197,94,0.6); opacity: 1; }
+    50% { box-shadow: 0 0 16px rgba(34,197,94,1), 0 0 24px rgba(34,197,94,0.6); opacity: 0.85; }
+  }
   /* Hokage (doré flamboyant — au-dessus de tout) */
   .gp-hokage {
     background: linear-gradient(135deg, rgba(255,180,0,0.4), rgba(232,197,71,0.5));
@@ -3363,9 +3368,10 @@
         <button class="dash-nav-btn" data-tab="plaintes" data-services="police,juge" onclick="switchDashTab('plaintes', this)">⚖️ Plaintes</button>
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
         <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('membres', this)">👥 Membres</button>
-        <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
+        <button class="dash-nav-btn" data-tab="missions" data-services="_none_" onclick="switchDashTab('missions', this)" style="color:#fbbf24;display:none">🎯 Tableau des missions</button>
         <button class="dash-nav-btn" data-tab="academy-examens" data-services="mission" onclick="switchDashTab('academy-examens', this)" style="color:#5eead4">🎓 Examens</button>
-        <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
+        <button class="dash-nav-btn" data-tab="professeurs-presents" data-services="mission" onclick="switchDashTab('professeurs-presents', this)" style="color:#5eead4">👨‍🏫 Professeurs présents</button>
+        <button class="dash-nav-btn" data-tab="operations" data-services="police" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
         <button class="dash-nav-btn" data-tab="recensement" data-services="police" onclick="switchDashTab('recensement', this)" style="color:#5eead4">🔍 Recensement</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
         <button class="dash-nav-btn" data-tab="amendes" data-services="police,juge,avocat" onclick="switchDashTab('amendes', this)">💰 Amendes</button>
@@ -3477,6 +3483,11 @@
       <div class="dash-tab" id="dash-academy-examens">
         <h2 class="dash-section-title" style="color:#5eead4">🎓 Examens de l'Académie</h2>
         <div id="academy-examens-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-professeurs-presents">
+        <h2 class="dash-section-title" style="color:#5eead4">👨‍🏫 Professeurs présents à l'Académie</h2>
+        <div id="professeurs-presents-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-operations">
@@ -7129,6 +7140,7 @@ function switchDashTab(name, btn) {
   if (name === 'wanted') renderWantedAgents();
   if (name === 'missions') renderMissionsAgents();
   if (name === 'academy-examens') renderAcademyExamens();
+  if (name === 'professeurs-presents') renderProfesseursPresents();
   if (name === 'operations') renderOperations();
   if (name === 'recensement') renderRecensementNinjas();
   if (name === 'dossiers') renderDossiersAvocat();
@@ -16487,6 +16499,183 @@ function peutSInscrireExamen(gradeEtudiant, gradeRequis) {
 function canManageExamens(user) {
   if (!user) return false;
   return (user.service || '') === 'mission';
+}
+
+// ============================================================
+// 👨‍🏫 PROFESSEURS PRÉSENTS (Académie)
+// ============================================================
+// Système de check-in / check-out pour les professeurs de l'Académie.
+// Les profs se marquent "présents" et cette info est partagée en temps réel.
+
+function renderProfesseursPresents() {
+  const u = state.currentUser;
+  const el = document.getElementById('professeurs-presents-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'mission') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée à l\'Académie.</p></div>';
+    return;
+  }
+
+  // Tous les membres de l'Académie
+  const profs = state.users.filter(x => x.isAgent && (x.service || '') === 'mission')
+    .sort((a, b) => (GRADE_RANK_MISSION[a.grade] || 99) - (GRADE_RANK_MISSION[b.grade] || 99));
+
+  // Ma présence
+  const maPresence = state.serviceActif[u.fullname];
+  const suisPresent = !!maPresence;
+
+  // Séparer les profs présents / absents
+  const presents = profs.filter(p => state.serviceActif[p.fullname]);
+  const absents = profs.filter(p => !state.serviceActif[p.fullname]);
+
+  // Grade → icône
+  const gradeIcon = (grade) => {
+    if (grade === 'Directeur Académie') return '🎓';
+    if (grade === 'Co-directeur') return '📘';
+    if (grade === 'Professeur') return '👨‍🏫';
+    if (grade === 'Examinateur') return '📝';
+    if (grade === 'Professeur Stagiaire') return '🌱';
+    return '👤';
+  };
+
+  let html = `
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1.5rem">
+      <div class="dash-block" style="padding:14px 18px;text-align:center;border-color:rgba(34,197,94,0.3)">
+        <div style="font-size:11px;color:#86efac;text-transform:uppercase;letter-spacing:1px">🟢 Présents</div>
+        <div style="font-size:28px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;margin-top:4px">${presents.length}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">⚫ Absents</div>
+        <div style="font-size:28px;font-weight:800;color:#94a3b8;font-family:'Cinzel',serif;margin-top:4px">${absents.length}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total corps enseignant</div>
+        <div style="font-size:28px;font-weight:800;color:#5eead4;font-family:'Cinzel',serif;margin-top:4px">${profs.length}</div>
+      </div>
+    </div>
+
+    <!-- Mon statut -->
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.5rem;background:${suisPresent?'rgba(34,197,94,0.06)':'rgba(148,163,184,0.04)'};border-color:${suisPresent?'rgba(34,197,94,0.4)':'var(--border)'}">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:${suisPresent?'#86efac':'var(--text)'};margin-bottom:10px">👤 Mon statut</h3>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:14px;color:var(--text);font-weight:700">${escapeHtml(u.fullname)} <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:6px">${gradeIcon(u.grade)} ${escapeHtml(u.grade || '')}</span></div>
+          ${suisPresent
+            ? '<div style="font-size:12px;color:#86efac;margin-top:4px">🟢 <strong>Présent</strong> depuis ' + new Date(maPresence.debut).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) + '</div>'
+            : '<div style="font-size:12px;color:var(--muted);margin-top:4px">⚫ Actuellement absent de l\'Académie</div>'
+          }
+        </div>
+        ${suisPresent
+          ? '<button onclick="mettreAbsentAcademie()" style="background:linear-gradient(135deg,#c0392b,#922b21);color:white;border:none;padding:12px 22px;border-radius:6px;cursor:pointer;font-family:\'Rajdhani\',sans-serif;font-weight:700;font-size:13px">🚪 Je quitte l\'Académie</button>'
+          : '<button onclick="mettrePresentAcademie()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:12px 22px;border-radius:6px;cursor:pointer;font-family:\'Rajdhani\',sans-serif;font-weight:700;font-size:13px">✋ Je suis présent à l\'Académie</button>'
+        }
+      </div>
+    </div>`;
+
+  // Liste des présents
+  html += '<div class="dash-block" style="padding:0;margin-bottom:1.5rem">' +
+    '<div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:\'Cinzel\',serif;font-size:14px;color:#86efac">🟢 Professeurs présents (' + presents.length + ')</div>';
+
+  if (presents.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem;font-size:13px;font-style:italic">Aucun professeur présent pour le moment.</p>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:14px">';
+    presents.forEach(p => {
+      const presence = state.serviceActif[p.fullname];
+      const heureDebut = new Date(presence.debut).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      const dureeSec = Math.floor((Date.now() - new Date(presence.debut).getTime()) / 1000);
+      const dureeH = Math.floor(dureeSec / 3600);
+      const dureeM = Math.floor((dureeSec % 3600) / 60);
+      const duree = dureeH > 0 ? dureeH + 'h ' + dureeM + 'min' : dureeM + ' min';
+      html += `
+        <div style="background:linear-gradient(135deg,rgba(0,0,0,0.35),rgba(34,197,94,0.06));border:1.5px solid rgba(34,197,94,0.35);border-radius:10px;padding:12px 14px;position:relative">
+          <div style="position:absolute;top:10px;right:10px;width:10px;height:10px;border-radius:50%;background:#86efac;box-shadow:0 0 8px rgba(34,197,94,0.7);animation:pulse-green 2s infinite"></div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:26px;line-height:1">${gradeIcon(p.grade)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-family:'Cinzel',serif;font-size:14px;color:var(--text);font-weight:700">${escapeHtml(p.fullname)}</div>
+              <div style="font-size:11px;color:#86efac;margin-top:2px">${escapeHtml(p.grade || '—')}</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(34,197,94,0.15);display:flex;justify-content:space-between;align-items:center;font-size:11px">
+            <span style="color:var(--muted)">🕐 Arrivé à</span>
+            <span style="color:#86efac;font-weight:700">${heureDebut}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-top:4px">
+            <span style="color:var(--muted)">⏱️ Depuis</span>
+            <span style="color:#86efac;font-weight:700">${duree}</span>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Liste des absents
+  html += '<div class="dash-block" style="padding:0">' +
+    '<div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:\'Cinzel\',serif;font-size:14px;color:var(--muted)">⚫ Corps enseignant absent (' + absents.length + ')</div>';
+
+  if (absents.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:1.5rem;font-size:13px;font-style:italic">Tous les professeurs sont présents !</p>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;padding:14px">';
+    absents.forEach(p => {
+      html += `
+        <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:10px 12px;opacity:0.65">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:22px;line-height:1;filter:grayscale(1)">${gradeIcon(p.grade)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:var(--muted);font-weight:600">${escapeHtml(p.fullname)}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">${escapeHtml(p.grade || '—')}</div>
+            </div>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+// ✋ Marquer le professeur connecté comme présent (sans limite horaire)
+async function mettrePresentAcademie() {
+  const u = state.currentUser;
+  if (!u || (u.service || '') !== 'mission') { alert('Réservé aux membres de l\'Académie.'); return; }
+  const now = new Date();
+  const service = {
+    debut: now.toISOString(),
+    grade: u.grade
+  };
+  state.serviceActif[u.fullname] = service;
+  saveSession();
+  if (supabaseReady) {
+    try {
+      await pushServiceActifToSupabase(u.fullname, service);
+      saveSession();
+    } catch(e) { console.warn('Erreur push présence Académie:', e); }
+  }
+  console.log('🎓 ' + u.fullname + ' présent à l\'Académie depuis ' + now.toLocaleTimeString('fr-FR'));
+  renderProfesseursPresents();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
+}
+
+// 🚪 Marquer le professeur comme parti
+async function mettreAbsentAcademie() {
+  const u = state.currentUser;
+  if (!u) return;
+  const service = state.serviceActif[u.fullname];
+  if (!service) return;
+  if (!(await confirmAsync('Confirmer votre départ de l\'Académie ?\n\nLes autres professeurs verront que vous n\'êtes plus présent.'))) return;
+  delete state.serviceActif[u.fullname];
+  saveSession();
+  if (supabaseReady) {
+    try { await deleteServiceActifFromSupabase(u.fullname); } catch(e) {}
+  }
+  console.log('🚪 ' + u.fullname + ' a quitté l\'Académie');
+  renderProfesseursPresents();
+  if (typeof refreshAllUI === 'function') refreshAllUI();
 }
 
 function renderAcademyExamens() {
