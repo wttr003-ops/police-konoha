@@ -1784,7 +1784,7 @@
         <button class="btn-primary btn-lg" onclick="goToPostuler('police')">👮 Rejoindre la Police</button>
         <button class="btn-justice btn-lg" onclick="goToPostuler('juge')">⚖️ Rejoindre le Tribunal</button>
         <button class="btn-cabinet btn-lg" onclick="goToPostuler('avocat')">🧑‍⚖️ Rejoindre les Avocats</button>
-        <button class="btn-bureau btn-lg" onclick="showPage('bureau-login')">🎓 Cours d'Académie</button>
+        <button class="btn-bureau btn-lg" onclick="showPage('bureau-login')">🎓 Académie</button>
       </div>
       <div class="hero-btns" style="margin-top:0.75rem">
         <button class="btn-diplomatie btn-lg" onclick="showPage('login')">🤝 Diplomatie</button>
@@ -1802,7 +1802,7 @@
     <div class="stat"><span class="stat-num" id="stat-agents">0</span><span class="stat-label">Officiers Police</span></div>
     <div class="stat"><span class="stat-num" id="stat-juges">0</span><span class="stat-label">Juges actifs</span></div>
     <div class="stat"><span class="stat-num" id="stat-avocats">0</span><span class="stat-label">Avocats actifs</span></div>
-    <div class="stat"><span class="stat-num" id="stat-mission">0</span><span class="stat-label">Cours Académie</span></div>
+    <div class="stat"><span class="stat-num" id="stat-mission">0</span><span class="stat-label">Académie</span></div>
     <div class="stat"><span class="stat-num" id="stat-diplomatie">0</span><span class="stat-label">Diplomates</span></div>
     <div class="stat"><span class="stat-num" id="stat-renseignement">0</span><span class="stat-label">Renseignement</span></div>
     <div class="stat"><span class="stat-num" id="stat-finance">0</span><span class="stat-label">Finance</span></div>
@@ -3125,7 +3125,7 @@
             <div style="font-size:24px;margin-bottom:4px">🧑‍⚖️</div>Avocats
           </button>
           <button type="button" class="post-section-btn" data-target="mission" onclick="selectPostSection(this)" style="padding:14px 10px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
-            <div style="font-size:24px;margin-bottom:4px">🎓</div>Cours Académie
+            <div style="font-size:24px;margin-bottom:4px">🎓</div>Académie
           </button>
           <button type="button" class="post-section-btn" data-target="diplomatie" onclick="selectPostSection(this)" style="padding:14px 10px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
             <div style="font-size:24px;margin-bottom:4px">🤝</div>Diplomatie
@@ -6247,7 +6247,7 @@ function renderSavedAccounts() {
     police:        { icon: '👮', label: 'Police',           color: '#c49a1a', rgb: '196,154,26' },
     juge:          { icon: '⚖️', label: 'Tribunal',          color: '#3b82f6', rgb: '59,130,246' },
     avocat:        { icon: '🧑‍⚖️', label: 'Cabinet',          color: '#d97706', rgb: '217,119,6' },
-    mission:       { icon: '🎯', label: 'Cours Académie',  color: '#14b8a6', rgb: '20,184,166' },
+    mission:       { icon: '🎓', label: 'Académie',           color: '#14b8a6', rgb: '20,184,166' },
     civil:         { icon: '🍃', label: 'Citoyen',           color: '#22c55e', rgb: '34,197,94' },
     diplomatie:    { icon: '🤝', label: 'Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
     renseignement: { icon: '🕵️', label: 'Renseignement',    color: '#94a3b8', rgb: '148,163,184' },
@@ -7074,7 +7074,7 @@ function renderDashboard(tab) {
     if (subEl) subEl.textContent = 'Tableau de bord — Barreau';
   } else if (myService === 'mission') {
     if (titleEl) titleEl.textContent = 'Cours d\'Académie — Konoha';
-    if (subEl) subEl.textContent = 'Tableau de bord — Affectations';
+    if (subEl) subEl.textContent = 'Tableau de bord — Académie';
   } else if (myService === 'diplomatie') {
     if (titleEl) titleEl.textContent = 'Ambassade — Diplomatie de Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Relations Internationales';
@@ -16866,16 +16866,27 @@ async function supprimerExamen(idx) {
 function voirInscritsExamen(idx) {
   const ex = state.academyExamens[idx];
   if (!ex) return;
+  const u = state.currentUser;
+  const canManage = canManageExamens(u);
   const inscrits = (state.academyInscriptions || []).filter(i => i.examId === ex._id || i.examId === ex.id);
 
   const existing = document.getElementById('inscrits-overlay');
   if (existing) existing.remove();
+
+  // Meta des statuts
+  const STATUT_META = {
+    'inscrit':    { icon: '📝', label: 'Inscrit',         color: '#93c5fd', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.3)' },
+    'reussi':     { icon: '✅', label: 'Réussi',          color: '#86efac', bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.35)' },
+    'rattrapage': { icon: '🔁', label: 'Rattrapage',      color: '#fbbf24', bg: 'rgba(232,197,71,0.1)',   border: 'rgba(232,197,71,0.35)' },
+    'echec':      { icon: '❌', label: 'Pas réussi',      color: '#fca5a5', bg: 'rgba(231,76,60,0.1)',    border: 'rgba(231,76,60,0.35)' }
+  };
 
   let inscritsHtml = '';
   if (inscrits.length === 0) {
     inscritsHtml = '<p style="color:var(--muted);font-style:italic;text-align:center;padding:1.5rem">Aucun inscrit pour le moment.</p>';
   } else {
     inscrits.forEach(insc => {
+      const realIdx = state.academyInscriptions.indexOf(insc);
       const impotEntry = (state.impots || []).find(x => matchFullname(x.fullname, insc.nomEtudiant));
       const amendesEntries = (state.amendes || []).filter(x => matchFullname(x.fullname, insc.nomEtudiant));
       const amendesImpayees = amendesEntries.filter(a => a.statut !== 'paye');
@@ -16890,6 +16901,9 @@ function voirInscritsExamen(idx) {
         ? { icon: '✓', color:'#86efac', bg:'rgba(34,197,94,0.1)', border:'rgba(34,197,94,0.3)', label: amendesEntries.length === 0 ? 'Aucune amende' : 'Amendes réglées' }
         : { icon: '⚠️', color:'#fbbf24', bg:'rgba(232,197,71,0.1)', border:'rgba(232,197,71,0.3)', label: amendesImpayees.length + ' amende(s) impayée(s)' };
 
+      const statutActuel = insc.statut || 'inscrit';
+      const meta = STATUT_META[statutActuel] || STATUT_META['inscrit'];
+
       inscritsHtml += `
         <div style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
@@ -16897,12 +16911,24 @@ function voirInscritsExamen(idx) {
               <div style="font-size:14px;color:var(--text);font-weight:700">🥷 ${escapeHtml(insc.nomEtudiant)}</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px">Grade au moment de l'inscription : <strong style="color:#93c5fd">${escapeHtml(insc.gradeEtudiant || '—')}</strong></div>
             </div>
-            <div style="font-size:10px;color:var(--muted)">📅 ${escapeHtml(insc.dateInscription || '—')}</div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <span style="background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};font-size:11px;padding:4px 10px;border-radius:10px;font-weight:700">${meta.icon} ${meta.label}</span>
+              <div style="font-size:10px;color:var(--muted)">📅 ${escapeHtml(insc.dateInscription || '—')}</div>
+            </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
             <div style="background:${impotStatut.bg};border:1px solid ${impotStatut.border};border-radius:6px;padding:6px 10px;font-size:11px;color:${impotStatut.color};text-align:center;font-weight:600">💰 ${impotStatut.icon} ${impotStatut.label}</div>
             <div style="background:${amendeStatut.bg};border:1px solid ${amendeStatut.border};border-radius:6px;padding:6px 10px;font-size:11px;color:${amendeStatut.color};text-align:center;font-weight:600">⚖️ ${amendeStatut.icon} ${amendeStatut.label}</div>
           </div>
+          ${canManage ? `
+            <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:8px;border-top:1px dashed var(--border)">
+              <span style="font-size:10px;color:var(--muted);align-self:center;text-transform:uppercase;letter-spacing:1px;font-weight:700">Résultat :</span>
+              <button onclick="changerResultatExamen(${realIdx}, 'reussi')" style="background:${statutActuel==='reussi'?'rgba(34,197,94,0.3)':'rgba(34,197,94,0.12)'};color:#86efac;border:1px solid rgba(34,197,94,${statutActuel==='reussi'?'0.6':'0.35'});font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer;font-weight:600">✅ Réussi</button>
+              <button onclick="changerResultatExamen(${realIdx}, 'rattrapage')" style="background:${statutActuel==='rattrapage'?'rgba(232,197,71,0.3)':'rgba(232,197,71,0.12)'};color:#fbbf24;border:1px solid rgba(232,197,71,${statutActuel==='rattrapage'?'0.6':'0.35'});font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer;font-weight:600">🔁 Rattrapage</button>
+              <button onclick="changerResultatExamen(${realIdx}, 'echec')" style="background:${statutActuel==='echec'?'rgba(231,76,60,0.3)':'rgba(231,76,60,0.12)'};color:#fca5a5;border:1px solid rgba(231,76,60,${statutActuel==='echec'?'0.6':'0.35'});font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer;font-weight:600">❌ Pas réussi</button>
+              <button onclick="changerResultatExamen(${realIdx}, 'inscrit')" style="background:${statutActuel==='inscrit'?'rgba(59,130,246,0.3)':'rgba(59,130,246,0.08)'};color:#93c5fd;border:1px solid rgba(59,130,246,${statutActuel==='inscrit'?'0.6':'0.25'});font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer;font-weight:600">↩ Remettre en attente</button>
+            </div>
+          ` : ''}
         </div>`;
     });
   }
@@ -16929,6 +16955,41 @@ function voirInscritsExamen(idx) {
   `;
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
+}
+
+// 🎓 Changer le statut d'un inscrit (Réussi / Rattrapage / Pas réussi / Inscrit)
+async function changerResultatExamen(inscIdx, nouveauStatut) {
+  const u = state.currentUser;
+  if (!u || !canManageExamens(u)) { alert('Réservé aux membres de l\'Académie.'); return; }
+  const insc = state.academyInscriptions[inscIdx];
+  if (!insc) return;
+  const statutsValides = ['inscrit', 'reussi', 'rattrapage', 'echec'];
+  if (!statutsValides.includes(nouveauStatut)) return;
+  const ancienStatut = insc.statut || 'inscrit';
+  insc.statut = nouveauStatut;
+  if (supabaseReady && insc._id) {
+    try {
+      const { error } = await sb.from('academy_exam_registrations').update({ status: nouveauStatut }).eq('id', insc._id);
+      if (error) {
+        // Rollback si erreur
+        insc.statut = ancienStatut;
+        alert('❌ Erreur : ' + error.message);
+        return;
+      }
+    } catch(e) {
+      insc.statut = ancienStatut;
+      alert('❌ Erreur réseau : ' + (e.message || e));
+      return;
+    }
+  }
+  saveSession();
+  // Retrouver l'examen concerné pour ré-afficher la modale
+  const ex = (state.academyExamens || []).find(x => (x._id === insc.examId || x.id === insc.examId));
+  if (ex) {
+    const examIdx = state.academyExamens.indexOf(ex);
+    voirInscritsExamen(examIdx);
+  }
+  renderAcademyExamens();
 }
 
 // 🎓 Inscription d'un civil à un examen (à appeler depuis l'espace civil)
@@ -16982,6 +17043,10 @@ async function inscrireCivilExamen(examIdx) {
   state.academyInscriptions.push(newInsc);
   saveSession();
   alert('✅ Inscription confirmée à "' + ex.nom + '" !');
+  // Refresh de l'espace civil si visible
+  if (typeof renderCivilDash === 'function' && document.getElementById('page-civil-dash') && document.getElementById('page-civil-dash').classList.contains('active')) {
+    renderCivilDash();
+  }
 }
 
 function renderMissionsAgents() {
@@ -18573,7 +18638,7 @@ const NINJA_SECTIONS = [
   { id: 'police',        label: '👮 Police',              color: '#c49a1a' },
   { id: 'tribunal',      label: '⚖️ Justice / Tribunal',  color: '#3b82f6' },
   { id: 'avocat',        label: '🧑‍⚖️ Avocat',             color: '#d97706' },
-  { id: 'mission',       label: '🎓 Cours d\'Académie', color: '#14b8a6' },
+  { id: 'mission',       label: '🎓 Académie', color: '#14b8a6' },
   { id: 'diplomate',     label: '🤝 Diplomate',           color: '#a855f7' },
   { id: 'renseignement', label: '🕵️ Renseignement',       color: '#94a3b8' },
   { id: 'academie',      label: '🎓 Académie',            color: '#fbbf24' },
@@ -20242,38 +20307,83 @@ function renderCivilDash() {
     html += '</div>';
   }
 
-  // === SECTION : Mes opérations sur la carte (mission acceptée) ===
-  const mesOps = (state.operations || []).filter(o =>
-    o.service === 'civil' &&
-    matchFullname(o.responsable || o.createdBy || '', civilUser.fullname)
-  );
+  // === SECTION : 🎓 Examens de l'Académie (inscription civile) ===
+  const monGrade = u.grade || 'Genin';
+  const examensOuverts = (state.academyExamens || []).filter(e => (e.statut || 'ouvert') === 'ouvert');
+  const examensPourMoi = examensOuverts.filter(e => peutSInscrireExamen(monGrade, e.gradeRequis));
+  const mesInscriptions = (state.academyInscriptions || []).filter(i => matchFullname(i.nomEtudiant, u.fullname));
 
-  // === SECTION : Mes opérations sur la carte (TOUJOURS affichée) ===
-  html += `
-    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border-color:rgba(251,146,60,0.4)">
-      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🗺️ Mes opérations & Carte de Konoha</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">${mesOps.length > 0 ? 'Suivez vos missions sur la carte. Maintenez votre point pour le placer à votre position actuelle.' : 'Acceptez une mission ci-dessous pour voir apparaître votre point sur la carte.'}</p>
-      <div id="civil-operations-section"></div>
-    </div>`;
+  // Meta statuts pour affichage
+  const STATUT_META_CIV = {
+    'inscrit':    { icon: '📝', label: 'Inscrit — en attente de résultat', color: '#93c5fd', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.35)' },
+    'reussi':     { icon: '✅', label: 'Réussi',                           color: '#86efac', bg: 'rgba(34,197,94,0.1)',    border: 'rgba(34,197,94,0.4)' },
+    'rattrapage': { icon: '🔁', label: 'Rattrapage à passer',              color: '#fbbf24', bg: 'rgba(232,197,71,0.1)',   border: 'rgba(232,197,71,0.4)' },
+    'echec':      { icon: '❌', label: 'Pas réussi',                        color: '#fca5a5', bg: 'rgba(231,76,60,0.1)',    border: 'rgba(231,76,60,0.4)' }
+  };
 
-  // === SECTION : Missions du Bureau (visible par tous les citoyens) ===
   html += `
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border-color:rgba(20,184,166,0.4)">
-      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🎯 Missions du Cours d'Académie</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Tableau officiel des missions ninja proposées par le Bureau. Pour les accepter, connectez-vous via le Cours d'Académie.</p>
-      <div id="civil-missions-list"></div>
-    </div>`;
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🎓 Examens de l'Académie</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Grade actuel : <strong style="color:#93c5fd">${escapeHtml(monGrade)}</strong> · Vous pouvez vous inscrire aux examens qui correspondent exactement à votre grade.</p>`;
+
+  // Mes inscriptions en cours
+  if (mesInscriptions.length > 0) {
+    html += '<div style="margin-bottom:1rem"><div style="font-size:11px;color:#5eead4;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">📋 Mes inscriptions (' + mesInscriptions.length + ')</div>';
+    mesInscriptions.slice().sort((a,b) => (b.id||0) - (a.id||0)).forEach(insc => {
+      const ex = (state.academyExamens || []).find(x => x._id === insc.examId || x.id === insc.examId);
+      if (!ex) return;
+      const meta = STATUT_META_CIV[insc.statut || 'inscrit'] || STATUT_META_CIV['inscrit'];
+      html += `
+        <div style="background:${meta.bg};border:1px solid ${meta.border};border-radius:8px;padding:12px 14px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div style="font-family:'Cinzel',serif;font-size:14px;color:var(--text);font-weight:700">${escapeHtml(ex.nom)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:3px">🏆 Si réussi : deviens <strong style="color:#86efac">${escapeHtml(ex.gradeCible)}</strong></div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">📅 Inscrit le ${escapeHtml(insc.dateInscription || '—')}</div>
+            </div>
+            <span style="background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};font-size:11px;padding:5px 12px;border-radius:12px;font-weight:700;white-space:nowrap">${meta.icon} ${meta.label}</span>
+          </div>
+          ${ex.lienDocument ? '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed ' + meta.border + '"><a href="' + escapeHtml(ex.lienDocument) + '" target="_blank" rel="noopener" style="color:#93c5fd;font-size:11px;text-decoration:none;font-weight:600">🔗 Consulter le document</a></div>' : ''}
+        </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Examens disponibles pour mon grade
+  html += '<div><div style="font-size:11px;color:var(--lgold);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">✨ Examens ouverts pour votre grade (' + examensPourMoi.length + ')</div>';
+
+  if (examensPourMoi.length === 0) {
+    // Message contextuel : y a-t-il des examens ouverts pour d'autres grades ?
+    if (examensOuverts.length > 0) {
+      html += '<p style="color:var(--muted);text-align:center;padding:1rem;font-size:12px;font-style:italic">Aucun examen ouvert ne correspond à votre grade actuel (' + escapeHtml(monGrade) + ').<br>' + examensOuverts.length + ' examen(s) sont ouverts pour d\'autres grades.</p>';
+    } else {
+      html += '<p style="color:var(--muted);text-align:center;padding:1rem;font-size:12px;font-style:italic">Aucun examen n\'est ouvert pour le moment. Revenez plus tard.</p>';
+    }
+  } else {
+    examensPourMoi.forEach(ex => {
+      const realIdx = state.academyExamens.indexOf(ex);
+      const dejaInscrit = mesInscriptions.some(i => i.examId === ex._id || i.examId === ex.id);
+      const nbInscrits = (state.academyInscriptions || []).filter(i => i.examId === ex._id || i.examId === ex.id).length;
+      html += `
+        <div style="background:rgba(20,184,166,0.05);border:1px solid rgba(20,184,166,0.3);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+            <div style="flex:1;min-width:200px">
+              <div style="font-family:'Cinzel',serif;font-size:14px;color:var(--text);font-weight:700">${escapeHtml(ex.nom)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:3px">🏆 Si réussi : deviens <strong style="color:#86efac">${escapeHtml(ex.gradeCible)}</strong> · 👥 ${nbInscrits} inscrit${nbInscrits>1?'s':''}</div>
+              ${ex.description ? '<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">' + escapeHtml(ex.description) + '</div>' : ''}
+            </div>
+            ${dejaInscrit
+              ? '<span style="background:rgba(148,163,184,0.15);color:#94a3b8;border:1px solid rgba(148,163,184,0.4);font-size:11px;padding:6px 12px;border-radius:12px;font-weight:700;white-space:nowrap">✓ Déjà inscrit</span>'
+              : '<button onclick="inscrireCivilExamen(' + realIdx + ')" style="background:linear-gradient(135deg,#0d9488,#0891b2);color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:\'Rajdhani\',sans-serif;font-weight:700;font-size:12px;white-space:nowrap">🎓 S\'inscrire</button>'
+            }
+          </div>
+          ${ex.lienDocument ? '<a href="' + escapeHtml(ex.lienDocument) + '" target="_blank" rel="noopener" style="color:#93c5fd;font-size:11px;text-decoration:none;font-weight:600">🔗 Voir le document</a>' : ''}
+        </div>`;
+    });
+  }
+  html += '</div></div>';
 
   document.getElementById('civ-dash-content').innerHTML = html;
-
-  // Charger les missions disponibles
-  if (typeof renderMissionsPublic === 'function') {
-    try { renderMissionsPublic(); } catch(e) {}
-  }
-  // Charger les opérations civiles
-  if (typeof renderOperationsCivil === 'function') {
-    try { renderOperationsCivil(); } catch(e) {}
-  }
 }
 
 // Le citoyen répond à un message
@@ -20863,7 +20973,7 @@ const SECTIONS_VILLAGE = [
   { key: 'police',        label: '👮 Police',            color: '#c49a1a', rgb: '196,154,26' },
   { key: 'tribunal',      label: '⚖️ Tribunal',          color: '#3b82f6', rgb: '59,130,246' },
   { key: 'avocats',       label: '🧑‍⚖️ Avocats',          color: '#d97706', rgb: '217,119,6' },
-  { key: 'mission',       label: '🎓 Cours Académie',   color: '#14b8a6', rgb: '20,184,166' },
+  { key: 'mission',       label: '🎓 Académie',   color: '#14b8a6', rgb: '20,184,166' },
   { key: 'diplomatie',    label: '🤝 Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
   { key: 'renseignement', label: '🕵️ Renseignement',    color: '#94a3b8', rgb: '148,163,184' },
   { key: 'finance',       label: '💰 Finance',           color: '#22c55e', rgb: '34,197,94' },
@@ -22523,7 +22633,7 @@ const DESTINATAIRES_RAPPORT = [
   { key: 'police',        label: '👮 Police de Konoha',    color: '#c49a1a', rgb: '196,154,26' },
   { key: 'tribunal',      label: '⚖️ Tribunal',            color: '#3b82f6', rgb: '59,130,246' },
   { key: 'avocats',       label: '🧑‍⚖️ Cabinet des Avocats', color: '#d97706', rgb: '217,119,6' },
-  { key: 'mission',       label: '🎓 Cours d\'Académie', color: '#14b8a6', rgb: '20,184,166' },
+  { key: 'mission',       label: '🎓 Académie', color: '#14b8a6', rgb: '20,184,166' },
   { key: 'diplomatie',    label: '🤝 Diplomatie',          color: '#a855f7', rgb: '168,85,247' },
   { key: 'renseignement', label: '🕵️ Renseignement',      color: '#94a3b8', rgb: '148,163,184' },
   { key: 'academie',      label: '🎓 Académie',            color: '#fbbf24', rgb: '251,191,36' }
