@@ -16901,20 +16901,17 @@ async function creerExamen() {
   console.log('🎓 [creerExamen] début');
 
   const u = state.currentUser;
-  console.log('  utilisateur connecté :', u ? u.fullname + ' / service=' + u.service + ' / grade=' + u.grade : 'AUCUN');
   if (!u) { alert('❌ Aucun utilisateur connecté.'); return; }
   if (!canManageExamens(u)) {
     alert('❌ Accès refusé.\n\nVotre service : ' + (u.service || 'AUCUN') + '\nService attendu : mission (Académie)\n\n👉 Reconnectez-vous via la section 🎓 Académie.');
     return;
   }
 
-  // Lire le formulaire
   const nomEl = document.getElementById('exam-nom');
   const reqEl = document.getElementById('exam-required-grade');
   const cibEl = document.getElementById('exam-target-grade');
   const docEl = document.getElementById('exam-doc-link');
   const descEl = document.getElementById('exam-desc');
-  console.log('  formulaire trouvé :', !!nomEl, !!reqEl, !!cibEl);
   if (!nomEl || !reqEl || !cibEl) {
     alert('❌ Formulaire introuvable. Rechargez la page (Ctrl+Shift+R).');
     return;
@@ -16925,7 +16922,6 @@ async function creerExamen() {
   const gradeCible = cibEl.value;
   const lienDocument = (docEl ? docEl.value : '').trim();
   const description = (descEl ? descEl.value : '').trim();
-  console.log('  valeurs :', { nom, gradeRequis, gradeCible, lienDocument, description });
 
   if (!nom) { alert('❌ Nom de l\'examen requis.'); nomEl.focus(); return; }
   if (!gradeRequis || !gradeCible) { alert('❌ Grades requis et cible obligatoires.'); return; }
@@ -16934,72 +16930,95 @@ async function creerExamen() {
     return;
   }
 
-  const newExam = {
-    id: Date.now(),
-    nom, gradeRequis, gradeCible, lienDocument, description,
-    statut: 'ouvert',
-    createPar: u.fullname,
-    dateCreation: new Date().toLocaleDateString('fr-FR')
+  if (!supabaseReady || typeof sb === 'undefined' || !sb) {
+    alert('❌ Connexion à la base indisponible. Rechargez la page.');
+    return;
+  }
+
+  // 1. INSERT
+  const payload = {
+    name: nom,
+    target_grade: gradeCible,
+    required_grade: gradeRequis,
+    document_link: lienDocument || null,
+    description: description || null,
+    status: 'ouvert',
+    created_by: u.fullname,
+    created_at_txt: new Date().toLocaleDateString('fr-FR')
   };
-  console.log('  newExam prêt :', newExam);
+  console.log('  📤 payload INSERT :', payload);
 
-  // On EXIGE Supabase pour la création
-  console.log('  supabaseReady =', supabaseReady);
-  if (!supabaseReady) {
-    alert('❌ Connexion à la base indisponible.\n\n👉 Cliquez sur le bouton "🔧 Diagnostic" pour identifier le problème.\n👉 Puis rechargez la page (Ctrl+Shift+R).');
-    return;
-  }
-  if (typeof sb === 'undefined' || !sb) {
-    alert('❌ Client Supabase absent.\n\n👉 Rechargez la page (Ctrl+Shift+R).');
-    return;
-  }
-
+  let insertedRow = null;
   try {
-    const cfg = SUPABASE_TABLES.academyExamens;
-    console.log('  cfg =', cfg);
-    const payload = cfg.mapTo(newExam);
-    console.log('  payload Supabase :', payload);
-
-    const { data: inserted, error } = await sb.from(cfg.table).insert(payload).select().single();
-    console.log('  réponse Supabase — data:', inserted, 'error:', error);
-
+    const { data, error } = await sb.from('academy_exams').insert(payload).select().single();
+    console.log('  📥 réponse INSERT :', { data, error });
     if (error) {
-      const msg = error.message || 'Erreur inconnue';
+      const msg = error.message || '';
       const code = error.code || '';
-      console.error('❌ Erreur INSERT academy_exams:', error);
+      console.error('❌ INSERT KO :', error);
       if (msg.toLowerCase().includes('does not exist') || msg.includes('relation') || code === '42P01') {
-        alert('❌ La table "academy_exams" n\'existe pas.\n\n👉 Ouvrez Supabase → SQL Editor → collez le contenu de supabase-academy-exams.sql → Run.\n\nDétail : ' + msg);
-      } else if (msg.toLowerCase().includes('policy') || msg.toLowerCase().includes('rls') || msg.toLowerCase().includes('row-level')) {
-        alert('❌ Blocage RLS (Row Level Security).\n\n👉 Exécutez dans Supabase SQL Editor :\nALTER TABLE academy_exams DISABLE ROW LEVEL SECURITY;\nALTER TABLE academy_exam_registrations DISABLE ROW LEVEL SECURITY;\n\nDétail : ' + msg);
-      } else if (msg.toLowerCase().includes('column') || msg.toLowerCase().includes('schema')) {
-        alert('❌ Structure de table incompatible.\n\n👉 Ré-exécutez supabase-academy-exams.sql dans Supabase.\n\nDétail : ' + msg);
+        alert('❌ La table "academy_exams" n\'existe pas.\n\n👉 Exécutez le SQL supabase-academy-exams.sql dans Supabase SQL Editor.\n\nDétail : ' + msg);
+      } else if (msg.toLowerCase().includes('policy') || msg.toLowerCase().includes('rls')) {
+        alert('❌ Blocage RLS.\n\n👉 Exécutez dans Supabase :\nALTER TABLE academy_exams DISABLE ROW LEVEL SECURITY;\n\nDétail : ' + msg);
+      } else if (msg.toLowerCase().includes('column')) {
+        alert('❌ Colonne manquante ou renommée.\n\n👉 Ré-exécutez supabase-academy-exams.sql (version DROP+CREATE).\n\nDétail : ' + msg);
       } else {
-        alert('❌ Erreur Supabase (code ' + code + ') : ' + msg);
+        alert('❌ Erreur Supabase (' + code + ') : ' + msg);
       }
       return;
     }
-    if (!inserted || !inserted.id) {
-      alert('❌ La base n\'a pas retourné l\'ID de l\'examen.\n\nRechargez la page et vérifiez si l\'examen apparaît quand même dans la liste.');
-      return;
-    }
-    newExam._id = inserted.id;
-    console.log('  ✅ Examen inséré avec id=' + inserted.id);
+    insertedRow = data;
   } catch(e) {
-    console.error('❌ Exception réseau creerExamen:', e);
-    alert('❌ Erreur réseau : ' + (e.message || e) + '\n\n👉 Vérifiez votre connexion internet.');
+    console.error('❌ Exception INSERT :', e);
+    alert('❌ Erreur réseau : ' + (e.message || e));
     return;
   }
 
+  if (!insertedRow || !insertedRow.id) {
+    alert('❌ La base n\'a pas retourné l\'examen créé. Probablement un blocage RLS sur le SELECT.\n\n👉 Exécutez dans Supabase :\nALTER TABLE academy_exams DISABLE ROW LEVEL SECURITY;');
+    return;
+  }
+  console.log('  ✅ INSERT réussi, id =', insertedRow.id);
+
+  // 2. VÉRIFICATION : relire la table pour être 100% sûr que la donnée est persistée
+  try {
+    const { data: check, error: errCheck } = await sb.from('academy_exams').select('*').eq('id', insertedRow.id).maybeSingle();
+    console.log('  🔍 vérification SELECT :', { check, errCheck });
+    if (errCheck || !check) {
+      alert('⚠️ L\'insert a été accepté mais impossible de relire l\'examen. Il sera peut-être perdu.\n\nDétail : ' + (errCheck ? errCheck.message : 'ligne introuvable'));
+      return;
+    }
+  } catch(e) {
+    console.warn('  ⚠️ vérification exception :', e);
+  }
+
+  // 3. Ajout local + backup localStorage
+  const newExam = {
+    id: insertedRow.id,
+    _id: insertedRow.id,
+    nom: insertedRow.name,
+    gradeCible: insertedRow.target_grade,
+    gradeRequis: insertedRow.required_grade,
+    lienDocument: insertedRow.document_link,
+    description: insertedRow.description,
+    statut: insertedRow.status || 'ouvert',
+    createPar: insertedRow.created_by,
+    dateCreation: insertedRow.created_at_txt
+  };
   state.academyExamens = state.academyExamens || [];
   state.academyExamens.push(newExam);
+
+  // Backup localStorage — filet de sécurité si Supabase déconne au reload
+  try {
+    localStorage.setItem('konaAcademyExamens', JSON.stringify(state.academyExamens));
+  } catch(e) {}
+
   saveSession();
 
-  // Vider les champs
   [nomEl, docEl, descEl].forEach(el => { if (el) el.value = ''; });
-
   renderAcademyExamens();
-  alert('✅ Examen "' + newExam.nom + '" créé avec succès !');
-  console.log('🎓 [creerExamen] terminé avec succès');
+  alert('✅ Examen "' + newExam.nom + '" créé et enregistré en base (id=' + newExam._id + ') !');
+  console.log('🎓 [creerExamen] terminé, id=' + newExam._id);
 }
 
 async function toggleStatutExamen(idx) {
@@ -20704,6 +20723,20 @@ async function initSupabase() {
 
   // Charger toutes les données depuis le cloud
   const loaded = await loadAllFromSupabase();
+
+  // 🎓 Filet de sécurité Académie : restaurer depuis localStorage si Supabase n'a rien
+  try {
+    if ((!state.academyExamens || state.academyExamens.length === 0)) {
+      const raw = localStorage.getItem('konaAcademyExamens');
+      if (raw) {
+        const backup = JSON.parse(raw);
+        if (Array.isArray(backup) && backup.length > 0) {
+          console.log('🎓 Restauration ' + backup.length + ' examen(s) depuis localStorage backup');
+          state.academyExamens = backup;
+        }
+      }
+    }
+  } catch(e) { console.warn('Restauration examens localStorage:', e); }
 
   // Charger les services actifs (qui est en service maintenant)
   await loadServiceActifFromSupabase();
