@@ -251,7 +251,7 @@
   }
   .btn-cabinet.btn-lg { padding: 12px 28px; font-size: 14px; }
 
-  /* Bouton Bureau des Missions (vert turquoise) */
+  /* Bouton Cours d'Académie (vert turquoise) */
   .btn-bureau {
     background: linear-gradient(135deg, rgba(20,184,166,0.18), rgba(20,184,166,0.06));
     color: #5eead4;
@@ -1733,7 +1733,7 @@
     <li><a onclick="showSection('histoire')">👮 Police</a></li>
     <li><a onclick="showSection('tribunal')">⚖️ Tribunal</a></li>
     <li><a onclick="showSection('cabinet')">🧑‍⚖️ Avocats</a></li>
-    <li><a onclick="showSection('bureau-missions')" style="color:#5eead4">🎯 Bureau des Missions</a></li>
+    <li><a onclick="showSection('bureau-missions')" style="color:#5eead4">🎓 Cours d'Académie</a></li>
     <li><a onclick="showSection('diplomatie-section')" style="color:#d8b4fe">🤝 Diplomatie</a></li>
     <li><a onclick="showSection('renseignement-section')" style="color:#cbd5e1">🕵️ Renseignement</a></li>
     <li><a onclick="showSection('finance-section')" style="color:#86efac">💰 Finance</a></li>
@@ -1779,7 +1779,7 @@
         <button class="btn-primary btn-lg" onclick="goToPostuler('police')">👮 Rejoindre la Police</button>
         <button class="btn-justice btn-lg" onclick="goToPostuler('juge')">⚖️ Rejoindre le Tribunal</button>
         <button class="btn-cabinet btn-lg" onclick="goToPostuler('avocat')">🧑‍⚖️ Rejoindre les Avocats</button>
-        <button class="btn-bureau btn-lg" onclick="showPage('bureau-login')">🎯 Bureau des Missions</button>
+        <button class="btn-bureau btn-lg" onclick="showPage('bureau-login')">🎓 Cours d'Académie</button>
       </div>
       <div class="hero-btns" style="margin-top:0.75rem">
         <button class="btn-diplomatie btn-lg" onclick="showPage('login')">🤝 Diplomatie</button>
@@ -1797,7 +1797,7 @@
     <div class="stat"><span class="stat-num" id="stat-agents">0</span><span class="stat-label">Officiers Police</span></div>
     <div class="stat"><span class="stat-num" id="stat-juges">0</span><span class="stat-label">Juges actifs</span></div>
     <div class="stat"><span class="stat-num" id="stat-avocats">0</span><span class="stat-label">Avocats actifs</span></div>
-    <div class="stat"><span class="stat-num" id="stat-mission">0</span><span class="stat-label">Bureau Missions</span></div>
+    <div class="stat"><span class="stat-num" id="stat-mission">0</span><span class="stat-label">Cours Académie</span></div>
     <div class="stat"><span class="stat-num" id="stat-diplomatie">0</span><span class="stat-label">Diplomates</span></div>
     <div class="stat"><span class="stat-num" id="stat-renseignement">0</span><span class="stat-label">Renseignement</span></div>
     <div class="stat"><span class="stat-num" id="stat-finance">0</span><span class="stat-label">Finance</span></div>
@@ -2230,14 +2230,14 @@
   <!-- BUREAU DES MISSIONS -->
   <section class="section" id="bureau-missions">
     <div class="section-inner">
-      <p class="section-tag" style="color:#5eead4">🎯 Bureau des Missions</p>
-      <h2 class="section-title">Le <span>Bureau des Missions</span></h2>
+      <p class="section-tag" style="color:#5eead4">🎓 Cours d'Académie</p>
+      <h2 class="section-title">Le <span>Cours d'Académie</span></h2>
       <div class="history-layout">
         <div class="history-main">
           <div class="history-block">
             <div class="history-year">Origine</div>
             <h3 class="history-block-title">La création du Bureau</h3>
-            <p>Le <strong>Bureau des Missions</strong> a été établi par le <strong>3ème Hokage</strong> face à un constat simple : les shinobis du village devaient avoir un cadre clair et structuré pour exercer leur art. Avant sa création, les missions étaient distribuées de manière informelle, créant des inégalités, des conflits de légitimité et parfois des tragédies évitables.</p>
+            <p>Le <strong>Cours d'Académie</strong> a été établi par le <strong>3ème Hokage</strong> face à un constat simple : les shinobis du village devaient avoir un cadre clair et structuré pour exercer leur art. Avant sa création, les missions étaient distribuées de manière informelle, créant des inégalités, des conflits de légitimité et parfois des tragédies évitables.</p>
             <p>Le 3ème Hokage souhaitait que <strong>tout ninja</strong>, du plus jeune Genin au plus expérimenté Jonin, puisse trouver des missions adaptées à son niveau et à ses ambitions, dans un environnement sécurisé et reconnu officiellement par le village.</p>
           </div>
           <div class="history-block">
@@ -2273,7 +2273,7 @@
           <div class="history-block">
             <div class="history-year">Philosophie</div>
             <h3 class="history-block-title">Pourquoi le Bureau existe</h3>
-            <p>Le Bureau des Missions repose sur trois principes fondateurs : <strong>équité</strong>, <strong>sécurité</strong> et <strong>traçabilité</strong>. Chaque shinobi doit pouvoir trouver des missions à sa hauteur, partir avec une équipe adaptée et savoir qu'en cas de problème, le village saura précisément où il se trouve.</p>
+            <p>Le Cours d'Académie repose sur trois principes fondateurs : <strong>équité</strong>, <strong>sécurité</strong> et <strong>traçabilité</strong>. Chaque shinobi doit pouvoir trouver des missions à sa hauteur, partir avec une équipe adaptée et savoir qu'en cas de problème, le village saura précisément où il se trouve.</p>
             <p>C'est aussi un acte de <strong>reconnaissance officielle</strong> : aucune mission accomplie n'est anonyme. Chaque exploit est consigné, chaque équipe créditée, chaque récompense versée selon les règles du village.</p>
           </div>
         </div>
@@ -2546,7 +2546,7 @@
               <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">🚩 <strong>Gestion des drapeaux</strong> — Suivi en temps réel des positions stratégiques contrôlées par chaque camp.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">🗺️ <strong>Planification tactique</strong> — Élaboration des plans de bataille et des stratégies de défense.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">📊 <strong>Analyse des conflits</strong> — Étude des affrontements passés pour anticiper les futurs.</li>
-              <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">🎯 <strong>Coordination opérationnelle</strong> — Liaison avec le Bureau des Missions et le Renseignement.</li>
+              <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">🎯 <strong>Coordination opérationnelle</strong> — Liaison avec le Cours d'Académie et le Renseignement.</li>
               <li style="padding:6px 0;border-bottom:1px dashed rgba(251,113,133,0.2)">📜 <strong>Archives stratégiques</strong> — Conservation de l'historique des positions et des retournements.</li>
               <li style="padding:6px 0">🧠 <strong>Formation tactique</strong> — Entraînement des jeunes ninjas à la pensée stratégique.</li>
             </ul>
@@ -2842,9 +2842,9 @@
   <!-- BUREAU DES MISSIONS -->
   <section class="section" id="missions-public">
     <div class="section-inner">
-      <p class="section-tag" style="color:#5eead4">🎯 Bureau des Missions</p>
+      <p class="section-tag" style="color:#5eead4">🎓 Cours d'Académie</p>
       <h2 class="section-title">Missions <span>Disponibles</span></h2>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Tableau officiel des missions ninja proposées par le Bureau des Missions de Konoha. Pour accepter une mission, vous devez être un ninja enregistré du village.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Tableau officiel des missions ninja proposées par le Cours d'Académie de Konoha. Pour accepter une mission, vous devez être un ninja enregistré du village.</p>
       <div id="missions-public-list"></div>
     </div>
   </section>
@@ -3083,7 +3083,7 @@
         <input type="password" id="login-password" placeholder="••••••••">
       </div>
       <div id="login-mission-info" style="display:none;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#5eead4">
-        🎯 <strong>Bureau des Missions</strong> — Connexion sans mot de passe. Saisissez juste votre nom et prénom.
+        🎓 <strong>Cours d'Académie</strong> — Connexion sans mot de passe. Saisissez juste votre nom et prénom.
       </div>
       <button class="btn-primary btn-full" onclick="doLogin()">Se connecter</button>
       <p class="auth-link"><a onclick="showPage('home')">← Retour au site</a></p>
@@ -3120,7 +3120,7 @@
             <div style="font-size:24px;margin-bottom:4px">🧑‍⚖️</div>Avocats
           </button>
           <button type="button" class="post-section-btn" data-target="mission" onclick="selectPostSection(this)" style="padding:14px 10px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
-            <div style="font-size:24px;margin-bottom:4px">🎯</div>Bureau Missions
+            <div style="font-size:24px;margin-bottom:4px">🎓</div>Cours Académie
           </button>
           <button type="button" class="post-section-btn" data-target="diplomatie" onclick="selectPostSection(this)" style="padding:14px 10px;background:transparent;color:var(--muted);border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px">
             <div style="font-size:24px;margin-bottom:4px">🤝</div>Diplomatie
@@ -3299,15 +3299,9 @@
         <div class="form-msg error" id="civ-reg-err" style="display:none"></div>
         <div class="form-group"><label>Nom et Prénom *</label><input type="text" id="civ-reg-fullname" placeholder="Ex: Naruto Uzumaki"/></div>
         <div class="form-group">
-          <label>Grade Ninja *</label>
-          <select id="civ-reg-grade">
-            <option value="">-- Sélectionner --</option>
-            <option>Genin</option><option>Genin Confirmé</option>
-            <option>Tokubetsu Chunin</option><option>Chunin</option>
-            <option>Kakunin</option><option>Tokubetsu Jonin</option>
-            <option>Jonin</option><option>Commandant Jonin</option>
-            <option>Citoyen</option>
-          </select>
+          <label>Grade de départ</label>
+          <input type="text" id="civ-reg-grade" value="Genin" readonly style="background:rgba(0,0,0,0.4);color:#86efac;cursor:not-allowed;font-weight:700;font-family:'Cinzel',serif" title="Grade de départ fixé"/>
+          <p style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">🎓 Tous les nouveaux ninjas commencent au grade Genin. Pour évoluer, inscrivez-vous aux examens de l'Académie.</p>
         </div>
         <div class="form-group"><label>Mot de passe *</label><input type="password" id="civ-reg-password" placeholder="Min. 6 caractères"/></div>
         <button class="btn-primary btn-full" onclick="registerCivil()">Créer mon compte</button>
@@ -3370,6 +3364,7 @@
         <button class="dash-nav-btn" data-tab="candidatures" data-services="police,juge,avocat" onclick="switchDashTab('candidatures', this)">📝 Candidatures</button>
         <button class="dash-nav-btn" data-tab="membres" data-services="police,juge,avocat,mission,diplomatie,renseignement,finance,strategie" onclick="switchDashTab('membres', this)">👥 Membres</button>
         <button class="dash-nav-btn" data-tab="missions" data-services="mission" onclick="switchDashTab('missions', this)" style="color:#fbbf24">🎯 Tableau des missions</button>
+        <button class="dash-nav-btn" data-tab="academy-examens" data-services="mission" onclick="switchDashTab('academy-examens', this)" style="color:#5eead4">🎓 Examens</button>
         <button class="dash-nav-btn" data-tab="operations" data-services="police,mission" onclick="switchDashTab('operations', this)" style="color:#fb923c">🗺️ Opérations</button>
         <button class="dash-nav-btn" data-tab="recensement" data-services="police" onclick="switchDashTab('recensement', this)" style="color:#5eead4">🔍 Recensement</button>
         <button class="dash-nav-btn" data-tab="rapports" data-services="police,juge,avocat" onclick="switchDashTab('rapports', this)">📋 Rapports</button>
@@ -3477,6 +3472,11 @@
       <div class="dash-tab" id="dash-missions">
         <h2 class="dash-section-title" style="color:#fbbf24">🎯 Tableau des missions</h2>
         <div id="missions-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-academy-examens">
+        <h2 class="dash-section-title" style="color:#5eead4">🎓 Examens de l'Académie</h2>
+        <div id="academy-examens-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-operations">
@@ -4570,6 +4570,36 @@ const SUPABASE_TABLES = {
       id: r.id, _id: r.id
     })
   },
+  academyExamens: {
+    table: 'academy_exams',
+    mapTo: e => ({
+      name: e.nom, target_grade: e.gradeCible,
+      required_grade: e.gradeRequis, document_link: e.lienDocument || null,
+      description: e.description || null, status: e.statut || 'ouvert',
+      created_by: e.createPar || null, created_at_txt: e.dateCreation || null
+    }),
+    mapFrom: r => ({
+      nom: r.name, gradeCible: r.target_grade, gradeRequis: r.required_grade,
+      lienDocument: r.document_link, description: r.description,
+      statut: r.status || 'ouvert', createPar: r.created_by,
+      dateCreation: r.created_at_txt,
+      id: r.id, _id: r.id
+    })
+  },
+  academyInscriptions: {
+    table: 'academy_exam_registrations',
+    mapTo: i => ({
+      exam_id: i.examId, student_fullname: i.nomEtudiant,
+      student_grade: i.gradeEtudiant, registered_at_txt: i.dateInscription || null,
+      status: i.statut || 'inscrit'
+    }),
+    mapFrom: r => ({
+      examId: r.exam_id, nomEtudiant: r.student_fullname,
+      gradeEtudiant: r.student_grade, dateInscription: r.registered_at_txt,
+      statut: r.status || 'inscrit',
+      id: r.id, _id: r.id
+    })
+  },
   marchands: {
     table: 'merchants',
     mapTo: m => ({
@@ -5551,7 +5581,7 @@ let state = {
   reportRequests: [],
   // Avis de recherche
   wantedPersons: [],
-  // Bureau des Missions
+  // Cours d'Académie
   missions: [],
   // Opérations sur carte (Police + Bureau Mission)
   operations: [],
@@ -5565,6 +5595,8 @@ let state = {
   appartements: [],
   rachatPrix: [],
   rachatTransactions: [],
+  academyExamens: [],
+  academyInscriptions: [],
   marchands: [],
   notificationsMarchands: [],
   rapportsFinance: [],
@@ -6203,7 +6235,7 @@ function renderSavedAccounts() {
     police:        { icon: '👮', label: 'Police',           color: '#c49a1a', rgb: '196,154,26' },
     juge:          { icon: '⚖️', label: 'Tribunal',          color: '#3b82f6', rgb: '59,130,246' },
     avocat:        { icon: '🧑‍⚖️', label: 'Cabinet',          color: '#d97706', rgb: '217,119,6' },
-    mission:       { icon: '🎯', label: 'Bureau Missions',  color: '#14b8a6', rgb: '20,184,166' },
+    mission:       { icon: '🎯', label: 'Cours Académie',  color: '#14b8a6', rgb: '20,184,166' },
     civil:         { icon: '🍃', label: 'Citoyen',           color: '#22c55e', rgb: '34,197,94' },
     diplomatie:    { icon: '🤝', label: 'Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
     renseignement: { icon: '🕵️', label: 'Renseignement',    color: '#94a3b8', rgb: '148,163,184' },
@@ -6642,7 +6674,7 @@ async function submitCandidature() {
     police: 'Police',
     juge: 'Tribunal',
     avocat: 'Cabinet des Avocats',
-    mission: 'Bureau des Missions',
+    mission: 'Cours d\'Académie',
     diplomatie: 'Diplomatie',
     renseignement: 'Renseignement'
   };
@@ -7029,7 +7061,7 @@ function renderDashboard(tab) {
     if (titleEl) titleEl.textContent = 'Cabinet des Avocats — Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Barreau';
   } else if (myService === 'mission') {
-    if (titleEl) titleEl.textContent = 'Bureau des Missions — Konoha';
+    if (titleEl) titleEl.textContent = 'Cours d\'Académie — Konoha';
     if (subEl) subEl.textContent = 'Tableau de bord — Affectations';
   } else if (myService === 'diplomatie') {
     if (titleEl) titleEl.textContent = 'Ambassade — Diplomatie de Konoha';
@@ -7095,6 +7127,7 @@ function switchDashTab(name, btn) {
   if (name === 'documents') renderDocuments();
   if (name === 'wanted') renderWantedAgents();
   if (name === 'missions') renderMissionsAgents();
+  if (name === 'academy-examens') renderAcademyExamens();
   if (name === 'operations') renderOperations();
   if (name === 'recensement') renderRecensementNinjas();
   if (name === 'dossiers') renderDossiersAvocat();
@@ -10287,7 +10320,7 @@ function renderAjout() {
     labelBouton = 'Ajouter l\'avocat';
   } else if (myService === 'mission') {
     gradesDispo = ALL_GRADES_MISSION;
-    titreSection = 'Bureau des Missions';
+    titreSection = 'Cours d\'Académie';
     labelBouton = 'Ajouter le membre';
   } else if (myService === 'diplomatie') {
     gradesDispo = ALL_GRADES_DIPLOMATIE;
@@ -12108,7 +12141,7 @@ function renderPortes() {
         <div style="font-size:24px;font-weight:800;color:#3b82f6;font-family:'Cinzel',serif">${equipesEnMission.length}</div>
       </div>
       <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🎯 Bureau Missions</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🎓 Cours Académie</div>
         <div style="font-size:24px;font-weight:800;color:#5eead4;font-family:'Cinzel',serif">${teamsBureau.length}</div>
       </div>
       <div style="background:rgba(232,197,71,0.08);border:1px solid rgba(232,197,71,0.25);border-radius:10px;padding:14px;text-align:center;${demandesEnAttente.length > 0 ? 'animation:pulse 2s infinite' : ''}">
@@ -12123,8 +12156,8 @@ function renderPortes() {
 
     ${teamsBureau.length > 0 ? `
       <div class="dash-block" style="padding:1.25rem;margin-bottom:1.25rem;border:1px solid rgba(20,184,166,0.4);background:linear-gradient(135deg,rgba(20,184,166,0.05),transparent)">
-        <h3 style="font-family:'Cinzel',serif;font-size:15px;color:#5eead4;margin-bottom:0.75rem">🎯 Bureau des Missions — Équipes en mission (${teamsBureau.length})</h3>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:1rem;font-style:italic">Équipes constituées par les civils via le Bureau des Missions, parties en mission. La Police est juste informée.</p>
+        <h3 style="font-family:'Cinzel',serif;font-size:15px;color:#5eead4;margin-bottom:0.75rem">🎓 Cours d'Académie — Équipes en mission (${teamsBureau.length})</h3>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:1rem;font-style:italic">Équipes constituées par les civils via le Cours d'Académie, parties en mission. La Police est juste informée.</p>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
           ${teamsBureau.map(t => {
             const rank = MISSION_RANKS[t.missionRank] || MISSION_RANKS.E;
@@ -13488,7 +13521,7 @@ function renderLogs() {
     bandeauMsg = '🧑‍⚖️ <strong>Cabinet — Direction</strong> — Comptes des avocats et des civils.';
   } else if (myService === 'mission') {
     bandeauColor = 'rgba(20,184,166,0.06)'; bandeauBorder = 'rgba(20,184,166,0.3)'; bandeauTextColor = '#5eead4';
-    bandeauMsg = '🎯 <strong>Bureau des Missions — Direction</strong> — Comptes des membres et des civils.';
+    bandeauMsg = '🎓 <strong>Cours d\'Académie — Direction</strong> — Comptes des membres et des civils.';
   } else if (myService === 'finance') {
     bandeauColor = 'rgba(34,197,94,0.06)'; bandeauBorder = 'rgba(34,197,94,0.3)'; bandeauTextColor = '#86efac';
     bandeauMsg = '💰 <strong>Bureau de la Finance — Direction</strong> — Comptes des trésoriers uniquement. Les comptes citoyens ne sont pas accessibles depuis cette section.';
@@ -13642,16 +13675,16 @@ function renderLogs() {
   }
   html += `</div></div>`; // Ferme section-avocats
 
-  // Section Mission (Bureau des Missions)
+  // Section Mission (Cours d'Académie)
   const sectionMissionDisplay = (showMission && defaultTab==='mission') ? 'block' : 'none';
   html += `<div id="logs-section-mission" style="display:${sectionMissionDisplay}">
       <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.25);border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:var(--text)">
-        🎯 <strong style="color:#5eead4">Bureau des Missions</strong> — Comptes des membres du Bureau et leurs mots de passe.
+        🎯 <strong style="color:#5eead4">Cours d'Académie</strong> — Comptes des membres du Bureau et leurs mots de passe.
       </div>
       <div class="dash-block">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:1px">🎯 Membres du Bureau des Missions (${missionAgents.length})</div>`;
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:1px">🎯 Membres du Cours d'Académie (${missionAgents.length})</div>`;
   if (missionAgents.length === 0) {
-    html += '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-style:italic">Aucun membre du Bureau des Missions enregistré.</div>';
+    html += '<div style="padding:1.5rem;text-align:center;color:var(--muted);font-style:italic">Aucun membre du Cours d\'Académie enregistré.</div>';
   } else {
     missionAgents.forEach(a => {
       html += `
@@ -16424,6 +16457,343 @@ const MISSION_RANKS = {
   'S+': { label: 'Rang S+', color: '#dc2626', bg: 'rgba(220,38,38,0.2)',  border: 'rgba(220,38,38,0.5)', desc: 'Missions légendaires — risque mortel' }
 };
 
+// ============================================================
+// 🎓 ACADÉMIE — EXAMENS ET INSCRIPTIONS
+// ============================================================
+// Progression : Genin → Genin Confirmé → Tokubetsu Chunin (TKC) → Chunin → Kakunin → Tokubetsu Jonin → Jonin → Commandant Jonin
+
+const ACADEMY_GRADE_ORDER = [
+  'Genin',
+  'Genin Confirmé',
+  'Tokubetsu Chunin',
+  'Chunin',
+  'Kakunin',
+  'Tokubetsu Jonin',
+  'Jonin',
+  'Commandant Jonin'
+];
+
+function academyGradeRank(grade) {
+  const idx = ACADEMY_GRADE_ORDER.indexOf(grade);
+  return idx === -1 ? -1 : idx;
+}
+
+// Un étudiant peut s'inscrire à un examen SEULEMENT s'il a exactement le grade requis
+function peutSInscrireExamen(gradeEtudiant, gradeRequis) {
+  return gradeEtudiant === gradeRequis;
+}
+
+function canManageExamens(user) {
+  if (!user) return false;
+  return (user.service || '') === 'mission';
+}
+
+function renderAcademyExamens() {
+  const u = state.currentUser;
+  const el = document.getElementById('academy-examens-content');
+  if (!el || !u) return;
+  if ((u.service || '') !== 'mission') {
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée aux Cours d\'Académie.</p></div>';
+    return;
+  }
+
+  const canManage = canManageExamens(u);
+  const examens = (state.academyExamens || []).slice().sort((a, b) => (b.id||0) - (a.id||0));
+  const inscriptions = state.academyInscriptions || [];
+
+  const nbExamensOuverts = examens.filter(e => (e.statut||'ouvert') === 'ouvert').length;
+  const nbInscritsTotal = inscriptions.length;
+
+  let html = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:1.5rem">
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Examens ouverts</div>
+        <div style="font-size:28px;font-weight:800;color:#5eead4;font-family:'Cinzel',serif;margin-top:4px">${nbExamensOuverts}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Inscrits total</div>
+        <div style="font-size:28px;font-weight:800;color:#93c5fd;font-family:'Cinzel',serif;margin-top:4px">${nbInscritsTotal}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Examens total</div>
+        <div style="font-size:28px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;margin-top:4px">${examens.length}</div>
+      </div>
+    </div>`;
+
+  if (canManage) {
+    html += `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.5rem;background:rgba(94,234,212,0.04);border-color:rgba(94,234,212,0.3)">
+      <h3 style="font-family:'Cinzel',serif;font-size:15px;color:#5eead4;margin-bottom:1rem">➕ Créer un nouvel examen</h3>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>🎓 Nom de l'examen *</label>
+          <input type="text" id="exam-nom" placeholder="Ex: Examen Chunin de Printemps 2026" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>📋 Grade requis</label>
+          <select id="exam-required-grade" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%">
+            ${ACADEMY_GRADE_ORDER.slice(0, -1).map(g => '<option value="' + g + '">' + g + '</option>').join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>🏆 Grade obtenu si succès</label>
+          <select id="exam-target-grade" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%">
+            ${ACADEMY_GRADE_ORDER.slice(1).map(g => '<option value="' + g + '">' + g + '</option>').join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin:0 0 10px 0">
+        <label>🔗 Lien vers le document <span style="color:var(--muted);font-size:11px;font-weight:400">(Google Drive, PDF, etc. — optionnel)</span></label>
+        <input type="url" id="exam-doc-link" placeholder="https://drive.google.com/..." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%"/>
+      </div>
+      <div class="form-group" style="margin:0 0 12px 0">
+        <label>📝 Description <span style="color:var(--muted);font-size:11px;font-weight:400">(optionnel)</span></label>
+        <textarea id="exam-desc" rows="3" placeholder="Ex: Épreuve écrite + combat individuel. Rendez-vous samedi à 14h à l'Académie." style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;width:100%;resize:vertical"></textarea>
+      </div>
+      <button class="btn-primary btn-full" onclick="creerExamen()" style="background:linear-gradient(135deg,#0d9488,#0891b2);color:white;padding:12px;font-weight:700">🎓 Créer l'examen</button>
+    </div>`;
+  }
+
+  html += '<div class="dash-block" style="padding:0">' +
+    '<div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:\'Cinzel\',serif;font-size:14px;color:#5eead4">📋 Liste des examens (' + examens.length + ')</div>';
+
+  if (examens.length === 0) {
+    html += '<p style="color:var(--muted);text-align:center;padding:2rem;font-size:13px;font-style:italic">Aucun examen créé pour le moment.</p>';
+  } else {
+    examens.forEach(ex => {
+      const realIdx = state.academyExamens.indexOf(ex);
+      const inscrits = inscriptions.filter(i => i.examId === ex._id || i.examId === ex.id);
+      const isOuvert = (ex.statut || 'ouvert') === 'ouvert';
+      const statusColor = isOuvert ? '#5eead4' : '#94a3b8';
+      const statusLabel = isOuvert ? '🟢 Ouvert' : '🔒 Fermé';
+      html += `
+        <div style="padding:16px 18px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+            <div style="flex:1;min-width:240px">
+              <div style="font-family:'Cinzel',serif;font-size:16px;color:var(--text);font-weight:700;margin-bottom:4px">${escapeHtml(ex.nom || '—')}</div>
+              <div style="font-size:12px;color:var(--muted)">
+                📋 <strong style="color:#93c5fd">${escapeHtml(ex.gradeRequis || '—')}</strong> requis
+                → 🏆 Deviennent <strong style="color:#86efac">${escapeHtml(ex.gradeCible || '—')}</strong>
+              </div>
+              ${ex.description ? '<div style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic">' + escapeHtml(ex.description) + '</div>' : ''}
+              <div style="font-size:10px;color:var(--muted);margin-top:4px">📅 ${escapeHtml(ex.dateCreation || '—')} · par ${escapeHtml(ex.createPar || '—')}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <span style="background:${isOuvert?'rgba(94,234,212,0.12)':'rgba(148,163,184,0.12)'};color:${statusColor};border:1px solid ${statusColor}66;font-size:11px;padding:4px 10px;border-radius:10px;font-weight:700">${statusLabel}</span>
+              <span style="font-size:11px;color:var(--muted)">👥 ${inscrits.length} inscrit${inscrits.length>1?'s':''}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+            ${ex.lienDocument ? '<a href="' + escapeHtml(ex.lienDocument) + '" target="_blank" rel="noopener" style="background:rgba(59,130,246,0.18);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:11px;padding:6px 12px;border-radius:6px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px">🔗 Voir le document</a>' : ''}
+            <button onclick="voirInscritsExamen(${realIdx})" style="background:rgba(94,234,212,0.18);color:#5eead4;border:1px solid rgba(94,234,212,0.4);font-size:11px;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600">👥 Voir espace inscrits (${inscrits.length})</button>
+            ${canManage ? '<button onclick="toggleStatutExamen(' + realIdx + ')" style="background:rgba(232,197,71,0.15);color:var(--lgold);border:1px solid rgba(232,197,71,0.4);font-size:11px;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600">' + (isOuvert ? '🔒 Fermer' : '🔓 Rouvrir') + '</button>' : ''}
+            ${canManage ? '<button onclick="supprimerExamen(' + realIdx + ')" style="background:rgba(192,57,43,0.25);color:#fca5a5;border:1px solid rgba(192,57,43,0.5);font-size:11px;padding:6px 12px;border-radius:6px;cursor:pointer">🗑 Supprimer</button>' : ''}
+          </div>
+        </div>`;
+    });
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+async function creerExamen() {
+  const u = state.currentUser;
+  if (!u || !canManageExamens(u)) { alert('Réservé aux Cours de l\'Académie.'); return; }
+  const nom = (document.getElementById('exam-nom').value || '').trim();
+  const gradeRequis = document.getElementById('exam-required-grade').value;
+  const gradeCible = document.getElementById('exam-target-grade').value;
+  const lienDocument = (document.getElementById('exam-doc-link').value || '').trim();
+  const description = (document.getElementById('exam-desc').value || '').trim();
+
+  if (!nom) { alert('Nom de l\'examen requis.'); return; }
+  if (!gradeRequis || !gradeCible) { alert('Grades requis et cible obligatoires.'); return; }
+  if (academyGradeRank(gradeCible) <= academyGradeRank(gradeRequis)) {
+    alert('⚠️ Le grade obtenu (' + gradeCible + ') doit être supérieur au grade requis (' + gradeRequis + ').');
+    return;
+  }
+
+  const newExam = {
+    id: Date.now(),
+    nom, gradeRequis, gradeCible, lienDocument, description,
+    statut: 'ouvert',
+    createPar: u.fullname,
+    dateCreation: new Date().toLocaleDateString('fr-FR')
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.academyExamens;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newExam)).select().single();
+      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
+      if (inserted) newExam._id = inserted.id;
+    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  }
+
+  state.academyExamens = state.academyExamens || [];
+  state.academyExamens.push(newExam);
+  saveSession();
+  ['exam-nom','exam-doc-link','exam-desc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderAcademyExamens();
+}
+
+async function toggleStatutExamen(idx) {
+  const u = state.currentUser;
+  if (!u || !canManageExamens(u)) return;
+  const ex = state.academyExamens[idx];
+  if (!ex) return;
+  const nouveau = (ex.statut || 'ouvert') === 'ouvert' ? 'ferme' : 'ouvert';
+  ex.statut = nouveau;
+  if (supabaseReady && ex._id) {
+    try { await sb.from('academy_exams').update({ status: nouveau }).eq('id', ex._id); } catch(e) {}
+  }
+  saveSession();
+  renderAcademyExamens();
+}
+
+async function supprimerExamen(idx) {
+  const u = state.currentUser;
+  if (!u || !canManageExamens(u)) return;
+  const ex = state.academyExamens[idx];
+  if (!ex) return;
+  const inscrits = (state.academyInscriptions || []).filter(i => i.examId === ex._id || i.examId === ex.id);
+  if (!(await confirmAsync('Supprimer définitivement l\'examen "' + ex.nom + '" ?\n\n⚠️ ' + inscrits.length + ' inscription(s) seront également supprimées.\nCette action est irréversible.'))) return;
+
+  if (supabaseReady && ex._id) {
+    try { await sb.from('academy_exam_registrations').delete().eq('exam_id', ex._id); } catch(e) {}
+    try {
+      const { error } = await sb.from('academy_exams').delete().eq('id', ex._id);
+      if (error) { alert('❌ Suppression échouée : ' + error.message); return; }
+    } catch(e) { alert('❌ Erreur : ' + (e.message || e)); return; }
+  }
+  state.academyInscriptions = (state.academyInscriptions || []).filter(i => i.examId !== ex._id && i.examId !== ex.id);
+  state.academyExamens.splice(idx, 1);
+  saveSession();
+  renderAcademyExamens();
+}
+
+// 👥 Voir l'espace inscrits (avec statut impôts / amendes)
+function voirInscritsExamen(idx) {
+  const ex = state.academyExamens[idx];
+  if (!ex) return;
+  const inscrits = (state.academyInscriptions || []).filter(i => i.examId === ex._id || i.examId === ex.id);
+
+  const existing = document.getElementById('inscrits-overlay');
+  if (existing) existing.remove();
+
+  let inscritsHtml = '';
+  if (inscrits.length === 0) {
+    inscritsHtml = '<p style="color:var(--muted);font-style:italic;text-align:center;padding:1.5rem">Aucun inscrit pour le moment.</p>';
+  } else {
+    inscrits.forEach(insc => {
+      const impotEntry = (state.impots || []).find(x => matchFullname(x.fullname, insc.nomEtudiant));
+      const amendesEntries = (state.amendes || []).filter(x => matchFullname(x.fullname, insc.nomEtudiant));
+      const amendesImpayees = amendesEntries.filter(a => a.statut !== 'paye');
+      const impotPaye = impotEntry && impotEntry.statut === 'paye';
+
+      let impotStatut;
+      if (!impotEntry) impotStatut = { icon: '❓', color:'#94a3b8', bg:'rgba(148,163,184,0.1)', border:'rgba(148,163,184,0.3)', label:'Non enregistré' };
+      else if (impotPaye) impotStatut = { icon: '✓', color:'#86efac', bg:'rgba(34,197,94,0.1)', border:'rgba(34,197,94,0.3)', label:'Impôts payés' };
+      else impotStatut = { icon: '✗', color:'#fca5a5', bg:'rgba(231,76,60,0.1)', border:'rgba(231,76,60,0.3)', label:'Impôts non payés' };
+
+      const amendeStatut = amendesImpayees.length === 0
+        ? { icon: '✓', color:'#86efac', bg:'rgba(34,197,94,0.1)', border:'rgba(34,197,94,0.3)', label: amendesEntries.length === 0 ? 'Aucune amende' : 'Amendes réglées' }
+        : { icon: '⚠️', color:'#fbbf24', bg:'rgba(232,197,71,0.1)', border:'rgba(232,197,71,0.3)', label: amendesImpayees.length + ' amende(s) impayée(s)' };
+
+      inscritsHtml += `
+        <div style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+            <div style="flex:1;min-width:200px">
+              <div style="font-size:14px;color:var(--text);font-weight:700">🥷 ${escapeHtml(insc.nomEtudiant)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">Grade au moment de l'inscription : <strong style="color:#93c5fd">${escapeHtml(insc.gradeEtudiant || '—')}</strong></div>
+            </div>
+            <div style="font-size:10px;color:var(--muted)">📅 ${escapeHtml(insc.dateInscription || '—')}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div style="background:${impotStatut.bg};border:1px solid ${impotStatut.border};border-radius:6px;padding:6px 10px;font-size:11px;color:${impotStatut.color};text-align:center;font-weight:600">💰 ${impotStatut.icon} ${impotStatut.label}</div>
+            <div style="background:${amendeStatut.bg};border:1px solid ${amendeStatut.border};border-radius:6px;padding:6px 10px;font-size:11px;color:${amendeStatut.color};text-align:center;font-weight:600">⚖️ ${amendeStatut.icon} ${amendeStatut.label}</div>
+          </div>
+        </div>`;
+    });
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'inscrits-overlay';
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="alert-box" style="max-width:820px;max-height:88vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px">
+        <div style="text-align:left;flex:1">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">🎓 Espace inscrits</div>
+          <div style="font-family:'Cinzel',serif;font-size:20px;color:var(--text);font-weight:700;margin-top:4px">${escapeHtml(ex.nom)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">📋 ${escapeHtml(ex.gradeRequis)} → 🏆 ${escapeHtml(ex.gradeCible)} · 👥 ${inscrits.length} inscrit${inscrits.length>1?'s':''}</div>
+        </div>
+        <button onclick="document.getElementById('inscrits-overlay').remove()" style="background:transparent;border:0;color:var(--muted);font-size:24px;cursor:pointer;padding:4px 12px">✕</button>
+      </div>
+      ${ex.lienDocument ? '<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:12px 16px;margin:12px 0;text-align:center"><a href="' + escapeHtml(ex.lienDocument) + '" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:none;font-weight:700;font-size:13px">🔗 Ouvrir le document</a></div>' : ''}
+      <div style="text-align:left;margin-top:16px">${inscritsHtml}</div>
+      <div class="confirm-buttons" style="margin-top:14px">
+        <button class="confirm-btn confirm-btn-ok" onclick="document.getElementById('inscrits-overlay').remove()">Fermer</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+// 🎓 Inscription d'un civil à un examen (à appeler depuis l'espace civil)
+async function inscrireCivilExamen(examIdx) {
+  if (!civilUser) { alert('Vous devez être connecté à votre espace civil.'); return; }
+  const ex = state.academyExamens[examIdx];
+  if (!ex) return;
+
+  if (!peutSInscrireExamen(civilUser.grade, ex.gradeRequis)) {
+    alert('❌ Vous ne pouvez pas vous inscrire à cet examen.\n\n' +
+      'Votre grade actuel : ' + (civilUser.grade || 'inconnu') + '\n' +
+      'Grade requis : ' + ex.gradeRequis + '\n\n' +
+      '💡 Passez d\'abord les examens précédents pour progresser.');
+    return;
+  }
+
+  if ((ex.statut || 'ouvert') !== 'ouvert') {
+    alert('❌ Cet examen est fermé aux inscriptions.');
+    return;
+  }
+
+  const dejaInscrit = (state.academyInscriptions || []).some(i =>
+    (i.examId === ex._id || i.examId === ex.id) && matchFullname(i.nomEtudiant, civilUser.fullname)
+  );
+  if (dejaInscrit) {
+    alert('ℹ️ Vous êtes déjà inscrit à cet examen.');
+    return;
+  }
+
+  if (!(await confirmAsync('Confirmer votre inscription à :\n\n🎓 ' + ex.nom + '\n\nGrade obtenu si succès : ' + ex.gradeCible))) return;
+
+  const newInsc = {
+    id: Date.now(),
+    examId: ex._id || ex.id,
+    nomEtudiant: civilUser.fullname,
+    gradeEtudiant: civilUser.grade || 'Genin',
+    dateInscription: new Date().toLocaleDateString('fr-FR'),
+    statut: 'inscrit'
+  };
+
+  if (supabaseReady) {
+    try {
+      const cfg = SUPABASE_TABLES.academyInscriptions;
+      const { data: inserted, error } = await sb.from(cfg.table).insert(cfg.mapTo(newInsc)).select().single();
+      if (error) { alert('❌ Erreur Supabase : ' + error.message); return; }
+      if (inserted) newInsc._id = inserted.id;
+    } catch(e) { alert('❌ Erreur réseau : ' + (e.message || e)); return; }
+  }
+
+  state.academyInscriptions = state.academyInscriptions || [];
+  state.academyInscriptions.push(newInsc);
+  saveSession();
+  alert('✅ Inscription confirmée à "' + ex.nom + '" !');
+}
+
 function renderMissionsAgents() {
   const u = state.currentUser;
   const el = document.getElementById('missions-content');
@@ -16437,7 +16807,7 @@ function renderMissionsAgents() {
   let html = `
     <div style="background:rgba(232,197,71,0.06);border:1px solid rgba(232,197,71,0.3);border-radius:8px;padding:12px 16px;margin-bottom:1.25rem">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between">
-        <div style="font-size:13px;color:var(--text)">🎯 <strong style="color:#fbbf24">Bureau des Missions</strong> — Distribution des missions ninja</div>
+        <div style="font-size:13px;color:var(--text)">🎯 <strong style="color:#fbbf24">Cours d'Académie</strong> — Distribution des missions ninja</div>
         <div style="font-size:12px;color:var(--muted)">${dispos.length} disponible${dispos.length>1?'s':''} · ${enCours.length} en cours · ${terminees.length} terminée${terminees.length>1?'s':''}</div>
       </div>
     </div>
@@ -16558,7 +16928,7 @@ function renderMissionCard(m, idx, statusType, u) {
 async function creerMission() {
   const u = state.currentUser;
   if (!u || (u.service||'') !== 'mission') {
-    alert('Réservé au Bureau des Missions.');
+    alert('Réservé au Cours d\'Académie.');
     return;
   }
 
@@ -16770,7 +17140,7 @@ async function confirmerAcceptationMission(idx) {
   if (state.teams) {
     const teamEntry = {
       name: '🎯 ' + m.name + ' (Mission ' + m.category + ')',
-      reason: 'Mission du Bureau des Missions — ' + m.name + (m.description ? ' · ' + m.description : ''),
+      reason: 'Mission du Cours d\'Académie — ' + m.name + (m.description ? ' · ' + m.description : ''),
       agent: u.fullname,
       grade: u.grade,
       members: equipe.map(e => e.fullname).join(', '),
@@ -16857,7 +17227,7 @@ function renderOperations() {
   if (!el) return;
   const myService = u.service || 'police';
   if (myService !== 'police' && myService !== 'mission') {
-    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée à la Police et au Bureau des Missions.</p></div>';
+    el.innerHTML = '<div class="no-access"><div class="no-access-icon">🔒</div><h3>Accès restreint</h3><p>Cette section est réservée à la Police et au Cours d\'Académie.</p></div>';
     return;
   }
 
@@ -17685,7 +18055,7 @@ function renderOperationsCivil() {
     html += `
       <div style="background:rgba(20,184,166,0.05);border:1px solid rgba(20,184,166,0.2);border-radius:8px;padding:14px;margin-bottom:1rem;text-align:center">
         <div style="font-size:24px;color:rgba(20,184,166,0.4);margin-bottom:6px">🎯</div>
-        <div style="font-size:12px;color:var(--muted);font-style:italic">Aucune mission en cours.<br>Acceptez une mission du <strong style="color:#5eead4">Bureau des Missions</strong> ci-dessous pour voir apparaître votre point sur la carte.</div>
+        <div style="font-size:12px;color:var(--muted);font-style:italic">Aucune mission en cours.<br>Acceptez une mission du <strong style="color:#5eead4">Cours d'Académie</strong> ci-dessous pour voir apparaître votre point sur la carte.</div>
       </div>`;
   }
 
@@ -18013,7 +18383,7 @@ const NINJA_SECTIONS = [
   { id: 'police',        label: '👮 Police',              color: '#c49a1a' },
   { id: 'tribunal',      label: '⚖️ Justice / Tribunal',  color: '#3b82f6' },
   { id: 'avocat',        label: '🧑‍⚖️ Avocat',             color: '#d97706' },
-  { id: 'mission',       label: '🎯 Bureau des Missions', color: '#14b8a6' },
+  { id: 'mission',       label: '🎓 Cours d\'Académie', color: '#14b8a6' },
   { id: 'diplomate',     label: '🤝 Diplomate',           color: '#a855f7' },
   { id: 'renseignement', label: '🕵️ Renseignement',       color: '#94a3b8' },
   { id: 'academie',      label: '🎓 Académie',            color: '#fbbf24' },
@@ -18711,7 +19081,7 @@ function renderMissionsPublic() {
           <div style="padding:14px">
             <div style="font-family:'Cinzel',serif;font-size:15px;color:white;font-weight:700;margin-bottom:6px">${escapeHtml(m.name)}</div>
             ${m.description ? `<div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:10px;padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:5px;border-left:2px solid ${rank.color}">${escapeHtml(m.description)}</div>` : ''}
-            <div style="font-size:10px;color:var(--muted);margin-bottom:8px">📋 Publiée par ${escapeHtml(m.createdBy||'Bureau des Missions')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:8px">📋 Publiée par ${escapeHtml(m.createdBy||'Cours d\'Académie')}</div>
 
             ${(isAccepted || isCompleted) && m.acceptedTeam && m.acceptedTeam.length > 0 ? `
               <div style="background:rgba(20,184,166,0.06);border:1px solid rgba(20,184,166,0.3);border-radius:5px;padding:8px 10px;margin-bottom:8px">
@@ -18866,7 +19236,7 @@ function ouvrirCreationEquipeMissionCivil(missionIdx) {
       </div>
 
       <div style="background:rgba(232,197,71,0.05);border:1px solid rgba(232,197,71,0.3);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text)">
-        ℹ️ Une fois acceptée, votre équipe apparaîtra dans <strong style="color:var(--accent)">"Portes du village"</strong> côté Police, dans la section <strong style="color:#5eead4">"🎯 Bureau des Missions"</strong>.<br>
+        ℹ️ Une fois acceptée, votre équipe apparaîtra dans <strong style="color:var(--accent)">"Portes du village"</strong> côté Police, dans la section <strong style="color:#5eead4">"🎓 Cours d'Académie"</strong>.<br>
         <strong style="color:#fca5a5">⚠ Si vous êtes Genin (sans Confirmé), votre équipe doit contenir au moins un Genin Confirmé pour pouvoir sortir du village.</strong>
       </div>
 
@@ -19047,10 +19417,10 @@ async function confirmerAcceptationMissionCivil(idx) {
     } catch(e) {}
   }
 
-  // Créer un groupe de sortie côté Portes du village (section Bureau des Missions)
+  // Créer un groupe de sortie côté Portes du village (section Cours d'Académie)
   const teamEntry = {
     name: '🎯 ' + m.name,
-    reason: 'Mission Bureau des Missions [' + m.category + '] — ' + (m.description || m.name),
+    reason: 'Mission Cours d\'Académie [' + m.category + '] — ' + (m.description || m.name),
     agent: u.fullname,
     grade: u.grade || 'Citoyen',
     members: equipe.map(e => e.fullname).join(', '),
@@ -19404,13 +19774,14 @@ function switchCivilTab(tab) {
 
 async function registerCivil() {
   const fullname = document.getElementById('civ-reg-fullname').value.trim();
-  const grade = document.getElementById('civ-reg-grade').value;
+  // 🎓 Grade FORCÉ à Genin — tous les nouveaux comptes commencent au plus bas grade
+  const grade = 'Genin';
   const password = document.getElementById('civ-reg-password').value;
   const errEl = document.getElementById('civ-reg-err');
   const okEl = document.getElementById('civ-reg-ok');
   errEl.style.display = 'none'; okEl.style.display = 'none';
 
-  if (!fullname || !grade || !password) { errEl.textContent = 'Tous les champs sont obligatoires.'; errEl.style.display = 'block'; return; }
+  if (!fullname || !password) { errEl.textContent = 'Le nom et le mot de passe sont obligatoires.'; errEl.style.display = 'block'; return; }
   if (fullname.split(/\s+/).length < 2) { errEl.textContent = 'Veuillez entrer prénom ET nom.'; errEl.style.display = 'block'; return; }
   if (password.length < 6) { errEl.textContent = 'Mot de passe trop court (6 caractères min).'; errEl.style.display = 'block'; return; }
 
@@ -19698,8 +20069,8 @@ function renderCivilDash() {
   // === SECTION : Missions du Bureau (visible par tous les citoyens) ===
   html += `
     <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;border-color:rgba(20,184,166,0.4)">
-      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🎯 Missions du Bureau des Missions</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Tableau officiel des missions ninja proposées par le Bureau. Pour les accepter, connectez-vous via le Bureau des Missions.</p>
+      <h3 style="font-family:'Cinzel',serif;font-size:16px;color:white;margin-bottom:0.5rem">🎯 Missions du Cours d'Académie</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Tableau officiel des missions ninja proposées par le Bureau. Pour les accepter, connectez-vous via le Cours d'Académie.</p>
       <div id="civil-missions-list"></div>
     </div>`;
 
@@ -19947,7 +20318,7 @@ async function initSupabase() {
     // Retry restauration civile après chargement Supabase
     try { retryCivilRestoreAfterSupabase(); } catch(e) {}
 
-    // === Auto-création / Auto-fix du compte Arakawa Akihiro côté Bureau des Missions ===
+    // === Auto-création / Auto-fix du compte Arakawa Akihiro côté Cours d'Académie ===
     // Garantit que le compte existe avec le bon mot de passe (akihiro2026)
     try {
       const existeMission = state.users.find(x =>
@@ -19972,7 +20343,7 @@ async function initSupabase() {
             if (inserted && inserted._id) {
               newMissionAccount._id = inserted._id;
               state.users.push(newMissionAccount);
-              console.log('🎯 Compte Bureau des Missions créé pour Arakawa Akihiro avec mot de passe');
+              console.log('🎯 Compte Cours d\'Académie créé pour Arakawa Akihiro avec mot de passe');
             }
           } catch(e) { console.warn('Erreur auto-création compte mission:', e); }
         }
@@ -20248,7 +20619,7 @@ const SECTIONS_VILLAGE = [
   { key: 'police',        label: '👮 Police',            color: '#c49a1a', rgb: '196,154,26' },
   { key: 'tribunal',      label: '⚖️ Tribunal',          color: '#3b82f6', rgb: '59,130,246' },
   { key: 'avocats',       label: '🧑‍⚖️ Avocats',          color: '#d97706', rgb: '217,119,6' },
-  { key: 'mission',       label: '🎯 Bureau Missions',   color: '#14b8a6', rgb: '20,184,166' },
+  { key: 'mission',       label: '🎓 Cours Académie',   color: '#14b8a6', rgb: '20,184,166' },
   { key: 'diplomatie',    label: '🤝 Diplomatie',        color: '#a855f7', rgb: '168,85,247' },
   { key: 'renseignement', label: '🕵️ Renseignement',    color: '#94a3b8', rgb: '148,163,184' },
   { key: 'finance',       label: '💰 Finance',           color: '#22c55e', rgb: '34,197,94' },
@@ -21908,7 +22279,7 @@ const DESTINATAIRES_RAPPORT = [
   { key: 'police',        label: '👮 Police de Konoha',    color: '#c49a1a', rgb: '196,154,26' },
   { key: 'tribunal',      label: '⚖️ Tribunal',            color: '#3b82f6', rgb: '59,130,246' },
   { key: 'avocats',       label: '🧑‍⚖️ Cabinet des Avocats', color: '#d97706', rgb: '217,119,6' },
-  { key: 'mission',       label: '🎯 Bureau des Missions', color: '#14b8a6', rgb: '20,184,166' },
+  { key: 'mission',       label: '🎓 Cours d\'Académie', color: '#14b8a6', rgb: '20,184,166' },
   { key: 'diplomatie',    label: '🤝 Diplomatie',          color: '#a855f7', rgb: '168,85,247' },
   { key: 'renseignement', label: '🕵️ Renseignement',      color: '#94a3b8', rgb: '148,163,184' },
   { key: 'academie',      label: '🎓 Académie',            color: '#fbbf24', rgb: '251,191,36' }
