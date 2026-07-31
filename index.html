@@ -3380,6 +3380,7 @@
         <button class="dash-nav-btn" data-tab="cellules" data-services="police,juge,avocat" onclick="switchDashTab('cellules', this)">🔒 Cellules</button>
         <button class="dash-nav-btn" data-tab="presences" data-services="police" onclick="switchDashTab('presences', this)">⏱ Présences</button>
         <button class="dash-nav-btn" data-tab="tresor" data-services="finance" onclick="switchDashTab('tresor', this)" style="color:#86efac">💰 Trésor du village</button>
+        <button class="dash-nav-btn" data-tab="taux-imposition" data-services="finance" onclick="switchDashTab('taux-imposition', this)" style="color:#86efac">⚖️ Taux d'imposition</button>
         <button class="dash-nav-btn" data-tab="ressources" data-services="finance" onclick="switchDashTab('ressources', this)" style="color:#86efac">📦 Ressources</button>
         <button class="dash-nav-btn" data-tab="marchands" data-services="finance" onclick="switchDashTab('marchands', this)" style="color:#86efac">🏪 Marchands</button>
         <button class="dash-nav-btn" data-tab="equipements" data-services="finance" onclick="switchDashTab('equipements', this)" style="color:#86efac">🛡️ Équipements</button>
@@ -3508,6 +3509,11 @@
       <div class="dash-tab" id="dash-tresor">
         <h2 class="dash-section-title" style="color:#86efac">💰 Trésor du village</h2>
         <div id="tresor-content"></div>
+      </div>
+
+      <div class="dash-tab" id="dash-taux-imposition">
+        <h2 class="dash-section-title" style="color:#86efac">⚖️ Taux d'imposition par grade</h2>
+        <div id="taux-imposition-content"></div>
       </div>
 
       <div class="dash-tab" id="dash-ressources">
@@ -5178,6 +5184,22 @@ function subscribeToSupabaseChanges() {
     })
     .subscribe();
 
+  // 💰 Realtime tax_settings — quand Finance modifie, tout le monde voit
+  sb.channel('rt-tax_settings')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tax_settings' }, async (payload) => {
+      console.log('💰 Realtime tax_settings', payload.eventType);
+      const row = payload.new || payload.old;
+      if (row && row.grade_amounts) {
+        IMPOTS_MONTANTS = Object.assign({}, IMPOTS_MONTANTS_DEFAULT, row.grade_amounts);
+        console.log('💰 Nouveaux montants reçus :', IMPOTS_MONTANTS);
+        // Re-render tout ce qui affiche les impôts
+        try { if (typeof renderImpots === 'function') renderImpots(); } catch(e) {}
+        try { if (typeof renderTauxImposition === 'function') renderTauxImposition(); } catch(e) {}
+        try { if (typeof refreshAllUI === 'function') refreshAllUI(); } catch(e) {}
+      }
+    })
+    .subscribe();
+
   console.log('📡 Realtime activé sur ' + Object.keys(SUPABASE_TABLES).length + ' tables + active_shifts');
 }
 
@@ -5510,11 +5532,68 @@ const PERMS = {
   5: ['Accès espace agent uniquement']
 };
 
-const IMPOTS_MONTANTS = {
+// 💰 Montants d'impôt par grade — modifiables par le Directeur Finance
+// Ces valeurs sont chargées depuis Supabase (table tax_settings) au démarrage.
+// Quand Finance modifie, Realtime pousse la mise à jour à toute la Police.
+const IMPOTS_MONTANTS_DEFAULT = {
   'Hokage': 8400, 'Commandant Jonin': 7800, 'Jonin': 7200,
   'Tokubetsu Jonin': 6000, 'Kakunin': 4800, 'Chunin': 3600,
   'Tokubetsu Chunin': 2400, 'Genin Confirmé': 1200, 'Genin': 0
 };
+let IMPOTS_MONTANTS = Object.assign({}, IMPOTS_MONTANTS_DEFAULT);
+
+// 💰 Charger les montants depuis Supabase (au démarrage)
+async function loadTaxSettings() {
+  if (!supabaseReady || typeof sb === 'undefined' || !sb) return;
+  try {
+    const { data, error } = await sb.from('tax_settings').select('*').eq('id', 1).maybeSingle();
+    if (error) {
+      if ((error.message||'').toLowerCase().includes('does not exist') || error.code === '42P01') {
+        console.warn('⚠️ Table tax_settings absente — utilisation des montants par défaut. Exécutez supabase-tax-settings.sql');
+      } else {
+        console.warn('⚠️ loadTaxSettings error:', error.message);
+      }
+      return;
+    }
+    if (data && data.grade_amounts) {
+      IMPOTS_MONTANTS = Object.assign({}, IMPOTS_MONTANTS_DEFAULT, data.grade_amounts);
+      console.log('💰 Montants d\'impôt chargés depuis Supabase :', IMPOTS_MONTANTS);
+    }
+  } catch(e) { console.warn('loadTaxSettings exception:', e); }
+}
+
+// 💰 Sauvegarder les montants sur Supabase (Finance uniquement)
+async function saveTaxSettings(user) {
+  if (!supabaseReady) { alert('❌ Connexion base indisponible.'); return false; }
+  try {
+    const { data, error } = await sb.from('tax_settings').upsert({
+      id: 1,
+      grade_amounts: IMPOTS_MONTANTS,
+      updated_at: new Date().toISOString(),
+      updated_by: user ? user.fullname : 'inconnu'
+    }, { onConflict: 'id' }).select().single();
+    if (error) {
+      if ((error.message||'').toLowerCase().includes('does not exist') || error.code === '42P01') {
+        alert('❌ La table "tax_settings" n\'existe pas.\n\n👉 Exécutez supabase-tax-settings.sql dans Supabase SQL Editor.');
+      } else {
+        alert('❌ Erreur sauvegarde : ' + error.message);
+      }
+      return false;
+    }
+    console.log('💰 Montants d\'impôt sauvegardés :', data);
+    return true;
+  } catch(e) {
+    alert('❌ Erreur réseau : ' + (e.message || e));
+    return false;
+  }
+}
+
+// 💰 Qui peut modifier les taux d'imposition ?
+function canManageTaux(user) {
+  if (!user) return false;
+  if ((user.service || '') !== 'finance') return false;
+  return ['Hokage', 'Staff', 'Directeur', 'Directeur Adjoint'].includes(user.grade);
+}
 
 // Couleurs des grades ninja
 const NINJA_GRADE_COLORS = {
@@ -7145,6 +7224,7 @@ function switchDashTab(name, btn) {
   if (name === 'recensement') renderRecensementNinjas();
   if (name === 'dossiers') renderDossiersAvocat();
   if (name === 'tresor') renderTresor();
+  if (name === 'taux-imposition') renderTauxImposition();
   if (name === 'ressources') renderRessources();
   if (name === 'marchands') renderMarchands();
   if (name === 'equipements') renderEquipements();
@@ -20724,6 +20804,9 @@ async function initSupabase() {
   // Charger toutes les données depuis le cloud
   const loaded = await loadAllFromSupabase();
 
+  // 💰 Charger les taux d'imposition (modifiables par Finance)
+  await loadTaxSettings();
+
   // 🎓 Filet de sécurité Académie : restaurer depuis localStorage si Supabase n'a rien
   try {
     if ((!state.academyExamens || state.academyExamens.length === 0)) {
@@ -21204,6 +21287,201 @@ const SECTIONS_VILLAGE = [
 
 function getSectionMeta(key) {
   return SECTIONS_VILLAGE.find(s => s.key === key) || SECTIONS_VILLAGE[SECTIONS_VILLAGE.length - 1];
+}
+
+// ============================================================
+// ⚖️ TAUX D'IMPOSITION — Panneau Finance modifiable
+// ============================================================
+// Le Directeur Finance peut modifier les montants par grade.
+// Les changements sont poussés en temps réel à la Police via Realtime.
+
+// L'ordre des grades du plus haut au plus bas pour l'affichage
+const IMPOTS_GRADE_DISPLAY = [
+  'Hokage', 'Commandant Jonin', 'Jonin', 'Tokubetsu Jonin',
+  'Kakunin', 'Chunin', 'Tokubetsu Chunin', 'Genin Confirmé', 'Genin'
+];
+
+function renderTauxImposition() {
+  const u = state.currentUser;
+  const el = document.getElementById('taux-imposition-content');
+  if (!el || !u) return;
+
+  const canManage = canManageTaux(u);
+  const readOnly = !canManage;
+
+  // Compter les ninjas actifs pour chaque grade
+  const ninjas = (state.impots || []);
+  const nbParGrade = {};
+  ninjas.forEach(i => { nbParGrade[i.grade] = (nbParGrade[i.grade] || 0) + 1; });
+
+  const totalMontant = ninjas.reduce((s, i) => s + (IMPOTS_MONTANTS[i.grade] || 0), 0);
+
+  let html = `
+    <!-- Bandeau info -->
+    <div class="dash-block" style="padding:1rem 1.25rem;margin-bottom:1.25rem;background:${readOnly?'rgba(148,163,184,0.06)':'rgba(232,197,71,0.08)'};border-color:${readOnly?'var(--border)':'rgba(232,197,71,0.35)'}">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-family:'Cinzel',serif;font-size:14px;color:${readOnly?'var(--muted)':'var(--lgold)'};font-weight:700">
+            ${readOnly ? '🔒 Consultation uniquement' : '⚖️ Gestion des taux d\'imposition'}
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">
+            ${readOnly
+              ? 'Seul le Directeur ou Directeur Adjoint des Finances peut modifier les montants.'
+              : 'Modifiez le montant d\'un grade individuellement, ou appliquez un pourcentage global à tous les grades.'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  // Stats globales
+  html += `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:1.25rem">
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Ninjas imposables</div>
+        <div style="font-size:28px;font-weight:800;color:#86efac;font-family:'Cinzel',serif;margin-top:4px">${ninjas.length}</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total dû (cumulé)</div>
+        <div style="font-size:28px;font-weight:800;color:var(--lgold);font-family:'Cinzel',serif;margin-top:4px">${totalMontant.toLocaleString('fr-FR')}</div>
+        <div style="font-size:10px;color:var(--muted)">Ryos</div>
+      </div>
+      <div class="dash-block" style="padding:14px 18px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Grades définis</div>
+        <div style="font-size:28px;font-weight:800;color:#93c5fd;font-family:'Cinzel',serif;margin-top:4px">${Object.keys(IMPOTS_MONTANTS).length}</div>
+      </div>
+    </div>`;
+
+  // Zone action globale (pourcentage) — Finance uniquement
+  if (canManage) {
+    html += `
+    <div class="dash-block" style="padding:1.5rem;margin-bottom:1.25rem;background:rgba(232,197,71,0.04);border-color:rgba(232,197,71,0.35)">
+      <h3 style="font-family:'Cinzel',serif;font-size:14px;color:var(--lgold);margin:0 0 10px 0">📊 Ajustement global par pourcentage</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Appliquez une hausse ou baisse en pourcentage à TOUS les grades imposables. Exemple : +10% augmente tous les montants de 10%, -5% les baisse de 5%.</p>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div class="form-group" style="margin:0;flex:1;min-width:180px">
+          <label>Pourcentage</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" id="taux-percent" step="0.5" placeholder="Ex: +10 ou -5" style="background:var(--mid);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;flex:1"/>
+            <span style="font-size:20px;font-weight:700;color:var(--lgold)">%</span>
+          </div>
+        </div>
+        <button onclick="appliquerPourcentageTaux()" style="background:linear-gradient(135deg,#c49a1a,#8b6914);color:white;border:none;padding:11px 20px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700">📊 Appliquer</button>
+        <button onclick="reinitTauxImposition()" style="background:rgba(148,163,184,0.15);color:#94a3b8;border:1px solid rgba(148,163,184,0.4);padding:11px 16px;border-radius:6px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700">↺ Réinitialiser aux défauts</button>
+      </div>
+    </div>`;
+  }
+
+  // Tableau des grades
+  html += '<div class="dash-block" style="padding:0">' +
+    '<div style="padding:14px 18px;border-bottom:1px solid var(--border);font-family:\'Cinzel\',serif;font-size:14px;color:#86efac">💰 Montants par grade</div>';
+
+  IMPOTS_GRADE_DISPLAY.forEach(grade => {
+    const montant = IMPOTS_MONTANTS[grade] || 0;
+    const meta = NINJA_GRADE_COLORS[grade] || NINJA_GRADE_COLORS['Citoyen'];
+    const nbNinja = nbParGrade[grade] || 0;
+    const totalGrade = montant * nbNinja;
+
+    html += `
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:12px;background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};font-size:12px;font-weight:700">${meta.icon} ${escapeHtml(grade)}</span>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Ninjas</div>
+          <div style="font-size:15px;color:var(--text);font-weight:700;font-family:'Cinzel',serif">${nbNinja}</div>
+        </div>
+        <div style="text-align:center">
+          ${canManage
+            ? `<div style="display:flex;align-items:center;gap:4px;justify-content:center">
+                 <input type="number" min="0" step="100" value="${montant}" id="tax-input-${grade.replace(/\s/g,'_')}" style="background:var(--mid);border:1px solid ${meta.border};color:${meta.color};padding:8px 10px;border-radius:5px;font-weight:700;text-align:right;width:100px;font-family:'Cinzel',serif"/>
+                 <span style="font-size:11px;color:var(--muted)">Ryos</span>
+                 <button onclick="updateMontantGrade('${grade.replace(/'/g,"\\'")}')" style="background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.4);padding:6px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700">💾</button>
+               </div>`
+            : `<div style="font-size:15px;color:${meta.color};font-weight:700;font-family:'Cinzel',serif">${montant.toLocaleString('fr-FR')} <span style="font-size:10px;color:var(--muted);font-weight:400">Ryos</span></div>`
+          }
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total dû</div>
+          <div style="font-size:15px;color:var(--lgold);font-weight:700;font-family:'Cinzel',serif">${totalGrade.toLocaleString('fr-FR')}</div>
+        </div>
+      </div>`;
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// 💾 Enregistrer le montant modifié pour un grade
+async function updateMontantGrade(grade) {
+  const u = state.currentUser;
+  if (!canManageTaux(u)) { alert('❌ Réservé au Directeur / Directeur Adjoint des Finances.'); return; }
+  const input = document.getElementById('tax-input-' + grade.replace(/\s/g, '_'));
+  if (!input) { alert('❌ Champ introuvable.'); return; }
+  const nouveau = parseInt(input.value);
+  if (isNaN(nouveau) || nouveau < 0) { alert('❌ Montant invalide (nombre positif attendu).'); return; }
+  const ancien = IMPOTS_MONTANTS[grade] || 0;
+  if (nouveau === ancien) { alert('ℹ️ Aucun changement pour ' + grade + '.'); return; }
+
+  IMPOTS_MONTANTS[grade] = nouveau;
+  const ok = await saveTaxSettings(u);
+  if (!ok) {
+    IMPOTS_MONTANTS[grade] = ancien; // rollback
+    return;
+  }
+  alert('✅ ' + grade + ' : ' + ancien.toLocaleString('fr-FR') + ' → ' + nouveau.toLocaleString('fr-FR') + ' Ryos\n\nLa modification est visible en temps réel côté Police.');
+  renderTauxImposition();
+  if (typeof renderImpots === 'function') try { renderImpots(); } catch(e) {}
+}
+
+// 📊 Appliquer un pourcentage global (hausse ou baisse)
+async function appliquerPourcentageTaux() {
+  const u = state.currentUser;
+  if (!canManageTaux(u)) { alert('❌ Réservé au Directeur / Directeur Adjoint des Finances.'); return; }
+  const input = document.getElementById('taux-percent');
+  const pct = parseFloat(input.value);
+  if (isNaN(pct) || pct === 0) { alert('❌ Entrez un pourcentage non nul (ex: 10 pour +10%, -5 pour -5%).'); return; }
+  if (Math.abs(pct) > 100) { alert('⚠️ Pourcentage trop grand. Entre -100 et +100.'); return; }
+
+  const preview = [];
+  const backup = Object.assign({}, IMPOTS_MONTANTS);
+  IMPOTS_GRADE_DISPLAY.forEach(g => {
+    const ancien = IMPOTS_MONTANTS[g] || 0;
+    if (ancien === 0) return; // ne pas toucher aux grades exonérés
+    const nouveau = Math.max(0, Math.round(ancien * (1 + pct/100) / 10) * 10);
+    IMPOTS_MONTANTS[g] = nouveau;
+    preview.push(g + ' : ' + ancien.toLocaleString('fr-FR') + ' → ' + nouveau.toLocaleString('fr-FR'));
+  });
+
+  if (!(await confirmAsync('Confirmer l\'application de ' + (pct>0?'+':'') + pct + '% à tous les grades imposables ?\n\n' + preview.join('\n')))) {
+    IMPOTS_MONTANTS = backup;
+    return;
+  }
+
+  const ok = await saveTaxSettings(u);
+  if (!ok) {
+    IMPOTS_MONTANTS = backup;
+    return;
+  }
+  input.value = '';
+  alert('✅ Nouveaux montants appliqués (' + (pct>0?'+':'') + pct + '%).\n\nLa Police voit la mise à jour en temps réel.');
+  renderTauxImposition();
+  if (typeof renderImpots === 'function') try { renderImpots(); } catch(e) {}
+}
+
+// ↺ Réinitialiser aux montants par défaut
+async function reinitTauxImposition() {
+  const u = state.currentUser;
+  if (!canManageTaux(u)) return;
+  if (!(await confirmAsync('Réinitialiser tous les montants aux valeurs par défaut ?\n\n' +
+    Object.entries(IMPOTS_MONTANTS_DEFAULT).map(([g,m]) => g + ' : ' + m.toLocaleString('fr-FR') + ' Ryos').join('\n')))) return;
+
+  const backup = Object.assign({}, IMPOTS_MONTANTS);
+  IMPOTS_MONTANTS = Object.assign({}, IMPOTS_MONTANTS_DEFAULT);
+  const ok = await saveTaxSettings(u);
+  if (!ok) { IMPOTS_MONTANTS = backup; return; }
+  alert('✅ Montants réinitialisés aux valeurs par défaut.');
+  renderTauxImposition();
+  if (typeof renderImpots === 'function') try { renderImpots(); } catch(e) {}
 }
 
 function renderTresor() {
