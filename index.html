@@ -487,19 +487,19 @@ async function register(){
   await saveUsers();
   logAudit(prenom+" "+nom+" a créé un compte et demande à rejoindre "+SECTIONS[sectionDemandee].label+".", 'Comptes');
   state.currentUser = user;
-  persistSession(user);
+  await persistSession(user);
   state.view = 'attente';
   flash("Votre espace a été créé.", 'success');
 }
 
-function login(){
+async function login(){
   const prenom = document.getElementById('l-prenom').value.trim();
   const nom = document.getElementById('l-nom').value.trim();
   const pass = document.getElementById('l-pass').value;
   const user = state.users.find(u => u.prenom.toLowerCase()===prenom.toLowerCase() && u.nom.toLowerCase()===nom.toLowerCase() && u.password===pass);
   if(!user){ flash("Identifiants incorrects.", 'error'); return; }
   state.currentUser = user;
-  persistSession(user);
+  await persistSession(user);
   logAudit(user.prenom+" "+user.nom+" s'est connecté.", 'Connexions');
   if(user.role==='attente') state.view='attente';
   else if(isFullAccess(user)){ state.view='admin'; state.activeSection=null; }
