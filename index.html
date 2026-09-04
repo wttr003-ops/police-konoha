@@ -228,6 +228,17 @@ footer{border-top:1px solid var(--line); padding:18px 48px; text-align:left; fon
   padding:8px 14px; border-radius:20px; font-size:0.81rem;
 }
 .staff-nav button.active{background:var(--red); color:#F6E9E6; border-color:var(--red); font-weight:600;}
+
+.bareme-picker{ max-height:320px; overflow-y:auto; border:1px solid var(--line-strong); background:var(--bg); border-radius:6px; padding:4px 12px; }
+.bareme-palier-label{ font-size:0.68rem; color:var(--gold); text-transform:uppercase; letter-spacing:0.6px; padding:12px 2px 6px; border-top:1px solid var(--line); margin-top:4px; }
+.bareme-palier-label:first-child{ border-top:none; margin-top:0; padding-top:10px; }
+.bareme-row{ display:grid; grid-template-columns:20px 1fr auto; align-items:center; column-gap:12px; padding:8px 2px; border-radius:4px; }
+.bareme-row:hover{ background:rgba(255,255,255,0.04); }
+.bareme-row input[type=checkbox]{ width:16px; height:16px; margin:0; accent-color:var(--red); cursor:pointer; }
+.bareme-row label{ display:block; font-size:0.85rem; color:var(--ink); cursor:pointer; margin:0; line-height:1.35; }
+.bareme-row .price{ font-size:0.78rem; color:var(--gold); white-space:nowrap; }
+.bareme-summary{ display:flex; justify-content:space-between; align-items:center; padding:10px 2px; margin-top:4px; border-top:1px solid var(--line-strong); font-size:0.85rem; color:var(--ink); position:sticky; bottom:0; background:var(--bg); }
+.bareme-summary strong{ color:var(--gold); }
 </style>
 </head>
 <body>
@@ -321,6 +332,7 @@ let state = {
   messageType: 'info',
   selectedAmendes: [],
   selectedInfractions: [],
+  amendeCategorie: 'genin',
   rapportFilter: 'mine',
   editingInfractionId: null,
   editingImpotId: null,
@@ -690,17 +702,30 @@ function toggleInfractionSelect(id){
   if(cInput) cInput.value = contrevenantVal;
   recomputeAmendeFromSelection();
 }
+function setAmendeCategorie(v){
+  const contrevenantVal = document.getElementById('am-contrevenant') ? document.getElementById('am-contrevenant').value : '';
+  state.amendeCategorie = v;
+  render();
+  const cInput = document.getElementById('am-contrevenant');
+  if(cInput) cInput.value = contrevenantVal;
+  recomputeAmendeFromSelection();
+}
+function prixInfraction(inf){
+  const cat = state.amendeCategorie;
+  return cat==='chunin' ? inf.prixChunin : cat==='toku' ? inf.prixToku : inf.prixGenin;
+}
+function computeSelectedInfractionsTotal(){
+  return state.sections.police.infractions
+    .filter(i=>state.selectedInfractions.includes(i.id))
+    .reduce((sum,i)=> sum + prixInfraction(i), 0);
+}
 function recomputeAmendeFromSelection(){
-  const catEl = document.getElementById('am-categorie');
-  if(!catEl) return;
-  const cat = catEl.value;
   const infs = state.sections.police.infractions.filter(i=>state.selectedInfractions.includes(i.id));
   if(infs.length===0) return;
   let total = 0;
   const titres = [];
   infs.forEach(inf=>{
-    const prix = cat==='chunin' ? inf.prixChunin : cat==='toku' ? inf.prixToku : inf.prixGenin;
-    total += prix;
+    total += prixInfraction(inf);
     titres.push(inf.titre);
   });
   document.getElementById('am-montant').value = total;
@@ -1578,29 +1603,35 @@ function renderAmendes(data){
   const total = selectedAmendesTotal();
   const grouped = { 0:[], 1:[], 2:[], 3:[] };
   data.infractions.forEach(i => { (grouped[i.palier] = grouped[i.palier]||[]).push(i); });
+  const selectedTotal = computeSelectedInfractionsTotal();
   return `
     <div class="compose">
       <div class="field">
-        <label style="display:block; font-size:0.75rem; color:var(--ink-faint); margin-bottom:6px;">Infractions du barème (sélection multiple — ${state.selectedInfractions.length} sélectionnée(s))</label>
-        <div style="max-height:280px; overflow-y:auto; border:1px solid var(--line-strong); background:var(--bg); border-radius:5px; padding:10px 12px;">
-          ${[0,1,2,3].map(p => grouped[p].length ? `
-            <div style="font-size:0.68rem; color:var(--gold); text-transform:uppercase; letter-spacing:0.6px; margin:10px 0 6px; ${p===0?'margin-top:0;':''}">${PALIER_LABELS[p].split(' —')[0]}</div>
-            ${grouped[p].map(i=>`
-              <label style="display:flex; align-items:center; gap:9px; padding:5px 2px; font-size:0.84rem; cursor:pointer;">
-                <input type="checkbox" ${state.selectedInfractions.includes(i.id)?'checked':''} onchange="toggleInfractionSelect('${i.id}')">
-                ${esc(i.titre)}
-              </label>
-            `).join('')}
-          ` : '').join('')}
-        </div>
+        <label style="display:block; font-size:0.75rem; color:var(--ink-faint); margin-bottom:6px;">Grade du contrevenant</label>
+        <select id="am-categorie" onchange="setAmendeCategorie(this.value)">
+          <option value="genin" ${state.amendeCategorie==='genin'?'selected':''}>Genin / Toku Chunin</option>
+          <option value="chunin" ${state.amendeCategorie==='chunin'?'selected':''}>Chunin / Kakunin</option>
+          <option value="toku" ${state.amendeCategorie==='toku'?'selected':''}>Toku / Jonin</option>
+        </select>
       </div>
       <div class="field">
-        <label style="display:block; font-size:0.75rem; color:var(--ink-faint); margin-bottom:6px;">Grade du contrevenant</label>
-        <select id="am-categorie" onchange="recomputeAmendeFromSelection()">
-          <option value="genin">Genin / Toku Chunin</option>
-          <option value="chunin">Chunin / Kakunin</option>
-          <option value="toku">Toku / Jonin</option>
-        </select>
+        <label style="display:block; font-size:0.75rem; color:var(--ink-faint); margin-bottom:6px;">Infractions du barème (sélection multiple)</label>
+        <div class="bareme-picker">
+          ${[0,1,2,3].map(p => grouped[p].length ? `
+            <div class="bareme-palier-label">${PALIER_LABELS[p].split(' —')[0]}</div>
+            ${grouped[p].map(i=>`
+              <div class="bareme-row">
+                <input type="checkbox" id="chk-${i.id}" ${state.selectedInfractions.includes(i.id)?'checked':''} onchange="toggleInfractionSelect('${i.id}')">
+                <label for="chk-${i.id}">${esc(i.titre)}</label>
+                <span class="price">${prixInfraction(i)} Ryo</span>
+              </div>
+            `).join('')}
+          ` : '').join('')}
+          <div class="bareme-summary">
+            <span>${state.selectedInfractions.length} infraction(s) sélectionnée(s)</span>
+            <span>Total : <strong>${selectedTotal} Ryo</strong></span>
+          </div>
+        </div>
       </div>
       <div class="row3">
         <div class="field"><input id="am-contrevenant" type="text" placeholder="Contrevenant"></div>
