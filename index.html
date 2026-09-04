@@ -178,6 +178,18 @@ footer{border-top:1px solid var(--line); padding:18px 48px; text-align:left; fon
 .waiting-card .tag{font-size:0.7rem; color:var(--gold); margin-bottom:12px; text-transform:uppercase; letter-spacing:1px;}
 .waiting-card h3{font-size:1.35rem; margin-bottom:12px; font-style:italic;}
 
+.attente-wrap{ display:flex; align-items:center; justify-content:center; min-height:65vh; }
+.waiting-card-big{
+  max-width:640px; padding:44px 40px; text-align:center; border-left:none;
+  border:1px solid var(--gold); box-shadow:0 0 0 1px rgba(190,154,85,0.08), 0 20px 60px rgba(0,0,0,0.35);
+}
+.waiting-card-big h3{ font-size:1.7rem; }
+.waiting-card-big .waiting-lead{ font-size:0.95rem; }
+.waiting-notice{
+  margin-top:22px; padding:18px 20px; border:1px solid var(--gold); background:var(--gold-dim);
+  border-radius:8px; font-size:0.95rem; color:var(--ink); line-height:1.55; font-weight:500;
+}
+
 /* TABS */
 .tabs{display:flex; gap:2px; border-bottom:1px solid var(--line); margin-bottom:24px; flex-wrap:wrap;}
 .tab{
@@ -403,28 +415,49 @@ async function loadAll(){
     state.auditLog = JSON.parse(r.value);
   }catch(e){ state.auditLog = []; }
 
-  try{
-    const r = await window.storage.get('konoha-session', false);
-    const saved = JSON.parse(r.value);
-    const found = state.users.find(u=>u.id===saved.userId);
+  let sessionUserId = getUrlSessionId();
+  if(!sessionUserId){
+    try{
+      const r = await window.storage.get('konoha-session', true);
+      const saved = JSON.parse(r.value);
+      sessionUserId = saved.userId;
+    }catch(e){ sessionUserId = null; }
+  }
+  if(sessionUserId){
+    const found = state.users.find(u=>u.id===sessionUserId);
     if(found){
       state.currentUser = found;
+      setUrlSessionId(found.id);
       if(found.role==='attente') state.view = 'attente';
       else if(isFullAccess(found)) state.view = 'admin';
       else { state.view = 'bureau'; state.activeSection = found.section; }
     }
-  }catch(e){ /* pas de session enregistrée sur cet appareil */ }
+  }
 
   state.loading = false;
   render();
 }
 
+function getUrlSessionId(){
+  try{
+    return new URLSearchParams(window.location.search).get('u');
+  }catch(e){ return null; }
+}
+function setUrlSessionId(id){
+  try{
+    const url = new URL(window.location.href);
+    if(id) url.searchParams.set('u', id); else url.searchParams.delete('u');
+    window.history.replaceState(null, '', url.toString());
+  }catch(e){ /* pas grave, l'URL ne portera juste pas la session */ }
+}
 async function persistSession(user){
-  try{ await window.storage.set('konoha-session', JSON.stringify({ userId: user.id }), false); }
-  catch(e){ /* pas grave, la session ne survivra juste pas à un rechargement */ }
+  setUrlSessionId(user.id);
+  try{ await window.storage.set('konoha-session', JSON.stringify({ userId: user.id }), true); }
+  catch(e){ /* la trace dans l'URL suffira au pire */ }
 }
 async function clearPersistedSession(){
-  try{ await window.storage.delete('konoha-session', false); }
+  setUrlSessionId(null);
+  try{ await window.storage.delete('konoha-session', true); }
   catch(e){ /* rien à effacer */ }
 }
 
@@ -537,6 +570,23 @@ async function changePassword(){
   document.getElementById('pw-new').value='';
   document.getElementById('pw-confirm').value='';
   flash("Mot de passe mis à jour.", 'success');
+}
+
+async function retirerMembre(userId){
+  const acteur = state.currentUser;
+  const target = state.users.find(u=>u.id===userId);
+  if(!target || !acteur) return;
+  if(target.id===acteur.id){ flash("Vous ne pouvez pas retirer vos propres accès depuis ici.", 'error'); return; }
+  if(target.role==='fondateur' && acteur.role!=='fondateur'){ flash("Seul le Fondateur peut retirer un compte Fondateur.", 'error'); return; }
+  if(!confirm("Retirer les accès de "+target.prenom+" "+target.nom+" ? Le compte repassera en attente d'affectation.")) return;
+  target.role = 'attente';
+  target.section = null;
+  target.grade = null;
+  target.sectionDemandee = null;
+  await saveUsers();
+  logAudit(target.prenom+" "+target.nom+" a eu ses accès retirés par "+authorName()+".", 'Comptes');
+  flash("Accès retirés pour "+target.prenom+" "+target.nom+".", 'success');
+  render();
 }
 
 /* ---------------- ADMIN ACTIONS ---------------- */
@@ -1191,6 +1241,7 @@ function renderSidebar(){
       <button class="nav-link ${state.view==='accueil'?'active':''}" onclick="goto('accueil')">Accueil</button>
       ${u && isFullAccess(u) ? `<button class="nav-link ${state.view==='admin'?'active':''}" onclick="goto('admin')">Secrétariat</button>` : ''}
       ${u && u.role==='fondateur' ? `<button class="nav-link ${state.view==='journal'?'active':''}" onclick="goto('journal')">Journal général</button>` : ''}
+      ${u && u.role==='fondateur' ? `<button class="nav-link ${state.view==='administrateurs'?'active':''}" onclick="goto('administrateurs')">Administrateurs</button>` : ''}
       ${u && u.role==='membre' && u.section ? `<button class="nav-link ${state.view==='bureau'?'active':''}" onclick="openBureau('${u.section}')">Mon bureau</button>` : ''}
     </div>
 
@@ -1230,8 +1281,30 @@ function renderView(){
     case 'admin': return renderAdmin();
     case 'moncompte': return renderMonCompte();
     case 'journal': return renderJournal();
+    case 'administrateurs': return renderAdministrateurs();
     default: return renderAccueil();
   }
+}
+
+function renderAdministrateurs(){
+  const u = state.currentUser;
+  if(!u || u.role!=='fondateur'){ state.view='connexion'; return renderAuth('connexion'); }
+  const admins = state.users.filter(x=>x.role==='staff');
+  return `
+    <div class="bureau-head">
+      <div><h2>Administrateurs</h2><div class="desc">Comptes du Secrétariat — vous seul, en tant que Fondateur, pouvez leur retirer l'accès.</div></div>
+    </div>
+    <div class="section-title"><h3>Secrétariat</h3><span class="count">${admins.length} compte(s)</span></div>
+    ${admins.length===0 ? `<div class="empty-state">Aucun administrateur pour le moment.</div>` :
+      admins.map(a=>`
+        <div class="item-card">
+          <div class="meta"><span>Créé le</span><span>${fmtDate(a.dateCreation)}</span></div>
+          <h4>${esc(a.prenom)} ${esc(a.nom)}</h4>
+          <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="retirerMembre('${a.id}')">Retirer les droits d'administrateur</button>
+        </div>
+      `).join('')
+    }
+  `;
 }
 
 function setJournalSearch(v){ state.journalSearch = v; render(); }
@@ -1348,13 +1421,17 @@ function renderAttente(){
     state.view='bureau'; state.activeSection=u.section; return renderBureau();
   }
   return `
-    <div class="waiting-card">
-      <div class="tag">Statut du dossier</div>
-      <h3>Votre espace a été créé, ${esc(u.prenom)}.</h3>
-      <p>Vous n'êtes affecté à aucun bureau pour le moment et n'avez donc pas accès aux dossiers du village.</p>
-      ${u.sectionDemandee ? `<p>Vous avez demandé à rejoindre : <strong>${esc(SECTIONS[u.sectionDemandee].label)}</strong>.</p>` : ''}
-      <p>Un membre du secrétariat doit valider votre affectation pour vous donner accès à son salon et à ses dossiers.</p>
-      <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="checkStatus()">Actualiser mon statut</button>
+    <div class="attente-wrap">
+      <div class="waiting-card waiting-card-big">
+        <div class="tag">Statut du dossier</div>
+        <h3>Bienvenue, ${esc(u.prenom)}.</h3>
+        <p class="waiting-lead">Votre espace a été créé, mais vous n'êtes affecté à aucun bureau pour le moment : vous n'avez donc accès à aucun salon ni dossier du village.</p>
+        ${u.sectionDemandee ? `<p>Bureau demandé : <strong>${esc(SECTIONS[u.sectionDemandee].label)}</strong>.</p>` : ''}
+        <div class="waiting-notice">
+          Pour continuer, prévenez votre chef de section ou une personne haut gradée du bureau souhaité — elle seule (ou un membre du secrétariat) peut valider et confirmer votre compte.
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:16px;" onclick="checkStatus()">Actualiser mon statut</button>
+      </div>
     </div>
   `;
 }
@@ -1431,7 +1508,22 @@ function renderAdmin(){
     <table class="admin-table">
       <thead><tr><th>Prénom</th><th>Nom</th><th>Bureau demandé</th><th>Bureau</th><th>Statut</th><th>Depuis</th><th></th></tr></thead>
       <tbody>
-        ${state.users.map(x=>`
+        ${state.users.map(x=>{
+          const locked = x.role==='fondateur' && u.role!=='fondateur';
+          if(locked){
+            return `
+              <tr>
+                <td><strong>${esc(x.prenom)}</strong></td>
+                <td>${esc(x.nom)}</td>
+                <td style="font-size:0.78rem;">—</td>
+                <td style="font-size:0.78rem;">—</td>
+                <td><span class="role-tag role-fondateur">Fondateur</span></td>
+                <td style="font-size:0.75rem;">${fmtDate(x.dateCreation)}</td>
+                <td style="font-size:0.72rem; color:var(--ink-faint);">Non modifiable</td>
+              </tr>
+            `;
+          }
+          return `
           <tr>
             <td><input id="prenom-${x.id}" type="text" value="${esc(x.prenom)}" style="width:100px; padding:6px 7px; border:1px solid var(--line-strong); background:var(--bg); color:var(--ink); border-radius:4px;"></td>
             <td><input id="nom-${x.id}" type="text" value="${esc(x.nom)}" style="width:100px; padding:6px 7px; border:1px solid var(--line-strong); background:var(--bg); color:var(--ink); border-radius:4px;"></td>
@@ -1458,13 +1550,17 @@ function renderAdmin(){
                 <option value="attente" ${x.role==='attente'?'selected':''}>En attente</option>
                 <option value="membre" ${x.role==='membre'?'selected':''}>Membre affecté</option>
                 <option value="staff" ${x.role==='staff'?'selected':''}>Secrétariat</option>
-                <option value="fondateur" ${x.role==='fondateur'?'selected':''}>Fondateur</option>
+                ${u.role==='fondateur' ? `<option value="fondateur" ${x.role==='fondateur'?'selected':''}>Fondateur</option>` : ''}
               </select>
             </td>
             <td style="font-size:0.75rem;">${fmtDate(x.dateCreation)}</td>
-            <td><button class="btn btn-sm btn-primary" onclick="adminUpdate('${x.id}')">Valider</button></td>
+            <td style="display:flex; flex-direction:column; gap:5px;">
+              <button class="btn btn-sm btn-primary" onclick="adminUpdate('${x.id}')">Valider</button>
+              ${x.id!==u.id && x.role!=='attente' ? `<button class="btn btn-sm btn-ghost" onclick="retirerMembre('${x.id}')">Retirer</button>` : ''}
+            </td>
           </tr>
-        `).join('')}
+        `;
+        }).join('')}
       </tbody>
     </table>
   `;
