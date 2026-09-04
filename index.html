@@ -20,6 +20,7 @@
   --red-dim: rgba(184,68,57,0.14);
   --gold:#BE9A55;
   --gold-dim: rgba(190,154,85,0.14);
+  --violet:#9E8CC9;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -74,16 +75,28 @@ input, textarea, select{font-family:inherit; font-size:0.95rem;}
 .role-attente{color:var(--red);}
 .role-membre{color:#7FA88A;}
 .role-staff{color:var(--gold);}
+.role-fondateur{color:var(--violet);}
 
 .content-area{display:flex; flex-direction:column; min-height:100vh;}
 main{flex:1; padding:44px 48px 60px;}
 .container{max-width:760px;}
 footer{border-top:1px solid var(--line); padding:18px 48px; text-align:left; font-size:0.72rem; color:var(--ink-faint);}
 
+.sidebar-toggle{ display:none; }
+
 @media (max-width:840px){
   .app-shell{grid-template-columns:1fr;}
-  .sidebar{position:relative; height:auto; flex-direction:row; align-items:center; flex-wrap:wrap; padding:16px 18px;}
-  .sidebar-section, .sidebar-user{display:none;}
+  .sidebar{position:relative; height:auto; padding:16px 18px; gap:14px;}
+  .sidebar-top-row{ display:flex; align-items:center; justify-content:space-between; width:100%; }
+  .sidebar-toggle{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:38px; height:38px; border:1px solid var(--line-strong); border-radius:6px;
+    background:transparent; color:var(--ink); font-size:1.15rem; cursor:pointer; flex-shrink:0;
+  }
+  .sidebar:not(.menu-open) .sidebar-section,
+  .sidebar:not(.menu-open) .sidebar-user{ display:none; }
+  .sidebar.menu-open .sidebar-section,
+  .sidebar.menu-open .sidebar-user{ display:flex; flex-direction:column; }
   main{padding:28px 20px 50px;}
   footer{padding:16px 20px;}
 }
@@ -338,6 +351,9 @@ let state = {
   editingImpotId: null,
   dossierSearch: '',
   activeDossierId: null,
+  auditLog: [],
+  journalSearch: '',
+  mobileMenuOpen: false,
 };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -352,14 +368,24 @@ async function loadAll(){
     state.users = JSON.parse(r.value);
   }catch(e){ state.users = []; }
 
+  let usersChanged = false;
   if(!state.users || state.users.length===0){
     state.users = [{
       id: uid(), prenom:"Secrétariat", nom:"Konoha",
-      password:"konoha2026", section:null, role:'staff',
+      password:"konoha2026", section:null, grade:null, role:'staff',
       dateCreation: new Date().toISOString()
     }];
-    await saveUsers();
+    usersChanged = true;
   }
+  if(!state.users.some(u=>u.role==='fondateur')){
+    state.users.push({
+      id: uid(), prenom:"Fondateur", nom:"Konoha",
+      password:"konoha-fondateur-2026", section:null, grade:null, role:'fondateur',
+      dateCreation: new Date().toISOString()
+    });
+    usersChanged = true;
+  }
+  if(usersChanged) await saveUsers();
 
   const loaded = {};
   for(const key of SECTION_KEYS){
@@ -373,13 +399,18 @@ async function loadAll(){
   state.sections = loaded;
 
   try{
+    const r = await window.storage.get('konoha-audit-log', true);
+    state.auditLog = JSON.parse(r.value);
+  }catch(e){ state.auditLog = []; }
+
+  try{
     const r = await window.storage.get('konoha-session', false);
     const saved = JSON.parse(r.value);
     const found = state.users.find(u=>u.id===saved.userId);
     if(found){
       state.currentUser = found;
       if(found.role==='attente') state.view = 'attente';
-      else if(found.role==='staff') state.view = 'admin';
+      else if(isFullAccess(found)) state.view = 'admin';
       else { state.view = 'bureau'; state.activeSection = found.section; }
     }
   }catch(e){ /* pas de session enregistrée sur cet appareil */ }
@@ -395,6 +426,16 @@ async function persistSession(user){
 async function clearPersistedSession(){
   try{ await window.storage.delete('konoha-session', false); }
   catch(e){ /* rien à effacer */ }
+}
+
+function logAudit(description, categorie){
+  state.auditLog.unshift({ id:uid(), description, categorie: categorie||'Général', auteur: authorName(), date:new Date().toISOString() });
+  if(state.auditLog.length>500) state.auditLog.length = 500;
+  saveAuditLog();
+}
+async function saveAuditLog(){
+  try{ await window.storage.set('konoha-audit-log', JSON.stringify(state.auditLog), true); }
+  catch(e){ /* le journal n'a pas pu être sauvegardé cette fois */ }
 }
 
 function normalizeSection(key, data){
@@ -444,6 +485,7 @@ async function register(){
   const user = { id: uid(), prenom, nom, password: pass, section:null, sectionDemandee, grade:null, role:'attente', dateCreation:new Date().toISOString() };
   state.users.push(user);
   await saveUsers();
+  logAudit(prenom+" "+nom+" a créé un compte et demande à rejoindre "+SECTIONS[sectionDemandee].label+".", 'Comptes');
   state.currentUser = user;
   persistSession(user);
   state.view = 'attente';
@@ -458,8 +500,9 @@ function login(){
   if(!user){ flash("Identifiants incorrects.", 'error'); return; }
   state.currentUser = user;
   persistSession(user);
+  logAudit(user.prenom+" "+user.nom+" s'est connecté.", 'Connexions');
   if(user.role==='attente') state.view='attente';
-  else if(user.role==='staff'){ state.view='admin'; state.activeSection=null; }
+  else if(isFullAccess(user)){ state.view='admin'; state.activeSection=null; }
   else { state.view='bureau'; state.activeSection=user.section; state.activeTab='salon'; }
   render();
 }
@@ -468,6 +511,7 @@ function logout(){
   clearPersistedSession();
   state.currentUser = null;
   state.view = 'accueil';
+  state.mobileMenuOpen = false;
   render();
 }
 
@@ -488,6 +532,7 @@ async function changePassword(){
   if(next !== confirmNext){ flash("Les nouveaux mots de passe ne correspondent pas.", 'error'); return; }
   u.password = next;
   await saveUsers();
+  logAudit(u.prenom+" "+u.nom+" a changé son mot de passe.", 'Comptes');
   document.getElementById('pw-current').value='';
   document.getElementById('pw-new').value='';
   document.getElementById('pw-confirm').value='';
@@ -514,7 +559,7 @@ async function adminUpdate(userId){
   u.section = sel.value === '' ? null : sel.value;
   u.role = rol.value;
   if(u.role==='attente'){ u.section=null; u.grade=null; }
-  else if(u.role==='staff'){ u.section=null; u.grade=null; u.sectionDemandee=null; }
+  else if(u.role==='staff' || u.role==='fondateur'){ u.section=null; u.grade=null; u.sectionDemandee=null; }
   else if(u.section){
     const grades = SECTIONS[u.section].grades;
     if(!grades.includes(u.grade)) u.grade = grades[grades.length-1];
@@ -524,6 +569,7 @@ async function adminUpdate(userId){
   }
   await saveUsers();
   if(state.currentUser && state.currentUser.id===u.id) state.currentUser = u;
+  logAudit("Fiche modifiée par le secrétariat : "+u.prenom+" "+u.nom+" ("+roleLabel(u.role)+(u.section?(", "+SECTIONS[u.section].label):"")+").", 'Comptes');
   flash("Fiche de "+u.prenom+" "+u.nom+" mise à jour.", 'success');
   render();
 }
@@ -540,6 +586,7 @@ async function acceptRequest(userId){
   u.sectionDemandee = null;
   await saveUsers();
   if(state.currentUser && state.currentUser.id===u.id) state.currentUser = u;
+  logAudit(u.prenom+" "+u.nom+" a été affecté à "+SECTIONS[u.section].label+" avec le grade "+chosenGrade+".", 'Comptes');
   flash(u.prenom+" "+u.nom+" a été affecté à "+SECTIONS[u.section].label+" avec le grade "+chosenGrade+".", 'success');
   render();
 }
@@ -548,6 +595,7 @@ async function refuseRequest(userId){
   if(!u) return;
   u.sectionDemandee = null;
   await saveUsers();
+  logAudit("Demande de bureau refusée pour "+u.prenom+" "+u.nom+".", 'Comptes');
   flash("Demande de bureau refusée pour "+u.prenom+" "+u.nom+".", 'info');
   render();
 }
@@ -564,6 +612,7 @@ async function createMember(){
   const user = { id: uid(), prenom, nom, password: pass, section:bureau, sectionDemandee:null, grade, role:'membre', dateCreation:new Date().toISOString() };
   state.users.push(user);
   await saveUsers();
+  logAudit(prenom+" "+nom+" créé directement par le secrétariat dans "+SECTIONS[bureau].label+" avec le grade "+grade+".", 'Comptes');
   flash(prenom+" "+nom+" a été créé directement dans "+SECTIONS[bureau].label+" avec le grade "+grade+".", 'success');
   document.getElementById('mem-prenom').value='';
   document.getElementById('mem-nom').value='';
@@ -587,6 +636,7 @@ async function createAdmin(){
   const user = { id: uid(), prenom, nom, password: pass, section:null, role:'staff', dateCreation:new Date().toISOString() };
   state.users.push(user);
   await saveUsers();
+  logAudit(prenom+" "+nom+" ajouté au secrétariat.", 'Comptes');
   flash(prenom+" "+nom+" a été ajouté au secrétariat.", 'success');
   document.getElementById('adm-prenom').value='';
   document.getElementById('adm-nom').value='';
@@ -620,13 +670,16 @@ async function postCas(){
   if(!suspect || !motif){ flash("Le suspect et le motif sont requis.", 'error'); return; }
   state.sections.police.casJudiciaires.unshift({ id:uid(), suspect, motif, details, statut:'ouvert', photos:[], auteur: authorName(), date:new Date().toISOString() });
   await saveSection('police');
+  logAudit("Cas judiciaire ouvert contre "+suspect+" ("+motif+").", 'Police');
   render();
 }
 async function toggleCas(id){
   const c = state.sections.police.casJudiciaires.find(x=>x.id===id);
   if(!c) return;
   c.statut = c.statut==='ouvert' ? 'clos' : 'ouvert';
-  await saveSection('police'); render();
+  await saveSection('police');
+  logAudit("Cas judiciaire de "+c.suspect+" marqué "+(c.statut==='ouvert'?'ouvert':'clos')+".", 'Police');
+  render();
 }
 
 function resizePhoto(file, maxWidth){
@@ -690,6 +743,7 @@ async function postAmende(){
   if(!contrevenant || isNaN(montant) || montant<0 || !motif){ flash("Contrevenant, montant et motif sont requis.", 'error'); return; }
   state.sections.police.amendes.unshift({ id:uid(), contrevenant, montant, motif, montantPaye:0, paiements:[], auteur: authorName(), date:new Date().toISOString() });
   await saveSection('police');
+  logAudit("Amende émise contre "+contrevenant+" : "+montant+" Ryo ("+motif+").", 'Police');
   state.selectedInfractions = [];
   render();
 }
@@ -769,6 +823,7 @@ async function paySelectedAmendes(){
     remaining -= pay;
   }
   await saveSection('police');
+  logAudit("Paiement d'amende(s) enregistré : "+amount+" Ryo sur "+list.length+" amende(s).", 'Police');
   const reste = remaining;
   state.selectedAmendes = [];
   render();
@@ -782,6 +837,7 @@ async function soldeAmende(id){
   a.montantPaye = a.montant;
   a.paiements.push({ montant:due, date:new Date().toISOString(), auteur: authorName() });
   await saveSection('police');
+  logAudit("Amende de "+a.contrevenant+" soldée ("+a.montant+" Ryo).", 'Police');
   render();
 }
 
@@ -792,6 +848,7 @@ async function postCellule(){
   if(!nom || !motif){ flash("Le nom et le motif sont requis.", 'error'); return; }
   state.sections.police.cellule.unshift({ id:uid(), nom, motif, statut:'detention', dateEntree:new Date().toISOString(), auteur: authorName() });
   await saveSection('police');
+  logAudit(nom+" placé en cellule ("+motif+").", 'Police');
   render();
 }
 async function libererCellule(id){
@@ -800,14 +857,16 @@ async function libererCellule(id){
   c.statut = c.statut==='detention' ? 'libere' : 'detention';
   c.dateLiberation = c.statut==='libere' ? new Date().toISOString() : null;
   await saveSection('police');
+  logAudit(c.nom+" "+(c.statut==='libere'?'libéré de cellule':'replacé en cellule')+".", 'Police');
   render();
 }
 
 /* ---------------- GRADES ---------------- */
+function isFullAccess(u){ return !!u && (u.role==='staff' || u.role==='fondateur'); }
 function canManageGrades(sectionKey){
   const u = state.currentUser;
   if(!u) return false;
-  if(u.role==='staff') return true;
+  if(isFullAccess(u)) return true;
   if(u.role==='membre' && u.section===sectionKey){
     const grades = SECTIONS[sectionKey].grades;
     const idx = grades.indexOf(u.grade);
@@ -820,9 +879,11 @@ async function setGrade(userId, sectionKey){
   const sel = document.getElementById('grade-'+userId);
   const target = state.users.find(x=>x.id===userId);
   if(!target) return;
+  const ancienGrade = target.grade;
   target.grade = sel.value;
   await saveUsers();
   if(state.currentUser && state.currentUser.id===target.id) state.currentUser = target;
+  logAudit(target.prenom+" "+target.nom+" promu de "+ancienGrade+" à "+target.grade+" dans "+SECTIONS[sectionKey].label+".", 'Grades');
   flash("Grade mis à jour pour "+target.prenom+" "+target.nom+".", 'success');
   render();
 }
@@ -859,6 +920,7 @@ async function saveInfraction(){
     flash("Infraction ajoutée au barème — classée automatiquement dans le "+PALIER_LABELS[palier].split(' —')[0]+".", 'success');
   }
   await saveSection('police');
+  logAudit("Barème des amendes modifié : "+titre+".", 'Police');
   render();
 }
 async function deleteInfraction(id){
@@ -867,6 +929,7 @@ async function deleteInfraction(id){
   state.sections.police.infractions = state.sections.police.infractions.filter(i=>i.id!==id);
   if(state.editingInfractionId===id) state.editingInfractionId=null;
   await saveSection('police');
+  logAudit("Infraction supprimée du barème.", 'Police');
   render();
 }
 
@@ -874,7 +937,7 @@ async function deleteInfraction(id){
 function canDeleteItem(auteur, sectionKey){
   const u = state.currentUser;
   if(!u) return false;
-  if(u.role==='staff') return true;
+  if(isFullAccess(u)) return true;
   if(auteur===authorName()) return true;
   return canManageGrades(sectionKey);
 }
@@ -882,12 +945,14 @@ async function deleteSalon(key, id){
   if(!confirm("Supprimer cette annonce ?")) return;
   state.sections[key].salon = state.sections[key].salon.filter(p=>p.id!==id);
   await saveSection(key);
+  logAudit("Annonce supprimée dans "+SECTIONS[key].label+".", 'Modération');
   render();
 }
 async function deleteRapport(id){
   if(!confirm("Supprimer ce rapport ?")) return;
   state.sections.police.rapports = state.sections.police.rapports.filter(r=>r.id!==id);
   await saveSection('police');
+  logAudit("Rapport de police supprimé.", 'Modération');
   render();
 }
 function setRapportFilter(f){ state.rapportFilter = f; render(); }
@@ -903,6 +968,7 @@ async function addStock(){
   else{ state.sections.finance.stocks.unshift({ id:uid(), nom, quantite, unite }); }
   state.sections.finance.logs.unshift({ id:uid(), type:'stock', description:`Ajout de ${quantite} ${unite} de « ${nom} »`, auteur: authorName(), date:new Date().toISOString() });
   await saveSection('finance');
+  logAudit("Stock ajouté : "+quantite+" "+unite+" de "+nom+".", 'Finance');
   render();
 }
 async function adjustStock(id, delta){
@@ -922,6 +988,7 @@ async function deposer(){
   state.sections.finance.banque.solde += montant;
   state.sections.finance.logs.unshift({ id:uid(), type:'banque', description:`Dépôt : ${motif} (+${montant} Ryo)`, montant, auteur: authorName(), date:new Date().toISOString() });
   await saveSection('finance');
+  logAudit("Dépôt en banque : +"+montant+" Ryo ("+motif+").", 'Finance');
   render();
 }
 async function retirer(){
@@ -932,6 +999,7 @@ async function retirer(){
   state.sections.finance.banque.solde -= montant;
   state.sections.finance.logs.unshift({ id:uid(), type:'banque', description:`Retrait : ${motif} (−${montant} Ryo)`, montant:-montant, auteur: authorName(), date:new Date().toISOString() });
   await saveSection('finance');
+  logAudit("Retrait de banque : -"+montant+" Ryo ("+motif+").", 'Finance');
   render();
 }
 
@@ -972,6 +1040,7 @@ async function percevoirImpot(){
   state.sections.finance.banque.solde += impot.montant;
   state.sections.finance.logs.unshift({ id:uid(), type:'banque', description:`Impôt perçu de ${joueur} (${impot.grade}) : +${impot.montant} Ryo`, montant: impot.montant, auteur: authorName(), date:new Date().toISOString() });
   await saveSection('finance');
+  logAudit("Impôt encaissé : "+joueur+" ("+impot.grade+") : +"+impot.montant+" Ryo.", 'Finance');
   flash("Impôt encaissé.", 'success');
   render();
 }
@@ -980,7 +1049,7 @@ async function percevoirImpot(){
 function canHandleAppointments(key){
   const u = state.currentUser;
   if(!u) return false;
-  if(u.role==='staff') return true;
+  if(isFullAccess(u)) return true;
   if(u.role==='membre' && u.section===key){
     const grades = SECTIONS[key].grades;
     const idx = grades.indexOf(u.grade);
@@ -995,6 +1064,7 @@ async function postRendezvous(key){
   if(!demandeur || !motif){ flash("Le nom du demandeur et le motif sont requis.", 'error'); return; }
   state.sections[key].rendezvous.unshift({ id:uid(), demandeur, motif, dateSouhaitee, statut:'demande', priseEnCharge:null, auteur: authorName(), date:new Date().toISOString() });
   await saveSection(key);
+  logAudit("Rendez-vous demandé par "+demandeur+" dans "+SECTIONS[key].label+".", 'Rendez-vous');
   render();
 }
 async function traiterRendezvous(key, id, statut){
@@ -1004,6 +1074,7 @@ async function traiterRendezvous(key, id, statut){
   rdv.statut = statut;
   rdv.priseEnCharge = authorName();
   await saveSection(key);
+  logAudit("Rendez-vous de "+rdv.demandeur+" dans "+SECTIONS[key].label+" : "+statut+".", 'Rendez-vous');
   render();
 }
 
@@ -1019,6 +1090,7 @@ async function addDossierMedical(){
   if(exists){ flash("Un dossier existe déjà pour ce joueur.", 'error'); return; }
   state.sections.medecins.dossiers.unshift({ id:uid(), nomJoueur:nom, groupeSanguin:groupe, maladies: maladies||'Aucune connue', dateCreation:new Date().toISOString(), auteur: authorName(), bilans:[] });
   await saveSection('medecins');
+  logAudit("Dossier médical créé pour "+nom+".", 'Médecins');
   render();
 }
 async function updateDossierInfo(dossierId){
@@ -1040,13 +1112,16 @@ async function addBilan(dossierId){
   if(!dossier) return;
   dossier.bilans.unshift({ id:uid(), type, resultat, auteur: authorName(), date:new Date().toISOString() });
   await saveSection('medecins');
+  logAudit("Bilan ("+type+") ajouté au dossier de "+dossier.nomJoueur+".", 'Médecins');
   render();
 }
 async function deleteDossier(id){
   if(!confirm("Supprimer ce dossier médical ?")) return;
+  const removed = state.sections.medecins.dossiers.find(d=>d.id===id);
   state.sections.medecins.dossiers = state.sections.medecins.dossiers.filter(d=>d.id!==id);
   if(state.activeDossierId===id) state.activeDossierId=null;
   await saveSection('medecins');
+  logAudit("Dossier médical supprimé"+(removed?(" ("+removed.nomJoueur+")"):"")+".", 'Médecins');
   render();
 }
 
@@ -1060,11 +1135,13 @@ function goto(view, section){
   state.view = view;
   if(section !== undefined) state.activeSection = section;
   state.activeTab = 'salon';
+  state.mobileMenuOpen = false;
   render();
 }
 function setAuthMode(mode){ state.authMode = mode; render(); }
-function openBureau(key){ state.view='bureau'; state.activeSection=key; state.activeTab='salon'; render(); }
+function openBureau(key){ state.view='bureau'; state.activeSection=key; state.activeTab='salon'; state.mobileMenuOpen=false; render(); }
 function setTab(tab){ state.activeTab = tab; render(); }
+function toggleMobileMenu(){ state.mobileMenuOpen = !state.mobileMenuOpen; render(); }
 
 /* ---------------- RENDER ---------------- */
 function render(){
@@ -1097,23 +1174,27 @@ function renderApp(){
 function renderSidebar(){
   const u = state.currentUser;
   return `
-  <aside class="sidebar">
-    <div class="brand" onclick="goto('accueil')">
-      <img src="${LOGO_SRC}" alt="Emblème de Konoha">
-      <div class="brand-text">
-        <h1>Bureau de Konoha</h1>
-        <div class="sub">Administration officielle</div>
+  <aside class="sidebar ${state.mobileMenuOpen?'menu-open':''}">
+    <div class="sidebar-top-row">
+      <div class="brand" onclick="goto('accueil')">
+        <img src="${LOGO_SRC}" alt="Emblème de Konoha">
+        <div class="brand-text">
+          <h1>Bureau de Konoha</h1>
+          <div class="sub">Administration officielle</div>
+        </div>
       </div>
+      <button class="sidebar-toggle" onclick="event.stopPropagation(); toggleMobileMenu();">${state.mobileMenuOpen ? '✕' : '☰'}</button>
     </div>
 
     <div class="sidebar-section">
       <div class="sidebar-label">Navigation</div>
       <button class="nav-link ${state.view==='accueil'?'active':''}" onclick="goto('accueil')">Accueil</button>
-      ${u && u.role==='staff' ? `<button class="nav-link ${state.view==='admin'?'active':''}" onclick="goto('admin')">Secrétariat</button>` : ''}
+      ${u && isFullAccess(u) ? `<button class="nav-link ${state.view==='admin'?'active':''}" onclick="goto('admin')">Secrétariat</button>` : ''}
+      ${u && u.role==='fondateur' ? `<button class="nav-link ${state.view==='journal'?'active':''}" onclick="goto('journal')">Journal général</button>` : ''}
       ${u && u.role==='membre' && u.section ? `<button class="nav-link ${state.view==='bureau'?'active':''}" onclick="openBureau('${u.section}')">Mon bureau</button>` : ''}
     </div>
 
-    ${u && u.role==='staff' ? `
+    ${u && isFullAccess(u) ? `
       <div class="sidebar-section">
         <div class="sidebar-label">Bureaux du village</div>
         ${SECTION_KEYS.map(k=>`<button class="nav-link ${state.view==='bureau' && state.activeSection===k?'active':''}" onclick="openBureau('${k}')">${esc(SECTIONS[k].label)}</button>`).join('')}
@@ -1137,7 +1218,7 @@ function renderSidebar(){
 }
 
 function roleLabel(r){
-  return r==='attente' ? 'En attente' : r==='staff' ? 'Secrétariat' : 'Membre affecté';
+  return r==='attente' ? 'En attente' : r==='fondateur' ? 'Fondateur' : r==='staff' ? 'Secrétariat' : 'Membre affecté';
 }
 
 function renderView(){
@@ -1148,8 +1229,38 @@ function renderView(){
     case 'bureau': return renderBureau();
     case 'admin': return renderAdmin();
     case 'moncompte': return renderMonCompte();
+    case 'journal': return renderJournal();
     default: return renderAccueil();
   }
+}
+
+function setJournalSearch(v){ state.journalSearch = v; render(); }
+function renderJournal(){
+  const u = state.currentUser;
+  if(!u || u.role!=='fondateur') return renderAuth('connexion');
+  const term = state.journalSearch.trim().toLowerCase();
+  const list = term
+    ? state.auditLog.filter(l => (l.description+' '+l.auteur+' '+l.categorie).toLowerCase().includes(term))
+    : state.auditLog;
+  return `
+    <div class="bureau-head">
+      <div><h2>Journal général</h2><div class="desc">Historique de toutes les actions, tous comptes et tous bureaux confondus — réservé au Fondateur.</div></div>
+    </div>
+    <div class="compose" style="display:flex; gap:10px; align-items:center;">
+      <input id="journal-search" type="text" placeholder="Rechercher (nom, action, catégorie)…" value="${esc(state.journalSearch)}" style="flex:1; padding:9px 11px; border:1px solid var(--line-strong); background:var(--bg); color:var(--ink); border-radius:5px;" onkeydown="if(event.key==='Enter'){ setJournalSearch(this.value); }">
+      <button class="btn btn-ghost btn-sm" onclick="setJournalSearch(document.getElementById('journal-search').value)">Rechercher</button>
+    </div>
+    <div class="section-title"><h3>Entrées</h3><span class="count">${list.length} / ${state.auditLog.length}</span></div>
+    ${list.length===0 ? `<div class="empty-state">Aucune entrée ${term?'ne correspond à cette recherche':'pour le moment'}.</div>` :
+      list.slice(0,300).map(l=>`
+        <div class="item-card">
+          <div class="meta"><span>${esc(l.auteur)} · ${esc(l.categorie)}</span><span>${fmtDate(l.date)}</span></div>
+          <div class="body-text">${esc(l.description)}</div>
+        </div>
+      `).join('')
+    }
+    ${list.length>300 ? `<p style="font-size:0.76rem; margin-top:10px;">Affichage limité aux 300 entrées les plus récentes correspondant à la recherche.</p>` : ''}
+  `;
 }
 
 function renderMonCompte(){
@@ -1233,7 +1344,7 @@ function renderAttente(){
   const u = state.currentUser;
   if(!u) return renderAuth('connexion');
   if(u.role!=='attente'){
-    if(u.role==='staff'){ state.view='admin'; return renderAdmin(); }
+    if(isFullAccess(u)){ state.view='admin'; return renderAdmin(); }
     state.view='bureau'; state.activeSection=u.section; return renderBureau();
   }
   return `
@@ -1253,7 +1364,7 @@ function checkStatus(){
     refreshCurrentUser();
     const u = state.currentUser;
     if(u && u.role!=='attente'){
-      if(u.role==='staff'){ state.view='admin'; }
+      if(isFullAccess(u)){ state.view='admin'; }
       else { state.view='bureau'; state.activeSection=u.section; }
     }
     render();
@@ -1263,7 +1374,7 @@ function checkStatus(){
 
 function renderAdmin(){
   const u = state.currentUser;
-  if(!u || u.role!=='staff') return renderAuth('connexion');
+  if(!u || !isFullAccess(u)) return renderAuth('connexion');
 
   if(state.activeSection){
     return `
@@ -1347,6 +1458,7 @@ function renderAdmin(){
                 <option value="attente" ${x.role==='attente'?'selected':''}>En attente</option>
                 <option value="membre" ${x.role==='membre'?'selected':''}>Membre affecté</option>
                 <option value="staff" ${x.role==='staff'?'selected':''}>Secrétariat</option>
+                <option value="fondateur" ${x.role==='fondateur'?'selected':''}>Fondateur</option>
               </select>
             </td>
             <td style="font-size:0.75rem;">${fmtDate(x.dateCreation)}</td>
