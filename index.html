@@ -1237,7 +1237,7 @@ function renderView(){
 function setJournalSearch(v){ state.journalSearch = v; render(); }
 function renderJournal(){
   const u = state.currentUser;
-  if(!u || u.role!=='fondateur') return renderAuth('connexion');
+  if(!u || u.role!=='fondateur'){ state.view='connexion'; return renderAuth('connexion'); }
   const term = state.journalSearch.trim().toLowerCase();
   const list = term
     ? state.auditLog.filter(l => (l.description+' '+l.auteur+' '+l.categorie).toLowerCase().includes(term))
@@ -1265,7 +1265,7 @@ function renderJournal(){
 
 function renderMonCompte(){
   const u = state.currentUser;
-  if(!u) return renderAuth('connexion');
+  if(!u){ state.view='connexion'; return renderAuth('connexion'); }
   return `
     <div class="form-panel">
       <h3 style="font-style:italic; margin-bottom:4px;">Mon compte</h3>
@@ -1342,7 +1342,7 @@ function renderAuth(mode){
 function renderAttente(){
   refreshCurrentUser();
   const u = state.currentUser;
-  if(!u) return renderAuth('connexion');
+  if(!u){ state.view='connexion'; return renderAuth('connexion'); }
   if(u.role!=='attente'){
     if(isFullAccess(u)){ state.view='admin'; return renderAdmin(); }
     state.view='bureau'; state.activeSection=u.section; return renderBureau();
@@ -1374,7 +1374,7 @@ function checkStatus(){
 
 function renderAdmin(){
   const u = state.currentUser;
-  if(!u || !isFullAccess(u)) return renderAuth('connexion');
+  if(!u || !isFullAccess(u)){ state.view='connexion'; return renderAuth('connexion'); }
 
   if(state.activeSection){
     return `
@@ -1472,7 +1472,7 @@ function renderAdmin(){
 
 function renderBureau(){
   const u = state.currentUser;
-  if(!u) return renderAuth('connexion');
+  if(!u){ state.view='connexion'; return renderAuth('connexion'); }
   refreshCurrentUser();
   const key = state.activeSection || u.section;
   if(!key){ state.view='attente'; return renderAttente(); }
