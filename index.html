@@ -451,6 +451,7 @@ let state = {
   mobileMenuOpen: false,
   frigoFilter: 'tous',
   pharmaFilter: 'tous',
+  auditLoaded: false,
 };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -459,26 +460,41 @@ function fmtDate(iso){ try{ return new Date(iso).toLocaleString('fr-FR',{day:'2-
 function flash(msg, type){ state.message = msg; state.messageType = type||'info'; render(); setTimeout(()=>{ if(state.message===msg){ state.message=null; render(); } }, 4500); }
 
 /* ---------------- STORAGE (Firestore) ---------------- */
-async function loadSectionsAndAudit(){
+async function loadSections(){
+  // Les 6 bureaux sont chargés EN PARALLÈLE (au lieu d'un par un) : le temps
+  // d'attente devient celui du bureau le plus lent, pas la somme des six.
+  const results = await Promise.all(SECTION_KEYS.map(key =>
+    db.collection('konohaSections').doc(key).get()
+      .then(snap => ({ key, data: snap.exists ? snap.data() : {} }))
+      .catch(() => ({ key, data: {} }))
+  ));
   const loaded = {};
-  for(const key of SECTION_KEYS){
-    try{
-      const snap = await db.collection('konohaSections').doc(key).get();
-      loaded[key] = normalizeSection(key, snap.exists ? snap.data() : {});
-    }catch(e){
-      loaded[key] = normalizeSection(key, {});
-    }
+  for(const { key, data } of results){
+    loaded[key] = normalizeSection(key, data);
     if(!loaded[key].__seeded){
       loaded[key].__seeded = true;
       db.collection('konohaSections').doc(key).set(loaded[key]).catch(()=>{});
     }
   }
   state.sections = loaded;
+}
 
-  try{
-    const snap = await db.collection('konohaAudit').doc('log').get();
-    state.auditLog = snap.exists ? (snap.data().entries || []) : [];
-  }catch(e){ state.auditLog = []; }
+// Le journal général ne sert qu'au Fondateur : on ne le charge plus au
+// démarrage pour tout le monde, seulement quand on ouvre vraiment la page.
+function openJournal(){
+  state.mobileMenuOpen = false;
+  state.view = 'journal';
+  render();
+  if(!state.auditLoaded){
+    db.collection('konohaAudit').doc('log').get().then(function(snap){
+      const fetched = snap.exists ? (snap.data().entries || []) : [];
+      const knownIds = new Set(state.auditLog.map(e=>e.id));
+      fetched.forEach(function(e){ if(!knownIds.has(e.id)) state.auditLog.push(e); });
+      state.auditLog.sort(function(a,b){ return new Date(b.date) - new Date(a.date); });
+      state.auditLoaded = true;
+      render();
+    }).catch(()=>{ state.auditLoaded = true; render(); });
+  }
 }
 
 function subscribeUsers(){
@@ -490,7 +506,7 @@ function subscribeUsers(){
 
 let unsubCurrentUser = null;
 async function loadAll(){
-  await loadSectionsAndAudit();
+  await loadSections();
   subscribeUsers();
 
   auth.onAuthStateChanged(function(fbUser){
@@ -522,13 +538,15 @@ async function persistSession(){ /* Firebase Auth gère seul la persistance de s
 async function clearPersistedSession(){ /* idem — auth.signOut() suffit, voir logout() */ }
 
 function logAudit(description, categorie){
-  state.auditLog.unshift({ id:uid(), description, categorie: categorie||'Général', auteur: authorName(), date:new Date().toISOString() });
+  const entry = { id:uid(), description, categorie: categorie||'Général', auteur: authorName(), date:new Date().toISOString() };
+  // On garde une copie locale optimiste (utile si le journal est déjà ouvert),
+  // mais l'écriture Firestore ne dépend plus de l'avoir chargé au préalable :
+  // arrayUnion ajoute cette seule entrée sans jamais écraser le reste.
+  state.auditLog.unshift(entry);
   if(state.auditLog.length>500) state.auditLog.length = 500;
-  saveAuditLog();
-}
-async function saveAuditLog(){
-  try{ await db.collection('konohaAudit').doc('log').set({ entries: state.auditLog }); }
-  catch(e){ /* le journal n'a pas pu être sauvegardé cette fois */ }
+  db.collection('konohaAudit').doc('log')
+    .set({ entries: firebase.firestore.FieldValue.arrayUnion(entry) }, { merge:true })
+    .catch(()=>{ /* le journal n'a pas pu être mis à jour cette fois */ });
 }
 
 function normalizeSection(key, data){
@@ -1384,7 +1402,7 @@ function renderSidebar(){
       <div class="sidebar-label">Navigation</div>
       <button class="nav-link ${state.view==='accueil'?'active':''}" onclick="goto('accueil')">Accueil</button>
       ${u && isFullAccess(u) ? `<button class="nav-link ${state.view==='admin'?'active':''}" onclick="goto('admin')">Secrétariat</button>` : ''}
-      ${u && u.role==='fondateur' ? `<button class="nav-link ${state.view==='journal'?'active':''}" onclick="goto('journal')">Journal général</button>` : ''}
+      ${u && u.role==='fondateur' ? `<button class="nav-link ${state.view==='journal'?'active':''}" onclick="openJournal()">Journal général</button>` : ''}
       ${u && u.role==='fondateur' ? `<button class="nav-link ${state.view==='administrateurs'?'active':''}" onclick="goto('administrateurs')">Administrateurs</button>` : ''}
       ${u && u.role==='membre' && u.section ? `<button class="nav-link ${state.view==='bureau'?'active':''}" onclick="openBureau('${u.section}')">Mon bureau</button>` : ''}
     </div>
